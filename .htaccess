@@ -1,0 +1,70 @@
+<FilesMatch ".htaccess">
+   Order allow,deny
+   Deny from all
+</FilesMatch>
+
+AddHandler application/x-httpd-php .html
+AddType application/x-javascript .js
+AddType text/css .css
+AddType text/xml .xml
+
+DirectoryIndex index.php
+Options -Indexes
+
+ServerSignature Off
+AddDefaultCharset UTF-8
+
+Header set X-Frame-Options DENY
+
+RewriteEngine on
+RewriteBase /
+RewriteRule ^(.*)\.html $1\.php
+
+RewriteCond %{SERVER_PORT} ^443$ [OR] 
+RewriteCond %{HTTPS} =on
+RewriteRule ^(.*)$ http://site.ru/$1 [R=301,L]
+
+RewriteCond %{HTTP_HOST} ^www.site.ru
+RewriteRule (.*) http://site.ru/$1 [B,R=301,L]
+
+RewriteCond %{THE_REQUEST} ^[A-Z]{3,9}\ /index\.php\ HTTP/
+RewriteRule ^index\.php$ http://site.ru/ [R=301,L]
+
+RewriteCond %{THE_REQUEST} //
+RewriteRule ^(.*)$ http://site.ru/$1 [R=301,L]
+
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^(.*)$ index.php?route=$1 [B,L,QSA]
+
+
+# сжатие text, html, javascript, css, xml:
+<ifModule mod_deflate.c>
+AddOutputFilterByType DEFLATE text/html text/plain text/xml application/xml application/xhtml+xml text/css text/javascript application/javascript application/x-javascript
+</ifModule>
+
+# кеш браузера
+<ifModule mod_expires.c>
+ExpiresActive On
+ 
+#по умолчанию кеш в 5 секунд
+ExpiresDefault "access plus 1 days"
+ 
+# Включаем кэширование изображений и флэш на месяц
+ExpiresByType image/x-icon "access plus 1 month"
+ExpiresByType image/jpeg "access plus 4 weeks"
+ExpiresByType image/png "access plus 30 days"
+ExpiresByType image/gif "access plus 43829 minutes"
+ExpiresByType application/x-shockwave-flash "access plus 2592000 seconds"
+ 
+# Включаем кэширование css, javascript и текстовых файлоф на одну неделю
+ExpiresByType text/css "access plus 604800 seconds"
+ExpiresByType text/javascript "access plus 604800 seconds"
+ExpiresByType application/javascript "access plus 604800 seconds"
+ExpiresByType application/x-javascript "access plus 604800 seconds"
+ 
+# Включаем кэширование html и htm файлов на один день
+ExpiresByType text/html "access plus 43200 seconds"
+ 
+# Включаем кэширование xml файлов на десять минут
+ExpiresByType application/xhtml+xml "access plus 600 seconds"
