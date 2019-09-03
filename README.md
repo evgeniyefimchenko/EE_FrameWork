@@ -1,9 +1,9 @@
-## EE_FRAMEFORK - Лёгкий PHP MVC фреймворк.
+EE_FRAMEFORK - Лёгкий PHP MVC фреймворк.
 ***
 Предназначен для быстрого разворачивания и тонкой настройки.
 ---
 Каждая функция задокументированна в коде на русском языке.
-Все зависимости подключены через CDN (jQuery - latest, Bootstrap 4.1.3, Font-Awesome - latest) в layouts
+Все зависимости подключены через CDN (*jQuery - latest*, *Bootstrap 4.1.3*, *Font-Awesome - latest*) в layouts
 
 Используются следующие плагины:
 - **Mobile-Detect** https://github.com/serbanghita/Mobile-Detect
