@@ -8,6 +8,6 @@
 *	Модель главной страницы админ ппанели
 */
 
-Class Model_index {
+Class Model_index Extends Users{
     
 }
