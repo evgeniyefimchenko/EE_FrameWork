@@ -44,6 +44,7 @@
 <link href="https://unpkg.com/sanitize.css" rel="stylesheet" />
 <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" type="text/css">
 <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/latest/css/font-awesome.min.css" type="text/css"/>
+<link rel="canonical" href="<?=$canonical_href?>" />
 <!-- Добавленные стили из контроллера-->
 <?=$add_style?>
 <title><?=$title?></title>

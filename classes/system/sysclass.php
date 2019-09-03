@@ -550,8 +550,31 @@ Class SysClass {
 			}
 		}
 		return false;
-}
+	}
 
+	/**
+	* Проверка возможности соединения с БД
+	* @param str $host - хост базы данных
+	* @param str $user - пользователь MySql
+	* @param str $pass - пароль пользователя базы данных
+	* @param str $db_name - имя базы данных
+	* @return boolean
+	*/
+	public static function connect_db_exists($host = ENV_DB_HOST, $user = ENV_DB_USER, $pass = ENV_DB_PASS, $db_name = ENV_DB_NAME){
+		if ($host && $user && $pass && $db_name) {
+			try {
+				SafeMySQL::gi()->query('show tables like ?s', ENV_DB_PREF.'users');
+				return true;
+			} catch (Exception $ex) {
+				if (ENV_TEST) {				
+					echo $ex->getMessage();
+					return false;
+				}
+			}			
+		}
+		return false;
+	}
+	
 	/**
 	* Рекурсивный поиск изображений в подпапках
 	* Для использования необходимо удалить на выходе асолютный путь до каталога

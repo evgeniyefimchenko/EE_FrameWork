@@ -6,6 +6,6 @@ if (ENV_SITE !== 1) {
 /**
 * Модель главной страницы
 */
-Class Model_index {
+Class Model_index Extends Users{
 
 }

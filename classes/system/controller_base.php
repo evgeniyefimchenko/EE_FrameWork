@@ -47,7 +47,7 @@ Abstract Class Controller_Base {
     /**
      * Содержит начальные папраметры макета(layout) определённого в контроллере
      */
-    protected $parameters_layout = array('canonical_href'=>ENV_URL_SITE, 'layout' => 'index', 'image_twiter' => 'favicon.png', 'image_social' => 'favicon.png');
+    protected $parameters_layout = array('canonical_href' => ENV_URL_SITE, 'layout' => 'index', 'image_twiter' => 'favicon.png', 'image_social' => 'favicon.png');
 
     /**
      * Конструктор класса принимает экземпляр класса представления из /classes/system/route.php

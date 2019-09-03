@@ -27,9 +27,9 @@ Class Users {
 
     public function __construct($param) {
         $user_id = array_shift($param);
-        if ($user_id) {
+        //if ($user_id) {
             $this->data = $this->get_user_data($user_id);
-        }
+        //}
     }
 
     /**
@@ -40,44 +40,38 @@ Class Users {
      */
     public function get_user_data($id = 0) {
 		$res_array = [];
-		if (SafeMySQL::gi()->query('show tables like ?n', self::USERS_TABLE)) {
-			$sql_user = 'SELECT * FROM ?n WHERE `id` = ?i';
-			$res_array = SafeMySQL::gi()->getRow($sql_user, self::USERS_TABLE, (int) $id);
-			if ($res_array) {
-				$class_messages = new Class_messages();
-				$res_array['count_message'] = $class_messages->get_count_messages($id);
-				$res_array['messages'] = $class_messages->get_messages_user($id);
-				unset($class_messages);
-				$res_array['user_role_text'] = $this->get_text_role($res_array['user_role']);
-				$res_array['active_text'] = $this->get_text_active($res_array['active']);
-				$res_array['subscribed_text'] = $res_array['subscribed'] > 0 ? 'Подписан' : 'Не подписан';
-				$res_array['options'] = $this->get_user_options($id);
-			} else {                                                                // Первичное заполнение полей для нового пользователя при регистрации модератором
-				$res_array['new_user'] = 1;
-				$res_array['user_role'] = 4;
-				$res_array['active'] = 1;
-				$res_array['subscribed'] = 1;
-				$res_array['options'] = json_decode(self::BASE_OPTIONS_USER, true);
-				$res_array['user_role_text'] = $this->get_text_role($res_array['user_role']);
-				$res_array['active_text'] = $this->get_text_active($res_array['active']);
-				$res_array['subscribed_text'] = $res_array['subscribed'] > 0 ? 'Подписан' : 'Не подписан';
-			}
-		} else { // Нет таблицы users
-			if (ENV_DB_HOST && ENV_DB_USER && ENV_DB_PASS && ENV_DB_NAME) {
-				$db = new SafeMySQL('host' => ENV_DB_HOST, 'user' => ENV_DB_USER, 'pass' => ENV_DB_PASS, 'db' => ENV_DB_NAME);
-				if ($db) {
-					$this->create_tables(); //создаём необходимый набор таблиц в БД
-					if (ENV_LOG) {
-						SysClass::SetLog('База данных успешно развёрнута');
-						echo 'База данных успешно развёрнута!';
-					}					
-				} else {
-					if (ENV_LOG) {
-						SysClass::SetLog('Нет подключения к базе данных с параметрами: '.'host='.ENV_DB_HOST.'user='.ENV_DB_USER.'pass='.ENV_DB_PASS.'db='.ENV_DB_NAME, 'error');
-					}
-					die('Не удалось подключиться к базе данных с параметрами из inc/configuration.php');					
+		if (SysClass::connect_db_exists()) {
+			if (SafeMySQL::gi()->query('show tables like ?s', self::USERS_TABLE)->{"num_rows"}>0) {
+				$sql_user = 'SELECT * FROM ?n WHERE `id` = ?i';
+				$res_array = SafeMySQL::gi()->getRow($sql_user, self::USERS_TABLE, (int)$id);
+				if ($res_array) {
+					$class_messages = new Class_messages();
+					$res_array['count_message'] = $class_messages->get_count_messages($id);
+					$res_array['messages'] = $class_messages->get_messages_user($id);
+					unset($class_messages);
+					$res_array['user_role_text'] = $this->get_text_role($res_array['user_role']);
+					$res_array['active_text'] = $this->get_text_active($res_array['active']);
+					$res_array['subscribed_text'] = $res_array['subscribed'] > 0 ? 'Подписан' : 'Не подписан';
+					$res_array['options'] = $this->get_user_options($id);
+				} else {                                                                // Первичное заполнение полей для нового пользователя при регистрации модератором
+					$res_array['new_user'] = 1;
+					$res_array['user_role'] = 4;
+					$res_array['active'] = 1;
+					$res_array['subscribed'] = 1;
+					$res_array['options'] = json_decode(self::BASE_OPTIONS_USER, true);
+					$res_array['user_role_text'] = $this->get_text_role($res_array['user_role']);
+					$res_array['active_text'] = $this->get_text_active($res_array['active']);
+					$res_array['subscribed_text'] = 'Подписан';
 				}
-			}			
+			} else { // Нет таблицы users					
+				$this->create_tables(); //создаём необходимый набор таблиц в БД
+				if (ENV_LOG) {
+					SysClass::SetLog('База данных успешно развёрнута');
+				}					
+				if (ENV_TEST) {
+					echo 'База данных успешно развёрнута!';
+				}								
+			}
 		}
         return $res_array;
     }
@@ -454,7 +448,7 @@ Class Users {
 	* Создаёт необходимые таблицы в БД
 	* Если нет подключения то вернёт false
 	*/
-	private function create_tables($db) {
+	private function create_tables() {
 		/*Пользователи*/
 		$create_table = "CREATE TABLE ?n (
 					  `id` int(11) NOT NULL,
@@ -474,9 +468,9 @@ Class Users {
 					  `element_name` varchar(100) DEFAULT NULL COMMENT 'Имя сущности к которой привязан пользователь',
 					  `element_id` int(11) DEFAULT '0' COMMENT 'ID сущности к которой привязан пользователь'
 					) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Пользователи сайта';";
-		$db->query($create_table, USERS_TABLE);
+		SafeMySQL::gi()->query($create_table, self::USERS_TABLE);
 		$create_table = "ALTER TABLE ?n ADD PRIMARY KEY (`id`), ADD UNIQUE KEY `email` (`email`), MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;";
-		$db->query($create_table, USERS_TABLE);
+		SafeMySQL::gi()->query($create_table, self::USERS_TABLE);
 		/*Удалённые пользователи*/
 		$create_table = "CREATE TABLE ?n (
 					  `id` int(11) NOT NULL,
@@ -494,21 +488,21 @@ Class Users {
 					  `comment` varchar(255) NOT NULL COMMENT 'Комментарий или дивиз пользователя',
 					  `date_dell` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Время удаления'
 					) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Пользователи сайта';";
-		$db->query($create_table, DELL_USERS_TABLE);
+		SafeMySQL::gi()->query($create_table, self::DELL_USERS_TABLE);
 		$create_table = "ALTER TABLE ?n ADD PRIMARY KEY (`id`), ADD UNIQUE KEY `email` (`email`), MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;";
-		$db->query($create_table, DELL_USERS_TABLE);
+		SafeMySQL::gi()->query($create_table, self::DELL_USERS_TABLE);
 		/*Роли пользователей*/
 		$create_table = "CREATE TABLE ?n (`id` tinyint(2) NOT NULL, `name` varchar(255) NOT NULL) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='1-админ 2-модератор 3-пользователь 8-система';";
-		$db->query($create_table, USERS_ROLES);
+		SafeMySQL::gi()->query($create_table, self::USERS_ROLES);
 		$create_table = "ALTER TABLE ?n ADD PRIMARY KEY (`id`), MODIFY `id` tinyint(2) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;";
-		$db->query($create_table, USERS_ROLES);
+		SafeMySQL::gi()->query($create_table, self::USERS_ROLES);
 		$create_table = "INSERT INTO ?n (`id`, `name`) VALUES
 						(1, 'Администратор'),
 						(2, 'Модератор'),
 						(3, 'Менеджер'),
 						(8, 'Система'),
 						(4, 'Пользователь');";
-		$db->query($create_table, USERS_ROLES);
+		SafeMySQL::gi()->query($create_table, self::USERS_ROLES);
 		/*Данные пользователя*/
 		$create_table = "CREATE TABLE ?n (
 					  `id` int(11) NOT NULL,
@@ -516,9 +510,9 @@ Class Users {
 					  `up_date` datetime NOT NULL COMMENT 'Время любого изменения данных',
 					  `options` varchar(3000) NOT NULL COMMENT 'Настройки интерфейса пользователя'
 					) ENGINE=MyISAM DEFAULT CHARSET=utf8;";
-		$db->query($create_table, USERS_DATA_TABLE);
+		SafeMySQL::gi()->query($create_table, self::USERS_DATA_TABLE);
 		$create_table = "ALTER TABLE ?n ADD PRIMARY KEY (`id`), MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;";
-		$db->query($create_table, USERS_DATA_TABLE);
+		SafeMySQL::gi()->query($create_table, self::USERS_DATA_TABLE);
 		/*Сообщения пользователя*/
 		$create_table = "CREATE TABLE ?n (
 					  `id` int(11) NOT NULL,
@@ -529,9 +523,10 @@ Class Users {
 					  `date_read` datetime DEFAULT NULL,
 					  `status` varchar(10) NOT NULL DEFAULT 'info'
 					) ENGINE=MyISAM DEFAULT CHARSET=utf8;";
-		$db->query($create_table, USERS_MESSAGE_TABLE);
+		SafeMySQL::gi()->query($create_table, self::USERS_MESSAGE_TABLE);
 		$create_table = "ALTER TABLE ?n ADD PRIMARY KEY (`id`), MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;";
-		$db->query($create_table, USERS_MESSAGE_TABLE);
+		SafeMySQL::gi()->query($create_table, self::USERS_MESSAGE_TABLE);
+		
 		/*Таблица ссылок для активации новых пользователей*/
 		$create_table = "CREATE TABLE ?n (
 					  `id` int(11) NOT NULL,
@@ -541,15 +536,18 @@ Class Users {
 					  `reg_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
 					  `stop_time` datetime NOT NULL
 					) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Коды активации для зарегистрировавшихся пользователей';";
-		$db->query($create_table, USERS_ACTIVATION_TABLE);
+		SafeMySQL::gi()->query($create_table, self::USERS_ACTIVATION_TABLE);
 		$create_table = "ALTER TABLE ?n ADD PRIMARY KEY (`id`), MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;";
-		$db->query($create_table, USERS_ACTIVATION_TABLE);
+		SafeMySQL::gi()->query($create_table, self::USERS_ACTIVATION_TABLE);
+		
 		/*Таблица логов*/
-		$create_table = "CREATE TABLE " . ENV_DB_PREF . "`logs` ( `id` int(11) NOT NULL, `who` int(11) NOT NULL, `changes` varchar(1000) NOT NULL, `flag` set('info','success','error','') NOT NULL DEFAULT 'info', `date` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP) ENGINE=MyISAM DEFAULT CHARSET=utf8;";
-		$db->query($create_table);
-		$create_table = "ALTER TABLE " . ENV_DB_PREF . "`logs` ADD PRIMARY KEY (`id`), MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;";
+		$create_table = "CREATE TABLE ?n ( `id` int(11) NOT NULL, `who` int(11) NOT NULL, `changes` varchar(1000) NOT NULL, `flag` set('info','success','error','') NOT NULL DEFAULT 'info', `date` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP) ENGINE=MyISAM DEFAULT CHARSET=utf8;";
+		SafeMySQL::gi()->query($create_table, ENV_DB_PREF . 'logs');
+		$create_table = "ALTER TABLE ?n ADD PRIMARY KEY (`id`), MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;";
+		SafeMySQL::gi()->query($create_table, ENV_DB_PREF . 'logs');
+		
 		/*Таблица геолокации*/
-		$create_table = "CREATE TABLE " . ENV_DB_PREF . "`geo_ru` (
+		$create_table = "CREATE TABLE ?n (
 					  `id` int(11) NOT NULL,
 					  `zip_code` mediumint(9) DEFAULT NULL COMMENT 'Почтовый индекс',
 					  `city_name` varchar(100) DEFAULT NULL,
@@ -559,14 +557,14 @@ Class Users {
 					  `longnitude` varchar(50) DEFAULT NULL COMMENT 'Долгота',
 					  `country` varchar(3) NOT NULL
 					) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Данные взяты с сайта download.geonames.org/export/zip';";
-		$db->query($create_table);
-		$create_table = "ALTER TABLE " . ENV_DB_PREF . "`geo_ru` ADD PRIMARY KEY (`id`), MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;";
-		$db->query($create_table);
+		SafeMySQL::gi()->query($create_table, ENV_DB_PREF . 'geo_ru');
+		$create_table = "ALTER TABLE ?n ADD PRIMARY KEY (`id`), MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;";
+		SafeMySQL::gi()->query($create_table, ENV_DB_PREF . 'geo_ru');
 		/* Экспорт данных в таблицу geo_ru из /uploads/geo_ru.php с последующим удалением файла */
 		include 'uploads/geo_ru.php';
 		foreach($geo_ru as $row_array) {
 			$sql = "INSERT INTO ?n SET ?u";
-			$db->query($sql, ENV_DB_PREF . 'geo_ru', $row_array);				
+			SafeMySQL::gi()->query($sql, ENV_DB_PREF . 'geo_ru', $row_array);				
 		}
 		unlink(ENV_SITE_PATH.'uploads'.ENV_DIRSEP.'geo_ru.php');
 	}
