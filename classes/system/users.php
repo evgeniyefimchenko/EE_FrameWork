@@ -62,10 +62,26 @@ Class Users {
 				$res_array['active_text'] = $this->get_text_active($res_array['active']);
 				$res_array['subscribed_text'] = $res_array['subscribed'] > 0 ? 'Подписан' : 'Не подписан';
 			}
+		} else { // Нет таблицы users
+			if (ENV_DB_HOST && ENV_DB_USER && ENV_DB_PASS && ENV_DB_NAME) {
+				$db = new SafeMySQL('host' => ENV_DB_HOST, 'user' => ENV_DB_USER, 'pass' => ENV_DB_PASS, 'db' => ENV_DB_NAME);
+				if ($db) {
+					$this->create_tables(); //создаём необходимый набор таблиц в БД
+					if (ENV_LOG) {
+						SysClass::SetLog('База данных успешно развёрнута');
+						echo 'База данных успешно развёрнута!';
+					}					
+				} else {
+					if (ENV_LOG) {
+						SysClass::SetLog('Нет подключения к базе данных с параметрами: '.'host='.ENV_DB_HOST.'user='.ENV_DB_USER.'pass='.ENV_DB_PASS.'db='.ENV_DB_NAME, 'error');
+					}
+					die('Не удалось подключиться к базе данных с параметрами из inc/configuration.php');					
+				}
+			}			
 		}
         return $res_array;
     }
-
+	
     /**
      * Записывает новые данные пользователя
      * @param id - id пользователя
@@ -434,4 +450,124 @@ Class Users {
         }
     }
 
-}
+	/**
+	* Создаёт необходимые таблицы в БД
+	* Если нет подключения то вернёт false
+	*/
+	private function create_tables($db) {
+		/*Пользователи*/
+		$create_table = "CREATE TABLE ?n (
+					  `id` int(11) NOT NULL,
+					  `name` char(255) NOT NULL DEFAULT 'Укажите имя',
+					  `email` char(255) NOT NULL,
+					  `pwd` varchar(255) NOT NULL,
+					  `active` tinyint(1) NOT NULL DEFAULT '1' COMMENT '1 - на подтверждении, 2 - активен,  3 - блокирован',
+					  `user_role` tinyint(2) NOT NULL DEFAULT '4' COMMENT 'таблица user_roles',
+					  `last_ip` char(20) DEFAULT NULL,
+					  `subscribed` tinyint(1) DEFAULT '1',
+					  `reg_date` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+					  `last_activ` datetime DEFAULT NULL,
+					  `up_date` datetime NOT NULL,
+					  `phone` varchar(255) NOT NULL,
+					  `session` varchar(255) NOT NULL,
+					  `comment` varchar(255) NOT NULL COMMENT 'Комментарий или дивиз пользователя',
+					  `element_name` varchar(100) DEFAULT NULL COMMENT 'Имя сущности к которой привязан пользователь',
+					  `element_id` int(11) DEFAULT '0' COMMENT 'ID сущности к которой привязан пользователь'
+					) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Пользователи сайта';";
+		$db->query($create_table, USERS_TABLE);
+		$create_table = "ALTER TABLE ?n ADD PRIMARY KEY (`id`), ADD UNIQUE KEY `email` (`email`), MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;";
+		$db->query($create_table, USERS_TABLE);
+		/*Удалённые пользователи*/
+		$create_table = "CREATE TABLE ?n (
+					  `id` int(11) NOT NULL,
+					  `name` char(255) NOT NULL DEFAULT 'Укажите имя',
+					  `email` char(255) NOT NULL,
+					  `pwd` varchar(255) NOT NULL,
+					  `active` tinyint(1) NOT NULL DEFAULT '1' COMMENT '1 - на подтверждении, 2 - активен,  3 - блокирован',
+					  `user_role` tinyint(2) NOT NULL DEFAULT '3' COMMENT 'таблица user_roles',
+					  `last_ip` char(20) DEFAULT NULL,
+					  `subscribed` tinyint(1) DEFAULT '1',
+					  `reg_date` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+					  `last_activ` datetime DEFAULT NULL,
+					  `phone` varchar(255) NOT NULL,
+					  `session` varchar(255) NOT NULL,
+					  `comment` varchar(255) NOT NULL COMMENT 'Комментарий или дивиз пользователя',
+					  `date_dell` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Время удаления'
+					) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Пользователи сайта';";
+		$db->query($create_table, DELL_USERS_TABLE);
+		$create_table = "ALTER TABLE ?n ADD PRIMARY KEY (`id`), ADD UNIQUE KEY `email` (`email`), MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;";
+		$db->query($create_table, DELL_USERS_TABLE);
+		/*Роли пользователей*/
+		$create_table = "CREATE TABLE ?n (`id` tinyint(2) NOT NULL, `name` varchar(255) NOT NULL) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='1-админ 2-модератор 3-пользователь 8-система';";
+		$db->query($create_table, USERS_ROLES);
+		$create_table = "ALTER TABLE ?n ADD PRIMARY KEY (`id`), MODIFY `id` tinyint(2) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;";
+		$db->query($create_table, USERS_ROLES);
+		$create_table = "INSERT INTO ?n (`id`, `name`) VALUES
+						(1, 'Администратор'),
+						(2, 'Модератор'),
+						(3, 'Менеджер'),
+						(8, 'Система'),
+						(4, 'Пользователь');";
+		$db->query($create_table, USERS_ROLES);
+		/*Данные пользователя*/
+		$create_table = "CREATE TABLE ?n (
+					  `id` int(11) NOT NULL,
+					  `user_id` int(11) NOT NULL,
+					  `up_date` datetime NOT NULL COMMENT 'Время любого изменения данных',
+					  `options` varchar(3000) NOT NULL COMMENT 'Настройки интерфейса пользователя'
+					) ENGINE=MyISAM DEFAULT CHARSET=utf8;";
+		$db->query($create_table, USERS_DATA_TABLE);
+		$create_table = "ALTER TABLE ?n ADD PRIMARY KEY (`id`), MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;";
+		$db->query($create_table, USERS_DATA_TABLE);
+		/*Сообщения пользователя*/
+		$create_table = "CREATE TABLE ?n (
+					  `id` int(11) NOT NULL,
+					  `user_id` int(11) NOT NULL,
+					  `autor_id` int(11) NOT NULL,
+					  `message_text` varchar(1000) NOT NULL,
+					  `date_create` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+					  `date_read` datetime DEFAULT NULL,
+					  `status` varchar(10) NOT NULL DEFAULT 'info'
+					) ENGINE=MyISAM DEFAULT CHARSET=utf8;";
+		$db->query($create_table, USERS_MESSAGE_TABLE);
+		$create_table = "ALTER TABLE ?n ADD PRIMARY KEY (`id`), MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;";
+		$db->query($create_table, USERS_MESSAGE_TABLE);
+		/*Таблица ссылок для активации новых пользователей*/
+		$create_table = "CREATE TABLE ?n (
+					  `id` int(11) NOT NULL,
+					  `user_id` int(11) NOT NULL,
+					  `email` varchar(255) NOT NULL,
+					  `code` varchar(255) NOT NULL,
+					  `reg_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+					  `stop_time` datetime NOT NULL
+					) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Коды активации для зарегистрировавшихся пользователей';";
+		$db->query($create_table, USERS_ACTIVATION_TABLE);
+		$create_table = "ALTER TABLE ?n ADD PRIMARY KEY (`id`), MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;";
+		$db->query($create_table, USERS_ACTIVATION_TABLE);
+		/*Таблица логов*/
+		$create_table = "CREATE TABLE " . ENV_DB_PREF . "`logs` ( `id` int(11) NOT NULL, `who` int(11) NOT NULL, `changes` varchar(1000) NOT NULL, `flag` set('info','success','error','') NOT NULL DEFAULT 'info', `date` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP) ENGINE=MyISAM DEFAULT CHARSET=utf8;";
+		$db->query($create_table);
+		$create_table = "ALTER TABLE " . ENV_DB_PREF . "`logs` ADD PRIMARY KEY (`id`), MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;";
+		/*Таблица геолокации*/
+		$create_table = "CREATE TABLE " . ENV_DB_PREF . "`geo_ru` (
+					  `id` int(11) NOT NULL,
+					  `zip_code` mediumint(9) DEFAULT NULL COMMENT 'Почтовый индекс',
+					  `city_name` varchar(100) DEFAULT NULL,
+					  `region` varchar(100) DEFAULT NULL COMMENT 'Регион',
+					  `area` varchar(100) DEFAULT NULL COMMENT 'Район',
+					  `latitude` varchar(50) DEFAULT NULL COMMENT 'Широта',
+					  `longnitude` varchar(50) DEFAULT NULL COMMENT 'Долгота',
+					  `country` varchar(3) NOT NULL
+					) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Данные взяты с сайта download.geonames.org/export/zip';";
+		$db->query($create_table);
+		$create_table = "ALTER TABLE " . ENV_DB_PREF . "`geo_ru` ADD PRIMARY KEY (`id`), MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;";
+		$db->query($create_table);
+		/* Экспорт данных в таблицу geo_ru из /uploads/geo_ru.php с последующим удалением файла */
+		include 'uploads/geo_ru.php';
+		foreach($geo_ru as $row_array) {
+			$sql = "INSERT INTO ?n SET ?u";
+			$db->query($sql, ENV_DB_PREF . 'geo_ru', $row_array);				
+		}
+		unlink(ENV_SITE_PATH.'uploads'.ENV_DIRSEP.'geo_ru.php');
+	}
+}	

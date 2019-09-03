@@ -20,7 +20,7 @@ if (ENV_SITE_INDEX !== 'ALL') {
 	$text = 'User-agent:* \n Disallow: /';	
 	file_put_contents($filename, $text, LOCK_EX);
 } else {
-	// Для снятия лишней нагрузки файл robots.txt, при включении индексации, редактируется в ручную (User-agent:*)
+	// Для снятия лишней нагрузки файл robots.txt, при включении индексации, редактируется вручную (User-agent:*)
 }
 
 spl_autoload_register(function($class_name) {

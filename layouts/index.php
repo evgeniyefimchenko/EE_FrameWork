@@ -40,6 +40,8 @@
 <link rel="apple-touch-icon" sizes="76x76" href="favicon.png">
 <link rel="icon" type="image/png" href="favicon.ico">
 <!-- Стандартные стили-->
+<link href="https://unpkg.com/@csstools/normalize.css" rel="stylesheet" />
+<link href="https://unpkg.com/sanitize.css" rel="stylesheet" />
 <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" type="text/css">
 <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/latest/css/font-awesome.min.css" type="text/css"/>
 <link rel="canonical" href="<?=$canonical_href?>" />

@@ -1,5 +1,4 @@
 <?php
-
 if (ENV_SITE !== 1) {
     header("HTTP/1.1 301 Moved Permanently");
     header("Location: http://" . $_SERVER['HTTP_HOST']);
@@ -16,11 +15,15 @@ Class Controller_index  Extends Controller_Base{
 	*/
     public function index() {
             if ($this->logged) {
-				/*user login*/
+				/*user logined*/
 			} else {
 				/* model */
 				$this->load_model('m_index', array($this->logged));
 				/* search user data */
+				$user_data = $this->models['m_index']->data;
+				foreach ($user_data as $name => $val) {
+					$this->view->set($name, $val);
+				}
 				/* view */            
 				$this->html = $this->view->read('v_index');
 				/* layouts */
