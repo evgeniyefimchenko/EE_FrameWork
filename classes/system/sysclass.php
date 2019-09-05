@@ -26,9 +26,32 @@ Class SysClass {
 		"сейчас", "точно", "обычно", "не", "под");
 	
 	/**
-	* Массив поисковых роботов
+	* Массив поисковых роботов(приблизительные данные)
 	*/
-	const ARRAY_ROBORS = array();
+	const ARRAY_ROBORS = [
+			'YandexBot', 'YandexAccessibilityBot', 'YandexMobileBot', 'YandexDirectDyn', 'YandexScreenshotBot',
+			'YandexImages', 'YandexVideo', 'YandexVideoParser', 'YandexMedia', 'YandexBlogs', 'YandexFavicons',
+			'YandexWebmaster', 'YandexPagechecker', 'YandexImageResizer', 'YandexAdNet', 'YandexDirect',
+			'YaDirectFetcher', 'YandexCalendar', 'YandexSitelinks', 'YandexMetrika', 'YandexNews',
+			'YandexNewslinks', 'YandexCatalog', 'YandexAntivirus', 'YandexMarket', 'YandexVertis',
+			'YandexForDomain', 'YandexSpravBot', 'YandexSearchShop', 'YandexMedianaBot', 'YandexOntoDB',
+			'YandexOntoDBAPI', 'YandexTurbo', 'YandexVerticals', 'yandexSomething','Copyscape.com','domaintools.com',
+			'Googlebot', 'Googlebot-Image', 'Mediapartners-Google', 'AdsBot-Google', 'APIs-Google',
+			'AdsBot-Google-Mobile', 'AdsBot-Google-Mobile', 'Googlebot-News', 'Googlebot-Video', 'AdsBot-Google-Mobile-Apps',			
+			'Mail.RU_Bot', 'bingbot', 'Accoona', 'ia_archiver', 'Ask Jeeves', 'OmniExplorer_Bot', 'W3C_Validator', 'SemrushBot',
+			'WebAlta', 'YahooFeedSeeker', 'Yahoo!', 'Ezooms', 'Tourlentabot', 'MJ12bot', 'AhrefsBot',
+			'SearchBot', 'SiteStatus', 'Nigma.ru', 'Baiduspider', 'Statsbot', 'SISTRIX', 'AcoonBot', 'findlinks',
+			'proximic', 'OpenindexSpider', 'statdom.ru', 'Exabot', 'Spider', 'SeznamBot', 'oBot', 'C-T bot',
+			'Updownerbot', 'Snoopy', 'heritrix', 'Yeti', 'DomainVader', 'DCPbot', 'PaperLiBot', 'StackRambler',
+			'msnbot-media', 'msnbot-news', 'openstat.ru',    'rambler','googlebot','aport','yahoo','msnbot','turtle','mail.ru','omsktele',
+			'yetibot','picsearch','sape.bot','sape_context','gigabot','snapbot','alexa.com', 'DotBot', 'Cliqzbot', 'CCBot', 'BLEXBot', 
+			'megadownload.net','askpeter.info','igde.ru','ask.com','qwartabot','yanga.co.uk',
+			'scoutjet','similarpages','oozbot','shrinktheweb.com','aboutusbot','followsite.com', 'facebookexternalhit',
+			'dataparksearch','google-sitemaps','appEngine-google','feedfetcher-google',
+			'liveinternet.ru','xml-sitemaps.com','agama','metadatalabs.com','h1.hrn.ru', 
+			'googlealert.com','seo-rus.com','yaDirectBot','yandeG','yandex', 'archive.org_bot', 'Wotbox',			
+			'Nigma.ru','bing.com','dotnetdotcom', 'OdklBot', 'vkShare', 'LiveInternet', 'GrapeshotCrawler', 'Twitterbot', 'BegunAdvertising'
+		];
 	
     /**
      * Логирование в БД(если включено в ENV_LOG)
