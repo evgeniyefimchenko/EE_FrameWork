@@ -29,7 +29,7 @@
 	- users(пользователи сайта: Пустая)
 ## Внимание
 
-Файл robots.txt и мета тэг <meta name="robots" /> имеют значение "User-agent: * Disallow: /" и "noindex, nofollow"
+Файл `robots.txt` и мета тэг `<meta name="robots" />` имеют значение "User-agent: * Disallow: /" и "noindex, nofollow"
 
 Значение настраивается опционально в файле `inc/configuration.php` переменная $C['ENV_SITE_INDEX']
 
