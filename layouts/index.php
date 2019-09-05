@@ -50,6 +50,13 @@
         <title><?=$title?></title>
     </head>
     <body>
+	    <!-- Анимация предзагрузки-->
+        <div id="preloader">
+			<div class="clock">
+				<div class="arrow_sec"></div>
+				<div class="arrow_min"></div>
+			</div>
+		</div>
         <!-- Основной контент страниц-->
         <?=$layout_content?>
     </body>

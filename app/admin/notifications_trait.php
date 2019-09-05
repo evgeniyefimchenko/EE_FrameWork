@@ -1,0 +1,28 @@
+<?php
+if (ENV_SITE !== 1) {
+    header("HTTP/1.1 301 Moved Permanently");
+    header("Location: http://" . $_SERVER['HTTP_HOST']);
+    exit();
+}
+
+/**
+ * функции работы с оповещениями
+ */
+
+trait notifications_trait {
+  
+	/**
+	* AJAX Функция сохранения показа уведомления пользователю
+	*/
+    public function set_notification_time($param = array()){
+        $this->access = array(100);
+        if (!SysClass::get_access_user($this->logged, $this->access) || array_filter($param)) {
+            SysClass::return_to_main(401);
+            exit();
+        }
+        $class_notifications = new Class_notifications();
+        $post_data = filter_input_array(INPUT_POST, $_POST);
+        $class_notifications->set_reading_time($this->logged, $post_data['showtime'], $post_data['id']);
+    }
+
+}

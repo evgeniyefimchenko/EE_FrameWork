@@ -50,6 +50,18 @@
         <title><?=$title?></title>
     </head>
     <body>
+		<!-- Анимация предзагрузки-->
+		<div id="preloader">
+			<div class="blobs">
+				<div class="blob-center"></div>
+				<div class="blob"></div>
+				<div class="blob"></div>
+				<div class="blob"></div>
+				<div class="blob"></div>
+				<div class="blob"></div>
+				<div class="blob"></div>
+			</div>
+		</div>	
         <!-- Основной контент страниц-->
         <?=$layout_content?>
     </body>
@@ -57,6 +69,9 @@
     <script src='http://code.jquery.com/jquery-latest.min.js'></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.bundle.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js"></script>
+    <script src="<?= ENV_URL_SITE . '/' . ENV_APP_DIRECTORY ?>/admin/js/bootstrap-notify.js" type="text/javascript" ></script>
+    <script src="<?= ENV_URL_SITE . '/' . ENV_APP_DIRECTORY ?>/admin/js/bootstrap-switch.js" type="text/javascript" ></script>
+    <script src="<?= ENV_URL_SITE . '/' . ENV_APP_DIRECTORY ?>/admin/js/main.js" type="text/javascript" ></script>    
     <!-- Добавленные скрипты из контроллера -->
     <?=$add_script?>
 </html>
