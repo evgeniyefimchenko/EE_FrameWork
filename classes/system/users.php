@@ -59,8 +59,9 @@ Class Users {
                 }
             } else { // Нет таблицы users					
                 $this->create_tables(); //создаём необходимый набор таблиц в БД
+				$this->registration_new_user(array('admin', 'test@test.com', '2', '1', '1', 'Смените пароль администратора', 'admin')); // Создаём первого пользователя с ролью администратора
                 if (ENV_LOG) {
-                    SysClass::SetLog('База данных успешно развёрнута');
+                    SysClass::SetLog('База данных успешно развёрнута, пользователь admin создан');
                 }
                 if (ENV_TEST) {
                     echo 'База данных успешно развёрнута!';
@@ -451,16 +452,14 @@ Class Users {
 					  `active` tinyint(1) NOT NULL DEFAULT '1' COMMENT '1 - на подтверждении, 2 - активен,  3 - блокирован',
 					  `user_role` tinyint(2) NOT NULL DEFAULT '4' COMMENT 'таблица user_roles',
 					  `last_ip` char(20) DEFAULT NULL,
-					  `subscribed` tinyint(1) DEFAULT '1',
-					  `reg_date` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-					  `last_activ` datetime DEFAULT NULL,
-					  `up_date` datetime NOT NULL,
+					  `subscribed` tinyint(1) DEFAULT '1' COMMENT 'подписка на рассылку',
+					  `reg_date` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'дата регистрации',
+					  `last_activ` datetime DEFAULT NULL COMMENT 'дата крайней активности',
+					  `up_date` datetime NOT NULL COMMENT 'дата обновления инф.',
 					  `phone` varchar(255) NOT NULL,
 					  `session` varchar(255) NOT NULL,
-					  `comment` varchar(255) NOT NULL COMMENT 'Комментарий или дивиз пользователя',
-					  `element_name` varchar(100) DEFAULT NULL COMMENT 'Имя сущности к которой привязан пользователь',
-					  `element_id` int(11) DEFAULT '0' COMMENT 'ID сущности к которой привязан пользователь'
-					) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Пользователи сайта';";
+					  `comment` varchar(255) NOT NULL COMMENT 'Комментарий или дивиз пользователя'
+					) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Пользователи сайта';";
         SafeMySQL::gi()->query($create_table, self::USERS_TABLE);
         $create_table = "ALTER TABLE ?n ADD PRIMARY KEY (`id`), ADD UNIQUE KEY `email` (`email`), MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;";
         SafeMySQL::gi()->query($create_table, self::USERS_TABLE);
