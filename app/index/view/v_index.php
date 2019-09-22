@@ -5,7 +5,10 @@
 } ?>
 
 <div class="container">
-	<div class="row">
-		Вас приветствует EE_FRAMEFORK v<?=ENV_VERSION_CORE?>
+	<div class="row mt-4">
+		<div class="col-6 text-center">Вас приветствует EE_FRAMEFORK v<?=ENV_VERSION_CORE?></div>
+		<div class="col-6">
+			<button autofocus="autofocus" class="btn btn-success" type="button" onclick="document.location.href = '/show_login_form'">Авторизация</button>
+		</div>
 	</div>
 </div>

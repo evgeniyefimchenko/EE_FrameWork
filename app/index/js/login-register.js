@@ -1,3 +1,21 @@
+/*Расширение для получения параметров GET*/
+$.extend({
+  getUrlVars: function(){
+    var vars = [], hash;
+    var hashes = window.location.href.slice(window.location.href.indexOf('?') + 1).split('&');
+    for(var i = 0; i < hashes.length; i++)
+    {
+      hash = hashes[i].split('=');
+      vars.push(hash[0]);
+      vars[hash[0]] = hash[1];
+    }
+    return vars;
+  },
+  getUrlVar: function(name){
+    return $.getUrlVars()[name];
+  }
+});
+
 function showRegisterForm() {
     $('.loginBox').fadeOut('fast', function () {
         $('.registerBox').fadeIn('fast');
@@ -51,8 +69,18 @@ $(document).ready(function () {
     $('#registration_button').click(function () {
         openRegisterModal();
     });
+	
     $('#login_button').click(function () {
         openLoginModal();
+    });
+
+    $('#close_button').click(function () {
+        var url_return = $.getUrlVar('return');
+		if (url_return) {
+			document.location.href = "/" + url_return;
+		} else {
+			document.location.href = "/";
+		}
     });
 
     /*Отправка формы входа на сайт*/

@@ -12,7 +12,7 @@ if (ENV_SITE !== 1) {
         <div class="modal-content">
             <div class="modal-header">                     
                 <h4 class="modal-title text-center col-sm"></h4>
-                <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+                <button type="button" class="close" data-dismiss="modal" aria-hidden="true" id="close_button">&times;</button>
             </div>
             <div class="modal-body">  
                 <div class="box-login">
