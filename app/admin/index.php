@@ -22,16 +22,16 @@ use messages_trait,
     /**
      * Главная страница админ панели
      */
-    public function index() {
-        /* Массив с перечнем ролей пользователей которым разрешён доступ к странице
+    public function index($param = []) {		
+        /*Массив с перечнем ролей пользователей которым разрешён доступ к странице
          * 100 - все зарегистрированные пользователи
          */
         $this->access = array(100);
-        if (!SysClass::get_access_user($this->logged, $this->access)) {
-            SysClass::return_to_main(200, '/show_login_form?show=now');
-        }
+        if (!SysClass::get_access_user($this->logged_in, $this->access)) {			
+            SysClass::return_to_main(200, '/show_login_form?return=admin');
+        }        
         /* model */
-        $this->load_model('m_index', array($this->logged));
+        $this->load_model('m_index', array($this->logged_in));
         /* search user data */
         $user_data = $this->models['m_index']->data;
         foreach ($user_data as $name => $val) {

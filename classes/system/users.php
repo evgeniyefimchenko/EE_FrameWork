@@ -47,7 +47,7 @@ Class Users {
                     $res_array['active_text'] = $this->get_text_active($res_array['active']);
                     $res_array['subscribed_text'] = $res_array['subscribed'] > 0 ? 'Подписан' : 'Не подписан';
                     $res_array['options'] = $this->get_user_options($id);
-                } else {                                                                // Первичное заполнение полей для нового пользователя при регистрации модератором
+                } else { // Первичное заполнение полей для незарегистрированного пользователя
                     $res_array['new_user'] = 1;
                     $res_array['user_role'] = 4;
                     $res_array['active'] = 1;
@@ -58,10 +58,10 @@ Class Users {
                     $res_array['subscribed_text'] = 'Подписан';
                 }
             } else { // Нет таблицы users					
-                $this->create_tables(); //создаём необходимый набор таблиц в БД
-				$this->registration_new_user(array('admin', 'test@test.com', '2', '1', '1', 'Смените пароль администратора', 'admin')); // Создаём первого пользователя с ролью администратора
+                $this->create_tables(); //создаём необходимый набор таблиц в БД и первого пользователя с ролью администратора
+				$this->registration_new_user(array('name' => 'admin', 'email' => 'test@test.com', 'active' => '2', 'user_role' => '1', 'subscribed' => '1', 'comment' => 'Смените пароль администратора', 'pwd' => 'admin'));
                 if (ENV_LOG) {
-                    SysClass::SetLog('База данных успешно развёрнута, пользователь admin создан');
+                    SysClass::SetLog('База данных успешно развёрнута');
                 }
                 if (ENV_TEST) {
                     echo 'База данных успешно развёрнута!';
@@ -178,7 +178,7 @@ Class Users {
      * @email - почта
      * @psw - нешифрованный пароль
      * @force_login - флаг авторизации без проверки аргументов, используется для автологина
-     * @return boolean
+     * @return string 
      */
     public function confirm_user($email, $psw, $force_login = false) {
         $res = '';
@@ -539,25 +539,27 @@ Class Users {
         SafeMySQL::gi()->query($create_table, ENV_DB_PREF . 'logs');
 
         /* Таблица геолокации */
-        $create_table = "CREATE TABLE ?n (
-					  `id` int(11) NOT NULL,
-					  `zip_code` mediumint(9) DEFAULT NULL COMMENT 'Почтовый индекс',
-					  `city_name` varchar(100) DEFAULT NULL,
-					  `region` varchar(100) DEFAULT NULL COMMENT 'Регион',
-					  `area` varchar(100) DEFAULT NULL COMMENT 'Район',
-					  `latitude` varchar(50) DEFAULT NULL COMMENT 'Широта',
-					  `longnitude` varchar(50) DEFAULT NULL COMMENT 'Долгота',
-					  `country` varchar(3) NOT NULL
-					) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Данные взяты с сайта download.geonames.org/export/zip';";
-        SafeMySQL::gi()->query($create_table, ENV_DB_PREF . 'geo_ru');
-        $create_table = "ALTER TABLE ?n ADD PRIMARY KEY (`id`), MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;";
-        SafeMySQL::gi()->query($create_table, ENV_DB_PREF . 'geo_ru');
-        /* Экспорт данных в таблицу geo_ru из /uploads/geo_ru.php с последующим удалением файла */
-        include 'uploads/geo_ru.php';
-        foreach ($geo_ru as $row_array) {
-            $sql = "INSERT INTO ?n SET ?u";
-            SafeMySQL::gi()->query($sql, ENV_DB_PREF . 'geo_ru', $row_array);
-        }
+		if (ENV_GEO_RU) {
+			$create_table = "CREATE TABLE ?n (
+						  `id` int(11) NOT NULL,
+						  `zip_code` mediumint(9) DEFAULT NULL COMMENT 'Почтовый индекс',
+						  `city_name` varchar(100) DEFAULT NULL,
+						  `region` varchar(100) DEFAULT NULL COMMENT 'Регион',
+						  `area` varchar(100) DEFAULT NULL COMMENT 'Район',
+						  `latitude` varchar(50) DEFAULT NULL COMMENT 'Широта',
+						  `longnitude` varchar(50) DEFAULT NULL COMMENT 'Долгота',
+						  `country` varchar(3) NOT NULL
+						) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Данные взяты с сайта download.geonames.org/export/zip';";
+			SafeMySQL::gi()->query($create_table, ENV_DB_PREF . 'geo_ru');
+			$create_table = "ALTER TABLE ?n ADD PRIMARY KEY (`id`), MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;";
+			SafeMySQL::gi()->query($create_table, ENV_DB_PREF . 'geo_ru');
+			/* Экспорт данных в таблицу geo_ru из /uploads/geo_ru.php с последующим удалением файла */
+			include 'uploads/geo_ru.php';
+			foreach ($geo_ru as $row_array) {
+				$sql = "INSERT INTO ?n SET ?u";
+				SafeMySQL::gi()->query($sql, ENV_DB_PREF . 'geo_ru', $row_array);
+			}
+		}
         unlink(ENV_SITE_PATH . 'uploads' . ENV_DIRSEP . 'geo_ru.php');
     }
 

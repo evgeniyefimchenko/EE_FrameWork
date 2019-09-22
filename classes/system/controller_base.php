@@ -28,7 +28,7 @@ Abstract Class Controller_Base {
     /**
      * Содержит id пользователя если он авторизован
      */
-    protected $logged;
+    protected $logged_in;
 
     /**
      * Массив с подключенными моделями
@@ -52,13 +52,17 @@ Abstract Class Controller_Base {
 
     /**
      * Конструктор класса принимает экземпляр класса представления из /classes/system/route.php
-     * Проверяет сессию пользователя и записывает id в logged
+     * Проверяет сессию пользователя и записывает id в logged_in
      * @view - экземпляр класса представления
      */
     function __construct($view = '') {
-        $session = Session::get('user_session');
+        $session = Session::get('user_session');		
         if ($session) {
-            $this->logged = $this->get_users_session_data($session);
+			if (!SysClass::connect_db_exists() || SafeMySQL::gi()->query('show tables like ?s', ENV_DB_PREF.'users')->{"num_rows"} === 0) {
+				Session::destroy();
+			} else {
+				$this->logged_in = $this->get_users_session_data($session);
+			}
         }
         $this->view = $view;
     }
@@ -118,7 +122,7 @@ Abstract Class Controller_Base {
      * @return id пользователя или false
      */
     private function get_users_session_data($session) {
-        $table = ENV_DB_PREF . 'users';
+		$table = ENV_DB_PREF . 'users';
         $sql = 'SELECT `id`, `last_ip` FROM ?n WHERE `session` = ?s';
         $user = SafeMySQL::gi()->getRow($sql, $table, $session);
         if ($user['last_ip'] !== SysClass::client_ip()) {

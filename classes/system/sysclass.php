@@ -55,12 +55,13 @@ Class SysClass {
 	
     /**
      * Логирование в БД(если включено в ENV_LOG)
-     * $changes - Какое изменение
-     * $flag - тип сообщения info success error
-     * $who - Кто вызвал(по умолчанию система id = 8)
+     * @param str $changes - Какое изменение
+     * @param str $flag - тип сообщения info success error
+     * @param int $who - Кто вызвал(по умолчанию система id = 8)
      */
 
     public static function SetLog($changes = 'not change', $flag = 'info', $who = 8) {
+		$who = $who === NULL ? 8 : $who;
         $sql = 'INSERT INTO ' . ENV_DB_PREF . '`logs` SET who=?i, changes=?s, flag=?s';
         $res_q = SafeMySQL::gi()->query($sql, $who, $changes, $flag);
     }
@@ -586,8 +587,9 @@ Class SysClass {
 	public static function connect_db_exists($host = ENV_DB_HOST, $user = ENV_DB_USER, $pass = ENV_DB_PASS, $db_name = ENV_DB_NAME){
 		if ($host && $user && $pass && $db_name) {
 			try {
-				SafeMySQL::gi()->query('show tables like ?s', ENV_DB_PREF.'users');
-				return true;
+				$db = new SafeMySQL(array($host, $user, $pass, $db_name));
+				$db->query('show tables like ?s', ENV_DB_PREF.'users');				
+				return true;				
 			} catch (Exception $ex) {
 				if (ENV_TEST) {				
 					echo $ex->getMessage();

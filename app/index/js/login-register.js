@@ -82,7 +82,12 @@ $(document).ready(function () {
 			document.location.href = "/";
 		}
     });
-
+	
+	/*Скрытие формы*/
+	$('#loginModal').on('hidden.bs.modal', function() {
+	  $('#close_button').click();
+	});
+	
     /*Отправка формы входа на сайт*/
     $("#log_form").submit(function () {
         var form_data = $(this).serialize();
@@ -100,7 +105,7 @@ $(document).ready(function () {
                 } else {
                     shakeModal('Добро пожаловать!');
                     localStorage.clear();
-                    window.location = "/";
+                    setTimeout(window.location = "/admin", 3000);
                 }
             },
             error: function (xhr, ajaxOptions, thrownError) {
