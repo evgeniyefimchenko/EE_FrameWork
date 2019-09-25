@@ -76,7 +76,7 @@ $(document).ready(function () {
 
     $('#close_button').click(function () {
         var url_return = $.getUrlVar('return');
-		if (url_return) {
+		if (url_return && url_return !== 'admin') {
 			document.location.href = "/" + url_return;
 		} else {
 			document.location.href = "/";

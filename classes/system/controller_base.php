@@ -97,7 +97,11 @@ Abstract Class Controller_Base {
         extract($param);
         $file = ENV_SITE_PATH . 'layouts/' . $layout . '.php';
         ob_start();
-        include_once $file;
+        if (file_exists($file)) {
+			include_once $file;
+		} else {
+			die('layout '.$layout.' не найден!');
+		}
         $this->html = ob_get_contents();
         ob_end_clean();
         if (ENV_COMPRESS_HTML) {

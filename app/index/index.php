@@ -54,16 +54,16 @@ Class Controller_index Extends Controller_Base {
 		}
 		/* load model */
 		$this->load_model('m_index', array($this->logged_in));
-		/* get user data */
+		/* get user data - основная задача, запуск скрипта развёртывания БД при первом старте */
 		$user_data = $this->models['m_index']->data;		
         /* view */
 		if ($user_data['new_user'] || count($user_data) === 0) {
 			$this->html = $this->view->read('v_login_form');
 		} else {
 			/*Уже авторизован*/
-			SysClass::return_to_main(301, '/');
+			SysClass::return_to_main(200, '/');
 		}
-        /* layouts */
+        /* layouts */		
         $this->parameters_layout["add_script"] .= '<script src="' . ENV_URL_SITE . '/js/plugins/validator.min.js" type="text/javascript" /></script>';
         $this->parameters_layout["add_script"] .= '<script src="' . $this->get_path_controller() . '/js/login-register.js" type="text/javascript" /></script>';
         $this->parameters_layout["add_script"] .= '<script>$(document).ready(function () {openLoginModal();});</script>';
@@ -71,6 +71,7 @@ Class Controller_index Extends Controller_Base {
         $this->parameters_layout["title"] = ENV_SITE_NAME;
         $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION . ' - Форма авторизации/Регистрации';
         $this->parameters_layout["keywords"] = Sysclass::keywords($this->html);
+        $this->parameters_layout["layout"] = 'login_form';
         $this->parameters_layout["layout_content"] = $this->html;
         $this->show_layout($this->parameters_layout);
     }
