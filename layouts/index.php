@@ -37,8 +37,8 @@
         <meta name="twitter:description" content="<?=$description?>">
         <meta name="twitter:image" content="<?=$image_twiter?>"> <!-- URL-адрес изображения JPG, PNG и GIF min-size = 120×120 -->
         <!-- Стили -->
-        <link rel="apple-touch-icon" sizes="76x76" href="favicon.png">
-        <link rel="icon" type="image/png" href="favicon.ico">
+        <link rel="apple-touch-icon" sizes="76x76" href="<?=ENV_URL_SITE?>/favicon.png">
+        <link rel="icon" type="image/png" href="<?=ENV_URL_SITE?>/favicon.ico">
         <!-- Стандартные стили-->
         <link href="https://unpkg.com/@csstools/normalize.css" rel="stylesheet" />
         <link href="https://unpkg.com/sanitize.css" rel="stylesheet" />
@@ -64,7 +64,7 @@
     <script src='http://code.jquery.com/jquery-latest.min.js'></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.0/umd/popper.min.js"></script>
 	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.0/js/bootstrap.min.js"></script>   
-    <script src="<?=ENV_URL_SITE?>/js/main.js"></script>
+    <script src="<?=ENV_URL_SITE?>/js/main_index.js"></script>
     <!-- Добавленные скрипты из контроллера -->
     <?=$add_script?>
 </html>

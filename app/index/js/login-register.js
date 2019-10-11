@@ -16,46 +16,55 @@ $.extend({
   }
 });
 
+/* Сформировать форму регистрации */
 function showRegisterForm() {
-    $('.loginBox').fadeOut('fast', function () {
-        $('.registerBox').fadeIn('fast');
-        $('.login-footer').fadeOut('fast', function () {
-            $('.register-footer').fadeIn('fast');
-        });
-        $('.modal-title').html('Регистрация');
-    });
+    $('#loginModal .loginBox, #loginModal .PasswordRecoveryBox, .login-footer, .recovery-footer').hide();
+	$('.modal-title').html('Регистрация');
+	$('.registerBox, .register-footer').show();
     $('.error').removeClass('alert alert-danger').html('');
-
 }
 
+/* Сформировать форму авторизации */
 function showLoginForm() {
-    $('#loginModal .registerBox').fadeOut('fast', function () {
-        $('.loginBox').fadeIn('fast');
-        $('.register-footer').fadeOut('fast', function () {
-            $('.login-footer').fadeIn('fast');
-        });
-
-        $('.modal-title').html('Вход');
-    });
+    $('#loginModal .registerBox, #loginModal .PasswordRecoveryBox, .register-footer, .recovery-footer').hide();
+	$('.modal-title').html('Вход');
+	$('.loginBox, .login-footer').show();	
     $('.error').removeClass('alert alert-danger').html('');
 }
 
+/* Сформировать форму восстановления */
+function showRecoveryForm() {
+	$('.modal-title').html('Восстановление пароля');
+    $('#loginModal .registerBox, #loginModal .loginBox, .register-footer, .login-footer').hide();
+	$('.PasswordRecoveryBox, .recovery-footer').show();		        
+    $('.error').removeClass('alert alert-danger').html('');
+}
+
+/* Показать форму авторизации - используется для вызова из скриптов*/
 function openLoginModal() {
     showLoginForm();
     setTimeout(function () {
         $('#loginModal').modal('show');
     }, 230);
-
 }
 
+/* Показать форму регистрации - используется для вызова из скриптов */
 function openRegisterModal() {
     showRegisterForm();
     setTimeout(function () {
         $('#loginModal').modal('show');
     }, 230);
-
 }
 
+/* Показать форму восстановления - используется для вызова из скриптов */
+function openRegisterModal() {
+    showRecoveryForm();
+    setTimeout(function () {
+        $('#loginModal').modal('show');
+    }, 230);
+}
+
+/* Потрясти форму */
 function shakeModal($text) {
     $('#loginModal .modal-dialog').addClass('shake');
     $('.error').addClass('alert alert-danger').html($text);
@@ -66,14 +75,6 @@ function shakeModal($text) {
 
 $(document).ready(function () {
     /*Реакция кнопок*/
-    $('#registration_button').click(function () {
-        openRegisterModal();
-    });
-	
-    $('#login_button').click(function () {
-        openLoginModal();
-    });
-
     $('#close_button').click(function () {
         var url_return = $.getUrlVar('return');
 		if (url_return && url_return !== 'admin') {
@@ -149,15 +150,14 @@ $(document).ready(function () {
     });
 
     /*Удаляем пробелы при вводе*/
-    $('#reg_email, #reg_password, #reg_password_confirmation').keyup(function () {
+    $('#reg_email, #reg_password, #reg_password_confirmation, #rec_email').keyup(function () {
         $(this).val($(this).val().replace(/\s{1,}/g, ''));
     });
 
     /*autocomlete off*/
     function clean_form() {
         if (!registration_flag) {
-            $('#reg_email').val('');
-            $('#reg_password').val('');
+            $('#reg_email, #reg_password, #rec_email').val('');
             $('.fa-star').removeClass('fa-star').addClass('fa-star-o');
             $('.badge').hide();
         }
@@ -178,6 +178,9 @@ $(document).ready(function () {
         $('[data-validator]').validator();
     }
     if (jQuery().tooltip) {
-        $('[data-toggle="tooltip"]').tooltip();
+        $('[data-toggle="tooltip"]').tooltip({delay: { show: 500, hide: 100 }});
+		$('body').click(function(){
+			$('[data-toggle="tooltip"]').tooltip('hide');
+		});
     }
 });

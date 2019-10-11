@@ -6,7 +6,7 @@ if (ENV_SITE !== 1) {
 }
 
 /**
- * функции работы с сообщениями
+ * Функции работы с сообщениями
  */
 
 trait messages_trait {
@@ -17,20 +17,20 @@ trait messages_trait {
      */
     public function messages($arg = array()) {
         $this->access = array(100);
-        if (!SysClass::get_access_user($this->logged, $this->access)) {
+        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main(401);
             exit();
         }
         /* model */
-        $this->load_model('m_messages', array($this->logged));
+        $this->load_model('m_messages', array($this->logged_in));
         /* get data */
         $user_data = $this->models['m_messages']->data;
         foreach ($user_data as $name => $val) {
             $this->view->set($name, $val);
         }
-        $get_user_id = is_numeric($arg[0]) ? $arg[0] : $this->logged;
+        $get_user_id = is_numeric($arg[0]) ? $arg[0] : $this->logged_in;
 
-        if ($this->logged != $get_user_id && $user_data['user_role'] <= 3) {
+        if ($this->logged_in != $get_user_id && $user_data['user_role'] <= 3) {
             $class_messages = new Class_messages();
             $this->view->set('count_message', $class_messages->get_count_messages($get_user_id), TRUE);
             $this->view->set('messages', $class_messages->get_messages_user($get_user_id), TRUE);
@@ -39,7 +39,7 @@ trait messages_trait {
         } else {
             /* notifications - Удалить оповещение о непрочитанных сообщениях */
             $notification = new Class_notifications();
-            $notification->kill_notification_by_text($this->logged, 'непрочитанное сообщение');
+            $notification->kill_notification_by_text($this->logged_in, 'непрочитанное сообщение');
         }
         /* view */
         $this->show_standart_view();
@@ -58,12 +58,12 @@ trait messages_trait {
      */
     public function read_all_message() {
         $this->access = array(100);
-        if (!SysClass::get_access_user($this->logged, $this->access)) {
+        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main(401);
             exit();
         }
         $this->load_model('m_messages');        
-        $this->models['m_messages']->read_all($this->logged);        
+        $this->models['m_messages']->read_all($this->logged_in);        
     }
     
     /**
@@ -71,12 +71,12 @@ trait messages_trait {
      */
     public function kill_all_message() {
         $this->access = array(100);
-        if (!SysClass::get_access_user($this->logged, $this->access)) {
+        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main(401);
             exit();
         }
         $this->load_model('m_messages');        
-        $this->models['m_messages']->kill_all_message($this->logged);        
+        $this->models['m_messages']->kill_all_message($this->logged_in);        
     }
     
     /**
@@ -85,13 +85,13 @@ trait messages_trait {
      */
     public function set_readed($param) {
         $this->access = array(100);
-        if (!SysClass::get_access_user($this->logged, $this->access)) {
+        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main(401);
             exit();
         }
         $message_id = filter_var($param[0], FILTER_VALIDATE_INT);
         $this->load_model('m_messages');
-        $this->models['m_messages']->set_message_as_readed($message_id, $this->logged);
+        $this->models['m_messages']->set_message_as_readed($message_id, $this->logged_in);
     }
     
 	/**
@@ -100,7 +100,7 @@ trait messages_trait {
 	*/
     public function set_readed_all() {
         $notification = new Class_notifications();
-        $notification->kill_notification_by_text($this->logged, 'непрочитанное сообщение');
+        $notification->kill_notification_by_text($this->logged_in, 'непрочитанное сообщение');
         $this->set_readed();
     }
     
@@ -110,12 +110,12 @@ trait messages_trait {
      */
     public function dell_message($param) {
         $this->access = array(100);
-        if (!SysClass::get_access_user($this->logged, $this->access)) {
+        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main(401);
             exit();
         }
         $message_id = filter_var($param[0], FILTER_VALIDATE_INT);
         $this->load_model('m_messages');
-        $this->models['m_messages']->kill_message($message_id, $this->logged);
+        $this->models['m_messages']->kill_message($message_id, $this->logged_in);
     }    
 }

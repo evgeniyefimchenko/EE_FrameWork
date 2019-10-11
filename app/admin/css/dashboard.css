@@ -64,7 +64,6 @@ button.close {
     -webkit-font-smoothing: antialiased;
     font-family: "Roboto", "Helvetica Neue", Arial, sans-serif;
     font-weight: 400;
-	overflow: hidden;
 }
 
 h1,
@@ -1660,7 +1659,7 @@ fieldset[disabled] .form-control {
     border: 0;
     border-radius: 0;
     color: #FFFFFF;
-    padding: 5px 10px;
+    padding: 10px 15px;
     font-size: 14px;
 }
 
@@ -3792,6 +3791,7 @@ Copyright (c) 2015 Daniel Eden
         right: 250px;
         content: "";
         z-index: 9999;
+        overflow-x: hidden;
     }
     .social-line .btn {
         margin: 0 0 10px 0;
@@ -5665,10 +5665,3 @@ License - nucleoapp.com/license/
             transform: scale(0) translate(-50%, -50%);
   }
 }
-.rightimg {
-  float: right;
-  padding: 5px 10px 5px 10px; }
-
-.leftimg {
-  float: left;
-  padding: 5px 10px 5px 10px; }

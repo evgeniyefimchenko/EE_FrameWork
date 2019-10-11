@@ -6,7 +6,7 @@ if (ENV_SITE !== 1) {
 }
 
 /**
- * функции работы с оповещениями
+ * Функции работы с оповещениями
  */
 
 trait notifications_trait {
@@ -16,13 +16,13 @@ trait notifications_trait {
 	*/
     public function set_notification_time($param = array()){
         $this->access = array(100);
-        if (!SysClass::get_access_user($this->logged, $this->access) || array_filter($param)) {
+        if (!SysClass::get_access_user($this->logged_in, $this->access) || array_filter($param)) {
             SysClass::return_to_main(401);
             exit();
         }
         $class_notifications = new Class_notifications();
         $post_data = filter_input_array(INPUT_POST, $_POST);
-        $class_notifications->set_reading_time($this->logged, $post_data['showtime'], $post_data['id']);
+        $class_notifications->set_reading_time($this->logged_in, $post_data['showtime'], $post_data['id']);
     }
 
 }

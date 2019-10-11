@@ -42,7 +42,8 @@
             <!-- End Content -->
             <!-- Footer -->
             <footer class="footer">                
-                    <nav>
+                <div class="container">
+					<nav>
                         <ul class="footer-menu">
                             <li>
                                 <a href="/admin#">
@@ -70,6 +71,7 @@
                             <a href="<?= ENV_URL_SITE ?>"><?= ENV_SITE_NAME ?></a>
                         </p>
                     </nav>
+				</div>
             </footer>
 			<!-- END Footer -->
         </div>

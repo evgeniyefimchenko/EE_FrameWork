@@ -16,8 +16,8 @@
         <meta name="document-state" content="Dynamic">
         <meta name="page-type" content="Текст" />
         <meta name="generator" content="efimchenko.ru" /> <!-- Какой софт сгенерировал страницу-->
-        <meta name = "author" content = "<?=ENV_SITE_AUTHOR?>" /> <!-- Автор сайта-->
-        <meta name = "reply-to" content = "<?=ENV_SITE_EMAIL?>" /> <!-- Почта автора сайта-->
+        <meta name="author" content = "<?=ENV_SITE_AUTHOR?>" /> <!-- Автор сайта-->
+        <meta name="reply-to" content = "<?=ENV_SITE_EMAIL?>" /> <!-- Почта автора сайта-->
         <meta name="copyright" content="<?=ENV_SITE_AUTHOR?>" /> 
         <meta name="address" content="<?=ENV_URL_SITE?>" /> <!-- Указывает адрес автора или организации собственника страницы. -->
         <meta name="publisher-name" content="efimchenko.ru" /> <!-- Кто разместил сайт-->
@@ -37,13 +37,15 @@
         <meta name="twitter:description" content="<?=$description?>">
         <meta name="twitter:image" content="<?=$image_twiter?>"> <!-- URL-адрес изображения JPG, PNG и GIF min-size = 120×120 -->
         <!-- Стили -->
-        <link rel="apple-touch-icon" sizes="76x76" href="favicon.png">
-        <link rel="icon" type="image/png" href="favicon.ico">
+        <link rel="apple-touch-icon" sizes="76x76" href="<?=ENV_URL_SITE?>/favicon.png">
+        <link rel="icon" type="image/png" href="<?=ENV_URL_SITE?>/favicon.ico">
         <!-- Стандартные стили-->
-        <link href="https://unpkg.com/@csstools/normalize.css" rel="stylesheet" />
         <link href="https://unpkg.com/sanitize.css" rel="stylesheet" />
         <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" type="text/css">
+		<link href="https://fonts.googleapis.com/css?family=Montserrat:400,700,200" rel="stylesheet" type="text/css"/>		
         <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/latest/css/font-awesome.min.css" type="text/css"/>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css"/>		
+		<link href="<?= ENV_URL_SITE . '/' . ENV_APP_DIRECTORY ?>/admin/css/dashboard.css" rel="stylesheet" type="text/css" />
         <link rel="canonical" href="<?=$canonical_href?>" />
         <!-- Добавленные стили из контроллера-->
         <?=$add_style?>
@@ -71,7 +73,7 @@
 	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.0/js/bootstrap.min.js"></script>  
     <script src="<?= ENV_URL_SITE . '/' . ENV_APP_DIRECTORY ?>/admin/js/bootstrap-notify.js" type="text/javascript" ></script>
     <script src="<?= ENV_URL_SITE . '/' . ENV_APP_DIRECTORY ?>/admin/js/bootstrap-switch.js" type="text/javascript" ></script>
-    <script src="<?= ENV_URL_SITE . '/' . ENV_APP_DIRECTORY ?>/admin/js/main.js" type="text/javascript" ></script>    
+    <script src="<?=ENV_URL_SITE?>/js/main_dashboard.js"></script>    
     <!-- Добавленные скрипты из контроллера -->
     <?=$add_script?>
 </html>
