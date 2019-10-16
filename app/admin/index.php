@@ -102,6 +102,132 @@ Class Controller_index Extends Controller_Base {
             default:
                 echo '{"error": "no data"}';
         }
+    }
+
+	 /**
+     * Карточка пользователя сайта
+     * для изменения данных и внесения новых пользователей вручную
+     * @param type $arg
+     */
+    function user_edit($arg) {
+        $this->access = array(100);
+        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
+            SysClass::return_to_main();
+            exit();
+        }
+        /* model */
+        $this->load_model('m_index', array($this->logged_in));
+        if (in_array('id', $arg)) {                                                       // Пользователь передан получаем данные из базы
+            $id = filter_var($arg[array_search('id', $arg) + 1], FILTER_VALIDATE_INT);
+            $get_user_context = $this->models['m_index']->get_user_data($id);
+            /*Нельзя посмотреть карточку равной себе роли или выше*/
+            if ($this->models['m_index']->data['user_role'] >= $get_user_context['user_role'] && $this->logged_in != $id) {
+                header("Location: " . ENV_URL_SITE . '/admin/user_edit/id/' . $this->logged_in);
+            }            
+        } else {                                                                            // Не передан ключевой параметр id
+            header('Location:' . $_SERVER['HTTP_REFERER']);
+        }
+
+        $this->load_model('m_user_edit');
+
+        /* get data */
+        $user_data = $this->models['m_index']->data;
+        foreach ($user_data as $name => $val) {
+            $this->view->set($name, $val);
+        }
+        $free_active_status = [1 => 'Не подтверждён', 2 => 'Активен', 3 => 'Блокирован'];
+        unset($free_active_status[$get_user_context['active']]);
+        $get_roles = $this->models['m_user_edit']->get_roles($get_user_context['user_role']);
+        $this->view->set('free_active_status', $free_active_status);
+        $this->view->set('get_roles', $get_roles);
+        $this->view->set('user_id', $this->logged_in);
+        $this->view->set('get_user_context', $get_user_context);
+        /* view */
+        $this->get_standart_view();
+        $this->view->set('body_view', $this->view->read('v_edit_user'));
+        $this->html = $this->view->read('v_dashboard');
+        /* layouts */
+        $this->parameters_layout["layout_content"] = $this->html;
+        $this->parameters_layout["layout"] = 'dashboard';
+        $this->parameters_layout["add_script"] .= '<script src="' . $this->get_path_controller() . '/js/edit_user.js" type="text/javascript" /></script>';
+        $this->parameters_layout["title"] = 'Административная панель/Редактирование профиля';
+        $this->show_layout($this->parameters_layout);
+    }
+	
+    /**
+     * Аякс изменение рег. данных пользователя
+     * Редактирование возможно модераторами
+     * или самим пользователем
+     * @param $arg - ID пользователя для изменения
+     * @return json сообщение об ошибке или no
+     */
+    function ajax_user_edit($arg) {        
+        $this->access = array(100);
+        if (!SysClass::get_access_user($this->logged_in, $this->access)) {                                               
+            SysClass::return_to_main();
+            exit();
+        }
+        $id = filter_var($arg[array_search('id', $arg) + 1], FILTER_VALIDATE_INT);       
+        /* model */
+        $this->load_model('m_index', array($this->logged_in));
+        if ($this->models['m_index']->data['user_role'] > 2 && $this->logged_in != $id) { // Роль меньше модератора или id не текущего пользователя выходим
+            echo json_encode(array('error' => 'error no access'));
+            exit();
+        }
+        /* set data user */
+        $post_data = filter_input_array(INPUT_POST, $_POST);
+        if ($post_data['new'] == '1') {
+            if ($this->models['m_index']->registration_new_user($post_data)) {
+                $new_id = $this->models['m_index']->get_user_id(trim($post_data['email']));
+                echo json_encode(array('error' => 'no', 'id' => $new_id));
+                exit();
+            } else {
+                echo json_encode(array('error' => 'error ajax_user_edit isert user'));
+                exit();
+            }
+        }
+        
+        if ($this->models['m_index']->set_user_data($id, $post_data)) {
+            echo json_encode(array('error' => 'no'));
+            exit();
+        } else {
+            echo json_encode(array('error' => 'error ajax_user_edit'));
+            exit();
+        }
+    }
+	
+    /**
+     * Выводит список пользователей
+     * Доступ у администраторов, модераторов
+     * @param arg - массив аргументов для поиска
+     */
+    function users($arg = array()) {
+		$this->access = array(1, 2);
+        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
+			SysClass::return_to_main(301);
+            exit();
+        }
+        /* model */
+        $this->load_model('m_index', array($this->logged_in));
+        /* get data */
+        $user_data = $this->models['m_index']->data;
+        foreach ($user_data as $name => $val) {
+            $this->view->set($name, $val);
+        }
+		$res_array = $this->models['m_index']->get_users_data($field, $order, $where);
+        /* view */
+        $this->get_standart_view();
+		$this->view->set('users', is_array($res_array) ? $res_array : array());		
+        $this->view->set('body_view', $this->view->read('v_users'));
+        $this->html = $this->view->read('v_dashboard');
+        /* layouts */
+        $this->parameters_layout["layout_content"] = $this->html;
+        $this->parameters_layout["layout"] = 'dashboard';
+        $this->parameters_layout["add_script"] .= '<script src="' . $this->get_path_controller() . '/js/plugins/DataTables/datatables.min.js" type="text/javascript" /></script>';
+        $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="' . $this->get_path_controller() . '/js/plugins/DataTables/datatables.min.css"/>';		
+        $this->parameters_layout["add_script"] .= '<script src="' . $this->get_path_controller() . '/js/users.js" type="text/javascript" /></script>';
+        $this->parameters_layout["title"] = 'Административная панель/Пользователи';
+        $this->show_layout($this->parameters_layout);
     }	
 
 }

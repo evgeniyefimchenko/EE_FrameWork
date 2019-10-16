@@ -10,6 +10,7 @@ if (ENV_SITE !== 1) {
  */
 
 trait messages_trait {
+	
     /**
      * Страница сообщений пользователя
      * все сообщения подгружаются в системном классе users
@@ -18,7 +19,7 @@ trait messages_trait {
     public function messages($arg = array()) {
         $this->access = array(100);
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-            SysClass::return_to_main(401);
+            SysClass::return_to_main();
             exit();
         }
         /* model */
@@ -28,21 +29,20 @@ trait messages_trait {
         foreach ($user_data as $name => $val) {
             $this->view->set($name, $val);
         }
-        $get_user_id = is_numeric($arg[0]) ? $arg[0] : $this->logged_in;
-
-        if ($this->logged_in != $get_user_id && $user_data['user_role'] <= 3) {
-            $class_messages = new Class_messages();
+        $get_user_id = is_numeric($arg[0]) ? $arg[0] : $this->logged_in;		
+        if ($this->logged_in != $get_user_id && $user_data['user_role'] <= 3) {            
+			$class_messages = new Class_messages();
             $this->view->set('count_message', $class_messages->get_count_messages($get_user_id), TRUE);
             $this->view->set('messages', $class_messages->get_messages_user($get_user_id), TRUE);
             $this->view->set('moderation', TRUE);
             unset($class_messages);
-        } else {
+        } else {			
             /* notifications - Удалить оповещение о непрочитанных сообщениях */
             $notification = new Class_notifications();
             $notification->kill_notification_by_text($this->logged_in, 'непрочитанное сообщение');
         }
         /* view */
-        $this->show_standart_view();
+        $this->get_standart_view();
         $this->view->set('body_view', $this->view->read('v_messages'));
         $this->html = $this->view->read('v_dashboard');
         /* layouts */

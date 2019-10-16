@@ -73,6 +73,7 @@
 	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.0/js/bootstrap.min.js"></script>  
     <script src="<?= ENV_URL_SITE . '/' . ENV_APP_DIRECTORY ?>/admin/js/bootstrap-notify.js" type="text/javascript" ></script>
     <script src="<?= ENV_URL_SITE . '/' . ENV_APP_DIRECTORY ?>/admin/js/bootstrap-switch.js" type="text/javascript" ></script>
+    <script src="<?=ENV_URL_SITE?>/js/plugins/validator.min.js"></script>    
     <script src="<?=ENV_URL_SITE?>/js/main_dashboard.js"></script>    
     <!-- Добавленные скрипты из контроллера -->
     <?=$add_script?>

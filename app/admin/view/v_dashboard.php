@@ -46,7 +46,7 @@
 					<nav>
                         <ul class="footer-menu">
                             <li>
-                                <a href="/admin#">
+                                <a href="/admin">
                                     Домой
                                 </a>
                             </li>
@@ -67,7 +67,7 @@
                             </li>
                         </ul>
                         <p class="copyright">
-                            ©&nbsp;<?php $get_year = date('Y', strtotime(ENV_SITE_CREATE)); if ($get_year == date('Y')) {echo date('Y');} else {echo $get_year . ' - ' . date('Y') . 'г.';} ?>
+                            ©&nbsp;<?php $get_year = date('Y', strtotime(ENV_DATE_SITE_CREATE)); if ($get_year == date('Y')) {echo date('Y');} else {echo $get_year . ' - ' . date('Y') . 'г.';} ?>
                             <a href="<?= ENV_URL_SITE ?>"><?= ENV_SITE_NAME ?></a>
                         </p>
                     </nav>

@@ -113,12 +113,12 @@ Class Users {
     /**
      * Возвращает подготовленные данные всех пользователей
      * личные + настройки интерфейса
-     * @param field - поле(я) для сортировки пользователей(разрешенные поля определены в массиве )
+     * @param field - поле(я) для сортировки пользователей(разрешенные поля определены в массиве)
      * @param order - направление сортировки
      * @param where - дополнительные условия поиска(подготовленный запрос)
-     * @return именованный массив
+     * @return многомерный массив
      */
-    public function get_users_data($field, $order, $where = NULL) {
+    public function get_users_data($field = 'id', $order = 'ASC', $where = NULL) {
         $field = SafeMySQL::gi()->whiteList($field, array('id', 'name', 'email', 'active', 'user_role', 'subscribed', 'reg_date', 'last_activ'), 'id');
         $order = SafeMySQL::gi()->whiteList($order, array('ASC', 'DESC'), 'ASC');
         $where = $where ? 'WHERE ' . $where : '';
