@@ -47,7 +47,7 @@ AddOutputFilterByType DEFLATE text/html text/plain text/xml application/xml appl
 <ifModule mod_expires.c>
 ExpiresActive On
  
-#по умолчанию кеш в 5 секунд
+#по умолчанию кеш на день
 ExpiresDefault "access plus 1 days"
  
 # Включаем кэширование изображений и флэш на месяц

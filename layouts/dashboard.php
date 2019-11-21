@@ -1,4 +1,4 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<!DOCTYPE html>
 <html lang="ru">
     <head>
         <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
@@ -68,13 +68,12 @@
         <?=$layout_content?>
     </body>
     <!-- Скрипты-->
-    <script src='http://code.jquery.com/jquery-latest.min.js'></script>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.0/umd/popper.min.js"></script>
-	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.0/js/bootstrap.min.js"></script>  
-    <script src="<?= ENV_URL_SITE . '/' . ENV_APP_DIRECTORY ?>/admin/js/bootstrap-notify.js" type="text/javascript" ></script>
-    <script src="<?= ENV_URL_SITE . '/' . ENV_APP_DIRECTORY ?>/admin/js/bootstrap-switch.js" type="text/javascript" ></script>
-    <script src="<?=ENV_URL_SITE?>/js/plugins/validator.min.js"></script>    
-    <script src="<?=ENV_URL_SITE?>/js/main_dashboard.js"></script>    
+    <script src='http://code.jquery.com/jquery-latest.min.js' type="text/javascript" ></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.0/umd/popper.min.js" type="text/javascript" ></script>
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.0/js/bootstrap.min.js" type="text/javascript" ></script>  
+    <script src="<?= ENV_URL_SITE . '/' . ENV_APP_DIRECTORY ?>/admin/js/bootstrap-notify.js" type="text/javascript" type="text/javascript" ></script>
+    <script src="<?= ENV_URL_SITE . '/' . ENV_APP_DIRECTORY ?>/admin/js/bootstrap-switch.js" type="text/javascript" type="text/javascript" ></script>
+    <script src="<?=ENV_URL_SITE?>/js/main_dashboard.js" type="text/javascript" ></script>    
     <!-- Добавленные скрипты из контроллера -->
     <?=$add_script?>
 </html>

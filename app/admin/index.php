@@ -120,12 +120,12 @@ Class Controller_index Extends Controller_Base {
         if (in_array('id', $arg)) {                                                       // Пользователь передан получаем данные из базы
             $id = filter_var($arg[array_search('id', $arg) + 1], FILTER_VALIDATE_INT);
             $get_user_context = $this->models['m_index']->get_user_data($id);
-            /*Нельзя посмотреть карточку равной себе роли или выше*/
+            /*Нельзя посмотреть чужую карточку равной себе роли или выше*/
             if ($this->models['m_index']->data['user_role'] >= $get_user_context['user_role'] && $this->logged_in != $id) {
-                header("Location: " . ENV_URL_SITE . '/admin/user_edit/id/' . $this->logged_in);
+                SysClass::return_to_main(200, ENV_URL_SITE . '/admin/user_edit/id/' . $this->logged_in);
             }            
         } else {                                                                            // Не передан ключевой параметр id
-            header('Location:' . $_SERVER['HTTP_REFERER']);
+            SysClass::return_to_main(301, $_SERVER['HTTP_REFERER']);
         }
 
         $this->load_model('m_user_edit');
@@ -137,9 +137,9 @@ Class Controller_index Extends Controller_Base {
         }
         $free_active_status = [1 => 'Не подтверждён', 2 => 'Активен', 3 => 'Блокирован'];
         unset($free_active_status[$get_user_context['active']]);
-        $get_roles = $this->models['m_user_edit']->get_roles($get_user_context['user_role']);
+        $get_free_roles = $this->models['m_user_edit']->get_free_roles($get_user_context['user_role']); // Получим свободные роли
         $this->view->set('free_active_status', $free_active_status);
-        $this->view->set('get_roles', $get_roles);
+        $this->view->set('get_free_roles', $get_free_roles);
         $this->view->set('user_id', $this->logged_in);
         $this->view->set('get_user_context', $get_user_context);
         /* view */
@@ -204,7 +204,7 @@ Class Controller_index Extends Controller_Base {
     function users($arg = array()) {
 		$this->access = array(1, 2);
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-			SysClass::return_to_main(301);
+			SysClass::return_to_main();
             exit();
         }
         /* model */
@@ -214,10 +214,10 @@ Class Controller_index Extends Controller_Base {
         foreach ($user_data as $name => $val) {
             $this->view->set($name, $val);
         }
-		$res_array = $this->models['m_index']->get_users_data($field, $order, $where);
+		$users_array = $this->models['m_index']->get_users_data();
         /* view */
         $this->get_standart_view();
-		$this->view->set('users', is_array($res_array) ? $res_array : array());		
+		$this->view->set('users', is_array($users_array) ? $users_array : array());		
         $this->view->set('body_view', $this->view->read('v_users'));
         $this->html = $this->view->read('v_dashboard');
         /* layouts */

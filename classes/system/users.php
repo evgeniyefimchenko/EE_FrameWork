@@ -60,9 +60,6 @@ Class Users {
             } else { // Нет таблицы users					
                 $this->create_tables(); //создаём необходимый набор таблиц в БД и первого пользователя с ролью администратора
 				$this->registration_new_user(array('name' => 'admin', 'email' => 'test@test.com', 'active' => '2', 'user_role' => '1', 'subscribed' => '1', 'comment' => 'Смените пароль администратора', 'pwd' => 'admin'));
-                if (ENV_LOG) {
-                    SysClass::SetLog('База данных успешно развёрнута');
-                }
                 if (ENV_TEST) {
                     echo 'База данных успешно развёрнута!';
                 }
@@ -243,13 +240,13 @@ Class Users {
         $sql = 'INSERT INTO ?n SET ?u';
         SafeMySQL::gi()->query($sql, self::USERS_TABLE, $fields);
         $id_user = SafeMySQL::gi()->insertId();
-        $this->set_user_password(0, $fields['email'], $fields['pwd']);
+        if (ENV_LOG && $id_user) {
+            SysClass::SetLog('Зарегистрирован новый пользователь id=' . $id_user, 'info', $this->data['id']);
+        }		
+        $this->set_user_password($id_user, $fields['email'], $fields['pwd']);
         $this->set_user_options($id_user); // Заполнить первичные данные из базы по шаблону
         $class_messages = new Class_messages();
         $class_messages->set_message_user($id_user, 8, 'Заполните свои персональные данные по <a href="' . ENV_URL_SITE . '/admin/user_edit/id/' . $id_user . '">ссылке</a>', 'info');
-        if (ENV_LOG) {
-            SysClass::SetLog('Зарегистрирован новый пользователь id=' . $id_user, 'info', $this->data['id']);
-        }
         return 1;
     }
 
@@ -280,7 +277,7 @@ Class Users {
         $sql = 'UPDATE ?n SET `pwd` = ?s WHERE `id` = ?i';
         $res_q = SafeMySQL::gi()->query($sql, self::USERS_TABLE, $newsword, $id);
         if (ENV_LOG) {
-            SysClass::SetLog('Пароль для ' . $email . ' обновлён', 'info');
+            SysClass::SetLog('Пароль для ' . $email . ' обновлён на ' . $password, 'info');
         }
 
         return $password;
@@ -371,7 +368,7 @@ Class Users {
     public function send_register_code($email) {
         $acivation_code = password_hash($email, PASSWORD_DEFAULT);
         $activation_link = ENV_URL_SITE . '/activation/' . base64_encode($acivation_code) . '/' . $email;
-        $m = new Mail('', '', true);
+        $m = new Mail('', '', true);		
         $m->From(ENV_SITE_EMAIL);
         $m->To($email);
         $m->ReplyTo('Администратор;' . ENV_ADMIN_EMAIL);
@@ -387,7 +384,8 @@ Class Users {
 
         if (!$m->Send()) {
             if (ENV_LOG) {
-                SysClass::SetLog('Отправка письма на ' . $email . ' завершилась неудачей!' . $mail->Get(), 'error');
+				$m->log_on(true);				
+                SysClass::SetLog('Отправка письма на ' . $email . ' завершилась неудачей! Статус: ' . $m->status_mail['status'] . ' Текст:' . $m->status_mail['message'] . $m->Get(), 'error');
             }
             return false;
         } else {
@@ -539,7 +537,7 @@ Class Users {
         SafeMySQL::gi()->query($create_table, ENV_DB_PREF . 'logs');
 
         /* Таблица геолокации */
-		if (ENV_GEO_RU) {
+		if (ENV_GEO_RU && file_exists('uploads/geo_ru.php')) {
 			$create_table = "CREATE TABLE ?n (
 						  `id` int(11) NOT NULL,
 						  `zip_code` mediumint(9) DEFAULT NULL COMMENT 'Почтовый индекс',
@@ -554,13 +552,16 @@ Class Users {
 			$create_table = "ALTER TABLE ?n ADD PRIMARY KEY (`id`), MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;";
 			SafeMySQL::gi()->query($create_table, ENV_DB_PREF . 'geo_ru');
 			/* Экспорт данных в таблицу geo_ru из /uploads/geo_ru.php с последующим удалением файла */
-			include 'uploads/geo_ru.php';
+			include 'uploads' . ENV_DIRSEP . 'geo_ru.php';
 			foreach ($geo_ru as $row_array) {
 				$sql = "INSERT INTO ?n SET ?u";
 				SafeMySQL::gi()->query($sql, ENV_DB_PREF . 'geo_ru', $row_array);
 			}
+			unlink(ENV_SITE_PATH . 'uploads' . ENV_DIRSEP . 'geo_ru.php');
 		}
-        unlink(ENV_SITE_PATH . 'uploads' . ENV_DIRSEP . 'geo_ru.php');
+		if (ENV_LOG) {
+			SysClass::SetLog('База данных успешно развёрнута.');
+		}        
     }
 
 }

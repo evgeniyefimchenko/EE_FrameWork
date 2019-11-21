@@ -9,8 +9,13 @@
 Используются следующие плагины:
 - **Mobile-Detect** https://github.com/serbanghita/Mobile-Detect
 - **php_libmail_2_11** http://webi.ru/webi_files/php_libmail.html
-- **SafeMySQL** https://github.com/evgeniyefimchenko/safemysql (переписан под singletone)
-
+- **SafeMySQL** https://github.com/colshrapnel/safemysql (переписан под singletone)
+- **validator** https://github.com/evgeniyefimchenko/validator
+- **DataTables** https://datatables.net/
+- **Bootstrap Notify** https://github.com/mouse0270/bootstrap-notify
+- **Bootstrap Switch** https://bttstrp.github.io/bootstrap-switch/
+- **Bootstrap Multiselect** http://davidstutz.de/bootstrap-multiselect/
+- **Ajax Autocomplete for jQuery** https://github.com/devbridge/jQuery-Autocomplete
 ## Установка
 
 1. Скопируйте все файлы в корневую папку Вашего будущего сайта.
