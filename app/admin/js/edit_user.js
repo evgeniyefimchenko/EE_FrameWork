@@ -1,3 +1,4 @@
+/*Редактирование пользователя*/
 $(document).ready(function () {
 
     $('#users-item-menu').addClass('nav-item active');
@@ -18,7 +19,6 @@ $(document).ready(function () {
             data: data,
             beforeSend: function () {
                 notify = actions.showNotification('Подождите данные сохраняются.', 'primary');
-                $('#commit').prop("disabled", true);
             },
             success: function (data) {
                 if (data.error !== 'no') {
@@ -37,7 +37,6 @@ $(document).ready(function () {
                 console.log(xhr.status, xhr.responseText, thrownError, ajaxOptions);
             },
             complete: function (data) {
-                $('#commit').prop("disabled", false);
                 notify.close();
             }
 

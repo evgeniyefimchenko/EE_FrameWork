@@ -1,9 +1,38 @@
+/*Страница пользователей*/
 $(document).ready(function () {
     $('#users-item-menu').addClass('nav-item active');    
     $('#add_user').click(function () {
         window.location = "/admin/user_edit/id";
     });
-	
+	$('.delete_user').click(function(e){
+		if (confirm("Удалить пользователя?")) {        
+			$.ajax({
+				type: 'POST',
+				url: '/admin/delete_user/id/' + $(this).data('user_id'),
+				dataType: 'json',
+				beforeSend: function () {
+					notify = actions.showNotification('Подождите данные обрабатываются.', 'primary');
+				},
+				success: function (data) {
+					if (data.error !== 'no') {
+						console.log('error', data);
+						actions.showNotification('Ошибка обновления данных.', 'danger');
+					} else {
+						actions.showNotification('Данные пользователя обновлены.', 'primary');
+						window.location = "/admin/users";
+					}
+				},
+				error: function (xhr, ajaxOptions, thrownError) {
+					console.log(xhr.status, xhr.responseText, thrownError, ajaxOptions);
+				},
+				complete: function (data) {
+					notify.close();
+				}
+			});
+		} else {
+		  return false;
+		}			
+	});
     $("#users_table").dataTable({
         "aoColumnDefs": [{"aTargets": [8]
                 , "bSortable": false}],

@@ -42,6 +42,7 @@ if (ENV_SITE !== 1) {
                                     <td>
 										<?php if ($user_role <= $user['user_role']) { ?>
 											<a href="/admin/user_edit/id/<?= $user['id'] ?>" class="alert alert-info"><i data-toggle="tooltip" title="Редактировать" class="nc-icon nc-settings-90"></i></a>
+											<a href="javascript:void(0);" data-user_id="<?= $user['id'] ?>" class="alert alert-danger delete_user"><i data-toggle="tooltip" title="Удалить" class="nc-icon nc-settings-90"></i></a>										
 										<?php } else { ?>
 											<span class="text-danger">Нет доступа</span>
 										<?php } ?>

@@ -7,6 +7,7 @@ if (ENV_SITE !== 1) {
 
 require_once('messages_trait.php');
 require_once('notifications_trait.php');
+require_once('logs_trait.php');
 
 /*
  * Админ-панель
@@ -16,7 +17,8 @@ Class Controller_index Extends Controller_Base {
     
 	/* Подключение traits */
 	use messages_trait,
-    notifications_trait;
+    notifications_trait,
+	logs_trait;
 
     /**
      * Главная страница админ-панели
@@ -104,12 +106,40 @@ Class Controller_index Extends Controller_Base {
         }
     }
 
+	/**
+	* AJAX Удаление пользователя(перемещение в таблицу удалённых)
+	*/
+	public function delete_user($arg) {
+        $this->access = array(1, 2);
+        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
+            SysClass::return_to_main();
+            exit();
+        }
+        /* model */
+        $this->load_model('m_logs', array($this->logged_in));
+        if (in_array('id', $arg)) {                                                       // Пользователь передан получаем данные из базы
+            $id = filter_var($arg[array_search('id', $arg) + 1], FILTER_VALIDATE_INT);
+            $get_user_context = $this->models['m_logs']->get_user_data($id);
+		} else {
+			echo json_encode(array('error' => 'error delete_user not user id'));
+			exit();			
+		}
+		if ($get_user_context) {
+			$this->models['m_logs']->dell_user_data($id, true);
+		} else {
+			echo json_encode(array('error' => 'error delete_user not user in db'));
+			exit();			
+		}
+		echo json_encode(array('error' => 'no'));
+		exit();		
+	}
+	
 	 /**
      * Карточка пользователя сайта
      * для изменения данных и внесения новых пользователей вручную
      * @param type $arg
      */
-    function user_edit($arg) {
+    public function user_edit($arg) {
         $this->access = array(100);
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
@@ -161,7 +191,7 @@ Class Controller_index Extends Controller_Base {
      * @param $arg - ID пользователя для изменения
      * @return json сообщение об ошибке или no
      */
-    function ajax_user_edit($arg) {        
+    public function ajax_user_edit($arg) {        
         $this->access = array(100);
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {                                               
             SysClass::return_to_main();
@@ -201,7 +231,7 @@ Class Controller_index Extends Controller_Base {
      * Доступ у администраторов, модераторов
      * @param arg - массив аргументов для поиска
      */
-    function users($arg = array()) {
+    public function users($arg = array()) {
 		$this->access = array(1, 2);
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
 			SysClass::return_to_main();
@@ -230,4 +260,32 @@ Class Controller_index Extends Controller_Base {
         $this->show_layout($this->parameters_layout);
     }	
 
+	/**
+	* Обратная связь с автором
+	*/
+	public function upgrade() {
+		$this->access = array(100);
+        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
+			SysClass::return_to_main();
+            exit();
+        }
+        /* model */
+        $this->load_model('m_index', array($this->logged_in));
+        /* get data */
+        $user_data = $this->models['m_index']->data;
+        foreach ($user_data as $name => $val) {
+            $this->view->set($name, $val);
+        }
+		$users_array = $this->models['m_index']->get_users_data();
+        /* view */
+        $this->get_standart_view();		
+        $this->view->set('body_view', $this->view->read('v_upgrade'));
+        $this->html = $this->view->read('v_dashboard');
+        /* layouts */
+        $this->parameters_layout["layout_content"] = $this->html;
+        $this->parameters_layout["layout"] = 'dashboard';		
+        $this->parameters_layout["add_script"] .= '<script src="' . $this->get_path_controller() . '/js/upgrade.js" type="text/javascript" /></script>';
+        $this->parameters_layout["title"] = 'Административная панель/Связь с автором';
+        $this->show_layout($this->parameters_layout);		
+	}
 }

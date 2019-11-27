@@ -49,7 +49,7 @@
                             </table>                        
                     </div><?php } else {?>
                     <div class="card-header">
-                        <h4 class="card-title">У Вас нет новых сообщений</h4>
+                        <h4 class="card-title">У Вас нет сообщений</h4>
                     </div>                    
                     <?php }?>
                 </div>

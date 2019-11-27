@@ -24,11 +24,11 @@ if (ENV_SITE !== 1) {
         </a>
     </li>
     <?php }?>
-    <?php if (in_array($user_role, array(1,2,3))){?>
-    <li style="display:none;" id="customers-item-menu" class="">
-        <a class="nav-link" href="/admin/customers">
-            <i class="nc-icon nc-satisfied"></i>
-            <p>Клиенты</p>
+    <?php if (in_array($user_role, array(1,2))){?>
+    <li id="logs-item-menu" class="">
+        <a class="nav-link" href="/admin/logs">
+            <i class="nc-icon nc-notes"></i>
+            <p>Журнал</p>
         </a>
     </li>
     <?php }?>
@@ -72,10 +72,10 @@ if (ENV_SITE !== 1) {
         </a>
     </li>
     <?php }?>    
-    <li class="nav-item active active-pro" style="display:none;">
+    <li class="nav-item active active-pro" id="upgrade-item-menu">
         <a class="nav-link active" href="/admin/upgrade">
             <i class="nc-icon nc-credit-card"></i>
-            <p>Докупить опций</p>
+            <p>Купить интеграцию</p>
         </a>
     </li>
 </ul>

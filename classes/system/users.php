@@ -284,23 +284,35 @@ Class Users {
     }
 
     /* Получение данных пользователей */
-
+	
+	/**
+	* Вернёт ID статуса пользователя по его ID
+	*/	
     public function get_user_stat($id) { // Статус пользователя 1 - на подтверждении, 2 - активен,  3 - блокирован
         $sql = 'SELECT `active` FROM ?n WHERE `id` = ?i';
         return SafeMySQL::gi()->getOne($sql, self::USERS_TABLE, $id);
     }
 
-    public function get_user_role($id) { // Роль пользователя 1-админ 2-модератор 3-менеджер 4-пользователь 8-система 
+	/**
+	* Вернёт ID роли пользователя по его ID
+	*/    
+	public function get_user_role($id) { // Роль пользователя 1-админ 2-модератор 3-менеджер 4-пользователь 8-система 
         $sql = 'SELECT `user_role` FROM ?n WHERE `id` = ?i';
         return SafeMySQL::gi()->getOne($sql, self::USERS_TABLE, $id);
     }
 
-    public function get_text_role($id) { // Имя роли
+	/**
+	* Вернёт название роли по её ID
+	*/
+    public function get_text_role($id) {
         $sql = 'SELECT `name` FROM ?n WHERE `id` = ?i';
         return SafeMySQL::gi()->getOne($sql, self::USERS_ROLES, $id);
     }
 
-    public function get_text_active($id) { // Имя статуса
+	/**
+	* Вернёт название статуса по его ID
+	*/	
+    public function get_text_active($id) {
         $res = 'Не определён';
         switch ($id) {
             case 1:
@@ -417,23 +429,31 @@ Class Users {
     }
 
     /**
-     * Удаление всех данных пользователя
+     * 	Удаление пользователя
      * 	@param id - id пользователя
      * 	@param copy - флаг копирования в архивную таблицу
      */
-    public function dell_user_data($id, $copy = 0) {
+    public function dell_user_data($id, $copy = false) {
         if ($copy) {
             $sql = 'INSERT INTO ?n SELECT *, CURRENT_TIMESTAMP FROM ?n WHERE id = ?i';
             SafeMySQL::gi()->query($sql, self::DELL_USERS_TABLE, self::USERS_TABLE, $id);
-        }
-
-        $sql = 'DELETE FROM ?n WHERE `id` = ?i';
-        SafeMySQL::gi()->query($sql, self::USERS_TABLE, $id);
-        $sql = 'DELETE a, d, m FROM ?n as a, ?n as d, ?n as m WHERE `a`.`user_id` = ?i AND `d`.`user_id` = ?i AND `m`.`user_id` = ?i';
-        SafeMySQL::gi()->query($sql, self::USERS_ACTIVATION_TABLE, self::USERS_DATA_TABLE, self::USERS_MESSAGE_TABLE, $id, $id, $id);
-        if (ENV_LOG) {
-            SysClass::SetLog('Удалены данные пользователя id=' . $id, 'info', $this->data['id']);
-        }
+			$sql = 'DELETE FROM ?n WHERE `id` = ?i';
+			SafeMySQL::gi()->query($sql, self::USERS_TABLE, $id);
+			if (ENV_LOG) {
+				SysClass::SetLog('Пользователь id=' . $id . 'перемещён в таблицу удалённые ' . self::DELL_USERS_TABLE, 'info', $this->data['id']);
+			}			
+        } else {
+			$sql = 'DELETE FROM ?n WHERE `id` = ?i';
+			SafeMySQL::gi()->query($sql, self::USERS_TABLE, $id);
+			if (ENV_LOG) {
+				SysClass::SetLog('Удалён пользователь id=' . $id, 'info', $this->data['id']);
+			}			
+			$sql = 'DELETE a, d, m FROM ?n as a, ?n as d, ?n as m WHERE `a`.`user_id` = ?i AND `d`.`user_id` = ?i AND `m`.`user_id` = ?i';
+			SafeMySQL::gi()->query($sql, self::USERS_ACTIVATION_TABLE, self::USERS_DATA_TABLE, self::USERS_MESSAGE_TABLE, $id, $id, $id);
+			if (ENV_LOG) {
+				SysClass::SetLog('Удалены данные пользователя id=' . $id, 'info', $this->data['id']);
+			}			
+		}	
     }
 
     /**
@@ -473,6 +493,7 @@ Class Users {
 					  `subscribed` tinyint(1) DEFAULT '1',
 					  `reg_date` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
 					  `last_activ` datetime DEFAULT NULL,
+					  `up_date` datetime NOT NULL COMMENT 'дата обновления инф.',					  
 					  `phone` varchar(255) NOT NULL,
 					  `session` varchar(255) NOT NULL,
 					  `comment` varchar(255) NOT NULL COMMENT 'Комментарий или дивиз пользователя',
