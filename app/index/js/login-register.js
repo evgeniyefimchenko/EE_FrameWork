@@ -154,7 +154,7 @@ $(document).ready(function () {
         $(this).val($(this).val().replace(/\s{1,}/g, ''));
     });
 
-    /*autocomlete off*/
+    /*autocomlete off!important*/
     function clean_form() {
         if (!registration_flag) {
             $('#reg_email, #reg_password, #rec_email').val('');
@@ -165,6 +165,7 @@ $(document).ready(function () {
             registration_flag = true;
         }
     }
+	
     var registration_flag = false;
     $('#registration_button').on('click', function () {
         clean_form();

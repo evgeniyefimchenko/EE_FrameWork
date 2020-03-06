@@ -40,11 +40,11 @@
         <link rel="apple-touch-icon" sizes="76x76" href="<?=ENV_URL_SITE?>/favicon.png">
         <link rel="icon" type="image/png" href="<?=ENV_URL_SITE?>/favicon.ico">
         <!-- Стандартные стили-->
-        <link href="https://unpkg.com/sanitize.css" rel="stylesheet" />
+        <link href="//unpkg.com/sanitize.css" rel="stylesheet" />
         <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" type="text/css">
-		<link href="https://fonts.googleapis.com/css?family=Montserrat:400,700,200" rel="stylesheet" type="text/css"/>		
-        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/latest/css/font-awesome.min.css" type="text/css"/>
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css"/>		
+		<link href="//fonts.googleapis.com/css?family=Montserrat:400,700,200" rel="stylesheet" type="text/css"/>		
+        <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/latest/css/font-awesome.min.css" type="text/css"/>
+        <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css"/>		
 		<link href="<?= ENV_URL_SITE . '/' . ENV_APP_DIRECTORY ?>/admin/css/dashboard.css" rel="stylesheet" type="text/css" />
         <link rel="canonical" href="<?=$canonical_href?>" />
         <!-- Добавленные стили из контроллера-->
@@ -68,9 +68,9 @@
         <?=$layout_content?>
     </body>
     <!-- Скрипты-->
-    <script src='http://code.jquery.com/jquery-latest.min.js' type="text/javascript" ></script>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.0/umd/popper.min.js" type="text/javascript" ></script>
-	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.0/js/bootstrap.min.js" type="text/javascript" ></script>  
+    <script src='//code.jquery.com/jquery-latest.min.js' type="text/javascript" ></script>
+	<script src="//cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.0/umd/popper.min.js" type="text/javascript" ></script>
+	<script src="//maxcdn.bootstrapcdn.com/bootstrap/4.1.0/js/bootstrap.min.js" type="text/javascript" ></script>  
     <script src="<?= ENV_URL_SITE . '/' . ENV_APP_DIRECTORY ?>/admin/js/bootstrap-notify.js" type="text/javascript" type="text/javascript" ></script>
     <script src="<?= ENV_URL_SITE . '/' . ENV_APP_DIRECTORY ?>/admin/js/bootstrap-switch.js" type="text/javascript" type="text/javascript" ></script>
     <script src="<?=ENV_URL_SITE?>/js/main_dashboard.js" type="text/javascript" ></script>    

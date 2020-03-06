@@ -40,10 +40,10 @@
         <link rel="apple-touch-icon" sizes="76x76" href="<?=ENV_URL_SITE?>/favicon.png">
         <link rel="icon" type="image/png" href="<?=ENV_URL_SITE?>/favicon.ico">
         <!-- Стандартные стили-->
-        <link href="https://unpkg.com/@csstools/normalize.css" rel="stylesheet" />
-        <link href="https://unpkg.com/sanitize.css" rel="stylesheet" />
-        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" type="text/css">
-        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/latest/css/font-awesome.min.css" type="text/css"/>
+        <link href="//unpkg.com/@csstools/normalize.css" rel="stylesheet" />
+        <link href="//unpkg.com/sanitize.css" rel="stylesheet" />
+        <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" type="text/css">
+        <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/font-awesome/latest/css/font-awesome.min.css" type="text/css"/>
         <link rel="canonical" href="<?=$canonical_href?>" />
         <!-- Добавленные стили из контроллера-->
         <?=$add_style?>
@@ -61,9 +61,9 @@
         <?=$layout_content?>
     </body>
     <!-- Скрипты-->
-    <script src='http://code.jquery.com/jquery-latest.min.js' type="text/javascript"></script>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.0/umd/popper.min.js" type="text/javascript"></script>
-	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.1.0/js/bootstrap.min.js" type="text/javascript"></script>   
+    <script src='//code.jquery.com/jquery-latest.min.js' type="text/javascript"></script>
+	<script src="//cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.0/umd/popper.min.js" type="text/javascript"></script>
+	<script src="//maxcdn.bootstrapcdn.com/bootstrap/4.1.0/js/bootstrap.min.js" type="text/javascript"></script>   
     <script src="<?=ENV_URL_SITE?>/js/main_index.js" type="text/javascript"></script>
     <!-- Добавленные скрипты из контроллера -->
     <?=$add_script?>

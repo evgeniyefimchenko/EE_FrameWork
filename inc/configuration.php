@@ -22,7 +22,7 @@ $C['ENV_SITE_DESCRIPTION'] = 'EE_FRAMEFORK ' . $C['ENV_VERSION_CORE'] . ' - Лё
 $C['ENV_SITE_AUTHOR'] = 'Евгений Владимирович Ефимченко'; // Автор сайта
 $C['ENV_DATE_SITE_CREATE'] = '01.09.2018'; // Дата создания сайта
 $C['ENV_DIRSEP'] = DIRECTORY_SEPARATOR;  // Разделитель операционной системы
-$C['ENV_DOMEN_PROTOCOL'] = stripos($_SERVER['SERVER_PROTOCOL'], 'https') === true ? 'https://' : 'http://'; // Протокол сайта(на разных хостингах работает по разному!)
+$C['ENV_DOMEN_PROTOCOL'] = !empty($_SERVER['HTTPS']) && strtolower($_SERVER['HTTPS']) !== 'off' ? "https://" : "http://"; // Протокол сайта
 $C['ENV_DOMEN_NAME'] = $_SERVER['SERVER_NAME']; // Домена сайта
 $C['ENV_URL_SITE'] = $C['ENV_DOMEN_PROTOCOL'] . $C['ENV_DOMEN_NAME']; // Домен с протоколом сайта
 $C['ENV_SITE_PATH'] = realpath(dirname(__FILE__) . $C['ENV_DIRSEP'] . '..' . $C['ENV_DIRSEP']) . $C['ENV_DIRSEP']; // Каталог сайта на сервере

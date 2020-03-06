@@ -20,6 +20,11 @@ RewriteEngine on
 RewriteBase /
 RewriteRule ^(.*)\.html $1\.php
 
+# Для редиректа на https разкомментировать
+#RewriteCond %{HTTP:X-Forwarded-Proto} !https
+#RewriteCond %{HTTPS} off
+#RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301,NE]
+
 RewriteCond %{SERVER_PORT} ^443$ [OR] 
 RewriteCond %{HTTPS} =on
 RewriteRule ^(.*)$ http://site.ru/$1 [R=301,L]
