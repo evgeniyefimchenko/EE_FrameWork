@@ -12,7 +12,8 @@ if (ENV_SITE !== 1) {
             <div class="col-md-8">
                 <div class="card">
                     <div class="card-header">
-                        <h4 class="card-title"><?= $new_user ? 'Добавление профиля' : 'Редактирование профиля' ?></h4><span class = "card-category" id="id_user" data-id="<?= $get_user_context['id'] ?>">id = <?php echo $new_user ? 'Не присвоен' : $get_user_context['id'] ?></span>
+                        <h4 class="card-title"><?= $get_user_context['new_user'] ? 'Добавление профиля' : 'Редактирование профиля' ?></h4>
+						<span class = "card-category" id="id_user" data-id="<?= $get_user_context['id'] ?>">id = <?php echo $get_user_context['new_user'] ? 'Не присвоен' : $get_user_context['id'] ?></span>
                     </div>
                     <div class="card-body">
                         <form id="edit_users">

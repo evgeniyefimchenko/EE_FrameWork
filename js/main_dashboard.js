@@ -341,11 +341,12 @@ $(document).ready(function () {
     });
     
     /*Пометить все сообщения прочитанными*/
-    $('#set_readed_all').click(function () {
-        $.ajax({
+    $('#set_readed_all, #read_all_message').click(function () {		
+        let return_url = $(this).data('return');
+		$.ajax({
             url: '/admin/set_readed_all',
             success: function () {                
-                    window.location = '/admin/' + $(this).data('return');
+                    window.location = return_url;
             },
             error: function (xhr, ajaxOptions, thrownError) {
                 console.log(xhr.status, xhr.responseText, thrownError, ajaxOptions);

@@ -1,4 +1,5 @@
 <?php
+
 if (ENV_SITE !== 1) {
     header("HTTP/1.1 301 Moved Permanently");
     header("Location: http://" . $_SERVER['HTTP_HOST']);
@@ -14,24 +15,24 @@ require_once('logs_trait.php');
  */
 
 Class Controller_index Extends Controller_Base {
-    
-	/* Подключение traits */
-	use messages_trait,
+    /* Подключение traits */
+
+use messages_trait,
     notifications_trait,
-	logs_trait;
+    logs_trait;
 
     /**
      * Главная страница админ-панели
      */
-    public function index($param = []) {		
+    public function index($param = []) {
         /* $this->access Массив с перечнем ролей пользователей которым разрешён доступ к странице
-		* 1-админ 2-модератор 3-пользователь
-        * 100 - все зарегистрированные пользователи
-        */
+         * 1-админ 2-модератор 3-менеджер 4-пользователь
+         * 100 - все зарегистрированные пользователи
+         */
         $this->access = array(100);
-        if (!SysClass::get_access_user($this->logged_in, $this->access)) {			
+        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main(200, '/show_login_form?return=admin');
-        }        
+        }
         /* model */
         $this->load_model('m_index', array($this->logged_in));
         /* get user data - все переменные пользователя доступны в представлениях */
@@ -40,17 +41,17 @@ Class Controller_index Extends Controller_Base {
             $this->view->set($name, $val);
         }
         /* view */
-		$this->get_standart_view();
-		/* Отобразить контент согласно уровня доступа */
+        $this->get_standart_view();
+        /* Отобразить контент согласно уровня доступа */
         if ($user_data['user_role'] == 1) {                                     // Доступ для администратора
             $this->view->set('body_view', $this->view->read('v_chart'));
-        } elseif($user_data['user_role'] == 2) {                                // Доступ для модератора
+        } elseif ($user_data['user_role'] == 2) {                                // Доступ для модератора
             $this->view->set('body_view', 'Доступ для модератора, пока без представления');
-        } elseif($user_data['user_role'] == 3) {                                // Доступ для менеджера
+        } elseif ($user_data['user_role'] == 3) {                                // Доступ для менеджера
             $this->view->set('body_view', 'Доступ для менеджера, пока без представления');
-        } else {																// Обычный пользователь
+        } else {                // Обычный пользователь
             $this->view->set('body_view', 'Доступ для пользователя, пока без представления');
-        }		
+        }
         $this->html = $this->view->read('v_dashboard');
         /* layouts */
         $this->parameters_layout["layout_content"] = $this->html;
@@ -71,17 +72,17 @@ Class Controller_index Extends Controller_Base {
         $this->view->set('menu_options', $this->view->read('v_menu_options'));
         $this->view->set('main_menu', $this->view->read('v_main_menu'));
     }
-	
+
     /**
      * Обработка AJAX запросов админ-панели
      * @param array $arg - дополнительные параметры запрещены
-	 * @param POST $post_data - POST параметры update или get
+     * @param POST $post_data - POST параметры update или get
      */
     public function ajax_admin($arg = array()) {
         $this->access = array(100);
-        if (!SysClass::get_access_user($this->logged_in, $this->access) || count($arg)>0) {
-			echo '{"error": "access denieded"}';
-			exit();
+        if (!SysClass::get_access_user($this->logged_in, $this->access) || count($arg) > 0) {
+            echo '{"error": "access denieded"}';
+            exit();
         }
         /* model */
         $this->load_model('m_index', array($this->logged_in));
@@ -106,10 +107,10 @@ Class Controller_index Extends Controller_Base {
         }
     }
 
-	/**
-	* AJAX Удаление пользователя(перемещение в таблицу удалённых)
-	*/
-	public function delete_user($arg) {
+    /**
+     * AJAX Удаление пользователя(перемещение в таблицу удалённых)
+     */
+    public function delete_user($arg) {
         $this->access = array(1, 2);
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
@@ -120,21 +121,21 @@ Class Controller_index Extends Controller_Base {
         if (in_array('id', $arg)) {                                                       // Пользователь передан получаем данные из базы
             $id = filter_var($arg[array_search('id', $arg) + 1], FILTER_VALIDATE_INT);
             $get_user_context = $this->models['m_logs']->get_user_data($id);
-		} else {
-			echo json_encode(array('error' => 'error delete_user not user id'));
-			exit();			
-		}
-		if ($get_user_context) {
-			$this->models['m_logs']->dell_user_data($id, true);
-		} else {
-			echo json_encode(array('error' => 'error delete_user not user in db'));
-			exit();			
-		}
-		echo json_encode(array('error' => 'no'));
-		exit();		
-	}
-	
-	 /**
+        } else {
+            echo json_encode(array('error' => 'error delete_user not user id'));
+            exit();
+        }
+        if ($get_user_context) {
+            $this->models['m_logs']->dell_user_data($id, true);
+        } else {
+            echo json_encode(array('error' => 'error delete_user not user in db'));
+            exit();
+        }
+        echo json_encode(array('error' => 'no'));
+        exit();
+    }
+
+    /**
      * Карточка пользователя сайта
      * для изменения данных и внесения новых пользователей вручную
      * @param type $arg
@@ -150,10 +151,10 @@ Class Controller_index Extends Controller_Base {
         if (in_array('id', $arg)) {                                                       // Пользователь передан получаем данные из базы
             $id = filter_var($arg[array_search('id', $arg) + 1], FILTER_VALIDATE_INT);
             $get_user_context = $this->models['m_index']->get_user_data($id);
-            /*Нельзя посмотреть чужую карточку равной себе роли или выше*/
+            /* Нельзя посмотреть чужую карточку равной себе роли или выше */
             if ($this->models['m_index']->data['user_role'] >= $get_user_context['user_role'] && $this->logged_in != $id) {
                 SysClass::return_to_main(200, ENV_URL_SITE . '/admin/user_edit/id/' . $this->logged_in);
-            }            
+            }
         } else {                                                                            // Не передан ключевой параметр id
             SysClass::return_to_main(301, $_SERVER['HTTP_REFERER']);
         }
@@ -183,7 +184,7 @@ Class Controller_index Extends Controller_Base {
         $this->parameters_layout["title"] = 'Административная панель/Редактирование профиля';
         $this->show_layout($this->parameters_layout);
     }
-	
+
     /**
      * Аякс изменение рег. данных пользователя
      * Редактирование возможно модераторами
@@ -191,13 +192,13 @@ Class Controller_index Extends Controller_Base {
      * @param $arg - ID пользователя для изменения
      * @return json сообщение об ошибке или no
      */
-    public function ajax_user_edit($arg) {        
+    public function ajax_user_edit($arg) {
         $this->access = array(100);
-        if (!SysClass::get_access_user($this->logged_in, $this->access)) {                                               
+        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
             exit();
         }
-        $id = filter_var($arg[array_search('id', $arg) + 1], FILTER_VALIDATE_INT);       
+        $id = filter_var($arg[array_search('id', $arg) + 1], FILTER_VALIDATE_INT);
         /* model */
         $this->load_model('m_index', array($this->logged_in));
         if ($this->models['m_index']->data['user_role'] > 2 && $this->logged_in != $id) { // Роль меньше модератора или id не текущего пользователя выходим
@@ -216,7 +217,7 @@ Class Controller_index Extends Controller_Base {
                 exit();
             }
         }
-        
+
         if ($this->models['m_index']->set_user_data($id, $post_data)) {
             echo json_encode(array('error' => 'no'));
             exit();
@@ -225,16 +226,16 @@ Class Controller_index Extends Controller_Base {
             exit();
         }
     }
-	
+
     /**
      * Выводит список пользователей
      * Доступ у администраторов, модераторов
      * @param arg - массив аргументов для поиска
      */
     public function users($arg = array()) {
-		$this->access = array(1, 2);
+        $this->access = array(1, 2);
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-			SysClass::return_to_main();
+            SysClass::return_to_main();
             exit();
         }
         /* model */
@@ -244,29 +245,29 @@ Class Controller_index Extends Controller_Base {
         foreach ($user_data as $name => $val) {
             $this->view->set($name, $val);
         }
-		$users_array = $this->models['m_index']->get_users_data();
+        $users_array = $this->models['m_index']->get_users_data();
         /* view */
         $this->get_standart_view();
-		$this->view->set('users', is_array($users_array) ? $users_array : array());		
+        $this->view->set('users', is_array($users_array) ? $users_array : array());
         $this->view->set('body_view', $this->view->read('v_users'));
         $this->html = $this->view->read('v_dashboard');
         /* layouts */
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
         $this->parameters_layout["add_script"] .= '<script src="' . $this->get_path_controller() . '/js/plugins/DataTables/datatables.min.js" type="text/javascript" /></script>';
-        $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="' . $this->get_path_controller() . '/js/plugins/DataTables/datatables.min.css"/>';		
+        $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="' . $this->get_path_controller() . '/js/plugins/DataTables/datatables.min.css"/>';
         $this->parameters_layout["add_script"] .= '<script src="' . $this->get_path_controller() . '/js/users.js" type="text/javascript" /></script>';
         $this->parameters_layout["title"] = 'Административная панель/Пользователи';
         $this->show_layout($this->parameters_layout);
-    }	
+    }
 
-	/**
-	* Обратная связь с автором
-	*/
-	public function upgrade() {
-		$this->access = array(100);
+    /**
+     * Обратная связь с автором
+     */
+    public function upgrade() {
+        $this->access = array(100);
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-			SysClass::return_to_main();
+            SysClass::return_to_main();
             exit();
         }
         /* model */
@@ -276,16 +277,17 @@ Class Controller_index Extends Controller_Base {
         foreach ($user_data as $name => $val) {
             $this->view->set($name, $val);
         }
-		$users_array = $this->models['m_index']->get_users_data();
+        $users_array = $this->models['m_index']->get_users_data();
         /* view */
-        $this->get_standart_view();		
+        $this->get_standart_view();
         $this->view->set('body_view', $this->view->read('v_upgrade'));
         $this->html = $this->view->read('v_dashboard');
         /* layouts */
         $this->parameters_layout["layout_content"] = $this->html;
-        $this->parameters_layout["layout"] = 'dashboard';		
+        $this->parameters_layout["layout"] = 'dashboard';
         $this->parameters_layout["add_script"] .= '<script src="' . $this->get_path_controller() . '/js/upgrade.js" type="text/javascript" /></script>';
         $this->parameters_layout["title"] = 'Административная панель/Связь с автором';
-        $this->show_layout($this->parameters_layout);		
-	}
+        $this->show_layout($this->parameters_layout);
+    }
+
 }

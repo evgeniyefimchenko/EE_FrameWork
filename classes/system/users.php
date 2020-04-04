@@ -40,8 +40,10 @@ Class Users {
                 $res_array = SafeMySQL::gi()->getRow($sql_user, self::USERS_TABLE, (int) $id);
                 if ($res_array) {
                     $class_messages = new Class_messages();
-                    $res_array['count_message'] = $class_messages->get_count_messages($id);
+                    $res_array['count_unread_messages'] = $class_messages->get_count_unread_messages($id);
+                    $res_array['count_messages'] = $class_messages->get_count_messages($id);
                     $res_array['messages'] = $class_messages->get_messages_user($id);
+                    $res_array['unread_messages'] = $class_messages->get_unread_messages_user($id);
                     unset($class_messages);
                     $res_array['user_role_text'] = $this->get_text_role($res_array['user_role']);
                     $res_array['active_text'] = $this->get_text_active($res_array['active']);
@@ -179,8 +181,8 @@ Class Users {
      */
     public function confirm_user($email, $psw, $force_login = false) {
         $res = '';
-        $user_row = SafeMySQL::gi()->getRow('SELECT `id`, `pwd` FROM ?n WHERE `email` = ?s', self::USERS_TABLE, $email);
-        if ($this->get_user_stat($user_row['id']) == 2) {
+        $user_row = SafeMySQL::gi()->getRow('SELECT `id`, `active`, `pwd` FROM ?n WHERE `email` = ?s', self::USERS_TABLE, $email);
+        if ($this->get_user_stat($user_row['active']) == 2) {
             if (password_verify($psw, $user_row['pwd']) || $force_login) {
                 $sql = 'UPDATE ?n SET `last_ip` = ?s, `last_activ` = ?s, `session` = ?s WHERE `id` = ?i';
                 $ip = SysClass::client_ip();
@@ -192,9 +194,9 @@ Class Users {
             } else {
                 $res = 'Пароль не прошёл проверку!';
             }
-        } elseif ($this->get_user_stat($user_row['id']) == 1) {
+        } elseif ($this->get_user_stat($user_row['active']) == 1) {
             $res = 'Вы не подтвердили электронную почту!';
-        } elseif ($this->get_user_stat($user_row['id']) == 3) {
+        } elseif ($this->get_user_stat($user_row['active']) == 3) {
             $res = 'Аккаунт заблокирован!';
         } else {
             $res = 'Такие данные не обнаружены!';
@@ -528,7 +530,7 @@ Class Users {
         $create_table = "CREATE TABLE ?n (
 					  `id` int(11) NOT NULL,
 					  `user_id` int(11) NOT NULL,
-					  `autor_id` int(11) NOT NULL,
+					  `author_id` int(11) NOT NULL,
 					  `message_text` varchar(1000) NOT NULL,
 					  `date_create` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
 					  `date_read` datetime DEFAULT NULL,
