@@ -45,14 +45,18 @@ actions = {
                     });                    
                     if (typeof data.notifications[0] !== 'undefined') {
                         var d = new Date().getTime();
-                        data.notifications.forEach(function (notification) {
-                            if (notification.status === 'info') {
-								//console.log((parseInt(notification.showtime) - parseInt(d)));								
+                        data.notifications.forEach(function (notification) {                            
+                            if (notification.status === 'info' || notification.status === 'success') {
+                                actions.showNotification(notification.text, notification.status);
+                                // Информационные сообщения прибиваем сразу
+                                $.post('/admin/kill_notification_by_id', {'id' : notification.id});
+                            } else if(notification.status === 'primary') {							
                                 if ((parseInt(notification.showtime) - parseInt(d)) <= 0) {
-                                    actions.showNotification(notification.text, notification.status);                                    
+                                    actions.showNotification(notification.text, notification.status);
+                                    // Отложить показ уведомлений на 5-ть минут 
                                     $.post('/admin/set_notification_time', {'showtime' : d + 300000, 'id' : notification.id});
                                 }
-                            } else // Показать все не информационные сообщения 
+                            } else // Показывать все остальные сообщения постоянно до удаления в контроллере
                             {
                                 actions.showNotification(notification.text, notification.status);
                                 $.post('/admin/set_notification_time', {'showtime' : d, 'id' : notification.id});

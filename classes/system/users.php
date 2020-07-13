@@ -17,7 +17,7 @@ Class Users {
             USERS_DATA_TABLE = ENV_DB_PREF . 'users_data',
             USERS_MESSAGE_TABLE = ENV_DB_PREF . 'users_message',
             USERS_ACTIVATION_TABLE = ENV_DB_PREF . 'users_activation',
-            BASE_OPTIONS_USER = '{"sidebar_img":"sidebar-4.jpg","user_logo_img":"uploads/images/avatars/face-0-lite.jpg","user_img":"/uploads/images/avatars/face-0.jpg","first_launch":"yes","color_filter":"purple","notifications":[{"text":"Добро пожаловать! У Вас есть непрочитанное сообщение <a href=\"/admin/messages\">читать?</a>","status":"info","showtime":"0","id":"1"}],"show_image_in_sidebar":"yes"}';
+            BASE_OPTIONS_USER = '{"sidebar_img":"sidebar-4.jpg","user_logo_img":"uploads/images/avatars/face-0-lite.jpg","user_img":"/uploads/images/avatars/face-0.jpg","first_launch":"yes","color_filter":"purple","notifications":[{"text":"Добро пожаловать! У Вас есть непрочитанное сообщение <a href=\"/admin/messages\">читать?</a>","status":"primary","showtime":"0","id":"1"}],"show_image_in_sidebar":"yes"}';
 
     public $data;
 
@@ -182,7 +182,7 @@ Class Users {
     public function confirm_user($email, $psw, $force_login = false) {
         $res = '';
         $user_row = SafeMySQL::gi()->getRow('SELECT `id`, `active`, `pwd` FROM ?n WHERE `email` = ?s', self::USERS_TABLE, $email);
-        if ($this->get_user_stat($user_row['active']) == 2) {
+        if ($user_row['active'] == 2) {
             if (password_verify($psw, $user_row['pwd']) || $force_login) {
                 $sql = 'UPDATE ?n SET `last_ip` = ?s, `last_activ` = ?s, `session` = ?s WHERE `id` = ?i';
                 $ip = SysClass::client_ip();
@@ -194,9 +194,9 @@ Class Users {
             } else {
                 $res = 'Пароль не прошёл проверку!';
             }
-        } elseif ($this->get_user_stat($user_row['active']) == 1) {
+        } elseif ($user_row['active'] == 1) {
             $res = 'Вы не подтвердили электронную почту!';
-        } elseif ($this->get_user_stat($user_row['active']) == 3) {
+        } elseif ($user_row['active'] == 3) {
             $res = 'Аккаунт заблокирован!';
         } else {
             $res = 'Такие данные не обнаружены!';
@@ -336,6 +336,16 @@ Class Users {
     public function get_user_id_by_email($email) { // ID пользователя
         $sql = 'SELECT `id` FROM ?n WHERE `email` LIKE ?s';
         return SafeMySQL::gi()->getOne($sql, self::USERS_TABLE, $email);
+    }
+
+    /**
+     * Вернёт email по user id
+     * @param int $user_id
+     * @return str
+     */
+    public function get_user_email($user_id){
+        $sql = 'SELECT `email` FROM ?n WHERE `id` = ?i';
+        return SafeMySQL::gi()->getOne($sql, self::USERS_TABLE, $user_id);        
     }
 
     /**
@@ -520,7 +530,7 @@ Class Users {
         $create_table = "CREATE TABLE ?n (
 					  `id` int(11) NOT NULL,
 					  `user_id` int(11) NOT NULL,
-					  `up_date` datetime NOT NULL COMMENT 'Время любого изменения данных',
+					  `up_date` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Время любого изменения данных',
 					  `options` varchar(3000) NOT NULL COMMENT 'Настройки интерфейса пользователя'
 					) ENGINE=MyISAM DEFAULT CHARSET=utf8;";
         SafeMySQL::gi()->query($create_table, self::USERS_DATA_TABLE);

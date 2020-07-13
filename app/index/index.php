@@ -159,7 +159,7 @@ Class Controller_index Extends Controller_Base {
     public function activation($param) {
         $this->load_model('m_index');
         if ($this->models['m_index']->get_email_exist($param[1])) {
-            $active = $this->models['m_index']->get_user_stat($this->models['m_index']->get_user_id($param[1]));
+            $active = $this->models['m_index']->get_user_stat($this->models['m_index']->get_user_id_by_email($param[1]));
             if ($active == 1) {
                 if (password_verify($param[1], base64_decode($param[0]))) {
                     if ($this->models['m_index']->dell_activation_code($param[1])) {

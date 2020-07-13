@@ -20,11 +20,26 @@ class Class_notifications {
     public function kill_notification_by_text($user_id, $text_notification) {
         $notifications = $this->get_notifications_user($user_id);
         foreach ($notifications as $key => $notification) {
-            if (mb_strpos($notification['text'], $text_notification)) {
+            if (mb_strpos($notification['text'], $text_notification) !== FALSE) {
                 unset($notifications[$key]);
             }
         }
         $this->set_notifications_user($user_id, $notifications);
+    }
+    
+    /**
+     * Удалит оповещение по его id
+     * @param type $user_id - id пользователя
+     * @param type $id - id оповещения
+     */
+    public function kill_notification_by_id($user_id, $id) {
+        $notifications = $this->get_notifications_user($user_id);
+        foreach ($notifications as $key => $notification) {
+            if ($notification['id'] == $id) {
+                unset($notifications[$key]);
+            }
+        }
+        $this->set_notifications_user($user_id, $notifications);        
     }
 
     /**
@@ -41,7 +56,7 @@ class Class_notifications {
     /**
     * Добавит напоминание пользователю
     * @param int $user_id ID - пользователя
-    * @param array $notification - Массив с текстом и классом уведомления
+    * @param array $notification - Массив с текстом и классом уведомления 'primary', 'info', 'success', 'warning', 'danger'
     */
     public function add_notification_user($user_id, $notification) {
         $notifications = $this->get_notifications_user($user_id);
