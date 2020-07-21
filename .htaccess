@@ -2,6 +2,8 @@
    Order allow,deny
    Deny from all
 </FilesMatch>
+#Для отладки, выводит ошибки PHP в файл(подставте свои значения)
+#php_value error_log /home/TEST/domains/site.ru/php_errors.log
 
 AddHandler application/x-httpd-php .html
 AddType application/x-javascript .js
@@ -20,7 +22,7 @@ RewriteEngine on
 RewriteBase /
 RewriteRule ^(.*)\.html $1\.php
 
-# Для редиректа на https разкомментировать
+# Для редиректа на https раскомментировать
 #RewriteCond %{HTTP:X-Forwarded-Proto} !https
 #RewriteCond %{HTTPS} off
 #RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301,NE]

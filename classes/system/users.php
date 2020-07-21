@@ -212,12 +212,16 @@ Class Users {
      * ВАЖНО! Роль пользователя устанавливается по умолчанию в таблице БД
      */
     public function registration_users($email, $password) {
-        $newsword = password_hash($password, PASSWORD_DEFAULT);
+        $newpassword = password_hash($password, PASSWORD_DEFAULT);
         $sql = 'INSERT INTO ?n SET `email` = ?s, `pwd` = ?s, `last_ip` = ?s';
-        if (SafeMySQL::gi()->query($sql, self::USERS_TABLE, $email, $newsword, $_SERVER['REMOTE_ADDR']) && ENV_LOG) {
+        if (SafeMySQL::gi()->query($sql, self::USERS_TABLE, $email, $newpassword, $_SERVER['REMOTE_ADDR']) && ENV_LOG) {
             SysClass::SetLog('Регистрация ' . $email . ' c ' . $password . ' успех', 'info', 8);
         }
-        $id_user = SafeMySQL::gi()->insertId();
+        $sql = 'SELECT MAX(`id`) FROM ?n';
+        $id_user = SafeMySQL::gi()->getOne($sql);
+        if (ENV_LOG && $id_user) {
+            SysClass::SetLog('Зарегистрирован новый пользователь id=' . $id_user, 'info', $this->data['id']);
+        }        
         $this->set_user_options($id_user); // Заполнить первичные данные из базы по шаблону
         $class_messages = new Class_messages();
         $class_messages->set_message_user($id_user, 8, 'Заполните свои персональные данные по <a href="' . ENV_URL_SITE . '/admin/user_edit/id/' . $id_user . '">ссылке</a>', 'info');
@@ -241,10 +245,11 @@ Class Users {
         }
         $sql = 'INSERT INTO ?n SET ?u';
         SafeMySQL::gi()->query($sql, self::USERS_TABLE, $fields);
-        $id_user = SafeMySQL::gi()->insertId();
+        $sql = 'SELECT MAX(`id`) FROM ?n';
+        $id_user = SafeMySQL::gi()->getOne($sql);
         if (ENV_LOG && $id_user) {
             SysClass::SetLog('Зарегистрирован новый пользователь id=' . $id_user, 'info', $this->data['id']);
-        }		
+        }
         $this->set_user_password($id_user, $fields['email'], $fields['pwd']);
         $this->set_user_options($id_user); // Заполнить первичные данные из базы по шаблону
         $class_messages = new Class_messages();

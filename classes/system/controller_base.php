@@ -67,17 +67,21 @@ Abstract Class Controller_Base {
         $this->view = $view;
     }
 
-    /*
+    /**
      * Загружает модель для контроллера по абсолютному пути
-     * @model - имя файла модели без расширения m_index
-     * @arg - Массив возможных аргументов для модели
+     * @param str $model - имя файла модели без расширения m_index
+     * @param array $arg - Массив возможных аргументов для модели
+     * @param str $path - если указан путь, то загрузка модели произойдёт только по нему
      */
 
-    protected function load_model($model, $arg = array()) {
+    protected function load_model($model, $arg = array(), $path = '') {
         $stack = debug_backtrace();
         $stack = dirname($stack[0]['file']);
         $file = $stack . ENV_DIRSEP . 'model' . ENV_DIRSEP . $model . '.php';
         $class = 'Model_' . substr($model, 2);
+        if ($path) {
+            $file = ENV_SITE_PATH . $path . ENV_DIRSEP . $model . '.php';
+        }        
         if (file_exists($file)) {
             include_once($file);
             $this->models[$model] = new $class($arg);
