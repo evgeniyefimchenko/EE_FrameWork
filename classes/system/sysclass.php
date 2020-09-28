@@ -127,6 +127,25 @@ Class SysClass {
 
         return (string) $ip;
     }
+	
+	/**
+	* Получаем IP хоста
+	* @param str $url
+	*/
+	public static function get_host_ip($url) {
+		$ip = FALSE;
+		if (strpos($url, 'http') !== FALSE) {
+			$url_array = parse_url($url); // разбиваем URL на части
+			$host = $url_array['host'];
+		}
+		
+		$ip = gethostbyname($host); // получаем IP по доменному имени
+		
+		if($ip == $host){ // получили ли мы IP
+			$ip = FALSE;
+		}
+		return $ip;
+	}
 
     /**
      * Обрезает строку 

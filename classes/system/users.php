@@ -218,7 +218,7 @@ Class Users {
             SysClass::SetLog('Регистрация ' . $email . ' c ' . $password . ' успех', 'info', 8);
         }
         $sql = 'SELECT MAX(`id`) FROM ?n';
-        $id_user = SafeMySQL::gi()->getOne($sql);
+        $id_user = SafeMySQL::gi()->getOne($sql, self::USERS_TABLE);
         if (ENV_LOG && $id_user) {
             SysClass::SetLog('Зарегистрирован новый пользователь id=' . $id_user, 'info', $this->data['id']);
         }        

@@ -35,6 +35,7 @@ if (ENV_SITE_INDEX !== 'ALL') {
 * Автолоадер
 */
 spl_autoload_register(function($class_name) {
+	global $console;
     $filename = $class_name . '.php';
     $res = search_file('classes', $filename);
     if ($res) {

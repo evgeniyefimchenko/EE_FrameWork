@@ -139,7 +139,7 @@ Class Controller_index Extends Controller_Base {
         $json['error'] = $json['error'] ? $json['error'] : '';
 
         if (ENV_LOG && $json['error'] != '') {
-            SysClass::SetLog('Ошибка регистрации' . $json['error'] . ' Почта: ' . $email . ' Пароль: ' . $pass . ' Дубль: ' . $conf_pass, 'error', 8);
+            SysClass::SetLog('Ошибка регистрации ' . $json['error'] . ' Почта: ' . $email . ' Пароль: ' . $pass . ' Дубль: ' . $conf_pass, 'error', 8);
         }
 
         if ($json['error'] === '') {
