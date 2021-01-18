@@ -24,9 +24,7 @@ trait logs_trait {
         $this->load_model('m_logs', array($this->logged_in));
         /* get user data - все переменные пользователя доступны в представлениях */
         $user_data = $this->models['m_logs']->data;
-        foreach ($user_data as $name => $val) {
-            $this->view->set($name, $val);
-        }
+		$this->get_user_data($user_data);
 		$log_items = $this->models['m_logs']->get_logs();
 		foreach($log_items as $key=>$value) {
 			$log_items[$key]['who'] = $this->models['m_logs']->get_text_role($value['who']);

@@ -63,7 +63,9 @@
     <!-- Скрипты-->
     <script src='//code.jquery.com/jquery-latest.min.js' type="text/javascript"></script>
 	<script src="//cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.0/umd/popper.min.js" type="text/javascript"></script>
-	<script src="//maxcdn.bootstrapcdn.com/bootstrap/4.1.0/js/bootstrap.min.js" type="text/javascript"></script>   
+	<script src="//maxcdn.bootstrapcdn.com/bootstrap/4.1.0/js/bootstrap.min.js" type="text/javascript"></script>
+	<!-- core -->	
+	<script src="<?=ENV_URL_SITE?>/js/core.js" type="text/javascript"></script>	
     <script src="<?=ENV_URL_SITE?>/js/main_index.js" type="text/javascript"></script>
     <!-- Добавленные скрипты из контроллера -->
     <?=$add_script?>

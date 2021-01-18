@@ -397,32 +397,18 @@ Class Users {
     public function send_register_code($email) {
         $acivation_code = password_hash($email, PASSWORD_DEFAULT);
         $activation_link = ENV_URL_SITE . '/activation/' . base64_encode($acivation_code) . '/' . $email;
-        $m = new Mail('', '', true);		
-        $m->From(ENV_SITE_EMAIL);
-        $m->To($email);
-        $m->ReplyTo('Администратор;' . ENV_ADMIN_EMAIL);
-        $m->Subject('Регистрация на сайте ' . ENV_SITE_NAME);
-        $m->Body('Вы зарегистрировались на сайте ' . ENV_SITE_NAME . ', перейдите по <a href="' . $activation_link . '" target = "_blank">ссылке</a> для активации Вашего аккаунта.</br>
-	           Если Вы не делали этого то просто проигнорируйте это сообщение.</br>Но всё же, вдруг мы сможем помочь Вам или быть интересными!
-			   </br></br>С уважением сайт <a href="' . ENV_URL_SITE . '">' . ENV_SITE_NAME . '</a>', "html");
-        $m->Priority(3);
-
-        if (ENV_SMTP) {
-            $m->smtp_on(ENV_SMTP_SERVER, ENV_SMTP_LOGIN, ENV_SMTP_PASSWORD, ENV_SMTP_PORT, 15);
-        } // Если SMTP
-
-        if (!$m->Send()) {
-            if (ENV_LOG) {
-				$m->log_on(true);				
-                SysClass::SetLog('Отправка письма на ' . $email . ' завершилась неудачей! Статус: ' . $m->status_mail['status'] . ' Текст:' . $m->status_mail['message'] . $m->Get(), 'error');
-            }
+        $mail = new Class_mail();
+        $res_mail = $mail->send_mail($email, 'Регистрация на сайте ' . ENV_SITE_NAME, 'Вы зарегистрировались на сайте ' . ENV_SITE_NAME . ', перейдите по <a href="' . $activation_link . '" target = "_blank">ссылке</a> для активации Вашего аккаунта.</br>
+                           Если Вы не делали этого то просто проигнорируйте это сообщение.</br>Но всё же, вдруг мы сможем помочь Вам или быть интересными!
+                                   </br></br>С уважением сайт <a href="' . ENV_URL_SITE . '">' . ENV_SITE_NAME . '</a>');
+        if ($res_mail !== TRUE) {
             return false;
         } else {
             if (ENV_LOG) {
                 SysClass::SetLog('Письмо на ' . $email . ' с кодом ' . $acivation_code . ' отправлено.', 'success');
             }
             $sql = 'INSERT INTO ?n SET `user_id` = ?i,`email` = ?s, `code` = ?s, `stop_time` = ?s';
-            $res_q = SafeMySQL::gi()->query($sql, self::USERS_ACTIVATION_TABLE, $this->get_user_id_by_email($email), $email, $acivation_code, date("Y-m-d H:i:s", time() + ENV_TIME_ACTIVATION));
+            SafeMySQL::gi()->query($sql, self::USERS_ACTIVATION_TABLE, $this->get_user_id_by_email($email), $email, $acivation_code, date("Y-m-d H:i:s", time() + ENV_TIME_ACTIVATION));
             return true;
         }
     }
@@ -485,6 +471,7 @@ Class Users {
 					  `email` char(255) NOT NULL,
 					  `pwd` varchar(255) NOT NULL,
 					  `active` tinyint(1) NOT NULL DEFAULT '1' COMMENT '1 - на подтверждении, 2 - активен,  3 - блокирован',
+					  `localize` char(3) NOT NULL DEFAULT 'ru',
 					  `user_role` tinyint(2) NOT NULL DEFAULT '4' COMMENT 'таблица user_roles',
 					  `last_ip` char(20) DEFAULT NULL,
 					  `subscribed` tinyint(1) DEFAULT '1' COMMENT 'подписка на рассылку',

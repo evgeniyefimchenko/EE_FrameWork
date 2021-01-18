@@ -25,9 +25,7 @@ trait messages_trait {
         $this->load_model('m_messages', array($this->logged_in));
         /* get data */
         $user_data = $this->models['m_messages']->data;
-        foreach ($user_data as $name => $val) {
-            $this->view->set($name, $val);
-        }
+		$this->get_user_data($user_data);
         $get_user_id = is_numeric($arg[0]) ? $arg[0] : $this->logged_in;
 		$class_messages = new Class_messages();		
         if ($this->logged_in != $get_user_id && $user_data['user_role'] <= 2) { // просмотр чужих сообщений доступен только амину и модератору

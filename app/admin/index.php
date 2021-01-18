@@ -37,9 +37,7 @@ use messages_trait,
         $this->load_model('m_index', array($this->logged_in));
         /* get user data - все переменные пользователя доступны в представлениях */
         $user_data = $this->models['m_index']->data;
-        foreach ($user_data as $name => $val) {
-            $this->view->set($name, $val);
-        }
+		$this->get_user_data($user_data);
         /* view */
         $this->get_standart_view();
         /* Отобразить контент согласно уровня доступа */
@@ -64,6 +62,19 @@ use messages_trait,
         $this->show_layout($this->parameters_layout);
     }
 
+    /**
+     * Загрузит в представление данные пользователя
+	 * И языковой массив
+	 * @param $user_data - Данные пользователя для загрузки
+     */
+    private function get_user_data($user_data) {
+        foreach ($user_data as $name => $val) {            
+			$this->view->set($name, $val);
+        }
+		include_once(ENV_SITE_PATH . ENV_PATH_LANG . '/' . $user_data['localize'] . '.php');
+		$this->view->set('lang', $lang);		
+    }
+	
     /**
      * Загрузка стандартных представлений для каждой страницы
      */

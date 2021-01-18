@@ -39,6 +39,8 @@ $C['ENV_GEO_RU'] = 0;					     // Устанавливать ли GEO_RU при 
 
 /* Персональные настройки сайта */
 $C['ENV_APP_DIRECTORY'] = 'app';    // Директория контроллеров
+$C['ENV_PATH_LANG'] = 'inc' . $C['ENV_DIRSEP'] . 'langs';    // Директория языковых файлов
+$C['ENV_DEF_LANG'] = substr(Get_Client_Prefered_Language(), 0, 2);    // Локализация по умолчанию, наиболее предпочитаемый язык пользователя
 $C['ENV_SITE_EMAIL'] = 'mail@site.ru';   // Почта сайта ОБЯЗАТЕЛЬНОЕ ЗАПОЛНЕНИЕ
 $C['ENV_ADMIN_EMAIL'] = 'mail_admin@site.ru';  // Почта администратора сайта ОБЯЗАТЕЛЬНОЕ ЗАПОЛНЕНИЕ
 $C['ENV_SUPPORT_EMAIL'] = '';  // Почта службы поддержки сайта
@@ -49,3 +51,34 @@ $C['ENV_SMTP_PORT'] = 25;
 $C['ENV_SMTP_SERVER'] = 0;
 $C['ENV_SMTP_LOGIN'] = 0;
 $C['ENV_SMTP_PASSWORD'] = 0;
+
+function Get_Client_Prefered_Language ($getSortedList = false, $acceptedLanguages = false) {
+    if (empty($acceptedLanguages)) {
+        $acceptedLanguages = $_SERVER["HTTP_ACCEPT_LANGUAGE"];
+	}
+    preg_match_all('/([a-z]{1,8}(-[a-z]{1,8})*)\s*(;\s*q\s*=\s*(1|0\.[0-9]+))?/i', $acceptedLanguages, $lang_parse);
+    $langs = $lang_parse[1];
+    $ranks = $lang_parse[4];
+    $lang2pref = array();
+    for($i=0; $i<count($langs); $i++) {
+        $lang2pref[$langs[$i]] = (float)(!empty($ranks[$i]) ? $ranks[$i] : 1);
+	}
+    $cmpLangs = function ($a, $b) use ($lang2pref) {
+        if ($lang2pref[$a] > $lang2pref[$b])
+            return -1;
+        elseif ($lang2pref[$a] < $lang2pref[$b])
+            return 1;
+        elseif (strlen($a) > strlen($b))
+            return -1;
+        elseif (strlen($a) < strlen($b))
+            return 1;
+        else
+            return 0;
+    };
+    uksort($lang2pref, $cmpLangs);
+    if ($getSortedList) {
+        return $lang2pref;
+	}
+    reset($lang2pref);
+    return key($lang2pref);
+}

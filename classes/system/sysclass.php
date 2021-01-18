@@ -108,6 +108,16 @@ Class SysClass {
         $sql = 'INSERT INTO ' . ENV_DB_PREF . '`logs` SET who=?i, changes=?s, flag=?s';
         $res_q = SafeMySQL::gi()->query($sql, $who, $changes, $flag);
     }
+    
+    /**
+     * Вернёт записи лога по переданным параметрам
+     * @param количество записей $count
+     * @return array
+     */
+    public function GetLog($count = 5) {
+        $sql = 'SELECT * FROM ' . ENV_DB_PREF . '`logs` ORDER BY `id` LIMIT ?i';
+        return SafeMySQL::gi()->getAll($sql, $count);
+    }
 
     /**
      * Получаем реальный ip пользователя
@@ -128,24 +138,24 @@ Class SysClass {
         return (string) $ip;
     }
 	
-	/**
-	* Получаем IP хоста
-	* @param str $url
-	*/
-	public static function get_host_ip($url) {
-		$ip = FALSE;
-		if (strpos($url, 'http') !== FALSE) {
-			$url_array = parse_url($url); // разбиваем URL на части
-			$host = $url_array['host'];
-		}
-		
-		$ip = gethostbyname($host); // получаем IP по доменному имени
-		
-		if($ip == $host){ // получили ли мы IP
-			$ip = FALSE;
-		}
-		return $ip;
-	}
+    /**
+     * Получаем IP хоста
+     * @param str $url
+     */
+    public static function get_host_ip($url) {
+        $ip = FALSE;
+        if (strpos($url, 'http') !== FALSE) {
+            $url_array = parse_url($url); // разбиваем URL на части
+            $host = $url_array['host'];
+        } else {
+            $host = $url;
+        }
+        $ip = gethostbyname($host); // получаем IP по доменному имени
+        if ($ip == $host) { // получили ли мы IP
+            $ip = FALSE;
+        }
+        return $ip;
+    }
 
     /**
      * Обрезает строку 

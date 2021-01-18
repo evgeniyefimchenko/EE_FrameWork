@@ -91,14 +91,14 @@ Abstract Class Controller_Base {
         }
     }
 
-    /*
+    /**
      * Выводит макет в сборе с представлением и компрессией кода при ENV_COMPRESS_HTML
      * @param - дополнительные или переопределённые параметры макета в именнованом массиве (parameters_layout)
      * @layout - название макета, берётся из параметров или index по умолчанию
      */
 
     protected function show_layout($param) {
-        extract($param);
+        extract($param);		
         $file = ENV_SITE_PATH . 'layouts/' . $layout . '.php';
         ob_start();
         if (file_exists($file)) {

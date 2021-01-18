@@ -12,9 +12,10 @@ if (ENV_SITE !== 1) {
 Class Controller_index Extends Controller_Base {
 
     /**
-     * Главная страница проекта
+     * Загрузит в представление данные пользователя
+	 * И языковой массив
      */
-    public function index($param = []) {
+    private function get_user_data() {
         if ($this->logged_in) {
             /* user logined */
             /* load model */
@@ -24,13 +25,35 @@ Class Controller_index Extends Controller_Base {
             foreach ($user_data as $name => $val) {
                 $this->view->set($name, $val);
             }
-			/* vars view */			
-			$this->view->set('logged_in', $this->logged_in);
+			include_once(ENV_SITE_PATH . ENV_PATH_LANG . '/' . $user_data['localize'] . '.php');
+			$this->view->set('lang', $lang);
+        } else {
+			include_once(ENV_SITE_PATH . ENV_PATH_LANG . '/' . ENV_DEF_LANG . '.php');
+			$this->view->set('lang', $lang);
+		}
+    }
+
+    /**
+     * Загрузка стандартных представлений
+     */
+    private function get_standart_view() {
+        $this->view->set('logged_in', $this->logged_in);
+        //$this->view->set('v_nav', $this->view->read('v_nav'));
+        //$this->view->set('v_footer', $this->view->read('v_footer'));
+    }
+	
+    /**
+     * Главная страница проекта
+     */
+    public function index($param = []) {
+        if ($this->logged_in) {
+			$this->get_user_data();
         } else {
 			/* vars view */						
 			$this->view->set('get_db', SysClass::connect_db_exists());
         }
 		/* view */
+		$this->get_standart_view();
 		$this->html = $this->view->read('v_index');            
 		/* layouts */
 		$this->parameters_layout["add_script"] .= '<script src="' . $this->get_path_controller() . '/js/main.js" type="text/javascript" /></script>';
@@ -54,15 +77,15 @@ Class Controller_index Extends Controller_Base {
 		}
 		/* load model */
 		$this->load_model('m_index', array($this->logged_in));
-		/* get user data - основная задача, запуск скрипта развёртывания БД при первом старте */
-		$user_data = $this->models['m_index']->data;		
+        /* get user data - тут основная задача, запуск скрипта развёртывания БД при первом старте */
+        $this->get_user_data();
         /* view */
-		if ($user_data['new_user'] || count($user_data) === 0) {
-			$this->html = $this->view->read('v_login_form');
-		} else {
-			/*Уже авторизован*/
-			SysClass::return_to_main(200, '/');
-		}
+        if ($this->view->get('new_user') || !$this->logged_in) {
+            $this->html = $this->view->read('v_login_form');
+        } else {
+            /* Уже авторизован */
+            SysClass::return_to_main(200, '/');
+        }
         /* layouts */		
         $this->parameters_layout["add_script"] .= '<script src="' . ENV_URL_SITE . '/js/plugins/validator.min.js" type="text/javascript" /></script>';
         $this->parameters_layout["add_script"] .= '<script src="' . $this->get_path_controller() . '/js/login-register.js" type="text/javascript" /></script>';
