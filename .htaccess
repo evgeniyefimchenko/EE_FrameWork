@@ -1,0 +1,76 @@
+RewriteOptions inherit
+
+<FilesMatch ".htaccess">
+   Order allow,deny
+   Deny from all
+</FilesMatch>
+
+php_value error_log /home/TEST/domains/%{HTTP_HOST}/php_errors.log
+
+AddHandler application/x-httpd-php .html
+AddType application/x-javascript .js
+AddType text/css .css
+AddType text/xml .xml
+
+DirectoryIndex index.php
+Options -Indexes
+
+ServerSignature Off
+AddDefaultCharset UTF-8
+
+Header set X-Frame-Options DENY
+Header set X-Content-Type-Options nosniff
+Header set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+
+RewriteEngine on
+RewriteBase /
+
+# Доступ к определенным папкам блокируется
+RewriteRule ^(classes|inc|layouts) - [F,L,NC]
+
+RewriteRule ^(.*)\.html $1\.php
+
+# Для редиректа на https раскомментировать
+RewriteCond %{HTTP:X-Forwarded-Proto} !https
+RewriteCond %{HTTPS} off
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301,NE]
+
+# А эти закомментировать
+# RewriteCond %{SERVER_PORT} ^443$ [OR] 
+# RewriteCond %{HTTPS} =on
+# RewriteRule ^(.*)$ http://%{HTTP_HOST}/$1 [R=301,L]
+
+RewriteCond %{HTTP_HOST} ^www\.(.+)
+RewriteRule (.*) http://%1/$1 [B,R=301,L]
+
+RewriteCond %{THE_REQUEST} ^[A-Z]{3,9}\ /index\.php\ HTTP/
+RewriteRule ^index\.php$ http://%{HTTP_HOST}/ [R=301,L]
+
+RewriteCond %{THE_REQUEST} //
+RewriteRule ^(.*)$ http://%{HTTP_HOST}/$1 [R=301,L]
+
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^(.*)$ index.php?route=$1 [B,L,QSA]
+
+# сжатие text, html, javascript, css, xml
+<ifModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/xml application/xml application/xhtml+xml text/css text/javascript application/javascript application/x-javascript
+</ifModule>
+
+# кеш браузера
+<ifModule mod_expires.c>
+    ExpiresActive On
+    ExpiresDefault "access plus 1 days"
+    ExpiresByType image/x-icon "access plus 1 month"
+    ExpiresByType image/jpeg "access plus 4 weeks"
+    ExpiresByType image/png "access plus 30 days"
+    ExpiresByType image/gif "access plus 43829 minutes"
+    ExpiresByType application/x-shockwave-flash "access plus 2592000 seconds"
+    ExpiresByType text/css "access plus 604800 seconds"
+    ExpiresByType text/javascript "access plus 604800 seconds"
+    ExpiresByType application/javascript "access plus 604800 seconds"
+    ExpiresByType application/x-javascript "access plus 604800 seconds"
+    ExpiresByType text/html "access plus 43200 seconds"
+    ExpiresByType application/xhtml+xml "access plus 600 seconds"
+</ifModule>
