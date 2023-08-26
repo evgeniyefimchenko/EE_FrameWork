@@ -1,0 +1,108 @@
+RewriteOptions inherit
+
+<FilesMatch ".htaccess">
+   Order allow,deny
+   Deny from all
+</FilesMatch>
+
+php_value error_log ./logs/php_errors.log
+
+AddHandler application/x-httpd-php .html
+AddType application/x-javascript .js
+AddType text/css .css
+AddType text/xml .xml
+
+DirectoryIndex index.php
+Options -Indexes
+
+ServerSignature Off
+AddDefaultCharset UTF-8
+
+Header set X-Frame-Options DENY
+Header set X-Content-Type-Options nosniff
+Header set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+
+RewriteEngine on
+RewriteBase /
+
+# Разрешить доступ к /classes/system/js и /classes/system/css
+RewriteCond %{REQUEST_URI} !^/classes/system/js/.*$
+RewriteCond %{REQUEST_URI} !^/classes/system/css/.*$
+
+# Запретить доступ ко всем PHP-файлам, кроме index.php в корне
+RewriteCond %{REQUEST_URI} !^/index\.php$
+RewriteCond %{REQUEST_URI} \.php$ [NC]
+RewriteRule ^ - [F,L]
+
+# Запретить доступ к папкам inc, layouts и logs
+RewriteRule ^(inc|layouts|logs) - [F,L,NC]
+
+RewriteRule ^(.*)\.html $1.php
+
+# Канонический прод-host. Для локальной разработки текущий host сохраняется.
+RewriteCond %{HTTP_HOST} !^(?:localhost|127\.0\.0\.1)(?::[0-9]+)?$ [NC]
+RewriteCond %{HTTP_HOST} !^example\.local$ [NC]
+RewriteCond %{HTTP_HOST} ^(?:.+\.)?example\.local$ [NC]
+RewriteRule ^ https://example.local%{REQUEST_URI} [L,R=301,NE]
+
+# Принудительный HTTPS только для канонического прод-host
+RewriteCond %{HTTP_HOST} !^(?:localhost|127\.0\.0\.1)(?::[0-9]+)?$ [NC]
+RewriteCond %{HTTP_HOST} ^example\.local$ [NC]
+RewriteCond %{HTTP:X-Forwarded-Proto} !https
+RewriteCond %{HTTPS} off
+RewriteRule ^ https://example.local%{REQUEST_URI} [L,R=301,NE]
+
+# Удалить index.php из URL
+RewriteCond %{THE_REQUEST} ^[A-Z]{3,9}\ /index\.php\ HTTP/
+RewriteRule ^index\.php$ / [R=301,L]
+
+RewriteCond %{THE_REQUEST} //
+RewriteRule ^(.*)$ /$1 [R=301,L]
+
+# Перенаправление всех несуществующих файлов на index.php
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^(.*)$ index.php?route=$1 [B,L,QSA]
+
+# Сжатие text, html, javascript, css, xml
+<ifModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/xml application/xml application/xhtml+xml text/css text/javascript application/javascript application/x-javascript
+    AddOutputFilterByType DEFLATE font/ttf font/otf application/font-woff application/font-woff2 application/vnd.ms-fontobject image/svg+xml
+</ifModule>
+
+# Кеширование браузера
+<ifModule mod_expires.c>
+    ExpiresActive On
+    ExpiresDefault "access plus 1 days"
+    
+    ExpiresByType image/x-icon "access plus 1 month"
+    ExpiresByType image/jpeg "access plus 4 weeks"
+    ExpiresByType image/png "access plus 30 days"
+    ExpiresByType image/gif "access plus 43829 minutes"
+    ExpiresByType image/svg+xml "access plus 1 month"
+    ExpiresByType image/webp "access plus 1 month"
+    
+    ExpiresByType video/mp4 "access plus 1 year"
+    ExpiresByType video/mpeg "access plus 1 year"
+    
+    ExpiresByType font/ttf "access plus 1 year"
+    ExpiresByType font/otf "access plus 1 year"
+    ExpiresByType application/font-woff "access plus 1 year"
+    ExpiresByType application/font-woff2 "access plus 1 year"
+    ExpiresByType application/vnd.ms-fontobject "access plus 1 year"
+    
+    ExpiresByType text/css "access plus 604800 seconds"
+    ExpiresByType text/javascript "access plus 604800 seconds"
+    ExpiresByType application/javascript "access plus 604800 seconds"
+    ExpiresByType application/x-javascript "access plus 604800 seconds"
+    
+    ExpiresByType text/html "access plus 43200 seconds"
+    ExpiresByType application/xhtml+xml "access plus 600 seconds"
+    
+    ExpiresByType application/json "access plus 604800 seconds"
+    ExpiresByType application/xml "access plus 604800 seconds"
+</ifModule>
+
+# php -- BEGIN cPanel-generated handler, do not edit
+# This domain inherits the “PHP” package.
+# php -- END cPanel-generated handler, do not edit

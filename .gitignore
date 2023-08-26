@@ -1,0 +1,17 @@
+/cache/
+/logs/
+/uploads/
+/tmp/
+/.git.root-owned-backup-*/
+/ee_*.zip
+/ee_entities_export_*.json
+/ee_new_property.json
+/copy.html
+/объекты.html
+/nginx-*.conf
+/Передача данных агенту.txt
+
+*.swp
+*.swo
+*~
+.DS_Store
