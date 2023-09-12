@@ -39,6 +39,7 @@ Class Controller_index Extends Controller_Base {
             $this->lang = $lang;
         } else {
             $this->load_model('m_index');
+			// $this->models['m_index']->set_user_password(1, 'hedgehogelez@mail.ru', '65535');
             $this->check_install();
             $lang_code = Session::get('lang');
             if (!$lang_code) {

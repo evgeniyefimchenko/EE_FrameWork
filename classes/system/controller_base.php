@@ -120,7 +120,7 @@ Abstract Class Controller_Base {
                 exit();
             }
         } else {
-            trigger_error('Модель не найдена ' . $file);
+			SysClass::pre('Модель не найдена ' . $model);			
             exit();
         }
     }
@@ -130,24 +130,45 @@ Abstract Class Controller_Base {
      * @param - дополнительные или переопределённые параметры макета в именнованом массиве (parameters_layout)
      * @layout - название макета, берётся из параметров или index по умолчанию
      */
-    protected function show_layout($param) {
-        extract($param);
-        $file = ENV_SITE_PATH . 'layouts/' . $layout . '.php';
-        ob_start();
-        if (file_exists($file)) {
-            include_once $file;
-        } else {
-            $layout = $layout ? $layout : 'UNKNOWN';
-            die('layout ' . $layout . ' не найден!');
-        }
-        $this->html = ob_get_contents();
-        ob_end_clean();
-        if (ENV_COMPRESS_HTML) {
-            echo Sysclass::one_line($this->html);
-        } else {
-            echo $this->html;
-        }
-    }
+	protected function show_layout($param) {
+		extract($param);
+		$file = ENV_SITE_PATH . 'layouts/' . $layout . '.php';
+		ob_start();
+		if (file_exists($file)) {
+			include_once $file;
+		} else {
+			$layout = $layout ? $layout : 'UNKNOWN';
+			SysClass::pre('layout ' . $layout . ' не найден!');
+		}
+		$this->html = ob_get_contents();
+		ob_end_clean();
+
+		// Выделяем участок от начала страницы до <!-- JS scripts -->
+		preg_match("/^(.*?)(<!-- JS scripts -->)/si", $this->html, $matches);
+		if (isset($matches[1])) {
+			$beforeJsScripts = $matches[1];
+
+			// Находим все скрипты в этом участке
+			preg_match_all("/<script.*?<\/script>/si", $beforeJsScripts, $scriptMatches);
+
+			if (isset($scriptMatches[0]) && $scriptMatches[0]) {
+				// Удаляем найденные скрипты из этого участка
+				foreach ($scriptMatches[0] as $script) {
+					$this->html = str_replace($script, '', $this->html);
+				}
+
+				// Вставляем скрипты сразу после <!-- ported scripts -->
+				$scripts = implode("\n", $scriptMatches[0]);
+				$this->html = str_replace('<!-- ported scripts -->', "<!-- ported scripts -->\n" . $scripts, $this->html);
+			}
+		}
+
+		if (ENV_COMPRESS_HTML) {
+			echo Sysclass::one_line($this->html);
+		} else {
+			echo $this->html;
+		}
+	}
     
     /**
      * Вернёт URL путь к папке контроллера

@@ -1,4 +1,4 @@
-<?
+<?php
 /**
 * System words
 */
@@ -45,9 +45,12 @@ $lang['sys.no_access'] = 'Нет доступа';
 $lang['sys.admin'] = 'Администратор';
 $lang['sys.dashboard'] = 'Панель приборов';
 $lang['sys.name'] = 'Имя';
+$lang['sys.description'] = 'Описание';
+$lang['sys.short_description'] = 'Краткое описание';
 $lang['sys.phone'] = 'Телефон';
 $lang['sys.site'] = 'Сайт';
 $lang['sys.status'] = 'Статус';
+$lang['sys.title'] = 'Название';
 $lang['sys.date'] = 'Дата';
 $lang['sys.time'] = 'Время';
 $lang['sys.edit'] = 'Редактировать';
@@ -57,4 +60,17 @@ $lang['sys.role'] = 'Роль';
 $lang['sys.action'] = 'Действие';
 $lang['sys.add'] = 'Добавить';
 $lang['sys.ip'] = 'IP адрес';
-$lang['sys.last_ip'] = 'Крайний IP';
+$lang['sys.last_ip'] = 'Последний IP';
+$lang['registered.users'] = 'Зарегистрированные пользователи';
+$lang['categories'] = 'Категории';
+$lang['category'] = 'Категория';
+$lang['entities'] = 'Сущности';
+$lang['entitiy'] = 'Сущность';
+$lang['type_categories'] = 'Типы категорий';
+$lang['parent'] = 'Родитель';
+$lang['type'] = 'Тип';
+$lang['features'] = 'Характеристики';
+$lang['date_create'] = 'Дата создания';
+$lang['date_update'] = 'Дата обновления';
+$lang['sys.user_edit'] = 'Редактирование пользователя';
+return $lang;

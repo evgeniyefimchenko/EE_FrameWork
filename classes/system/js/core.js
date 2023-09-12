@@ -41,3 +41,13 @@ $('#lang_select').click(function() {
 		}
 	});			
 });
+
+// Валидация номера телефона с учетом международного формата
+function validatePhone(phone) {    
+    var filter = /^\+?(\d[\d-. ]+)?(\([\d-. ]+\))?[\d-. ]+\d$/;
+    return filter.test(phone);
+}
+
+$(document).ready(function() {
+    $('#preloader').fadeOut(1000); // Прелоадер будет исчезать с анимацией в течение 1 секунды.
+});

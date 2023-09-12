@@ -30,12 +30,10 @@ trait messages_trait {
         $class_messages = new Class_messages();
         if ($this->logged_in != $get_user_id && $user_data['user_role'] <= 2) { // просмотр чужих сообщений доступен только амину и модератору
             $this->view->set('count_messages', $class_messages->get_count_messages($get_user_id), true);
-            $this->view->set('messages', $class_messages->get_messages_user($get_user_id), true);			
-            $this->view->set('moderation', false); // Поле Action Хз нахер я его делал            
+            $this->view->set('messages', $class_messages->get_messages_user($get_user_id), true);			          
         } else {
             $this->view->set('count_messages', $class_messages->get_count_messages($this->logged_in), true);
-            $this->view->set('messages', $class_messages->get_messages_user($this->logged_in), true);			
-            $this->view->set('moderation', false); // Поле Action Хз нахер я его делал 			
+            $this->view->set('messages', $class_messages->get_messages_user($this->logged_in), true);						
             /* notifications - Удалить все оповещение о непрочитанных сообщениях */
             $notification = new Class_notifications();
             $notification->kill_notification_by_text($this->logged_in, 'непрочитанное сообщение');

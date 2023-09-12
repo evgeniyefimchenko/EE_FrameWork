@@ -52,32 +52,25 @@
 		<title><?=$title?></title>
 	</head>
 	<body>
-		<!-- Анимация предзагрузки-->
-		<div id="preloader">
-			<div class="clock">
-				<div class="arrow_sec"></div>
-				<div class="arrow_min"></div>
-			</div>
-		</div>
 		<!-- Preloader -->
-		<div class="preloader">
-			<div class="loader">
-				<div class="shadow"></div>
-				<div class="box"></div>
+		<div id="preloader" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(255, 255, 255, 0.9); z-index: 9999; display: flex; justify-content: center; align-items: center;">
+			<div class="spinner-border text-primary" role="status">
+				<span class="visually-hidden">Loading...</span>
 			</div>
 		</div>
 		<!-- End Preloader -->
 
-		<!-- Основной контент страниц-->
+		<!-- Основной контент страниц -->
 		<?=$layout_content?>
-		<!-- Скрипты-->
+		<!-- JS scripts -->
 		<script src='/assets/js/plugins/jquery.min.js' type="text/javascript"></script>
 		<script src="/assets/bootstrap/js/bootstrap.bundle.min.js" type="text/javascript"></script>
 		<!-- core -->
-		<script src="<?=ENV_URL_SITE?>/assets/js/core.js" type="text/javascript"></script>
+		<script src="<?=ENV_URL_SITE?>/classes/system/js/core.js" type="text/javascript"></script>
 		<!-- General scripts -->
 		<script src="<?= ENV_URL_SITE . '/' . ENV_APP_DIRECTORY ?>/index/js/index.js" type="text/javascript" /></script>
 		<!-- Добавленные скрипты из контроллера -->
 		<?=$add_script?>
+		<!-- ported scripts -->
 	</body>
 </html>

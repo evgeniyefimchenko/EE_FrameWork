@@ -51,25 +51,26 @@
         <?=$add_style?>
         <title><?=$title?></title>
     </head>
-    <body>
-		<div class="preloader">
-			<div class="loader">
-				<div class="loader__figure"></div>
-				<p class="loader__label"><?=ENV_SITE_NAME?></p>
+    <body class="sb-nav-fixed">
+		<!-- Preloader -->
+		<div id="preloader" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(255, 255, 255, 0.9); z-index: 9999; display: flex; justify-content: center; align-items: center;">
+			<div class="spinner-border text-primary" role="status">
+				<span class="visually-hidden">Loading...</span>
 			</div>
 		</div>
         <!-- Основной контент страниц-->
         <?=$layout_content?>
-		<!-- Скрипты-->
+		<!-- JS scripts -->
 		<script src='/assets/js/plugins/jquery.min.js' type="text/javascript"></script>
 		<script src="/assets/bootstrap/js/bootstrap.bundle.min.js" type="text/javascript"></script>
 		<script src="/assets/js/plugins/bootstrap-notify.js" type="text/javascript"></script>
+		<script src="/assets/js/plugins/popper.js" type="text/javascript"></script>
 		<!-- core -->
-		<script src="<?=ENV_URL_SITE?>/assets/js/core.js" type="text/javascript"></script>
+		<script src="<?=ENV_URL_SITE?>/classes/system/js/core.js" type="text/javascript"></script>
 		<!-- General scripts -->
 		<script src="<?= ENV_URL_SITE . '/' . ENV_APP_DIRECTORY ?>/admin/js/index.js" type="text/javascript" /></script>		
 		<!-- Добавленные скрипты из контроллера -->
-		<!-- Аналитика -->
 		<?=$add_script?>
+		<!-- ported scripts -->
 	</body>
 </html>

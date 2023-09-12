@@ -15,7 +15,7 @@ trait logs_trait {
      * Вывод страницы с логами
      */
     public function logs($param = array()) {
-        $this->access = array(1, 2);
+        $this->access = array(1);
         if (!SysClass::get_access_user($this->logged_in, $this->access) || array_filter($param)) {
             SysClass::return_to_main();
             exit();

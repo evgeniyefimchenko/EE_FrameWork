@@ -4754,7 +4754,7 @@ abstract class elFinderVolumeDriver
 
         return $stat;
     }
-
+
     /**
      * Get stat for folder content and put in cache
      *

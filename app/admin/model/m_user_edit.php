@@ -7,7 +7,10 @@
 /**
  * Модель карты пользователя
  */
-Class Model_user_edit Extends Users {
+ 
+use Constants;
+ 
+Class Model_user_edit {
 
     /**
      * Возвращает все свободные роли пользователей
@@ -15,7 +18,7 @@ Class Model_user_edit Extends Users {
      */
     function get_free_roles($id = 1) {
         $sql = 'SELECT `id`, `name` FROM ?n WHERE `id` NOT IN (?i, 8)';
-        return SafeMySQL::gi()->getAll($sql, USERS::USERS_ROLES, $id);
+        return SafeMySQL::gi()->getAll($sql, Constants::USERS_ROLES_TABLE, $id);
     }
 
 }

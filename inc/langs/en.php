@@ -1,4 +1,4 @@
-<?
+<?php
 /**
 * System words
 */
@@ -45,9 +45,12 @@ $lang['sys.no_access'] = 'Access denied';
 $lang['sys.admin'] = 'Administrator';
 $lang['sys.dashboard'] = 'Dashboard';
 $lang['sys.name'] = 'Name';
+$lang['sys.description'] = 'Description';
+$lang['sys.short_description'] = 'Short description';
 $lang['sys.phone'] = 'Phone';
 $lang['sys.site'] = 'Website';
 $lang['sys.status'] = 'Status';
+$lang['sys.title'] = 'Title';
 $lang['sys.date'] = 'Date';
 $lang['sys.time'] = 'Time';
 $lang['sys.edit'] = 'Edit';
@@ -58,3 +61,16 @@ $lang['sys.action'] = 'Action';
 $lang['sys.add'] = 'Add';
 $lang['sys.ip'] = 'IP';
 $lang['sys.last_ip'] = 'Last IP';
+$lang['registered.users'] = 'Registered users';
+$lang['categories'] = 'Categories';
+$lang['category'] = 'Category';
+$lang['entities'] = 'Entities';
+$lang['entitiy'] = 'Entitiy';
+$lang['features'] = 'Features';
+$lang['type_categories'] = 'Category types';
+$lang['parent'] = 'Parent';
+$lang['type'] = 'Type';
+$lang['date_create'] = 'Date of creation';
+$lang['date_update'] = 'Update date';
+$lang['sys.user_edit'] = 'Editing a user';
+return $lang;

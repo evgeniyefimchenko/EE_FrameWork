@@ -1,6 +1,5 @@
 /*Страница пользователей*/
 $(document).ready(function () {
-    $('#users-item-menu').addClass('nav-item active');
     $('#add_user').click(function () {
         window.location = "/admin/user_edit/id";
     });

@@ -10,25 +10,21 @@ if (ENV_SITE !== 1) {
  * Класс работы с пользователями
  * Является родителем для моделей главной страницы и административной панели
  */
+use Constants;
+
 Class Users {
 
-    const USERS_TABLE = ENV_DB_PREF . 'users',
-            DELL_USERS_TABLE = ENV_DB_PREF . 'users_dell',
-            USERS_ROLES_TABLE = ENV_DB_PREF . 'user_roles',
-            USERS_DATA_TABLE = ENV_DB_PREF . 'users_data',
-            USERS_MESSAGE_TABLE = ENV_DB_PREF . 'users_message',
-            USERS_ACTIVATION_TABLE = ENV_DB_PREF . 'users_activation',
-            BASE_OPTIONS_USER = '{"localize": "", "user_logo_img":"uploads/images/avatars/face-0-lite.jpg","user_img":"/uploads/images/avatars/face-0.jpg","skin":"skin-default","notifications":[{"text":"Welcome! You have an unread message <a href=\"/admin/messages\">read?</a>","status":"primary","showtime":"0","id":"1"}]}';
+    const BASE_OPTIONS_USER = '{"localize": "", "user_logo_img":"uploads/images/avatars/face-0-lite.jpg","user_img":"/uploads/images/avatars/face-0.jpg","skin":"skin-default","notifications":[{"text":"Welcome! You have an unread message <a href=\"/admin/messages\">read?</a>","status":"primary","showtime":"0","id":"1"}]}';
 
     private $lang = []; // Языковые переменные в рамках этого класса
     public $data;
 
     public function __construct($param = []) {
         if (count($param)) {
-			$user_id = array_shift($param);
-		} else {
-			$user_id = 0;
-		}
+            $user_id = array_shift($param);
+        } else {
+            $user_id = 0;
+        }
         $this->data = $this->get_user_data($user_id);
     }
 
@@ -49,15 +45,14 @@ Class Users {
     public function get_user_data($id = 0) {
         $res_array = [];
         if (SysClass::connect_db_exists()) {
-            if (SafeMySQL::gi()->query('show tables like ?s', self::USERS_TABLE)->{"num_rows"} > 0) {
+            if (SafeMySQL::gi()->query('show tables like ?s', Constants::USERS_TABLE)->{"num_rows"} > 0) {
                 $sql_user = 'SELECT * FROM ?n WHERE `id` = ?i';
-                $res_array = SafeMySQL::gi()->getRow($sql_user, self::USERS_TABLE, (int) $id);
+                $res_array = SafeMySQL::gi()->getRow($sql_user, Constants::USERS_TABLE, (int) $id);
                 if ($res_array) {
                     $class_messages = new Class_messages();
                     $res_array['count_unread_messages'] = $class_messages->get_count_unread_messages($id);
                     $res_array['count_messages'] = $class_messages->get_count_messages($id);
-                    $res_array['messages'] = $class_messages->get_messages_user($id);
-                    $res_array['unread_messages'] = $class_messages->get_unread_messages_user($id);
+                    $res_array['messages'] = $res_array['count_unread_messages'] ? $class_messages->get_messages_user($id) : [];
                     unset($class_messages);
                     $res_array['user_role_text'] = $this->get_text_role($res_array['user_role']);
                     $res_array['active_text'] = $this->get_text_active($res_array['active']);
@@ -89,7 +84,7 @@ Class Users {
      */
     public function get_user_name($id) {
         $sql = 'SELECT name FROM ?n WHERE id = ?i';
-        return SafeMySQL::gi()->getOne($sql, self::USERS_TABLE, $id);
+        return SafeMySQL::gi()->getOne($sql, Constants::USERS_TABLE, $id);
     }
 
     /**
@@ -117,14 +112,15 @@ Class Users {
         } else { // Модераторы 
             $fields = SafeMySQL::gi()->filterArray($fields, array('name', 'email', 'phone', 'active', 'user_role', 'subscribed', 'comment', 'pwd', 'element_id', 'element_name'));
         }
-        $fields = array_map('trim', $fields);
-
+        $fields = SysClass::ee_remove_empty_values(array_map('trim', $fields));
+        if (!$fields)
+            return 0;
         if (strlen($fields['pwd']) >= 5) {
             $this->set_user_password($id, $fields['email'], $fields['pwd']);
         }
         unset($fields['pwd']);
         $sql_user = "UPDATE ?n SET ?u, `up_date` = now() WHERE id = ?i";
-        SafeMySQL::gi()->query($sql_user, self::USERS_TABLE, $fields, $id);
+        SafeMySQL::gi()->query($sql_user, Constants::USERS_TABLE, $fields, $id);
         if (ENV_LOG) {
             SysClass::SetLog('Обновление данных пользователю ID=' . $id, 'info', $this->data['id']);
         }
@@ -132,23 +128,37 @@ Class Users {
     }
 
     /**
-     * Возвращает подготовленные данные всех пользователей
-     * личные + настройки интерфейса
-     * @param field - поле(я) для сортировки пользователей(разрешенные поля определены в массиве)
-     * @param order - направление сортировки
-     * @param where - дополнительные условия поиска(подготовленный запрос)
-     * @return многомерный массив
+     * Получить данные пользователей.
+     * @param array  $order Ассоциативный массив для сортировки в формате 'поле' => 'направление' (по умолчанию 'id' => 'ASC').
+     * @param array|null $where Условия фильтрации в формате 'поле' => ['оператор', 'значение'].
+     * @param int    $start Начальный индекс для лимитации (по умолчанию 0).
+     * @param int    $limit Количество строк для извлечения (по умолчанию 100).
+     * @return array Массив с данными пользователей.
      */
-    public function get_users_data($field = 'id', $order = 'ASC', $where = NULL) {
-        $field = SafeMySQL::gi()->whiteList($field, array('id', 'name', 'email', 'active', 'user_role', 'subscribed', 'reg_date', 'last_activ'), 'id');
-        $order = SafeMySQL::gi()->whiteList($order, array('ASC', 'DESC'), 'ASC');
-        $where = $where ? 'WHERE ' . $where : '';
-        $sql_users = "SELECT `id` FROM ?n $where ORDER BY `$field` $order";
-        $res_array = SafeMySQL::gi()->getAll($sql_users, self::USERS_TABLE);
+    public function get_users_data($order = 'id ASC', $where = NULL, $start = 0, $limit = 100) {
+        $orderString = $order ? $order : 'id ASC';
+        $whereString = $where ? $where : '';
+        $start = $start ? $start : 0;
+        if ($orderString) {
+            $sql_users = "SELECT `id` FROM ?n $whereString ORDER BY $orderString LIMIT ?i, ?i";
+        } else {
+            $sql_users = "SELECT `id` FROM ?n $whereString LIMIT ?i, ?i";
+        }
+        $res_array = SafeMySQL::gi()->getAll($sql_users, Constants::USERS_TABLE, $start, $limit);
+        $sqlExecutionTime = microtime(true) - $startTime;
+        $res = [];
         foreach ($res_array as $user) {
             $res[] = $this->get_user_data($user['id']);
         }
-        return $res;
+        $loopExecutionTime = microtime(true) - $startTime;
+        // Получаем общее количество записей
+        $sql_count = "SELECT COUNT(*) as total_count FROM ?n $whereString";
+        $total_count = SafeMySQL::gi()->getOne($sql_count, Constants::USERS_TABLE);
+        $countExecutionTime = microtime(true) - $startTime;
+        return [
+            'data' => $res,
+            'total_count' => $total_count
+        ];
     }
 
     /**
@@ -159,7 +169,7 @@ Class Users {
      */
     public function get_user_options($id) {
         $sql_users = 'SELECT `options` FROM ?n WHERE `user_id` = ?i';
-        $options = SafeMySQL::gi()->getOne($sql_users, self::USERS_DATA_TABLE, $id);
+        $options = SafeMySQL::gi()->getOne($sql_users, Constants::USERS_DATA_TABLE, $id);
         if (!$options) { // Для подстраховки
             $this->set_user_options($id);
             $options = self::BASE_OPTIONS_USER;
@@ -185,7 +195,7 @@ Class Users {
         } else {
             $sql = 'INSERT INTO ?n SET `options` = ?s, `user_id` = ?i';
         }
-        return SafeMySQL::gi()->query($sql, self::USERS_DATA_TABLE, $options, $user_id);
+        return SafeMySQL::gi()->query($sql, Constants::USERS_DATA_TABLE, $options, $user_id);
     }
 
     /**
@@ -195,7 +205,7 @@ Class Users {
      */
     public function isset_options_user($user_id) {
         $sql = 'SELECT 1 FROM ?n WHERE `user_id` = ?i';
-        return SafeMySQL::gi()->getOne($sql, self::USERS_DATA_TABLE, $user_id);
+        return SafeMySQL::gi()->getOne($sql, Constants::USERS_DATA_TABLE, $user_id);
     }
 
     /**
@@ -207,11 +217,11 @@ Class Users {
      */
     public function confirm_user($email, $psw, $force_login = false) {
         $res = '';
-        $user_row = SafeMySQL::gi()->getRow('SELECT `id`, `active`, `pwd` FROM ?n WHERE `email` = ?s', self::USERS_TABLE, $email);
+        $user_row = SafeMySQL::gi()->getRow('SELECT `id`, `active`, `pwd` FROM ?n WHERE `email` = ?s', Constants::USERS_TABLE, $email);
         if ($user_row['active'] == 2 || $force_login) {
             if (password_verify($psw, $user_row['pwd']) || $force_login) {
                 $add_query = '';
-				if ($force_login) {
+                if ($force_login) {
                     $add_query = ' active = 2, ';
                     $res = $this->lang['sys.welcome'];
                 }
@@ -221,14 +231,14 @@ Class Users {
                 $hash_login = $user_row['id'];
                 $session = password_hash($hash_login, PASSWORD_DEFAULT);
                 if (ENV_AUTH_USER == 0) {
-                  Session::set('user_id', $user_row['id']);  
+                    Session::set('user_id', $user_row['id']);
                 }
-                if (ENV_AUTH_USER === 2) {                
-                   Cookies::set('user_id', $user_row['id']);                     
-                   Cookies::set('user_session', $session);                     
+                if (ENV_AUTH_USER === 2) {
+                    Cookies::set('user_id', $user_row['id']);
+                    Cookies::set('user_session', $session);
                 }
                 Session::set('user_session', $session);
-                SafeMySQL::gi()->query($sql, self::USERS_TABLE, $ip, $last_date, $session, $user_row['id']);
+                SafeMySQL::gi()->query($sql, Constants::USERS_TABLE, $ip, $last_date, $session, $user_row['id']);
             } else {
                 $res = $this->lang['sys.the_password_was_not_verified'];
             }
@@ -252,11 +262,11 @@ Class Users {
     public function registration_users($email, $password) {
         $newpassword = password_hash($password, PASSWORD_DEFAULT);
         $sql = 'INSERT INTO ?n SET `name` = ?s, `email` = ?s, `pwd` = ?s, `last_ip` = ?s';
-        if (SafeMySQL::gi()->query($sql, self::USERS_TABLE, $email, $email, $newpassword, $_SERVER['REMOTE_ADDR']) && ENV_LOG) {
+        if (SafeMySQL::gi()->query($sql, Constants::USERS_TABLE, $email, $email, $newpassword, $_SERVER['REMOTE_ADDR']) && ENV_LOG) {
             SysClass::SetLog('Регистрация ' . $email . ' c ' . $password . ' успех', 'info', 8);
         }
         $sql = 'SELECT MAX(`id`) FROM ?n';
-        $id_user = SafeMySQL::gi()->getOne($sql, self::USERS_TABLE);
+        $id_user = SafeMySQL::gi()->getOne($sql, Constants::USERS_TABLE);
         if (ENV_LOG && $id_user) {
             SysClass::SetLog('Зарегистрирован новый пользователь id=' . $id_user, 'info', $this->data['id']);
         }
@@ -283,16 +293,16 @@ Class Users {
             return 0;
         }
         $sql = 'INSERT INTO ?n SET ?u';
-        SafeMySQL::gi()->query($sql, self::USERS_TABLE, $fields);
+        SafeMySQL::gi()->query($sql, Constants::USERS_TABLE, $fields);
         $sql = 'SELECT MAX(`id`) FROM ?n';
-        $id_user = SafeMySQL::gi()->getOne($sql, self::USERS_TABLE);
+        $id_user = SafeMySQL::gi()->getOne($sql, Constants::USERS_TABLE);
         if (ENV_LOG && $id_user) {
             SysClass::SetLog('Зарегистрирован новый пользователь id=' . $id_user, 'info', $this->data['id']);
         }
         $this->set_user_password($id_user, $fields['email'], $fields['pwd']);
         $this->set_user_options($id_user); // Заполнить первичные данные из базы по шаблону
         $class_messages = new Class_messages();
-        $class_messages->set_message_user($id_user, 8, 'Fill in your personal information <a href="' . ENV_URL_SITE . '/admin/user_edit/id/' . $id_user . '">link</a>', 'info');
+        $class_messages->set_message_user($id_user, 8, 'Заполните свой профиль <a href="' . ENV_URL_SITE . '/admin/user_edit/id/' . $id_user . '">тут</a>', 'info');
         return 1;
     }
 
@@ -302,7 +312,7 @@ Class Users {
      */
     public function get_admin_profile() {
         $sql = 'SELECT 1 FROM ?n WHERE user_role = 1 LIMIT 1';
-        if (!SafeMySQL::gi()->getOne($sql, self::USERS_TABLE)) {
+        if (!SafeMySQL::gi()->getOne($sql, Constants::USERS_TABLE)) {
             $this->registration_new_user(array('name' => 'admin', 'email' => 'test@test.com', 'active' => '2', 'user_role' => '1', 'subscribed' => '1', 'comment' => 'Смените пароль администратора', 'pwd' => 'admin'), true);
         }
     }
@@ -332,7 +342,7 @@ Class Users {
 
         $newsword = password_hash($password, PASSWORD_DEFAULT);
         $sql = 'UPDATE ?n SET `pwd` = ?s WHERE `id` = ?i';
-        $res_q = SafeMySQL::gi()->query($sql, self::USERS_TABLE, $newsword, $id);
+        $res_q = SafeMySQL::gi()->query($sql, Constants::USERS_TABLE, $newsword, $id);
         if (ENV_LOG) {
             SysClass::SetLog('Пароль для ' . $email . ' обновлён на ' . $password, 'info');
         }
@@ -347,7 +357,7 @@ Class Users {
      */
     public function get_user_stat($id) { // Статус пользователя 1 - на подтверждении, 2 - активен,  3 - блокирован
         $sql = 'SELECT `active` FROM ?n WHERE `id` = ?i';
-        return SafeMySQL::gi()->getOne($sql, self::USERS_TABLE, $id);
+        return SafeMySQL::gi()->getOne($sql, Constants::USERS_TABLE, $id);
     }
 
     /**
@@ -355,7 +365,7 @@ Class Users {
      */
     public function get_user_role($id) { // Роль пользователя 1-админ 2-модератор 3-менеджер 4-пользователь 8-система 
         $sql = 'SELECT `user_role` FROM ?n WHERE `id` = ?i';
-        return SafeMySQL::gi()->getOne($sql, self::USERS_TABLE, $id);
+        return SafeMySQL::gi()->getOne($sql, Constants::USERS_TABLE, $id);
     }
 
     /**
@@ -363,7 +373,7 @@ Class Users {
      */
     public function get_text_role($id) {
         $sql = 'SELECT `name` FROM ?n WHERE `id` = ?i';
-        return SafeMySQL::gi()->getOne($sql, self::USERS_ROLES_TABLE, $id);
+        return SafeMySQL::gi()->getOne($sql, Constants::USERS_ROLES_TABLE, $id);
     }
 
     /**
@@ -373,9 +383,9 @@ Class Users {
         if (count($this->lang) == 0) {
             $lang_code = Session::get('lang') ? Session::get('lang') : 'ru';
             $path_file = ENV_SITE_PATH . ENV_PATH_LANG . '/' . $lang_code . '.php';
-			if (file_exists($path_file))  {
-				include($path_file);
-			}
+            if (file_exists($path_file)) {
+                include($path_file);
+            }
             $this->lang = $lang;
         }
         $res = $this->lang['sys.unknown'];
@@ -398,7 +408,7 @@ Class Users {
      */
     public function get_user_id_by_email($email) {
         $sql = 'SELECT `id` FROM ?n WHERE `email` LIKE ?s';
-        return SafeMySQL::gi()->getOne($sql, self::USERS_TABLE, $email);
+        return SafeMySQL::gi()->getOne($sql, Constants::USERS_TABLE, $email);
     }
 
     /**
@@ -408,7 +418,7 @@ Class Users {
      */
     public function get_user_email($user_id) {
         $sql = 'SELECT `email` FROM ?n WHERE `id` = ?i';
-        return SafeMySQL::gi()->getOne($sql, self::USERS_TABLE, $user_id);
+        return SafeMySQL::gi()->getOne($sql, Constants::USERS_TABLE, $user_id);
     }
 
     /**
@@ -416,7 +426,7 @@ Class Users {
      */
     public function get_email_exist($email) {
         $sql = 'SELECT 1 FROM ?n WHERE `email` = ?s';
-        return SafeMySQL::gi()->getOne($sql, self::USERS_TABLE, $email);
+        return SafeMySQL::gi()->getOne($sql, Constants::USERS_TABLE, $email);
     }
 
     /**
@@ -466,7 +476,7 @@ Class Users {
                 SysClass::SetLog('Письмо на ' . $email . ' с кодом ' . $acivation_code . ' отправлено.', 'success');
             }
             $sql = 'INSERT INTO ?n SET `user_id` = ?i,`email` = ?s, `code` = ?s, `stop_time` = ?s';
-            SafeMySQL::gi()->query($sql, self::USERS_ACTIVATION_TABLE, $this->get_user_id_by_email($email), $email, $acivation_code, date("Y-m-d H:i:s", time() + ENV_TIME_ACTIVATION));
+            SafeMySQL::gi()->query($sql, Constants::USERS_ACTIVATION_TABLE, $this->get_user_id_by_email($email), $email, $acivation_code, date("Y-m-d H:i:s", time() + ENV_TIME_ACTIVATION));
             return true;
         }
     }
@@ -476,12 +486,12 @@ Class Users {
      */
     public function dell_activation_code($email, $code) {
         $sql = 'SELECT `stop_time` FROM ?n WHERE `email` LIKE ?s AND code LIKE ?s';
-        $query = SafeMySQL::gi()->getOne($sql, self::USERS_ACTIVATION_TABLE, $email, $code);
+        $query = SafeMySQL::gi()->getOne($sql, Constants::USERS_ACTIVATION_TABLE, $email, $code);
         if ($query > date("Y-m-d H:i:s")) {
             $sql = 'DELETE FROM ?n WHERE `email` = ?s';
-            SafeMySQL::gi()->query($sql, self::USERS_ACTIVATION_TABLE, $email);
+            SafeMySQL::gi()->query($sql, Constants::USERS_ACTIVATION_TABLE, $email);
             $sql = 'UPDATE ?n SET `active` = 2 WHERE `id` = ?i AND `active` = 1';
-            SafeMySQL::gi()->query($sql, self::USERS_TABLE, $this->get_user_id_by_email($email));
+            SafeMySQL::gi()->query($sql, Constants::USERS_TABLE, $this->get_user_id_by_email($email));
             return true;
         } else {  // Кода нет в таблице или он просрочен очищаем все данные
             $this->dell_user_data($this->get_user_id_by_email($email));
@@ -497,20 +507,20 @@ Class Users {
     public function dell_user_data($id, $copy = false) {
         if ($copy) {
             $sql = 'INSERT INTO ?n SELECT *, CURRENT_TIMESTAMP FROM ?n WHERE id = ?i';
-            SafeMySQL::gi()->query($sql, self::DELL_USERS_TABLE, self::USERS_TABLE, $id);
+            SafeMySQL::gi()->query($sql, Constants::DELL_USERS_TABLE, Constants::USERS_TABLE, $id);
             $sql = 'DELETE FROM ?n WHERE `id` = ?i';
-            SafeMySQL::gi()->query($sql, self::USERS_TABLE, $id);
+            SafeMySQL::gi()->query($sql, Constants::USERS_TABLE, $id);
             if (ENV_LOG) {
-                SysClass::SetLog('Пользователь id=' . $id . 'перемещён в таблицу удалённые ' . self::DELL_USERS_TABLE, 'info', $this->data['id']);
+                SysClass::SetLog('Пользователь id=' . $id . 'перемещён в таблицу удалённые ' . Constants::DELL_USERS_TABLE, 'info', $this->data['id']);
             }
         } else {
             $sql = 'DELETE FROM ?n WHERE `id` = ?i';
-            SafeMySQL::gi()->query($sql, self::USERS_TABLE, $id);
+            SafeMySQL::gi()->query($sql, Constants::USERS_TABLE, $id);
             if (ENV_LOG) {
                 SysClass::SetLog('Удалён пользователь id=' . $id, 'info', $this->data['id']);
             }
             $sql = 'DELETE a, d, m FROM ?n as a, ?n as d, ?n as m WHERE `a`.`user_id` = ?i AND `d`.`user_id` = ?i AND `m`.`user_id` = ?i';
-            SafeMySQL::gi()->query($sql, self::USERS_ACTIVATION_TABLE, self::USERS_DATA_TABLE, self::USERS_MESSAGE_TABLE, $id, $id, $id);
+            SafeMySQL::gi()->query($sql, Constants::USERS_ACTIVATION_TABLE, Constants::USERS_DATA_TABLE, Constants::USERS_MESSAGE_TABLE, $id, $id, $id);
             if (ENV_LOG) {
                 SysClass::SetLog('Удалены данные пользователя id=' . $id, 'info', $this->data['id']);
             }
@@ -518,105 +528,212 @@ Class Users {
     }
 
     /**
+     * Генерация пользователей для теста
+     */
+    public function generate_test_users($count = 50, $role = 4, $active = 2) {
+        $namePrefixes = ['Алексей', 'Наталья', 'Сергей', 'Ольга', 'Дмитрий', 'Елена', 'Иван', 'Мария', 'Павел', 'Анастасия', 'Андрей', 'Татьяна', 'Роман', 'Светлана', 'Евгений'];
+        $comments = [
+            'Тестовый комментарий',
+            'Сгенерировано автоматически',
+            'Проверка функции',
+            'Данные для теста',
+            'Неизвестный пользователь'
+        ];
+        for ($i = 0; $i < $count; $i++) {
+            $name = $namePrefixes[array_rand($namePrefixes)] . '_' . mt_rand(1000, 9999);
+            $email = $name . ENV_DOMEN_NAME;
+            $commentPrefix = $comments[array_rand($comments)];
+            $comment = $commentPrefix . " (" . date("Y-m-d H:i:s") . ")";
+            $password = bin2hex(openssl_random_pseudo_bytes(4)); // 8-character random password
+            $this->registration_new_user([
+                'name' => $name,
+                'email' => $email,
+                'active' => $active,
+                'user_role' => $role,
+                'subscribed' => '1',
+                'comment' => $comment,
+                'pwd' => $password
+                    ], true);
+        }
+    }
+
+    /**
      * Создаёт необходимые таблицы в БД
      * Если нет подключения то вернёт false
      */
-    private function create_tables() {
+    public function create_tables() {
         /* Пользователи */
-        $create_table = "CREATE TABLE ?n (
-					  `id` int(11) NOT NULL,
-					  `name` char(255) NOT NULL DEFAULT 'Merchant_ID',
-					  `email` char(255) NOT NULL,
-					  `pwd` varchar(255) NOT NULL,
-					  `active` tinyint(1) NOT NULL DEFAULT '1' COMMENT '1 - на подтверждении, 2 - активен,  3 - блокирован',
-					  `user_role` tinyint(2) NOT NULL DEFAULT '4' COMMENT 'таблица user_roles',
-					  `last_ip` char(20) DEFAULT NULL,
-					  `subscribed` tinyint(1) DEFAULT '1' COMMENT 'подписка на рассылку',
-					  `reg_date` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'дата регистрации',
-					  `last_activ` datetime DEFAULT NULL COMMENT 'дата крайней активности',
-					  `up_date` datetime NOT NULL COMMENT 'дата обновления инф.',
-					  `phone` varchar(255) NOT NULL,
-					  `session` varchar(255) NOT NULL,
-					  `comment` varchar(255) NOT NULL COMMENT 'Комментарий или дивиз пользователя'
-					) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Пользователи сайта';";
-        SafeMySQL::gi()->query($create_table, self::USERS_TABLE);
-        $create_table = "ALTER TABLE ?n ADD PRIMARY KEY (`id`), ADD UNIQUE KEY `email` (`email`), MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;";
-        SafeMySQL::gi()->query($create_table, self::USERS_TABLE);
+        $create_table = "CREATE TABLE IF NOT EXISTS ?n (
+						  `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+						  `name` char(255) NOT NULL DEFAULT 'Merchant_ID',
+						  `email` char(255) NOT NULL,
+						  `pwd` varchar(255) NOT NULL,
+						  `active` tinyint(1) NOT NULL DEFAULT '1' COMMENT '1 - на подтверждении, 2 - активен,  3 - блокирован',
+						  `user_role` tinyint(2) NOT NULL DEFAULT '4' COMMENT 'таблица user_roles',
+						  `last_ip` char(20) DEFAULT NULL,
+						  `subscribed` tinyint(1) DEFAULT '1' COMMENT 'подписка на рассылку',
+						  `reg_date` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'дата регистрации',
+						  `last_activ` datetime DEFAULT NULL COMMENT 'дата крайней активности',
+						  `up_date` datetime NOT NULL COMMENT 'дата обновления инф.',
+						  `phone` varchar(255) NOT NULL,
+						  `session` varchar(255) NOT NULL,
+						  `comment` varchar(255) NOT NULL COMMENT 'Комментарий или дивиз пользователя',
+						  PRIMARY KEY (`id`),
+						  UNIQUE KEY `email` (`email`)
+						) ENGINE=innodb DEFAULT CHARSET=utf8 COMMENT='Пользователи сайта';";
+        SafeMySQL::gi()->query($create_table, Constants::USERS_TABLE);
         /* Удалённые пользователи */
-        $create_table = "CREATE TABLE ?n (
-					  `id` int(11) NOT NULL,
-					  `name` char(255) NOT NULL DEFAULT 'Merchant_ID',
-					  `email` char(255) NOT NULL,
-					  `pwd` varchar(255) NOT NULL,
-					  `active` tinyint(1) NOT NULL DEFAULT '1' COMMENT '1 - на подтверждении, 2 - активен,  3 - блокирован',
-					  `user_role` tinyint(2) NOT NULL DEFAULT '3' COMMENT 'таблица user_roles',
-					  `last_ip` char(20) DEFAULT NULL,
-					  `subscribed` tinyint(1) DEFAULT '1',
-					  `reg_date` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-					  `last_activ` datetime DEFAULT NULL,
-					  `up_date` datetime NOT NULL COMMENT 'дата обновления инф.',					  
-					  `phone` varchar(255) NOT NULL,
-					  `session` varchar(255) NOT NULL,
-					  `comment` varchar(255) NOT NULL COMMENT 'Комментарий или дивиз пользователя',
-					  `date_dell` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Время удаления'
-					) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Пользователи сайта';";
-        SafeMySQL::gi()->query($create_table, self::DELL_USERS_TABLE);
-        $create_table = "ALTER TABLE ?n ADD PRIMARY KEY (`id`), ADD UNIQUE KEY `email` (`email`), MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;";
-        SafeMySQL::gi()->query($create_table, self::DELL_USERS_TABLE);
+        $create_table = "CREATE TABLE IF NOT EXISTS ?n (
+						  `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+						  `name` char(255) NOT NULL DEFAULT 'Merchant_ID',
+						  `email` char(255) NOT NULL,
+						  `pwd` varchar(255) NOT NULL,
+						  `active` tinyint(1) UNSIGNED NOT NULL DEFAULT '1' COMMENT '1 - на подтверждении, 2 - активен,  3 - блокирован',
+						  `user_role` tinyint(2) UNSIGNED NOT NULL DEFAULT '3' COMMENT 'таблица user_roles',
+						  `last_ip` char(20) DEFAULT NULL,
+						  `subscribed` tinyint(1) DEFAULT '1',
+						  `reg_date` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'дата регистрации',
+						  `last_activ` datetime DEFAULT NULL COMMENT 'дата крайней активности',
+						  `up_date` datetime NOT NULL COMMENT 'дата обновления инф.',					  
+						  `phone` varchar(255) NOT NULL,
+						  `session` varchar(255) NOT NULL,
+						  `comment` varchar(255) NOT NULL COMMENT 'Комментарий или дивиз пользователя',
+						  `date_dell` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Время удаления',
+						  PRIMARY KEY (`id`),
+						  UNIQUE KEY `email` (`email`)
+						) ENGINE=innodb DEFAULT CHARSET=utf8 COMMENT='Удалённые пользователи сайта';";
+        SafeMySQL::gi()->query($create_table, Constants::DELL_USERS_TABLE);
         /* Роли пользователей */
-        $create_table = "CREATE TABLE ?n (`id` tinyint(2) NOT NULL, `name` varchar(255) NOT NULL) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='1-админ 2-модератор 3-пользователь 8-система';";
-        SafeMySQL::gi()->query($create_table, self::USERS_ROLES_TABLE);
-        $create_table = "ALTER TABLE ?n ADD PRIMARY KEY (`id`), MODIFY `id` tinyint(2) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;";
-        SafeMySQL::gi()->query($create_table, self::USERS_ROLES_TABLE);
-        $create_table = "INSERT INTO ?n (`id`, `name`) VALUES
+        $create_table = "CREATE TABLE IF NOT EXISTS ?n (
+							`id` tinyint(2) UNSIGNED NOT NULL AUTO_INCREMENT,
+							`name` varchar(255) NOT NULL,
+							PRIMARY KEY (`id`)
+						) ENGINE=innodb DEFAULT CHARSET=utf8 COMMENT='1-админ 2-модератор 3-пользователь 8-система';";
+        SafeMySQL::gi()->query($create_table, Constants::USERS_ROLES_TABLE);
+
+        $insert_data = "INSERT INTO ?n (`id`, `name`) VALUES
 						(1, 'Администратор'),
 						(2, 'Модератор'),
 						(3, 'Менеджер'),
-						(4, 'Пользователь'),
-						(8, 'Система');";
-        SafeMySQL::gi()->query($create_table, self::USERS_ROLES_TABLE);
+						(4, 'Пользователь'),						
+						(8, 'Система')
+						ON DUPLICATE KEY UPDATE `id` = VALUES(`id`), `name` = VALUES(`name`);";
+        SafeMySQL::gi()->query($insert_data, Constants::USERS_ROLES_TABLE);
         /* Данные пользователя */
-        $create_table = "CREATE TABLE ?n (
-					  `id` int(11) NOT NULL,
-					  `user_id` int(11) NOT NULL,
-					  `up_date` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Время любого изменения данных',
-					  `options` text NOT NULL COMMENT 'Настройки интерфейса пользователя'
-					) ENGINE=MyISAM DEFAULT CHARSET=utf8;";
-        SafeMySQL::gi()->query($create_table, self::USERS_DATA_TABLE);
-        $create_table = "ALTER TABLE ?n ADD PRIMARY KEY (`id`), MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;";
-        SafeMySQL::gi()->query($create_table, self::USERS_DATA_TABLE);
+        $create_table = "CREATE TABLE IF NOT EXISTS ?n (
+						  `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+						  `user_id` int(11) UNSIGNED NOT NULL,
+						  `up_date` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Время любого изменения данных',
+						  `options` text NOT NULL COMMENT 'Настройки интерфейса пользователя',
+						  PRIMARY KEY (`id`)
+						) ENGINE=innodb DEFAULT CHARSET=utf8;";
+        SafeMySQL::gi()->query($create_table, Constants::USERS_DATA_TABLE);
         /* Сообщения пользователя */
-        $create_table = "CREATE TABLE ?n (
-					  `id` int(11) NOT NULL,
-					  `user_id` int(11) NOT NULL,
-					  `author_id` int(11) NOT NULL,
-					  `message_text` varchar(1000) NOT NULL,
-					  `date_create` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-					  `date_read` datetime DEFAULT NULL,
-					  `status` varchar(10) NOT NULL DEFAULT 'info'
-					) ENGINE=MyISAM DEFAULT CHARSET=utf8;";
-        SafeMySQL::gi()->query($create_table, self::USERS_MESSAGE_TABLE);
-        $create_table = "ALTER TABLE ?n ADD PRIMARY KEY (`id`), MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;";
-        SafeMySQL::gi()->query($create_table, self::USERS_MESSAGE_TABLE);
-
+        $create_table = "CREATE TABLE IF NOT EXISTS ?n (
+						  `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+						  `user_id` int(11) UNSIGNED NOT NULL,
+						  `author_id` int(11) UNSIGNED NOT NULL,
+						  `message_text` varchar(1000) NOT NULL,
+						  `date_create` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+						  `date_read` datetime DEFAULT NULL,
+						  `status` varchar(10) NOT NULL DEFAULT 'info',
+						  PRIMARY KEY (`id`)
+						) ENGINE=innodb DEFAULT CHARSET=utf8;";
+        SafeMySQL::gi()->query($create_table, Constants::USERS_MESSAGE_TABLE);
         /* Таблица ссылок для активации новых пользователей */
-        $create_table = "CREATE TABLE ?n (
-					  `id` int(11) NOT NULL,
-					  `user_id` int(11) NOT NULL,
-					  `email` varchar(255) NOT NULL,
-					  `code` varchar(255) NOT NULL,
-					  `reg_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-					  `stop_time` datetime NOT NULL
-					) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Коды активации для зарегистрировавшихся пользователей';";
-        SafeMySQL::gi()->query($create_table, self::USERS_ACTIVATION_TABLE);
-        $create_table = "ALTER TABLE ?n ADD PRIMARY KEY (`id`), MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;";
-        SafeMySQL::gi()->query($create_table, self::USERS_ACTIVATION_TABLE);
+        $create_table = "CREATE TABLE IF NOT EXISTS ?n (
+						  `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+						  `user_id` int(11) NOT NULL,
+						  `email` varchar(255) NOT NULL,
+						  `code` varchar(255) NOT NULL,
+						  `reg_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+						  `stop_time` datetime NOT NULL,
+						  PRIMARY KEY (`id`)
+						) ENGINE=innodb DEFAULT CHARSET=utf8 COMMENT='Коды активации для зарегистрировавшихся пользователей';";
+        SafeMySQL::gi()->query($create_table, Constants::USERS_ACTIVATION_TABLE);
+        // Создание таблицы типов
+        $create_types_table = "CREATE TABLE IF NOT EXISTS ?n (
+                        type_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                        name VARCHAR(255) NOT NULL UNIQUE,
+                        description VARCHAR(255),
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения типов сущностей и категорий';";
+        SafeMySQL::gi()->query($create_types_table, Constants::TYPES_TABLE);
+        // Создание таблицы категорий
+        $create_categories_table = "CREATE TABLE IF NOT EXISTS ?n (
+			category_id INT AUTO_INCREMENT PRIMARY KEY,
+			type_id INT UNSIGNED NOT NULL,
+			title VARCHAR(255) NOT NULL,
+			description TEXT,
+			short_description VARCHAR(255),
+			parent_id INT UNSIGNED,
+			status ENUM('active', 'hidden', 'disabled') NOT NULL DEFAULT 'active',
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			FOREIGN KEY (type_id) REFERENCES ?n(type_id),
+			FOREIGN KEY (parent_id) REFERENCES ?n(category_id),
+			INDEX (type_id),
+			INDEX (parent_id)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения категорий сущностей';";
+        SafeMySQL::gi()->query($create_categories_table, Constants::CATEGORIES_TABLE, Constants::TYPES_TABLE, Constants::CATEGORIES_TABLE);
+        // Создание таблицы сущностей
+        $create_entities_table = "CREATE TABLE IF NOT EXISTS ?n (
+			entity_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+			parent_entity_id INT UNSIGNED NULL,
+			category_id INT UNSIGNED,
+                        status ENUM('active', 'hidden', 'disabled') NOT NULL DEFAULT 'active',
+			title VARCHAR(255) NOT NULL,
+			short_description VARCHAR(255),
+			description TEXT,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			FOREIGN KEY (type_id) REFERENCES ?n(type_id),
+			FOREIGN KEY (category_id) REFERENCES ?n(category_id),
+			INDEX (type_id),
+			INDEX (category_id)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения сущностей (продукты или страницы)';";
+        SafeMySQL::gi()->query($create_entities_table, Constants::ENTITIES_TABLE, Constants::TYPES_TABLE, Constants::CATEGORIES_TABLE);
+        // Таблица для хранения типов свойств
+        $create_property_types_table = "CREATE TABLE IF NOT EXISTS ?n (
+			type_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+			name VARCHAR(255) NOT NULL,
+			status ENUM('active', 'hidden', 'disabled') NOT NULL DEFAULT 'active',
+			short_description TEXT,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения типов свойств';";
+        SafeMySQL::gi()->query($create_property_types_table, Constants::PROPERTY_TYPES_TABLE);
+        // Таблица для хранения свойств
+        $create_properties_table = "CREATE TABLE IF NOT EXISTS ?n (
+			property_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+			type_id INT UNSIGNED NOT NULL,
+			name VARCHAR(255) NOT NULL,
+			is_multiple BOOLEAN NOT NULL,
+			is_required BOOLEAN NOT NULL,
+			long_description TEXT,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			FOREIGN KEY (type_id) REFERENCES ?n(type_id),
+			INDEX (type_id)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения свойств';";
+        SafeMySQL::gi()->query($create_properties_table, Constants::PROPERTIES_TABLE, Constants::PROPERTY_TYPES_TABLE);
+        // Таблица для хранения значений свойств в формате JSON
+        $create_property_values_table = "CREATE TABLE IF NOT EXISTS ?n (
+			value_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+			entity_id INT UNSIGNED NOT NULL,
+			property_id INT UNSIGNED NOT NULL,
+			entity_type ENUM('category', 'page') NOT NULL,
+			value JSON NOT NULL,
+			status ENUM('active', 'hidden', 'disabled') NOT NULL DEFAULT 'active',
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			FOREIGN KEY (property_id) REFERENCES ?n(property_id),
+			INDEX (property_id),
+			INDEX (entity_id)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения значений свойств в формате JSON';";
+        SafeMySQL::gi()->query($create_property_values_table, Constants::PROPERTY_VALUES_TABLE, Constants::PROPERTIES_TABLE);
 
-        /* Таблица логов */
-        $create_table = "CREATE TABLE ?n ( `id` int(11) NOT NULL, `who` int(11) NOT NULL, `changes` varchar(1000) NOT NULL, `flag` set('info','success','error','') NOT NULL DEFAULT 'info', `date` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP) ENGINE=MyISAM DEFAULT CHARSET=utf8;";
-        SafeMySQL::gi()->query($create_table, ENV_DB_PREF . 'logs');
-        $create_table = "ALTER TABLE ?n ADD PRIMARY KEY (`id`), MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;";
-        SafeMySQL::gi()->query($create_table, ENV_DB_PREF . 'logs');
         if (ENV_LOG) {
             SysClass::SetLog('База данных успешно развёрнута.');
         }

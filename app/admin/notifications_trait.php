@@ -21,7 +21,7 @@ trait notifications_trait {
             exit();
         }
         $class_notifications = new Class_notifications();
-        $post_data = filter_input_array(INPUT_POST, $_POST);
+        $post_data = $_POST;
         $class_notifications->set_reading_time($this->logged_in, $post_data['showtime'], $post_data['id']);
     }
 
@@ -34,7 +34,7 @@ trait notifications_trait {
             SysClass::return_to_main(401);
             exit();
         }        
-        $post_data = filter_input_array(INPUT_POST, $_POST);
+        $post_data = $_POST;
         $class_notifications = new Class_notifications();
         $class_notifications->kill_notification_by_id($this->logged_in, $post_data['id']);
     }

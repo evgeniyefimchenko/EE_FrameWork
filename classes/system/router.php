@@ -42,7 +42,7 @@ Class Router {
      * @return - работает с указателями на переменные
      */
 
-    private function getController(&$file, &$controller, &$action, &$args) {
+    private function getController(&$file, &$controller, &$action, &$args) { 
         if (ENV_TEST) {
             echo 'route= ' . $_GET['route'] . '<br/>';
         }
@@ -127,15 +127,15 @@ Class Router {
     public function delegate() {
         $this->getController($file, $controller, $action, $args);
         $class = 'Controller_' . $controller;
-        $view = new View();
-        $controller = new $class($view);
+        $view = new View();        
+		$controller = new $class($view);
         if (is_callable(array($controller, $action)) == false) {
             if (ENV_TEST) {
                 die('</br></br>is_callable class= ' . $class . ' action= ' . $action);
             }
             Sysclass::return_to_main(404);
             exit;
-        }
+        }		
         $controller->$action($args);
     }
 
@@ -143,14 +143,14 @@ Class Router {
      * Удаляет все index и лишние слэши
      * вернёт текущий путь или выполнит редирект 301 на валидный
      */
-    private function remove_double_path($param) {
+    private function remove_double_path($param) { 
         $dell_index = preg_replace('/index/', '', $param);
         $dell_duble_slash = preg_replace('/(?<!:)[\/]{2,}/', '', $dell_index);
-        $dell_end_slash = preg_replace('/\/{1,}$/', '', $dell_duble_slash);
-        if ($dell_end_slash == $param) {
+        $dell_end_slash = preg_replace('/\/{1,}$/', '', $dell_duble_slash); 
+        if ($dell_end_slash == $param) {		
             return $dell_end_slash;
         } else {
-            Sysclass::return_to_main(301, ENV_URL_SITE . ENV_DIRSEP . $dell_end_slash);
+            Sysclass::return_to_main(307, ENV_URL_SITE . ENV_DIRSEP . $dell_end_slash);
         }
     }
 

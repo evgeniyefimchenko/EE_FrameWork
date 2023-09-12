@@ -32,11 +32,10 @@ actions = {
                     console.log('error', data);
                     actions.showNotification(lang_var('sys.data_read_error'), 'danger');
                 } else {
-                    tmp_skin = data.skin;
-                    if (typeof data.notifications[0] !== 'undefined') {                        
+                    if (data.notifications && typeof data.notifications[0] !== 'undefined') {
                         var d = new Date().getTime();
                         for (key in data.notifications) {
-                            if (data.notifications[key].status === 'info' || data.notifications[key].status === 'success') {
+                            if (data.notifications[key].status === 'info' || data.notifications[key].status === 'success' || data.notifications[key].status === 'danger') {
                                 actions.showNotification(data.notifications[key].text, data.notifications[key].status);
                                 // Информационные сообщения прибиваем сразу
                                 $.post('/admin/kill_notification_by_id', {'id': data.notifications[key].id});
@@ -50,7 +49,8 @@ actions = {
                                 actions.showNotification(data.notifications[key].text, data.notifications[key].status);
                                 $.post('/admin/set_notification_time', {'showtime': d, 'id': data.notifications[key].id});
                             }
-                        };
+                        }
+                        ;
                     }
                 }
             },
@@ -104,7 +104,7 @@ $(document).ready(function () {
                 console.log(xhr.status, xhr.responseText, thrownError, ajaxOptions);
             }
         });
-    });	
+    });
 });
 
 window.addEventListener('DOMContentLoaded', event => {
