@@ -10,16 +10,16 @@ $C['ENV_VERSION_CORE'] = '2.0.0';
 * Если указать начальные настройки при первом запуске формы авторизации то первичные таблицы в БД будут созданы автоматически
 */
 $C['ENV_DB_HOST'] = 'localhost';
-$C['ENV_DB_USER'] = '';
-$C['ENV_DB_PASS'] = '';
-$C['ENV_DB_NAME'] = '';
+$C['ENV_DB_USER'] = 'whrgijws_family';
+$C['ENV_DB_PASS'] = '655351024';
+$C['ENV_DB_NAME'] = 'whrgijws_skku';
 $C['ENV_DB_PREF'] = NULL;
 
 /* Технические настройки сайта */
-$C['ENV_SITE_NAME'] = 'example.com'; // Название сайта
-$C['ENV_SITE_DESCRIPTION'] = 'example.com'; // Описание сайта
+$C['ENV_SITE_NAME'] = 'skku.shop'; // Название сайта
+$C['ENV_SITE_DESCRIPTION'] = 'skku.shop'; // Описание сайта
 $C['ENV_SITE_AUTHOR'] = 'efimchenko.ru'; // Автор сайта
-$C['ENV_DATE_SITE_CREATE'] = ''; // Дата создания сайта
+$C['ENV_DATE_SITE_CREATE'] = '13.02.2023'; // Дата создания сайта
 $C['ENV_DIRSEP'] = DIRECTORY_SEPARATOR;  // Разделитель операционной системы
 $C['ENV_DOMEN_PROTOCOL'] = !empty($_SERVER['HTTPS']) && strtolower($_SERVER['HTTPS']) !== 'off' ? "https://" : "http://"; // Протокол сайта
 $C['ENV_DOMEN_NAME'] = $_SERVER['SERVER_NAME']; // Домена сайта

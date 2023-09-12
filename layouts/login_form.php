@@ -39,32 +39,32 @@
         <!-- Стили -->
         <link rel="apple-touch-icon" sizes="76x76" href="favicon.png">
         <link rel="icon" type="image/png" href="favicon.ico">
-        <!-- Стандартные стили-->
+        <!-- Стандартные стили -->
 		<!-- Bootstrap Min CSS -->
 		<link rel="stylesheet" href="/assets/bootstrap/css/bootstrap.min.css" type="text/css">
 		<!-- Font Awesome Min CSS -->
 		<link rel="stylesheet" href="/assets/fontawesome/css/all.css" type="text/css"/>
         <link rel="canonical" href="<?=$canonical_href?>" />
-        <!-- Добавленные стили из контроллера-->
+        <!-- Добавленные стили из контроллера -->
         <?=$add_style?>
         <title><?=$title?></title>
     </head>
     <body>
-	    <!-- Анимация предзагрузки-->
-        <div id="preloader">
-			<div class="clock">
-				<div class="arrow_sec"></div>
-				<div class="arrow_min"></div>
+		<!-- Preloader -->
+		<div id="preloader" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(255, 255, 255, 0.9); z-index: 9999; display: flex; justify-content: center; align-items: center;">
+			<div class="spinner-border text-primary" role="status">
+				<span class="visually-hidden">Loading...</span>
 			</div>
 		</div>
-        <!-- Основной контент страниц-->
+        <!-- Основной контент страниц -->
         <?=$layout_content?>
-		<!-- Скрипты-->
+		<!-- JS scripts -->
 		<script src='/assets/js/plugins/jquery.min.js' type="text/javascript"></script>
 		<script src="/assets/bootstrap/js/bootstrap.bundle.min.js" type="text/javascript"></script>
 		<!-- core -->
-		<script src="<?=ENV_URL_SITE?>/assets/js/core.js" type="text/javascript"></script>	
+		<script src="<?=ENV_URL_SITE?>/classes/system/js/core.js" type="text/javascript"></script>	
 		<!-- Добавленные скрипты из контроллера -->
-		<?=$add_script?>		
+		<?=$add_script?>
+		<!-- ported scripts -->		
     </body>
 </html>

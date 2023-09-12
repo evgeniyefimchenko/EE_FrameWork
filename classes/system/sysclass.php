@@ -455,7 +455,9 @@ Class SysClass {
             $code_redirect = '404 Not Found';
         } elseif ($code === 301) {
             $code_redirect = '301 Moved Permanently';
-        } else {
+        } elseif ($code === 307) {
+			$code_redirect = '307 Temporary Redirect';
+		} else {
             $code_redirect = '404 Not Found';
         }
         if (ENV_TEST) {
@@ -1425,10 +1427,10 @@ Class SysClass {
      * @param array $array
      * @return array
      */
-    public static function ee_removeEmptyValues(array $array) {
+    public static function ee_remove_empty_values(array $array) {
         foreach ($array as $key => $value) {
             if (is_array($value)) {
-                $array[$key] = removeEmptyValues($value);
+                $array[$key] = self::ee_remove_empty_values($value);
                 if (empty($array[$key])) {
                     unset($array[$key]);
                 }
@@ -1439,6 +1441,24 @@ Class SysClass {
             }
         }
         return $array;
-    }    
+    }
+    
+    /**
+    * Преобразует значения массива в числа, если это возможно, или оставляет их как есть
+    * @param array $array Массив значений для преобразования.
+    * @return array Массив с преобразованными значениями.
+    */   
+    public static function ee_convertArrayValuesToNumbers($array) {
+        foreach ($array as $key => $value) {
+            if (is_numeric($value)) {
+                if (strpos($value, '.') !== false) {
+                    $array[$key] = (float)$value;
+                } else {
+                    $array[$key] = (int)$value;
+                }
+            }
+        }
+        return $array;
+    }
     
 }

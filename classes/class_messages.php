@@ -9,9 +9,9 @@ if (ENV_SITE !== 1) {
 * Класс для обработки сообщений пользователю
 */
 
-Class Class_messages {
+use Constants;
 
-    const USERS_MESSAGE_TABLE = ENV_DB_PREF . 'users_message';
+Class Class_messages {
 
     /**
     * Записать сообщение пользователю
@@ -25,7 +25,7 @@ Class Class_messages {
         $note = new Class_notifications();
         $note->add_notification_user($user_id, array('text' => $message, 'status' => $status));        
         $sql = 'INSERT INTO ?n SET `user_id` = ?i, `author_id` = ?i, `message_text` = ?s, `status` = ?s';
-        SafeMySQL::gi()->query($sql, self::USERS_MESSAGE_TABLE, $user_id, $author_id, $message, $status);
+        SafeMySQL::gi()->query($sql, Constants::USERS_MESSAGE_TABLE, $user_id, $author_id, $message, $status);
     }
 
     /**
@@ -35,7 +35,7 @@ Class Class_messages {
     */
     public function get_messages_user($user_id) {
         $sql = 'SELECT `id`, `author_id`, `message_text`, `date_create`, `date_read`, `status` FROM ?n WHERE `user_id` = ?i';
-        return SafeMySQL::gi()->getAll($sql, self::USERS_MESSAGE_TABLE, $user_id);
+        return SafeMySQL::gi()->getAll($sql, Constants::USERS_MESSAGE_TABLE, $user_id);
     }
 	
     /**
@@ -45,7 +45,7 @@ Class Class_messages {
     */
     public function get_unread_messages_user($user_id) {
         $sql = 'SELECT `id`, `author_id`, `message_text`, `date_create`, `date_read`, `status` FROM ?n WHERE `user_id` = ?i AND date_read is NULL';
-        return SafeMySQL::gi()->getAll($sql, self::USERS_MESSAGE_TABLE, $user_id);
+        return SafeMySQL::gi()->getAll($sql, Constants::USERS_MESSAGE_TABLE, $user_id);
     }
 
     /**
@@ -55,7 +55,7 @@ Class Class_messages {
     */
     public function get_count_unread_messages($user_id) {
         $sql = 'SELECT COUNT(`id`) FROM ?n WHERE `user_id` = ?i AND date_read is NULL';
-        return SafeMySQL::gi()->getOne($sql, self::USERS_MESSAGE_TABLE, $user_id);
+        return SafeMySQL::gi()->getOne($sql, Constants::USERS_MESSAGE_TABLE, $user_id);
     }
 	
     /**
@@ -65,7 +65,7 @@ Class Class_messages {
     */
     public function get_count_messages($user_id) {
         $sql = 'SELECT COUNT(`id`) FROM ?n WHERE `user_id` = ?i';
-        return SafeMySQL::gi()->getOne($sql, self::USERS_MESSAGE_TABLE, $user_id);
+        return SafeMySQL::gi()->getOne($sql, Constants::USERS_MESSAGE_TABLE, $user_id);
     }
 
 }

@@ -8,7 +8,9 @@
  * Модель сообщений пользователя
  */
 
-Class Model_messages Extends Users {
+use Constants;
+
+Class Model_messages {
     
     /**
      * Помечает все сообщения пользователю как прочитанные
@@ -16,7 +18,7 @@ Class Model_messages Extends Users {
      */
     public function read_all($user_id) {
         $sql = 'UPDATE ?n SET `date_read` = NOW() WHERE `user_id` = ?i';
-        SafeMySQL::gI()->query($sql, self::USERS_MESSAGE_TABLE, $user_id);
+        SafeMySQL::gI()->query($sql, Constants::USERS_MESSAGE_TABLE, $user_id);
     }
     
     /**
@@ -25,7 +27,7 @@ Class Model_messages Extends Users {
      */
     public function kill_all_message($user_id) {
         $sql = 'DELETE FROM ?n WHERE `user_id` = ?i';
-        SafeMySQL::gI()->query($sql, self::USERS_MESSAGE_TABLE, $user_id);
+        SafeMySQL::gI()->query($sql, Constants::USERS_MESSAGE_TABLE, $user_id);
     }
     
     /**
@@ -36,10 +38,10 @@ Class Model_messages Extends Users {
     public function set_message_as_readed($message_id = 0, $user_id = 0) {
         if ($message_id) {
             $sql = 'UPDATE ?n SET `date_read` = NOW() WHERE `id` = ?i';
-            SafeMySQL::gI()->query($sql, self::USERS_MESSAGE_TABLE, $message_id);
+            SafeMySQL::gI()->query($sql, Constants::USERS_MESSAGE_TABLE, $message_id);
         } elseif($user_id) {
             $sql = 'UPDATE ?n SET `date_read` = NOW() WHERE `user_id` = ?i AND ISNULL(`date_read`)';
-            SafeMySQL::gI()->query($sql, self::USERS_MESSAGE_TABLE, $user_id);
+            SafeMySQL::gI()->query($sql, Constants::USERS_MESSAGE_TABLE, $user_id);
         }
     }
 
@@ -51,7 +53,7 @@ Class Model_messages Extends Users {
     public function kill_message($message_id) {
         if ($message_id) {
             $sql = 'DELETE FROM ?n WHERE `id` = ?i';
-            SafeMySQL::gI()->query($sql, self::USERS_MESSAGE_TABLE, $message_id);
+            SafeMySQL::gI()->query($sql, Constants::USERS_MESSAGE_TABLE, $message_id);
          }
     }
 
