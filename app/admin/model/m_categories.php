@@ -9,7 +9,7 @@ if (ENV_SITE !== 1) {
 /**
  * 	Модель работы с категориями
  */
-Class Model_categories Extends Users {
+Class Model_categories Extends Users { 
 
     /**
      * Получает данные категорий с возможностью фильтрации, сортировки и пагинации.
@@ -47,10 +47,20 @@ Class Model_categories Extends Users {
      * @return array|null Массив с данными категории или NULL, если категория не найдена.
      */
     public function get_category_data($category_id) {
-        $sql_category = "SELECT c.*, p.title as parent_title, t.name as type_name 
-        FROM ?n AS c LEFT JOIN ?n AS p ON c.parent_id = p.category_id LEFT JOIN ?n AS t ON c.type_id = t.type_id WHERE c.category_id = ?i";
+        $sql_category = "
+            SELECT 
+                c.*, 
+                p.title as parent_title, 
+                t.name as type_name, 
+                (SELECT COUNT(*) FROM ?n WHERE category_id = ?i) as entity_count
+            FROM ?n AS c 
+            LEFT JOIN ?n AS p ON c.parent_id = p.category_id 
+            LEFT JOIN ?n AS t ON c.type_id = t.type_id 
+            WHERE c.category_id = ?i";
         $category_data = SafeMySQL::gi()->getRow(
                 $sql_category,
+                Constants::ENTITIES_TABLE,
+                $category_id,
                 Constants::CATEGORIES_TABLE,
                 Constants::CATEGORIES_TABLE,
                 Constants::TYPES_TABLE,
@@ -75,15 +85,21 @@ Class Model_categories Extends Users {
         $exclude_null = !$exclude_null ? NULL : $exclude_null;
         $query = "SELECT * FROM ?n";
         $params = [Constants::CATEGORIES_TABLE];
-        // Добавляем условие для исключения определенной категории
+        // Добавляем условие для исключения определенной категории, если $excludeCategoryID не равно NULL
         if ($excludeCategoryID !== null) {
             $query .= " WHERE category_id != ?i";
             $params[] = $excludeCategoryID;
         }
         // Добавляем условие для исключения категорий с определенными статусами
         if ($excludeStatuses !== null && is_array($excludeStatuses) && !empty($excludeStatuses)) {
+            // Добавляем условие WHERE, если уже есть условие WHERE
+            if ($excludeCategoryID !== null) {
+                $query .= " AND";
+            } else {
+                $query .= " WHERE";
+            }
             $placeholders = implode(',', array_fill(0, count($excludeStatuses), '?'));
-            $query .= " AND status NOT IN ($placeholders)";
+            $query .= " status NOT IN ($placeholders)";
             $params = array_merge($params, $excludeStatuses);
         }
         $categories = SafeMySQL::gi()->getAll($query, ...$params);              
@@ -159,6 +175,9 @@ Class Model_categories Extends Users {
         $category_data['parent_id'] = (int)$category_data['parent_id'] !== 0 ? (int)$category_data['parent_id'] : NULL;
         // Если есть родитель то записываем его тип категории
         $category_data['type_id'] = $category_data['parent_id'] ? SafeMySQL::gi()->getOne('SELECT type_id FROM ?n WHERE category_id=?i', Constants::CATEGORIES_TABLE, $category_data['parent_id']) : $category_data['type_id'];
+        if (!$category_data['parent_id'] && !empty($category_data['category_id'])) { // Нет родителя и категория существует, устанавливаем старый type_id
+            $category_data['type_id'] = SafeMySQL::gi()->getOne('SELECT type_id FROM ?n WHERE category_id=?i', Constants::CATEGORIES_TABLE, $category_data['category_id']);
+        }
         if (empty($category_data['title'])) {
             return false;
         }
@@ -187,5 +206,27 @@ Class Model_categories Extends Users {
         $result = SafeMySQL::gi()->query($sql, Constants::CATEGORIES_TABLE, $category_data);        
         return $result ? SafeMySQL::gi()->insertId() : false;
     }
+    
+    /**
+     * Удаляет категорию по указанному entity_id из таблицы entities.
+     * @param int $category_id Идентификатор сущности для удаления.
+     * @return bool Возвращает true в случае успешного удаления, или false в случае ошибки.
+     */
+    public function delete_category($category_id) {
+        try {
+            $sql = "DELETE FROM ?n WHERE `category_id` = ?i";
+            $result = SafeMySQL::gi()->query($sql, Constants::CATEGORIES_TABLE, $category_id);
+            return $result ? [] : ['error' => 'Error query DELETE'];
+        } catch (Exception $e) {
+            $errorMessage = $e->getMessage();
+            if (strpos($errorMessage, 'foreign key constraint fails') !== false) {
+                return ['error' => 'Невозможно удалить категорию, поскольку существуют объекты, ссылающиеся на эту категорию. Сначала удалите или обновите зависимые объекты.'];
+            }
+            return ['error' => $errorMessage];
+        }
+    }   
+ 
+    
+    
 /*SysClass::pre(SafeMySQL::gi()->parse($sql, Constants::CATEGORIES_TABLE, $category_data, $category_id));*/
 }

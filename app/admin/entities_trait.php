@@ -7,130 +7,130 @@ if (ENV_SITE !== 1) {
 }
 
 /**
- * Функции работы с категориями
+ * Функции работы с сущностями
  */
-trait categories_trait {
+trait entities_trait {
 
     /**
-     * Список категорий
+     * Список сущностей
      */
-    public function categories() {
+    public function entities() {
         $this->access = array(1, 2);
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-            SysClass::return_to_main(200, '/show_login_form?return=admin/categories');
+            SysClass::return_to_main(200, '/show_login_form?return=admin');
         }
-        $this->load_model('m_categories', array($this->logged_in));
+        $this->load_model('m_entities', array($this->logged_in));
         /* get data */
-        $user_data = $this->models['m_categories']->data;
+        $user_data = $this->models['m_entities']->data;
         $this->get_user_data($user_data);
         /* view */
         $this->get_standart_view();
-        $categories_table = $this->get_categories_data_table();
-        $this->view->set('categories_table', $categories_table);
-        $this->view->set('body_view', $this->view->read('v_categories'));
+        $entities_table = $this->get_entities_data_table();
+        $this->view->set('entities_table', $entities_table);
+        $this->view->set('body_view', $this->view->read('v_entities'));
         $this->html = $this->view->read('v_dashboard');
         $this->parameters_layout["layout_content"] = $this->html;
-        $this->parameters_layout["layout"] = 'dashboard';
-        $this->parameters_layout["add_script"] .= '<script src="' . $this->get_path_controller() . '/js/edit_categories.js" type="text/javascript" /></script>';
-        $this->parameters_layout["title"] = ENV_SITE_NAME . ' - categories';
-        $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION . ' - categories';
+        $this->parameters_layout["layout"] = 'dashboard';        
+        $this->parameters_layout["title"] = ENV_SITE_NAME . ' - entities';
+        $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION . ' - entities';
         $this->parameters_layout["canonical_href"] = ENV_URL_SITE . '/admin';
         $this->parameters_layout["keywords"] = Sysclass::keywords($this->html);
         $this->show_layout($this->parameters_layout);
     }
 
     /**
-     * Добавить или редактировать категорию
+     * Добавить или редактировать сущность
      */
-    public function category_edit($arg) {
-        $this->access = array(1, 2);
-        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-            SysClass::return_to_main(200, '/show_login_form?return=admin/categories');
-            exit();
-        }
-        /* model */
-        $this->load_model('m_categories', array($this->logged_in));
-        $this->load_model('m_types', []);
-        /* get current user data */
-        $user_data = $this->models['m_categories']->data;
-        $this->get_user_data($user_data);
-        if (in_array('id', $arg)) {
-            $id = filter_var($arg[array_search('id', $arg) + 1], FILTER_VALIDATE_INT);
-            if (isset($_POST['title']) && $_POST['title']) {                
-                $id = $this->models['m_categories']->update_category_data($_POST);                
-                if (!$id) {
-                    $notifications = new Class_notifications();
-                    $notifications->add_notification_user($this->logged_in, ['text' => 'Ошибка записи в БД', 'status' => 'danger']);
-                } else {
-                    if (!$_POST['type_id']) SysClass::return_to_main(200, ENV_URL_SITE . '/admin/category_edit/id/' . $id);
-                }
-            }
-            $get_category_data = (int)$id ? $this->models['m_categories']->get_category_data($id) : [];
-        } else { // Не передан ключевой параметр id
-            SysClass::return_to_main(200, ENV_URL_SITE . '/admin/user_edit/id/' . $this->logged_in);
-        }
-        $parents = $this->models['m_categories']->getCategoriesTree($id);
-        /* view */
-        $get_all_types = $this->models['m_types']->get_all_types();
-        $this->view->set('category_data', $get_category_data);
-        $this->view->set('parents', $parents);
-        $this->view->set('all_type', $get_all_types);
-        $this->get_standart_view();
-        $this->view->set('body_view', $this->view->read('v_edit_category'));
-        $this->html = $this->view->read('v_dashboard');
-        /* layouts */
-        $this->parameters_layout["layout_content"] = $this->html;
-        $this->parameters_layout["layout"] = 'dashboard';
-        $this->parameters_layout["title"] = 'Редактирование категорий';
-        $this->show_layout($this->parameters_layout);
-    }
-    
-    /**
-     * Удаление категории
-     */
-    public function category_dell($arg = []) {        
+    public function entitiy_edit($arg = []) {
         $this->access = array(1, 2);
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
             exit();
         }
         /* model */
-        $this->load_model('m_categories', array($this->logged_in));        
+        $this->load_model('m_entities', array($this->logged_in));
+        $this->load_model('m_types', []);
+        $this->load_model('m_categories', []);
         /* get current user data */
-        $user_data = $this->models['m_categories']->data;
+        $user_data = $this->models['m_entities']->data;
         $this->get_user_data($user_data);
         if (in_array('id', $arg)) {
             $id = filter_var($arg[array_search('id', $arg) + 1], FILTER_VALIDATE_INT);
-            $res = $this->models['m_categories']->delete_category($id);
-            $notifications = new Class_notifications();
-            if (isset($res['error'])) {                
+            if (isset($_POST['title']) && $_POST['title']) {                
+                $id = $this->models['m_entities']->update_entitiy_data($_POST);                
+                if (!$id) {
+                    $notifications = new Class_notifications();
+                    $notifications->add_notification_user($this->logged_in, ['text' => 'Ошибка записи в БД', 'status' => 'danger']);
+                } else {
+                    if (!$_POST['type_id']) SysClass::return_to_main(200, ENV_URL_SITE . '/admin/entitiy_edit/id/' . $id);
+                }
+            }
+            $get_entitiy_data = (int)$id ? $this->models['m_entities']->get_entitiy_data($id) : [];
+        } else { // Не передан ключевой параметр id
+            SysClass::return_to_main(200, ENV_URL_SITE . '/admin/user_edit/id/' . $this->logged_in);
+        }
+        $get_all_types = $this->models['m_types']->get_all_types();
+        $get_all_categories = $this->models['m_categories']->getCategoriesTree(null, null, true);
+        $get_all_entities = $this->models['m_entities']->get_all_entities($id);
+        /* view */
+        $this->view->set('entitiy_data', $get_entitiy_data);
+        $this->view->set('all_type', $get_all_types);
+        $this->view->set('all_categories', $get_all_categories);
+        $this->view->set('all_entities', $get_all_entities);
+        $this->get_standart_view();
+        $this->view->set('body_view', $this->view->read('v_edit_entitiy'));
+        $this->html = $this->view->read('v_dashboard');
+        /* layouts */
+        $this->parameters_layout["layout_content"] = $this->html;
+        $this->parameters_layout["layout"] = 'dashboard';
+        $this->parameters_layout["title"] = 'Редактирование Сущности';
+        $this->show_layout($this->parameters_layout);
+    }
+ 
+    /**
+     * Удаление сущности
+     */
+    public function entitiy_dell($arg = []) {        
+        $this->access = array(1, 2);
+        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
+            SysClass::return_to_main();
+            exit();
+        }
+        /* model */
+        $this->load_model('m_entities', array($this->logged_in));        
+        /* get current user data */
+        $user_data = $this->models['m_entities']->data;
+        $this->get_user_data($user_data);
+        if (in_array('id', $arg)) {
+            $id = filter_var($arg[array_search('id', $arg) + 1], FILTER_VALIDATE_INT);
+            $res = $this->models['m_entities']->delete_entity($id);
+            if (isset($res['error'])) {
+                $notifications = new Class_notifications();
                 $notifications->add_notification_user($this->logged_in, ['text' => $res['error'], 'status' => 'danger']);                
-            } else {
-                $notifications->add_notification_user($this->logged_in, ['text' => 'Удалено', 'status' => 'success']);
             }
         }
-        SysClass::return_to_main(200, ENV_URL_SITE . '/admin/categories');        
+        SysClass::return_to_main(200, ENV_URL_SITE . '/admin/entities');        
     }
     
     /**
      * Вернёт таблицу категоий
      */
-    public function get_categories_data_table() {
+    public function get_entities_data_table() {
         $this->access = array(1, 2);
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
             exit();
         }
-        $this->load_model('m_categories', array($this->logged_in));
+        $this->load_model('m_entities', array($this->logged_in));
         if (!$this->lang['sys.name']) { // Подргужаем языковые переменные
-            $user_data = $this->models['m_categories']->data;
+            $user_data = $this->models['m_entities']->data;
             $this->get_user_data($user_data);
         }
         $post_data = $_POST;
         $data_table = [
             'columns' => [
                 [
-                    'field' => 'category_id',
+                    'field' => 'entity_id',
                     'title' => 'ID',
                     'sorted' => false,
                     'filterable' => false
@@ -140,8 +140,8 @@ trait categories_trait {
                     'sorted' => 'ASC',
                     'filterable' => true
                 ], [
-                    'field' => 'parent_id',
-                    'title' => $this->lang['parent'],
+                    'field' => 'category_id',
+                    'title' => $this->lang['category'],
                     'sorted' => 'ASC',
                     'filterable' => true
                 ], [
@@ -149,11 +149,6 @@ trait categories_trait {
                     'title' => $this->lang['type'],
                     'sorted' => 'ASC',
                     'filterable' => true
-                ], [
-                    'field' => 'children',
-                    'title' => 'Дочерние',
-                    'sorted' => false,
-                    'filterable' => false
                 ], [
                     'field' => 'created_at',
                     'title' => $this->lang['date_create'],
@@ -179,11 +174,11 @@ trait categories_trait {
                 'value' => '',
                 'label' => $this->lang['sys.name']
             ],
-            'parent_id' => [
+            'category_id' => [
                 'type' => 'text',
-                'id' => "parent_id",
+                'id' => "category_id",
                 'value' => '',
-                'label' => $this->lang['parent']
+                'label' => $this->lang['category']
             ],
             'type_id' => [
                 'type' => 'select',
@@ -206,37 +201,32 @@ trait categories_trait {
                 'label' => $this->lang['date_update']
             ],
         ];
-        $this->load_model('m_types', []);
-        foreach ($this->models['m_types']->get_all_types() as $item) {
-           $filters['type_id']['options'][] = ['value' => $item['type_id'], 'label' => $item['name']];  
-        }
         if ($post_data && isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') { // AJAX
             list($params, $filters, $selected_sorting) = Plugins::ee_show_table_prepare_params($post_data, $data_table['columns']);
-            $category_array = $this->models['m_categories']->get_categories_data($params['order'], $params['where'], $params['start'], $params['limit']);
+            $entities_array = $this->models['m_entities']->get_entities_data($params['order'], $params['where'], $params['start'], $params['limit']);
         } else {
-            $category_array = $this->models['m_categories']->get_categories_data(false, false, false, 25);
+            $entities_array = $this->models['m_entities']->get_entities_data(false, false, false, 25);
         }
-        foreach ($category_array['data'] as $item) {
+        foreach ($entities_array['data'] as $item) {
             $data_table['rows'][] = [
-                'category_id' => $item['category_id'],
+                'entity_id' => $item['entity_id'],
                 'title' => $item['title'],
-                'parent_id' => $item['parent_title'] ? $item['parent_title'] : 'Без категории',
+                'category_id' => $item['category_title'] ? $item['category_title'] : 'Без категории',
                 'type_id' => $item['type_name'],
-                'children' => $item['entity_count'],
                 'created_at' => date('d.m.Y', strtotime($item['created_at'])),
                 'updated_at' => $item['updated_at'] ? date('d.m.Y', strtotime($item['updated_at'])) : '',
-                'actions' => '<a href="/admin/category_edit/id/' . $item['category_id'] . '"'
+                'actions' => '<a href="/admin/entitiy_edit/id/' . $item['entity_id'] . '"'
                 . 'class="btn btn-primary me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.edit'] . '"><i class="fas fa-edit"></i></a>'
-                . '<a href="/admin/category_dell/id/' . $item['category_id'] . '" onclick="return confirm(\'Удалить категорию?\');"' 
+                . '<a href="/admin/entitiy_dell/id/' . $item['entity_id'] . '"'
                 . 'class="btn btn-danger me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.delete'] . '"><i class="fas fa-trash"></i></a>'
             ];
         }
-        $data_table['total_rows'] = $category_array['total_count'];
+        $data_table['total_rows'] = $entities_array['total_count'];
         if ($post_data) {
-            echo Plugins::ee_show_table('category_table', $data_table, 'get_categories_data_table', $filters, $post_data["page"], $post_data["rows_per_page"], $selected_sorting);
+            echo Plugins::ee_show_table('entity_table', $data_table, 'get_entities_data_table', $filters, $post_data["page"], $post_data["rows_per_page"], $selected_sorting);
             die;
         } else {
-            return Plugins::ee_show_table('category_table', $data_table, 'get_categories_data_table', $filters);
+            return Plugins::ee_show_table('entity_table', $data_table, 'get_entities_data_table', $filters);
         }
     }
 }

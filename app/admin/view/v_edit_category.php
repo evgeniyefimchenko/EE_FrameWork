@@ -53,6 +53,11 @@ if (ENV_SITE !== 1) {
                                                 <option <?= $category_data['type_id'] == $type['type_id'] ? "selected " : "" ?>value="<?= $type['type_id'] ?>"><?= $type['name'] ?></option>
                                             <?php } ?>
                                         </select>
+                                        <?php
+                                            if ($category_data['type_id']) {
+                                                echo '<input type="hidden" name="type_id" value="' . $category_data['type_id'] . '">';
+                                            }
+                                        ?>
                                         <span role="button" class="input-group-text btn-danger" data-bs-toggle="tooltip" data-bs-placement="top" title="Тип задаётся один раз и не может отличаться от родительской категории!">
                                             <i class="fas fa-question-circle"></i><!-- Иконка со знаком вопроса -->
                                         </span>                                        
