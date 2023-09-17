@@ -22,7 +22,8 @@ Class Controller_index Extends Controller_Base {
         emails_trait,
         categories_trait,
         types_trait,
-        pages_trait;
+        entities_trait,
+        properties_trait;
 
     /**
      * Главная страница админ-панели
