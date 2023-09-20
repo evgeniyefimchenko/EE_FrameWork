@@ -147,7 +147,7 @@ trait types_trait {
             if (isset($_POST['name']) && $_POST['name']) {
                 if (!$id = $this->models['m_types']->update_type_data($_POST)) {
                     $notifications = new Class_notifications();
-                    $notifications->add_notification_user($this->logged_in, ['text' => 'Ошибка записи в БД', 'status' => 'danger']);
+                    $notifications->add_notification_user($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
                 } else {
                     if (!$_POST['type_id']) SysClass::return_to_main(200, ENV_URL_SITE . '/admin/type_edit/id/' . $id);
                 }

@@ -5,11 +5,11 @@ if (ENV_SITE !== 1) {
     exit();
 }
 ?>
-
 <!-- Таблица свойств -->
+<?php if (!$all_property_types) SysClass::return_to_main(200, '/admin/types_properties');?> 
 <main>
     <div class="container-fluid px-4">
-        <a href="/admin/feature_edit/id" data-bs-toggle="tooltip" data-bs-placement="top" title="<?= $lang['sys.add'] ?>" type="button"
+        <a href="/admin/property_edit/id" data-bs-toggle="tooltip" data-bs-placement="top" title="<?= $lang['sys.add'] ?>" type="button"
            class="btn btn-info m-l-15 float-end">
             <i class="fa fa-plus-circle"></i>&nbsp;<?= $lang['sys.add'] ?>
         </a>        

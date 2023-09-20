@@ -16,10 +16,11 @@
 		USERS_MESSAGE_TABLE = ENV_DB_PREF . 'users_message',
 		USERS_ACTIVATION_TABLE = ENV_DB_PREF . 'users_activation',
 		CATEGORIES_TABLE = ENV_DB_PREF . 'categories',
-		TYPES_TABLE = ENV_DB_PREF . 'types',
+		TYPES_TABLE = ENV_DB_PREF . 'categories_types',
 		ENTITIES_TABLE = ENV_DB_PREF . 'entities',
 		PROPERTY_TYPES_TABLE = ENV_DB_PREF . 'property_types',
 		PROPERTIES_TABLE = ENV_DB_PREF . 'properties',
-		PROPERTY_VALUES_TABLE = ENV_DB_PREF . 'property_values';
+		PROPERTY_VALUES_TABLE = ENV_DB_PREF . 'property_values',
+                ALL_STATUS = ['active' => 'active', 'hidden' => 'hidden', 'disabled' => 'disabled'];
  
  }

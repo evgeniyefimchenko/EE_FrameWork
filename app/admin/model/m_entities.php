@@ -65,9 +65,11 @@ Class Model_entities Extends Users {
         return $entitiy_data;
     }
 
-    /**
-     * Вернёт все страницы с id и title
-     */
+/**
+ * Получает все сущности, исключая одну по её ID
+ * @param int|null $excludeEntityId ID сущности для исключения из результатов (по умолчанию NULL).
+ * @return array Массив ассоциативных массивов, каждый из которых содержит ID и заголовок сущности. Первый элемент массива всегда имеет entity_id 0 и пустой заголовок.
+ */
     public function get_all_entities($excludeEntityId = null) {
         $add_query = '';
         if (is_numeric($excludeEntityId)) {

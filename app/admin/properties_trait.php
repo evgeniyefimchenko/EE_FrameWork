@@ -26,6 +26,8 @@ trait properties_trait {
         /* view */
         $this->get_standart_view();
         $properties_data= $this->get_properties_data_table();
+        $get_all_property_types = $this->models['m_properties']->get_all_property_types();
+        $this->view->set('all_property_types', $get_all_property_types);
         $this->view->set('properties_table', $properties_data);
         $this->view->set('body_view', $this->view->read('v_properties'));
         $this->html = $this->view->read('v_dashboard');
@@ -65,6 +67,99 @@ trait properties_trait {
         $this->show_layout($this->parameters_layout);
     }
 
+    public function get_types_properties_data_table() {
+        $this->access = array(1, 2);
+        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
+            SysClass::return_to_main();
+            exit();
+        }
+        $this->load_model('m_properties', array($this->logged_in));
+        if (!$this->lang['sys.name']) { // Подргужаем языковые переменные
+            $user_data = $this->models['m_properties']->data;
+            $this->get_user_data($user_data);
+        }
+        $post_data = $_POST;
+        $data_table = [
+            'columns' => [
+                [
+                    'field' => 'type_id',
+                    'title' => 'ID',
+                    'sorted' => 'ASC',
+                    'filterable' => false
+                ], [
+                    'field' => 'name',
+                    'title' => $this->lang['sys.name'],
+                    'sorted' => 'ASC',
+                    'filterable' => true
+                ], [
+                    'field' => 'status',
+                    'title' => $this->lang['sys.status'],
+                    'sorted' => 'ASC',
+                    'filterable' => false
+                ], [
+                    'field' => 'created_at',
+                    'title' => $this->lang['date_create'],
+                    'sorted' => 'ASC',
+                    'filterable' => true
+                ], [
+                    'field' => 'updated_at',
+                    'title' => $this->lang['date_update'],
+                    'sorted' => 'ASC',
+                    'filterable' => true
+                ], [
+                    'field' => 'actions',
+                    'title' => $this->lang['sys.action'],
+                    'sorted' => false,
+                    'filterable' => false
+                ],
+            ]
+        ];
+        $filters = [
+            'name' => [
+                'type' => 'text',
+                'id' => "name",
+                'value' => '',
+                'label' => $this->lang['sys.name']
+            ],
+            'created_at' => [
+                'type' => 'date',
+                'id' => "created_at",
+                'value' => '',
+                'label' => $this->lang['date_create']
+            ],
+            'updated_at' => [
+                'type' => 'date',
+                'id' => "updated_at",
+                'value' => '',
+                'label' => $this->lang['date_update']
+            ],
+        ];
+        if ($post_data && isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') { // AJAX
+            list($params, $filters, $selected_sorting) = Plugins::ee_show_table_prepare_params($post_data, $data_table['columns']);
+            $features_array = $this->models['m_properties']->get_type_properties_data($params['order'], $params['where'], $params['start'], $params['limit']);
+        } else {
+            $features_array = $this->models['m_properties']->get_type_properties_data(false, false, false, 25);
+        }
+
+        foreach ($features_array['data'] as $item) {
+            $data_table['rows'][] = [
+                'type_id' => $item['type_id'],
+                'name' => $item['name'],
+                'status' => $this->lang['sys.' . $item['status']],
+                'created_at' => date('d.m.Y', strtotime($item['created_at'])),
+                'updated_at' => $item['updated_at'] ? date('d.m.Y', strtotime($item['updated_at'])) : '',
+                'actions' => '<a href="/admin/type_properties_edit/id/' . $item['type_id'] . '" class="btn btn-primary me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.edit'] . '"><i class="fas fa-edit"></i></a>'
+            ];
+        }
+        $data_table['total_rows'] = $features_array['total_count'];
+        if ($post_data) {
+            echo Plugins::ee_show_table('types_properties_table', $data_table, 'get_types_properties_data_table', $filters, $post_data["page"], $post_data["rows_per_page"], $selected_sorting);
+            die;
+        } else {
+            return Plugins::ee_show_table('types_properties_table', $data_table, 'get_types_properties_data_table', $filters);
+        }        
+    }
+    
     /**
      * Вернёт таблицу свойств
      */
@@ -161,7 +256,7 @@ trait properties_trait {
                 'is_multiple' => 'is_multiple',
                 'created_at' => date('d.m.Y', strtotime($item['created_at'])),
                 'updated_at' => $item['updated_at'] ? date('d.m.Y', strtotime($item['updated_at'])) : '',
-                'actions' => '<a href="/admin/feature_edit/id/' . $item['type_id'] . '" class="btn btn-primary me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.edit'] . '"><i class="fas fa-edit"></i></a>'
+                'actions' => '<a href="/admin/property_edit/id/' . $item['property_id'] . '" class="btn btn-primary me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.edit'] . '"><i class="fas fa-edit"></i></a>'
             ];
         }
         $data_table['total_rows'] = $features_array['total_count'];
@@ -172,11 +267,55 @@ trait properties_trait {
             return Plugins::ee_show_table('properties_table', $data_table, 'get_properties_data_table', $filters);
         }
     }
-
     /**
-     * Добавить или редактировать категорию
+     * Добавить или редактировать тип свойств
      */
-    public function feature_edit($arg) {
+    public function type_properties_edit($params = []) {
+         $this->access = array(1, 2);
+        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
+            SysClass::return_to_main();
+            exit();
+        }
+        /* model */
+        $this->load_model('m_properties', array($this->logged_in));
+        /* get current user data */
+        $user_data = $this->models['m_properties']->data;
+        $this->get_user_data($user_data);
+        if (in_array('id', $params)) {
+            $id = filter_var($params[array_search('id', $params) + 1], FILTER_VALIDATE_INT);
+            if (isset($_POST['name']) && $_POST['name']) {
+                if (!$new_id = $this->models['m_properties']->update_property_type_data($_POST)) {
+                    $notifications = new Class_notifications();
+                    $notifications->add_notification_user($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
+                } else {
+                    $id = $new_id;
+                }
+            }
+            $property_type_data = (int)$id ? $this->models['m_properties']->get_type_property_data($id) : [];
+        } else { // Не передан ключевой параметр id
+            SysClass::return_to_main(200, ENV_URL_SITE . '/admin/type_properties_edit/id');
+        }
+        foreach (Constants::ALL_STATUS as $key => $value) {
+            $get_all_property_types[$key] = $this->lang['sys.' . $value];
+        }
+        /* view */
+        $this->view->set('property_type_data', $property_type_data);
+        $this->view->set('all_property_types', $get_all_property_types);
+        $this->get_standart_view();
+        $this->view->set('body_view', $this->view->read('v_edit_type_properties'));
+        $this->html = $this->view->read('v_dashboard');
+        /* layouts */
+        $this->parameters_layout["layout_content"] = $this->html;
+        $this->parameters_layout["layout"] = 'dashboard';
+        $this->parameters_layout["add_script"] .= '<script src="' . $this->get_path_controller() . '/js/edit_type.js" type="text/javascript" /></script>';
+        $this->parameters_layout["title"] = 'Редактирование типа свойств';
+        $this->show_layout($this->parameters_layout);       
+    }
+    
+    /**
+     * Добавить или редактировать свойство
+     */
+    public function property_edit($arg) {
         $this->access = array(1, 2);
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
@@ -190,29 +329,29 @@ trait properties_trait {
         if (in_array('id', $arg)) {
             $id = filter_var($arg[array_search('id', $arg) + 1], FILTER_VALIDATE_INT);
             if (isset($_POST['name']) && $_POST['name']) {
-                if (!$id = $this->models['m_properties']->update_type_data($_POST)) {
+                if (!$new_id = $this->models['m_properties']->update_property_data($_POST)) {
                     $notifications = new Class_notifications();
-                    $notifications->add_notification_user($this->logged_in, ['text' => 'Ошибка записи в БД', 'status' => 'danger']);
+                    $notifications->add_notification_user($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
                 } else {
-                    if (!$_POST['type_id']) SysClass::return_to_main(200, ENV_URL_SITE . '/admin/type_edit/id/' . $id);
+                    $id = $new_id;
                 }
             }
-            $get_type_data = (int)$id ? $this->models['m_properties']->get_type_data($id) : [];
+            $get_property_data = (int)$id ? $this->models['m_properties']->get_property_data($id) : [];
         } else { // Не передан ключевой параметр id
             SysClass::return_to_main(200, ENV_URL_SITE . '/admin/user_edit/id/' . $this->logged_in);
         }
-        $get_all_types = $this->view->set('all_type', $get_all_types);
+        $get_all_property_types = $this->models['m_properties']->get_all_property_types();
         /* view */
-        $this->view->set('type_data', $get_type_data);
-        $this->view->set('all_type', $get_all_types);
+        $this->view->set('property_data', $get_property_data);
+        $this->view->set('all_property_types', $get_all_property_types);
         $this->get_standart_view();
-        $this->view->set('body_view', $this->view->read('v_edit_type'));
+        $this->view->set('body_view', $this->view->read('v_edit_property'));
         $this->html = $this->view->read('v_dashboard');
         /* layouts */
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
         $this->parameters_layout["add_script"] .= '<script src="' . $this->get_path_controller() . '/js/edit_type.js" type="text/javascript" /></script>';
-        $this->parameters_layout["title"] = 'Редактирование типов категорий';
+        $this->parameters_layout["title"] = 'Редактирование свойства';
         $this->show_layout($this->parameters_layout);
     }
 
