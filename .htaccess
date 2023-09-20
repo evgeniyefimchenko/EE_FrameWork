@@ -5,7 +5,7 @@ RewriteOptions inherit
    Deny from all
 </FilesMatch>
 
-php_value error_log /home/TEST/domains/%{HTTP_HOST}/php_errors.log
+php_value error_log ./logs/php_errors.log
 
 AddHandler application/x-httpd-php .html
 AddType application/x-javascript .js
@@ -25,8 +25,12 @@ Header set Strict-Transport-Security "max-age=31536000; includeSubDomains"
 RewriteEngine on
 RewriteBase /
 
-# Доступ к определенным папкам блокируется
-RewriteRule ^(classes|inc|layouts) - [F,L,NC]
+# Разрешить доступ к /classes/system/js
+RewriteCond %{REQUEST_URI} !^/classes/system/js/.*$
+# Заблокировать доступ ко всем папкам в /classes, кроме /classes/system/js
+RewriteRule ^classes/(.*) - [F,L,NC]
+# Заблокировать доступ к папкам inc, layouts, и logs в корне сайта
+RewriteRule ^(inc|layouts|logs) - [F,L,NC]
 
 RewriteRule ^(.*)\.html $1\.php
 
@@ -56,21 +60,48 @@ RewriteRule ^(.*)$ index.php?route=$1 [B,L,QSA]
 # сжатие text, html, javascript, css, xml
 <ifModule mod_deflate.c>
     AddOutputFilterByType DEFLATE text/html text/plain text/xml application/xml application/xhtml+xml text/css text/javascript application/javascript application/x-javascript
+    AddOutputFilterByType DEFLATE font/ttf font/otf application/font-woff application/font-woff2 application/vnd.ms-fontobject image/svg+xml
 </ifModule>
+
 
 # кеш браузера
 <ifModule mod_expires.c>
     ExpiresActive On
     ExpiresDefault "access plus 1 days"
+    
+    # Images
     ExpiresByType image/x-icon "access plus 1 month"
     ExpiresByType image/jpeg "access plus 4 weeks"
     ExpiresByType image/png "access plus 30 days"
     ExpiresByType image/gif "access plus 43829 minutes"
-    ExpiresByType application/x-shockwave-flash "access plus 2592000 seconds"
+    ExpiresByType image/svg+xml "access plus 1 month"
+    ExpiresByType image/webp "access plus 1 month"
+    
+    # Video
+    ExpiresByType video/mp4 "access plus 1 year"
+    ExpiresByType video/mpeg "access plus 1 year"
+    
+    # Fonts
+    ExpiresByType font/ttf "access plus 1 year"
+    ExpiresByType font/otf "access plus 1 year"
+    ExpiresByType application/font-woff "access plus 1 year"
+    ExpiresByType application/font-woff2 "access plus 1 year"
+    ExpiresByType application/vnd.ms-fontobject "access plus 1 year"
+    
+    # CSS, JavaScript
     ExpiresByType text/css "access plus 604800 seconds"
     ExpiresByType text/javascript "access plus 604800 seconds"
     ExpiresByType application/javascript "access plus 604800 seconds"
     ExpiresByType application/x-javascript "access plus 604800 seconds"
+    
+    # HTML / XML
     ExpiresByType text/html "access plus 43200 seconds"
     ExpiresByType application/xhtml+xml "access plus 600 seconds"
+    
+    # JSON
+    ExpiresByType application/json "access plus 604800 seconds"
+    
+    # XML
+    ExpiresByType application/xml "access plus 604800 seconds"
 </ifModule>
+

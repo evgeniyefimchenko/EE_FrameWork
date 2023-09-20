@@ -591,12 +591,11 @@ Class Users {
 						  `active` tinyint(1) UNSIGNED NOT NULL DEFAULT '1' COMMENT '1 - на подтверждении, 2 - активен,  3 - блокирован',
 						  `user_role` tinyint(2) UNSIGNED NOT NULL DEFAULT '3' COMMENT 'таблица user_roles',
 						  `last_ip` char(20) DEFAULT NULL,
-						  `subscribed` tinyint(1) DEFAULT '1',
+						  `subscribed` tinyint(1) DEFAULT '1' COMMENT 'Историческое поле',
 						  `reg_date` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'дата регистрации',
 						  `last_activ` datetime DEFAULT NULL COMMENT 'дата крайней активности',
 						  `up_date` datetime NOT NULL COMMENT 'дата обновления инф.',					  
 						  `phone` varchar(255) NOT NULL,
-						  `session` varchar(255) NOT NULL,
 						  `comment` varchar(255) NOT NULL COMMENT 'Комментарий или дивиз пользователя',
 						  `date_dell` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Время удаления',
 						  PRIMARY KEY (`id`),
@@ -605,9 +604,9 @@ Class Users {
         SafeMySQL::gi()->query($create_table, Constants::DELL_USERS_TABLE);
         /* Роли пользователей */
         $create_table = "CREATE TABLE IF NOT EXISTS ?n (
-							`id` tinyint(2) UNSIGNED NOT NULL AUTO_INCREMENT,
-							`name` varchar(255) NOT NULL,
-							PRIMARY KEY (`id`)
+                                                   `id` tinyint(2) UNSIGNED NOT NULL AUTO_INCREMENT,
+                                                   `name` varchar(255) NOT NULL,
+                                                  PRIMARY KEY (`id`)
 						) ENGINE=innodb DEFAULT CHARSET=utf8 COMMENT='1-админ 2-модератор 3-пользователь 8-система';";
         SafeMySQL::gi()->query($create_table, Constants::USERS_ROLES_TABLE);
 
@@ -642,16 +641,16 @@ Class Users {
         SafeMySQL::gi()->query($create_table, Constants::USERS_MESSAGE_TABLE);
         /* Таблица ссылок для активации новых пользователей */
         $create_table = "CREATE TABLE IF NOT EXISTS ?n (
-						  `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
-						  `user_id` int(11) NOT NULL,
-						  `email` varchar(255) NOT NULL,
-						  `code` varchar(255) NOT NULL,
-						  `reg_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-						  `stop_time` datetime NOT NULL,
-						  PRIMARY KEY (`id`)
-						) ENGINE=innodb DEFAULT CHARSET=utf8 COMMENT='Коды активации для зарегистрировавшихся пользователей';";
+                                                `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+                                                `user_id` int(11) NOT NULL,
+                                                `email` varchar(255) NOT NULL,
+                                                `code` varchar(255) NOT NULL,
+                                                `reg_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                                `stop_time` datetime NOT NULL,
+                                                PRIMARY KEY (`id`)
+                                              ) ENGINE=innodb DEFAULT CHARSET=utf8 COMMENT='Коды активации для зарегистрировавшихся пользователей';";
         SafeMySQL::gi()->query($create_table, Constants::USERS_ACTIVATION_TABLE);
-        // Создание таблицы типов
+        // Создание таблицы типов категорий
         $create_types_table = "CREATE TABLE IF NOT EXISTS ?n (
                         type_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                         name VARCHAR(255) NOT NULL UNIQUE,
@@ -661,22 +660,26 @@ Class Users {
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения типов сущностей и категорий';";
         SafeMySQL::gi()->query($create_types_table, Constants::TYPES_TABLE);
         // Создание таблицы категорий
+        // Шаг 1: Создание таблицы без внешних ключей
         $create_categories_table = "CREATE TABLE IF NOT EXISTS ?n (
-			category_id INT AUTO_INCREMENT PRIMARY KEY,
-			type_id INT UNSIGNED NOT NULL,
-			title VARCHAR(255) NOT NULL,
-			description TEXT,
-			short_description VARCHAR(255),
-			parent_id INT UNSIGNED,
-			status ENUM('active', 'hidden', 'disabled') NOT NULL DEFAULT 'active',
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-			FOREIGN KEY (type_id) REFERENCES ?n(type_id),
-			FOREIGN KEY (parent_id) REFERENCES ?n(category_id),
-			INDEX (type_id),
-			INDEX (parent_id)
-		) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения категорий сущностей';";
-        SafeMySQL::gi()->query($create_categories_table, Constants::CATEGORIES_TABLE, Constants::TYPES_TABLE, Constants::CATEGORIES_TABLE);
+            category_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            type_id INT UNSIGNED NOT NULL,
+            title VARCHAR(255) NOT NULL,
+            description TEXT,
+            short_description VARCHAR(255),
+            parent_id INT UNSIGNED,
+            status ENUM('active', 'hidden', 'disabled') NOT NULL DEFAULT 'active',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX (type_id),
+            INDEX (parent_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения категорий сущностей';";
+        SafeMySQL::gi()->query($create_categories_table, Constants::CATEGORIES_TABLE);
+        // Шаг 2: Добавление внешних ключей
+        $add_foreign_keys = "ALTER TABLE ?n 
+            ADD FOREIGN KEY (type_id) REFERENCES ?n(type_id),
+            ADD FOREIGN KEY (parent_id) REFERENCES ?n(category_id);";
+        SafeMySQL::gi()->query($add_foreign_keys, Constants::CATEGORIES_TABLE, Constants::TYPES_TABLE, Constants::CATEGORIES_TABLE);
         // Создание таблицы сущностей
         $create_entities_table = "CREATE TABLE IF NOT EXISTS ?n (
 			entity_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -688,18 +691,16 @@ Class Users {
 			description TEXT,
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-			FOREIGN KEY (type_id) REFERENCES ?n(type_id),
 			FOREIGN KEY (category_id) REFERENCES ?n(category_id),
-			INDEX (type_id),
 			INDEX (category_id)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения сущностей (продукты или страницы)';";
-        SafeMySQL::gi()->query($create_entities_table, Constants::ENTITIES_TABLE, Constants::TYPES_TABLE, Constants::CATEGORIES_TABLE);
+        SafeMySQL::gi()->query($create_entities_table, Constants::ENTITIES_TABLE, Constants::CATEGORIES_TABLE);
         // Таблица для хранения типов свойств
         $create_property_types_table = "CREATE TABLE IF NOT EXISTS ?n (
 			type_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
 			name VARCHAR(255) NOT NULL,
 			status ENUM('active', 'hidden', 'disabled') NOT NULL DEFAULT 'active',
-			short_description TEXT,
+			description VARCHAR(255),
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения типов свойств';";
@@ -709,9 +710,10 @@ Class Users {
 			property_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
 			type_id INT UNSIGNED NOT NULL,
 			name VARCHAR(255) NOT NULL,
+                        default_values JSON NOT NULL,
 			is_multiple BOOLEAN NOT NULL,
 			is_required BOOLEAN NOT NULL,
-			long_description TEXT,
+			description VARCHAR(255),
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 			FOREIGN KEY (type_id) REFERENCES ?n(type_id),
@@ -734,9 +736,42 @@ Class Users {
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения значений свойств в формате JSON';";
         SafeMySQL::gi()->query($create_property_values_table, Constants::PROPERTY_VALUES_TABLE, Constants::PROPERTIES_TABLE);
 
+        // Запись предварительных данных в БД
+        // Добавление основных типов катеорий
+        $types = [
+            ['name' => 'Товары', 'description' => 'Для хранения информации о товарах'],
+            ['name' => 'Страницы', 'description' => 'Для хранения информации о страницах сайта'],
+            ['name' => 'Блог', 'description' => 'Для хранения блогов и статей'],
+            ['name' => 'Комментарии', 'description' => 'Для хранения комментариев пользователей'],
+        ];
+        foreach ($types as $type) {
+            SafeMySQL::gi()->query(
+                    "INSERT INTO ?n (name, description) VALUES (?s, ?s) ON DUPLICATE KEY UPDATE name = VALUES(name), description = VALUES(description)",
+                    Constants::TYPES_TABLE,
+                    $type['name'],
+                    $type['description']
+            );
+        }
+        // Добавление основных типов свойств
+        $property_types = [
+            ['name' => 'Строка', 'description' => 'Тип свойства для хранения строковых данных', 'status' => 'active'],
+            ['name' => 'Число', 'description' => 'Тип свойства для хранения числовых данных', 'status' => 'active'],
+            ['name' => 'Дата', 'description' => 'Тип свойства для хранения дат', 'status' => 'active'],
+            ['name' => 'Интервал дат', 'description' => 'Тип свойства для хранения интервалов дат', 'status' => 'active'],
+            ['name' => 'Картинка', 'description' => 'Тип свойства для хранения изображений', 'status' => 'active'],
+        ];
+
+        foreach ($property_types as $type) {
+            SafeMySQL::gi()->query(
+                    "INSERT INTO ?n (name, description, status) VALUES (?s, ?s, ?s) ON DUPLICATE KEY UPDATE name = VALUES(name), description = VALUES(description), status = VALUES(status)",
+                    Constants::PROPERTY_TYPES_TABLE,
+                    $type['name'],
+                    $type['description'],
+                    $type['status']
+            );
+        }
         if (ENV_LOG) {
             SysClass::SetLog('База данных успешно развёрнута.');
         }
     }
-
 }

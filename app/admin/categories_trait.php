@@ -42,7 +42,7 @@ trait categories_trait {
     /**
      * Добавить или редактировать категорию
      */
-    public function category_edit($arg) {
+    public function category_edit($params) {
         $this->access = array(1, 2);
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main(200, '/show_login_form?return=admin/categories');
@@ -54,20 +54,19 @@ trait categories_trait {
         /* get current user data */
         $user_data = $this->models['m_categories']->data;
         $this->get_user_data($user_data);
-        if (in_array('id', $arg)) {
-            $id = filter_var($arg[array_search('id', $arg) + 1], FILTER_VALIDATE_INT);
-            if (isset($_POST['title']) && $_POST['title']) {                
-                $id = $this->models['m_categories']->update_category_data($_POST);                
-                if (!$id) {
+        if (in_array('id', $params)) {
+            $id = filter_var($params[array_search('id', $params) + 1], FILTER_VALIDATE_INT);
+            if (isset($_POST['title']) && $_POST['title']) {                                
+                if (!$new_id = $this->models['m_categories']->update_category_data($_POST)) {
                     $notifications = new Class_notifications();
-                    $notifications->add_notification_user($this->logged_in, ['text' => 'Ошибка записи в БД', 'status' => 'danger']);
+                    $notifications->add_notification_user($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
                 } else {
-                    if (!$_POST['type_id']) SysClass::return_to_main(200, ENV_URL_SITE . '/admin/category_edit/id/' . $id);
+                    $id = $new_id;
                 }
             }
             $get_category_data = (int)$id ? $this->models['m_categories']->get_category_data($id) : [];
         } else { // Не передан ключевой параметр id
-            SysClass::return_to_main(200, ENV_URL_SITE . '/admin/user_edit/id/' . $this->logged_in);
+            SysClass::return_to_main(200, ENV_URL_SITE . '/admin/category_edit/id/');
         }
         $parents = $this->models['m_categories']->getCategoriesTree($id);
         /* view */

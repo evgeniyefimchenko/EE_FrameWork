@@ -56,13 +56,12 @@ trait entities_trait {
         $this->get_user_data($user_data);
         if (in_array('id', $arg)) {
             $id = filter_var($arg[array_search('id', $arg) + 1], FILTER_VALIDATE_INT);
-            if (isset($_POST['title']) && $_POST['title']) {                
-                $id = $this->models['m_entities']->update_entitiy_data($_POST);                
-                if (!$id) {
+            if (isset($_POST['title']) && $_POST['title']) {             
+                if (!$new_id = $this->models['m_entities']->update_entitiy_data($_POST)) {
                     $notifications = new Class_notifications();
-                    $notifications->add_notification_user($this->logged_in, ['text' => 'Ошибка записи в БД', 'status' => 'danger']);
+                    $notifications->add_notification_user($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
                 } else {
-                    if (!$_POST['type_id']) SysClass::return_to_main(200, ENV_URL_SITE . '/admin/entitiy_edit/id/' . $id);
+                    $id = $new_id;
                 }
             }
             $get_entitiy_data = (int)$id ? $this->models['m_entities']->get_entitiy_data($id) : [];

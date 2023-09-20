@@ -72,7 +72,7 @@ $menuItems = [
                     'icon' => 'fa-solid fa-question',
                 ],
             ],
-            'Системные' => [
+            'Система' => [
                 [
                     'title' => 'Разделы',
                     'link' => '#',

@@ -37,7 +37,7 @@ if (ENV_SITE !== 1) {
                         <div class="tab-pane fade show active mt-3" id="basic-tab-pane" role="tabpanel" aria-labelledby="basic-tab">
                             <div class="row mb-3">
                                 <div class="col-6 col-sm-3">
-                                    <label for="name-input"><?=$lang['sys.title']?>:</label>                                    
+                                    <label for="title-input"><?=$lang['sys.title']?>:</label>                                    
                                     <input type="text" id="title-input" name="title" class="form-control" placeholder="Введите название..." value="<?= $entitiy_data['title'] ?>">                                    
                                 </div>
                                 <div class="col-6 col-sm-3">

@@ -131,8 +131,6 @@ Class SysClass {
      */
     public static function SetLog($changes = 'not change', $flag = 'info', $who = 8) {
         $who = $who === NULL ? 8 : $who;
-        $sql = 'INSERT INTO ' . ENV_DB_PREF . '`logs` SET who=?i, changes=?s, flag=?s';
-        $res_q = SafeMySQL::gi()->query($sql, $who, $changes, $flag);
     }
 
     /**
