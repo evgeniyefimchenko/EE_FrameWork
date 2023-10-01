@@ -25,38 +25,38 @@ $menuItems = [
                     'link' => '#',
                     'icon' => 'fa-solid fa-users-gear',
                     'subItems' => [
-                        ['title' => 'Список', 'link' => '/admin/users'],
-                        ['title' => 'Роли', 'link' => '/admin/roles', 'icon' => 'fa-solid fa-users-between-lines'],
-                        ['title' => 'Удалённые(Архив)', 'link' => '/admin/deleted'],
+                        ['title' => 'Список', 'link' => '/admin/users', 'icon' => 'fa-sharp fa-solid fa-list'],
+                        ['title' => 'Роли', 'link' => '/admin/users_roles', 'icon' => 'fa-solid fa-users-between-lines'],
+                        ['title' => 'Удалённые(Архив)', 'link' => '/admin/deleted_users', 'icon' => 'fa-solid fa-trash'],
                     ],
                 ],
             // ... другие пункты и подпункты
             ],
             'Контент' => [
                 [
-                    'title' => 'Категории',
+                    'title' => $lang['sys.categories'],
                     'link' => '#',
                     'icon' => 'fa-regular fa-folder',
                     'subItems' => [
-                        ['title' => 'Список', 'link' => '/admin/categories'],
-                        ['title' => 'Типы', 'link' => '/admin/type_categories'],
+                        ['title' => 'Список', 'link' => '/admin/categories', 'icon' => 'fa-sharp fa-solid fa-list'],
+                        ['title' => 'Типы', 'link' => '/admin/type_categories', 'icon' => 'fa-sharp fa-solid fa-marker'],
                     ],
                 ],
                 [
-                    'title' => 'Страницы',
+                    'title' => $lang['sys.entities'],
                     'link' => '#',
                     'icon' => 'fa-regular fa-file',
                     'subItems' => [
-                        ['title' => 'Список', 'link' => '/admin/entities'],
+                        ['title' => 'Список', 'link' => '/admin/entities', 'icon' => 'fa-sharp fa-solid fa-list'],
                     ],
                 ],
                 [
-                    'title' => 'Свойства',
+                    'title' => $lang['properties'] = 'Свойства',
                     'link' => '#',
                     'icon' => 'fa-solid fa-gears',
                     'subItems' => [
-                        ['title' => 'Список', 'link' => '/admin/properties'],
-                        ['title' => 'Типы', 'link' => '/admin/types_properties'],
+                        ['title' => 'Список', 'link' => '/admin/properties', 'icon' => 'fa-sharp fa-solid fa-list'],
+                        ['title' => 'Типы', 'link' => '/admin/types_properties', 'icon' => 'fa-sharp fa-solid fa-marker'],
                     ],                    
                 ],
                 [
@@ -94,8 +94,8 @@ $menuItems = [
                             'icon' => 'fa-solid fa-flask-vial',
                         ],
                         [
-                            'title' => 'Удалить тестовые данные',
-                            'link' => '/admin/kill_test',
+                            'title' => 'Удалить данные БД',
+                            'link' => '/admin/kill_em_all',
                             'icon' => 'fa-solid fa-book-skull',
                         ],
                     ],

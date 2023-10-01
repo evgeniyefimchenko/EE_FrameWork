@@ -15,18 +15,18 @@ trait messages_trait {
      * Страница сообщений пользователя
      * Все сообщения текущего пользователя подгружаются в $user_data
      */
-    public function messages($arg = []) {
+    public function messages($params = []) {
         $this->access = array(100);
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
             exit();
         }
         /* model */
-        $this->load_model('m_messages', array($this->logged_in));
+        $this->load_model('m_messages', [$this->logged_in]);
         /* get data */
         $user_data = $this->models['m_messages']->data;
 		$this->get_user_data($user_data);
-        $get_user_id = is_numeric($arg[0]) ? $arg[0] : $this->logged_in;
+        $get_user_id = is_numeric($params[0]) ? $params[0] : $this->logged_in;
         $class_messages = new Class_messages();
         if ($this->logged_in != $get_user_id && $user_data['user_role'] <= 2) { // просмотр чужих сообщений доступен только амину и модератору
             $this->view->set('count_messages', $class_messages->get_count_messages($get_user_id), true);
@@ -82,7 +82,7 @@ trait messages_trait {
 
     /**
      * Пометить сообщение прочитанным
-     * @param array $param - ID сообщения
+     * @param array $params - ID сообщения
      */
     public function set_readed($id_message = 0) {
         $this->access = array(100);
@@ -107,15 +107,15 @@ trait messages_trait {
 
     /**
      * Удалить сообщение
-     * @param array $param - ID сообщения
+     * @param array $params - ID сообщения
      */
-    public function dell_message($param) {
+    public function dell_message($params) {
         $this->access = array(100);
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main(401);
             exit();
         }
-        $message_id = filter_var($param[0], FILTER_VALIDATE_INT);
+        $message_id = filter_var($params[0], FILTER_VALIDATE_INT);
         $this->load_model('m_messages');
         $this->models['m_messages']->kill_message($message_id, $this->logged_in);
     }

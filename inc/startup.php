@@ -19,15 +19,15 @@ foreach ($C as $name => $val) {
 }
 
 /**
-* Отловим фатальные ошибки
-*/
-register_shutdown_function(function() {
+ * Отловим фатальные ошибки
+ */
+register_shutdown_function(function () {
     if (ENV_FATAL_ERROR_LOGGING) {
-		$error = error_get_last();
-		if ($error && (in_array($error['type'], [E_ERROR,  E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR]))) {
-			file_put_contents(ENV_LOGS_PATH . 'fatal_errors.txt', date('d-m-Y h:i:s') . PHP_EOL . var_export($error, true), FILE_APPEND);
-		}
-	}
+        $error = error_get_last();
+        if ($error && (in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR]))) {
+            file_put_contents(ENV_LOGS_PATH . 'fatal_errors.txt', date('d-m-Y h:i:s') . PHP_EOL . var_export($error, true), FILE_APPEND);
+        }
+    }
 });
 
 /**
@@ -47,17 +47,18 @@ if (ENV_SITE_INDEX !== 'ALL') {
  */
 spl_autoload_register(function ($name) {
     global $console;
-	$name = mb_strtolower($name);
-	$filename = $name . '.php';
+    $name = mb_strtolower($name);
+    $filename = $name . '.php';
     if (strpos($name, 'class') !== false) { // Класс        
-        $res = search_file('classes', $filename);		
+        $res = search_file('classes', $filename);
     } elseif (strpos($name, 'trait') !== false) { // Трейт
         $callingFile = debug_backtrace()[1]['file'];
         $callingDir = dirname($callingFile);
         $res = search_file($callingDir, $filename);
     } else { // Системный или плагин класс
-		$res = search_file('classes/system', $filename);
-		if (!$res) $res = search_file('classes/plugins', $filename);
+        $res = search_file('classes/system', $filename);
+        if (!$res)
+            $res = search_file('classes/plugins', $filename);
     }
     if ($res) {
         if (ENV_TEST) {

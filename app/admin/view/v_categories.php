@@ -13,7 +13,7 @@ if (ENV_SITE !== 1) {
            class="btn btn-info m-l-15 float-end">
             <i class="fa fa-plus-circle"></i>&nbsp;<?= $lang['sys.add'] ?>
         </a>        
-        <h1 class="mt-4"><?= $lang['categories'] ?></h1>
+        <h1 class="mt-4"><?= $lang['sys.categories'] ?></h1>
         <div class="row">
             <div class="col">
                 <?= $categories_table ?>

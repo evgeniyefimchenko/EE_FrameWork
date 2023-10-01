@@ -19,7 +19,7 @@ trait categories_trait {
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main(200, '/show_login_form?return=admin/categories');
         }
-        $this->load_model('m_categories', array($this->logged_in));
+        $this->load_model('m_categories', [$this->logged_in]);
         /* get data */
         $user_data = $this->models['m_categories']->data;
         $this->get_user_data($user_data);
@@ -49,15 +49,16 @@ trait categories_trait {
             exit();
         }
         /* model */
-        $this->load_model('m_categories', array($this->logged_in));
+        $this->load_model('m_categories', [$this->logged_in]);
         $this->load_model('m_types', []);
         /* get current user data */
         $user_data = $this->models['m_categories']->data;
         $this->get_user_data($user_data);
+        $post_data = SysClass::ee_cleanArray($_POST);
         if (in_array('id', $params)) {
             $id = filter_var($params[array_search('id', $params) + 1], FILTER_VALIDATE_INT);
-            if (isset($_POST['title']) && $_POST['title']) {                                
-                if (!$new_id = $this->models['m_categories']->update_category_data($_POST)) {
+            if (isset($post_data['title']) && $post_data['title']) {                                
+                if (!$new_id = $this->models['m_categories']->update_category_data($post_data)) {
                     $notifications = new Class_notifications();
                     $notifications->add_notification_user($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
                 } else {
@@ -87,19 +88,19 @@ trait categories_trait {
     /**
      * Удаление категории
      */
-    public function category_dell($arg = []) {        
+    public function category_dell($params = []) {        
         $this->access = array(1, 2);
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
             exit();
         }
         /* model */
-        $this->load_model('m_categories', array($this->logged_in));        
+        $this->load_model('m_categories', [$this->logged_in]);        
         /* get current user data */
         $user_data = $this->models['m_categories']->data;
         $this->get_user_data($user_data);
-        if (in_array('id', $arg)) {
-            $id = filter_var($arg[array_search('id', $arg) + 1], FILTER_VALIDATE_INT);
+        if (in_array('id', $params)) {
+            $id = filter_var($params[array_search('id', $params) + 1], FILTER_VALIDATE_INT);
             $res = $this->models['m_categories']->delete_category($id);
             $notifications = new Class_notifications();
             if (isset($res['error'])) {                
@@ -120,12 +121,12 @@ trait categories_trait {
             SysClass::return_to_main();
             exit();
         }
-        $this->load_model('m_categories', array($this->logged_in));
+        $this->load_model('m_categories', [$this->logged_in]);
         if (!$this->lang['sys.name']) { // Подргужаем языковые переменные
             $user_data = $this->models['m_categories']->data;
             $this->get_user_data($user_data);
         }
-        $post_data = $_POST;
+        $post_data = SysClass::ee_cleanArray($_POST);
         $data_table = [
             'columns' => [
                 [
@@ -140,12 +141,12 @@ trait categories_trait {
                     'filterable' => true
                 ], [
                     'field' => 'parent_id',
-                    'title' => $this->lang['parent'],
+                    'title' => $this->lang['sys.parent'],
                     'sorted' => 'ASC',
                     'filterable' => true
                 ], [
                     'field' => 'type_id',
-                    'title' => $this->lang['type'],
+                    'title' => $this->lang['sys.type'],
                     'sorted' => 'ASC',
                     'filterable' => true
                 ], [
@@ -155,12 +156,12 @@ trait categories_trait {
                     'filterable' => false
                 ], [
                     'field' => 'created_at',
-                    'title' => $this->lang['date_create'],
+                    'title' => $this->lang['sys.date_create'],
                     'sorted' => 'ASC',
                     'filterable' => true
                 ], [
                     'field' => 'updated_at',
-                    'title' => $this->lang['date_update'],
+                    'title' => $this->lang['sys.date_update'],
                     'sorted' => 'ASC',
                     'filterable' => true
                 ], [
@@ -182,13 +183,13 @@ trait categories_trait {
                 'type' => 'text',
                 'id' => "parent_id",
                 'value' => '',
-                'label' => $this->lang['parent']
+                'label' => $this->lang['sys.parent']
             ],
             'type_id' => [
                 'type' => 'select',
                 'id' => "type_id",
                 'value' => [],
-                'label' => $this->lang['type'],
+                'label' => $this->lang['sys.type'],
                 'options' => [['value' => 0, 'label' => 'Любой']],
                 'multiple' => true
             ],
@@ -196,13 +197,13 @@ trait categories_trait {
                 'type' => 'date',
                 'id' => "created_at",
                 'value' => '',
-                'label' => $this->lang['date_create']
+                'label' => $this->lang['sys.date_create']
             ],
             'updated_at' => [
                 'type' => 'date',
                 'id' => "updated_at",
                 'value' => '',
-                'label' => $this->lang['date_update']
+                'label' => $this->lang['sys.date_update']
             ],
         ];
         $this->load_model('m_types', []);
@@ -226,7 +227,7 @@ trait categories_trait {
                 'updated_at' => $item['updated_at'] ? date('d.m.Y', strtotime($item['updated_at'])) : '',
                 'actions' => '<a href="/admin/category_edit/id/' . $item['category_id'] . '"'
                 . 'class="btn btn-primary me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.edit'] . '"><i class="fas fa-edit"></i></a>'
-                . '<a href="/admin/category_dell/id/' . $item['category_id'] . '" onclick="return confirm(\'Удалить категорию?\');"' 
+                . '<a href="/admin/category_dell/id/' . $item['category_id'] . '" onclick="return confirm(\'' . $this->lang['sys.delete'] . '?\');" ' 
                 . 'class="btn btn-danger me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.delete'] . '"><i class="fas fa-trash"></i></a>'
             ];
         }

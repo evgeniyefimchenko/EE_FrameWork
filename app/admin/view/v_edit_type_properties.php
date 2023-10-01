@@ -57,11 +57,11 @@ if (ENV_SITE !== 1) {
                             </div>
                             <div class="row mb-3">
                                 <div class="col-2">
-                                    <label for="registration-date-input"><?=$lang['date_create']?>:</label>
+                                    <label for="registration-date-input"><?=$lang['sys.date_create']?>:</label>
                                     <input type="text" disabled  class="form-control" value="<?= $property_type_data['created_at'] ?>">
                                 </div>
                                 <div class="col-2">
-                                    <label for="update-date-input"><?=$lang['date_update']?>:</label>
+                                    <label for="update-date-input"><?=$lang['sys.date_update']?>:</label>
                                     <input type="text" disabled class="form-control" value="<?= $property_type_data['updated_at'] ?>">
                                 </div>
                             </div>

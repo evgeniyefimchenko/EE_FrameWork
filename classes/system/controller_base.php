@@ -99,7 +99,7 @@ Abstract Class Controller_Base {
      */
     protected function load_model($model, $arg = [], $path = '', $reload = false) {
         if (count($this->access) == 0) {
-            SysClass::pre_file('Не указаны права доступа. ' . $model);
+            SysClass::pre_file('error', 'Не указаны права доступа. ' . $model);
             SysClass::pre('Не указаны права доступа. ' . $model);
         }
         $stack = debug_backtrace();

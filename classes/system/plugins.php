@@ -249,7 +249,7 @@ Class Plugins {
     private static function generateRowsPerPageSection($id_table, $data_table, $current_rows_per_page) {
         // Возможные значения строк на странице
         $possible_rows = [10, 25, 50, 100];
-
+        $count_row = is_array($data_table['rows']) ? count($data_table['rows']) : 0;
         $html = '<div class="rows-per-page-section">';
         $html .= '<label for="' . $id_table . '-rows-per-page">Количество строк:</label>';
         $html .= '<select id="' . $id_table . '-rows-per-page" class="form-select form-select-sm d-inline-block" style="width: auto; cursor: pointer;">';
@@ -262,7 +262,7 @@ Class Plugins {
             $data_table['total_rows'] = 0;
         $html .= '</select>';
         $html .= '<div class="pagination-info float-end">';
-        $html .= 'Записей на странице: <span class="current-page-count">' . count($data_table['rows']) . '</span> из <span class="total-count">' . $data_table['total_rows'] . '</span>';
+        $html .= 'Записей на странице: <span class="current-page-count">' . $count_row . '</span> из <span class="total-count">' . $data_table['total_rows'] . '</span>';
         $html .= '</div>';
         $html .= '</div>';
 
@@ -397,10 +397,10 @@ Class Plugins {
      * - start: начальная позиция для LIMIT.
      * - limit: максимальное количество записей для LIMIT.
      */
-    public function ee_show_table_prepare_params($post_data, $columns) {
+    public static function ee_show_table_prepare_params($post_data, $columns) {
         list($table_name, $extract_filters) = Plugins::ee_show_table_extractFilters($post_data); // $extract_filters извлекаем без префиксов что бы подставлять в запрос к БД
-        $old_filters = isset($post_data[$table_name . '_old_filters']) ? json_decode($post_data[$table_name . '_old_filters'], true) : null;
-        $filter = Plugins::ee_show_table_buildFilters($extract_filters, $columns, $table_name, $old_filters);
+        $old_filters = isset($post_data[$table_name . '_old_filters']) ? json_decode(html_entity_decode($post_data[$table_name . '_old_filters'], ENT_QUOTES, 'UTF-8'), true) : null;
+        $filter = Plugins::ee_show_table_buildFilters($extract_filters, $columns, $table_name, $old_filters);        
         list($out_sort, $sort) = Plugins::ee_show_table_transformSortingKeys($post_data);
         $limit = ['page' => $post_data["page"], 'rows_per_page' => $post_data["rows_per_page"]];
         // Преобразование limit
@@ -412,21 +412,24 @@ Class Plugins {
         $whereConditions = [];
         foreach ($filter as $key => $filterItem) {
             if ($filterItem['type'] === 'text' && !empty($filterItem['value']) && $filterItem['value']) { // Отсекаем пустые значения
-                $whereConditions[] = "`$key` LIKE '%" . $filterItem['value'] . "%'";
-            } elseif ($filterItem['type'] === 'select' && !empty($filterItem['value'])) {
+                $whereConditions[] = "$key LIKE '%" . $filterItem['value'] . "%'";
+            } elseif ($filterItem['type'] === 'select' && !empty($filterItem['value'])) {                
                 if ($filterItem['value'][0]) {
-                    $value = $filterItem['value'][0];
-                    $whereConditions[] = "`$key` = '$value'";
+                    if ($filterItem['multiple']) {
+                        $whereConditions[] = $key . ' IN (' . implode(',', $filterItem['value']) . ')';
+                    } else {
+                       $whereConditions[] = $key . ' = ' . $filterItem['value'][0]; 
+                    }
                 }
             } elseif ($filterItem['type'] === 'date' && !empty($filterItem['value'])) {
                 if (preg_match('/\d{2}:\d{2}(:\d{2})?/', $filterItem['value'])) {
                     // Содержит время
-                    $whereConditions[] = "`$key` = '" . $filterItem['value'] . "'";
+                    $whereConditions[] = "$key = '" . $filterItem['value'] . "'";
                 } else {
                     // Не содержит время, используем условие для целых суток
                     $dateStart = $filterItem['value'] . " 00:00:00";
                     $dateEnd = $filterItem['value'] . " 23:59:59";
-                    $whereConditions[] = "`$key` >= '" . $dateStart . "' AND `$key` <= '" . $dateEnd . "'";
+                    $whereConditions[] = "$key >= '" . $dateStart . "' AND $key <= '" . $dateEnd . "'";
                 }
             }
         }
@@ -434,7 +437,7 @@ Class Plugins {
         // Преобразование sort
         $orderString = '';
         foreach ($sort as $key => $direction) {
-            $orderString .= "`$key` $direction, ";
+            $orderString .= "$key $direction, ";
         }
         $orderString = rtrim($orderString, ", ");
         return [
@@ -634,29 +637,24 @@ Class Plugins {
     public static function generate_vertical_menu($data) {
         $menuItems = $data['menuItems'];
         $footerTitle = $data['footerTitle'];
-
         $html = '<div id="layoutSidenav_nav"><nav class="sb-sidenav accordion sb-sidenav-dark" id="sidenavAccordion"><div class="sb-sidenav-menu"><div class="nav">';
-
         foreach ($menuItems['headings'] as $heading => $items) {
             $html .= '<div class="sb-sidenav-menu-heading">' . $heading . '</div>';
-
             foreach ($items as $item) {
                 if (isset($item['subItems'])) {
-                    $html .= '<a class="nav-link collapsed" href="' . ($item['link'] ?: '#') . '" data-bs-toggle="collapse" data-bs-target="#collapse' . $item['title'] . '" aria-expanded="false" aria-controls="collapse' . $item['title'] . '">
+                    $html .= '<a class="nav-link collapsed" href="' . ($item['link'] ?: '#') . '" data-bs-toggle="collapse" data-bs-target="#collapse_' . $item['title'] . '" aria-expanded="false" aria-controls="collapse_' . $item['title'] . '">
                                 <div class="sb-nav-link-icon"><i class="fas ' . $item['icon'] . '"></i></div>' . $item['title'] .
                             '<div class="sb-sidenav-collapse-arrow"><i class="fas fa-angle-down"></i></div></a>
-                                <div class="collapse" id="collapse' . $item['title'] . '" aria-labelledby="headingOne" data-bs-parent="#sidenavAccordion"><nav class="sb-sidenav-menu-nested nav">';
-
+                                <div class="collapse" id="collapse_' . $item['title'] . '" aria-labelledby="headingOne" data-bs-parent="#sidenavAccordion"><nav class="sb-sidenav-menu-nested nav">';
                     foreach ($item['subItems'] as $subItem) {
                         if ($subItem['link']) {
-                            $html .= '<a class="nav-link" href="' . $subItem['link'] . '">
-										<div class="sb-nav-link-icon"><i class="fas ' . $subItem['icon'] . '"></i></div>' . $subItem['title'] .
+                            $html .= '<a class="nav-link" href="' . $subItem['link'] . '" data-parent-bs-target="#collapse_' . $item['title'] . '">
+                                    <div class="sb-nav-link-icon"><i class="fas ' . $subItem['icon'] . '"></i></div>' . $subItem['title'] .
                                     '</a>';
                         } else {
                             $html .= '<span class="nav">' . $subItem['title'] . '</span>';
                         }
                     }
-
                     $html .= '</nav></div>';
                 } else {
                     if ($item['link']) {

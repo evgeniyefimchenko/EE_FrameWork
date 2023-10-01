@@ -1,5 +1,4 @@
 $(document).ready(function () {
-
     function initEventHandlers(tableId) {
         let form = $(`#${tableId}_filters`);
         // 1. Инициализация элемента для сортировки
@@ -46,7 +45,6 @@ $(document).ready(function () {
             }
             $("#" + tableId + "_filters").trigger("submit");
         });
-
         // Обработчик события click на кнопке сброса
         $(document).off("click", "[id^='" + tableId + "_filters_reset']").on("click", '#' + tableId + '_filters_reset', function (e) {
             e.preventDefault();
@@ -54,11 +52,10 @@ $(document).ready(function () {
             let form = $('#' + $(this).attr('form'));
             form.find('input[type="text"], textarea, input[type="date"]').val('');
             form.find('input[type="checkbox"], input[type="radio"]').prop('checked', false);
-            form.find('select').val('');
+            form.find('select').val(0);
             form.submit();
             $(this).removeAttr('disabled');
         });
-
         // Обработчик события клика по динамическим элементам пагинации
         $(document).off("click", "#" + tableId + "_content_tables .pagination .page-link").on("click", "#" + tableId + "_content_tables .pagination .page-link", function (e) {
             e.preventDefault();
@@ -71,7 +68,6 @@ $(document).ready(function () {
             }
             $("#" + tableId + "_filters").trigger("submit");
         });
-
         // Обработчик события изменения количества строк на странице
         $(document).off("change", "#" + tableId + "-rows-per-page").on("change", "#" + tableId + "-rows-per-page", function () {
             let rowsPerPage = $(this).val();
@@ -96,6 +92,8 @@ $(document).ready(function () {
         }
         let filter_data = form.serialize();
         $('#' + tableId + '_content_tables').css('opacity', '0.2');
+        console.log('preloader OUT');
+        $('#preloader').fadeIn(500);
         $.ajax({
             url: '/admin/' + callbackInput.val(),
             type: 'POST',
@@ -107,9 +105,11 @@ $(document).ready(function () {
                 setTimeout(function () {
                     initEventHandlers(tableId); // переинициализация обработчиков
                 }, 500); // Задержка в 500 миллисекунд (или 0.5 секунды)
+                $('#preloader').fadeOut(500);
             },
             error: function (a, b, c) {
                 console.error('Error:', a, b, c);
+                $('#preloader').fadeIn(500);
             }
         });
     });

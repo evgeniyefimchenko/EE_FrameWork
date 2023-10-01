@@ -9,8 +9,6 @@ if (ENV_SITE !== 1) {
 * Класс для обработки сообщений пользователю
 */
 
-use Constants;
-
 Class Class_messages {
 
     /**

@@ -19,7 +19,7 @@ trait properties_trait {
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main(200, '/show_login_form?return=admin');
         }
-        $this->load_model('m_properties', array($this->logged_in));
+        $this->load_model('m_properties', [$this->logged_in]);
         /* get data */
         $user_data = $this->models['m_properties']->data;
         $this->get_user_data($user_data);
@@ -48,7 +48,7 @@ trait properties_trait {
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main(200, '/show_login_form?return=admin');
         }
-        $this->load_model('m_properties', array($this->logged_in));
+        $this->load_model('m_properties', [$this->logged_in]);
         /* get data */
         $user_data = $this->models['m_properties']->data;
         $this->get_user_data($user_data);
@@ -73,12 +73,12 @@ trait properties_trait {
             SysClass::return_to_main();
             exit();
         }
-        $this->load_model('m_properties', array($this->logged_in));
+        $this->load_model('m_properties', [$this->logged_in]);
         if (!$this->lang['sys.name']) { // Подргужаем языковые переменные
             $user_data = $this->models['m_properties']->data;
             $this->get_user_data($user_data);
         }
-        $post_data = $_POST;
+        $post_data = SysClass::ee_cleanArray($_POST);
         $data_table = [
             'columns' => [
                 [
@@ -98,12 +98,12 @@ trait properties_trait {
                     'filterable' => false
                 ], [
                     'field' => 'created_at',
-                    'title' => $this->lang['date_create'],
+                    'title' => $this->lang['sys.date_create'],
                     'sorted' => 'ASC',
                     'filterable' => true
                 ], [
                     'field' => 'updated_at',
-                    'title' => $this->lang['date_update'],
+                    'title' => $this->lang['sys.date_update'],
                     'sorted' => 'ASC',
                     'filterable' => true
                 ], [
@@ -125,13 +125,13 @@ trait properties_trait {
                 'type' => 'date',
                 'id' => "created_at",
                 'value' => '',
-                'label' => $this->lang['date_create']
+                'label' => $this->lang['sys.date_create']
             ],
             'updated_at' => [
                 'type' => 'date',
                 'id' => "updated_at",
                 'value' => '',
-                'label' => $this->lang['date_update']
+                'label' => $this->lang['sys.date_update']
             ],
         ];
         if ($post_data && isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') { // AJAX
@@ -169,12 +169,12 @@ trait properties_trait {
             SysClass::return_to_main();
             exit();
         }
-        $this->load_model('m_properties', array($this->logged_in));
+        $this->load_model('m_properties', [$this->logged_in]);
         if (!$this->lang['sys.name']) { // Подргужаем языковые переменные
             $user_data = $this->models['m_properties']->data;
             $this->get_user_data($user_data);
         }
-        $post_data = $_POST;
+        $post_data = SysClass::ee_cleanArray($_POST);
         $data_table = [
             'columns' => [
                 [
@@ -189,7 +189,7 @@ trait properties_trait {
                     'filterable' => true
                 ], [
                     'field' => 'type_id',
-                    'title' => $this->lang['type'],
+                    'title' => $this->lang['sys.type'],
                     'sorted' => 'ASC',
                     'filterable' => false
                 ], [
@@ -204,12 +204,12 @@ trait properties_trait {
                     'filterable' => false
                 ], [
                     'field' => 'created_at',
-                    'title' => $this->lang['date_create'],
+                    'title' => $this->lang['sys.date_create'],
                     'sorted' => 'ASC',
                     'filterable' => true
                 ], [
                     'field' => 'updated_at',
-                    'title' => $this->lang['date_update'],
+                    'title' => $this->lang['sys.date_update'],
                     'sorted' => 'ASC',
                     'filterable' => true
                 ], [
@@ -231,13 +231,13 @@ trait properties_trait {
                 'type' => 'date',
                 'id' => "created_at",
                 'value' => '',
-                'label' => $this->lang['date_create']
+                'label' => $this->lang['sys.date_create']
             ],
             'updated_at' => [
                 'type' => 'date',
                 'id' => "updated_at",
                 'value' => '',
-                'label' => $this->lang['date_update']
+                'label' => $this->lang['sys.date_update']
             ],
         ];
         if ($post_data && isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') { // AJAX
@@ -277,14 +277,15 @@ trait properties_trait {
             exit();
         }
         /* model */
-        $this->load_model('m_properties', array($this->logged_in));
+        $this->load_model('m_properties', [$this->logged_in]);
         /* get current user data */
         $user_data = $this->models['m_properties']->data;
         $this->get_user_data($user_data);
+        $post_data = SysClass::ee_cleanArray($_POST);
         if (in_array('id', $params)) {
             $id = filter_var($params[array_search('id', $params) + 1], FILTER_VALIDATE_INT);
-            if (isset($_POST['name']) && $_POST['name']) {
-                if (!$new_id = $this->models['m_properties']->update_property_type_data($_POST)) {
+            if (isset($post_data['name']) && $post_data['name']) {
+                if (!$new_id = $this->models['m_properties']->update_property_type_data($post_data)) {
                     $notifications = new Class_notifications();
                     $notifications->add_notification_user($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
                 } else {
@@ -315,21 +316,22 @@ trait properties_trait {
     /**
      * Добавить или редактировать свойство
      */
-    public function property_edit($arg) {
+    public function property_edit($params) {
         $this->access = array(1, 2);
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
             exit();
         }
         /* model */
-        $this->load_model('m_properties', array($this->logged_in));
+        $this->load_model('m_properties', [$this->logged_in]);
         /* get current user data */
         $user_data = $this->models['m_properties']->data;
         $this->get_user_data($user_data);
-        if (in_array('id', $arg)) {
-            $id = filter_var($arg[array_search('id', $arg) + 1], FILTER_VALIDATE_INT);
-            if (isset($_POST['name']) && $_POST['name']) {
-                if (!$new_id = $this->models['m_properties']->update_property_data($_POST)) {
+        $post_data = SysClass::ee_cleanArray($_POST);
+        if (in_array('id', $params)) {
+            $id = filter_var($params[array_search('id', $params) + 1], FILTER_VALIDATE_INT);
+            if (isset($post_data['name']) && $post_data['name']) {
+                if (!$new_id = $this->models['m_properties']->update_property_data($post_data)) {
                     $notifications = new Class_notifications();
                     $notifications->add_notification_user($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
                 } else {

@@ -64,7 +64,7 @@ if (ENV_SITE !== 1) {
                                     </div>
                                 </div>
                                 <div class="col-6 col-sm-3">
-                                    <label for="parent_id-input"><?=$lang['parent']?>:</label>
+                                    <label for="parent_id-input"><?=$lang['sys.parent']?>:</label>
                                     <div role="group" class="input-group">
                                         <select type="text" id="parent_id-input" name="parent_id" class="form-control">
                                             <?php foreach ($parents as $item) {
@@ -104,11 +104,11 @@ if (ENV_SITE !== 1) {
                             </div>
                             <div class="row mb-3">
                                 <div class="col-2">
-                                    <label for="registration-date-input"><?=$lang['date_create']?>:</label>
+                                    <label for="registration-date-input"><?=$lang['sys.date_create']?>:</label>
                                     <input type="text" disabled  class="form-control" value="<?= $category_data['created_at'] ?>">
                                 </div>
                                 <div class="col-2">
-                                    <label for="update-date-input"><?=$lang['date_update']?>:</label>
+                                    <label for="update-date-input"><?=$lang['sys.date_update']?>:</label>
                                     <input type="text" disabled class="form-control" value="<?= $category_data['updated_at'] ?>">
                                 </div>
                             </div>

@@ -70,17 +70,7 @@ Class Model_properties Extends Users {
      * @return int|bool ID обновленного свойства или false в случае неудачи.
      */
     public function update_property_data($property_data = []) {
-        $allowed_fields = [
-            'property_id',
-            'type_id',
-            'name',
-            'default_values',
-            'is_multiple',
-            'is_required',
-            'description',
-        ];
-
-        $property_data = SafeMySQL::gi()->filterArray($property_data, $allowed_fields);
+        $property_data = SafeMySQL::gi()->filterArray($property_data, SysClass::ee_get_fields_table(Constants::PROPERTIES_TABLE));
         $property_data = array_map('trim', $property_data);
         $property_data['default_values'] = $property_data['default_values'] ? json_encode($property_data['default_values']) : '{[]}';
         $property_data['is_multiple'] = $property_data['is_multiple'] == 'on' ? 1 : 0;
@@ -175,13 +165,7 @@ Class Model_properties Extends Users {
      * @return int|bool ID обновленного типа свойства или false в случае неудачи.
      */
     public function update_property_type_data($property_type_data = []) {
-        $allowed_fields = [
-            'type_id',
-            'name',
-            'status',
-            'description',
-        ];
-        $property_type_data = SafeMySQL::gi()->filterArray($property_type_data, $allowed_fields);
+        $property_type_data = SafeMySQL::gi()->filterArray($property_type_data, SysClass::ee_get_fields_table(Constants::PROPERTY_TYPES_TABLE));
         $property_type_data = array_map('trim', $property_type_data);
         if (empty($property_type_data['name'])) {
             return false;
