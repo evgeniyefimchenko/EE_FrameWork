@@ -41,7 +41,7 @@ if (ENV_SITE !== 1) {
                                     <input type="text" id="title-input" name="title" class="form-control" placeholder="Введите название..." value="<?= $entitiy_data['title'] ?>">                                    
                                 </div>
                                 <div class="col-6 col-sm-3">
-                                    <label for="category_id-input"><?=$lang['category'] . ' ' . $lang['parent']?>:</label>
+                                    <label for="category_id-input"><?=$lang['sys.category'] . ' ' . $lang['sys.parent']?>:</label>
                                     <div role="group" class="input-group">
                                         <select <?=$entitiy_data['parent_entity_id'] ? "disabled " : ""?>type="text" id="category_id-input" name="category_id" class="form-control">
                                             <?php foreach ($all_categories as $item) {
@@ -58,7 +58,7 @@ if (ENV_SITE !== 1) {
                                     </div>
                                 </div>
                                 <div class="col-6 col-sm-3">
-                                    <label for="parent_entity_id-input"><?=$lang['entitiy']. ' ' . $lang['parent']?>:</label>
+                                    <label for="parent_entity_id-input"><?=$lang['sys.entitiy']. ' ' . $lang['sys.parent']?>:</label>
                                     <div role="group" class="input-group">
                                         <select type="text" id="parent_entity_id-input" name="parent_entity_id" class="form-control">
                                             <?php foreach ($all_entities as $item) {
@@ -71,7 +71,7 @@ if (ENV_SITE !== 1) {
                                     </div>
                                 </div>
                                 <div class="col-6 col-sm-3">
-                                    <label for="type_id-input"><?=$lang['type']?>:</label>
+                                    <label for="type_id-input"><?=$lang['sys.type']?>:</label>
                                     <div role="group" class="input-group">
                                         <input type="text" disabled id="type_id-input" name="type_id" class="form-control" placeholder="Введите название..." value="<?= $entitiy_data['type_name'] ?>">
                                         <span role="button" class="input-group-text btn-primary" data-bs-toggle="tooltip" data-bs-placement="top" title="Определяется из категории">
@@ -105,11 +105,11 @@ if (ENV_SITE !== 1) {
                             </div>
                             <div class="row mb-3">
                                 <div class="col-2">
-                                    <label for="registration-date-input"><?=$lang['date_create']?>:</label>
+                                    <label for="registration-date-input"><?=$lang['sys.date_create']?>:</label>
                                     <input type="text" disabled  class="form-control" value="<?= $entitiy_data['created_at'] ?>">
                                 </div>
                                 <div class="col-2">
-                                    <label for="update-date-input"><?=$lang['date_update']?>:</label>
+                                    <label for="update-date-input"><?=$lang['sys.date_update']?>:</label>
                                     <input type="text" disabled class="form-control" value="<?= $entitiy_data['updated_at'] ?>">
                                 </div>
                             </div>

@@ -14,23 +14,23 @@ trait emails_trait {
 	/**
 	* Редактирование шаблона писем
 	*/
-    public function edit_emails_templates($param = []) {
+    public function edit_emails_templates($params = []) {
         $this->access = array(1);
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
             exit();
         }
         /* model */
-        $this->load_model('m_settings', array($this->logged_in));
+        $this->load_model('m_settings', [$this->logged_in]);
         /* get user data - все переменные пользователя доступны в представлениях */
         $user_data = $this->models['m_settings']->data;
         $this->get_user_data($user_data);
         /* view */
         $this->get_standart_view();        
-        $path = ENV_EMAIL_TEMPLATE . ENV_DIRSEP . $param[0] . ENV_DIRSEP . 'body.tpl';
+        $path = ENV_EMAIL_TEMPLATE . ENV_DIRSEP . $params[0] . ENV_DIRSEP . 'body.tpl';
         $content_email = file_get_contents($path);
         $this->view->set('path_templ', $path);        
-        $this->view->set('name_template', $param[0]);        
+        $this->view->set('name_template', $params[0]);        
         $this->view->set('content_email', $content_email);        
         $this->view->set('body_view', $this->view->read('v_admin_edit_emails_tpl'));
         $this->html = $this->view->read('v_dashboard');
@@ -45,21 +45,22 @@ trait emails_trait {
     
     /**
      * Сохраняет шаблоны писем
-     * @param array $param
+     * @param array $params
      */
-    public function ajax_func_save($param = []) {
+    public function ajax_func_save($params = []) {
         $this->access = array(1);
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
             exit();
         }
-        $path = SysClass::search_file(ENV_EMAIL_TEMPLATE, $_POST['template'], true);
+        $post_data = $_POST;
+        $path = SysClass::search_file(ENV_EMAIL_TEMPLATE, $post_data['template'], true);
         if ($path) {
             $boby_file = $path . ENV_DIRSEP . 'body.tpl';
             $head_file = $path . ENV_DIRSEP . 'header.tpl';
             $footer_file = $path . ENV_DIRSEP . 'footer.tpl';
             $full_file = $path . ENV_DIRSEP . 'mail.html';
-            $body_content = SysClass::convert_img_to_base64($_POST['text_content'], $path);
+            $body_content = SysClass::convert_img_to_base64($post_data['text_content'], $path);
             if (file_put_contents($boby_file, $body_content)) {
                 $head_content = file_get_contents($head_file);                
                 $footer_content = file_get_contents($footer_file);

@@ -19,7 +19,7 @@ trait types_trait {
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main(200, '/show_login_form?return=admin');
         }
-        $this->load_model('m_types', array($this->logged_in));
+        $this->load_model('m_types', [$this->logged_in]);
         /* get data */
         $user_data = $this->models['m_types']->data;
         $this->get_user_data($user_data);
@@ -47,12 +47,12 @@ trait types_trait {
             SysClass::return_to_main();
             exit();
         }
-        $this->load_model('m_types', array($this->logged_in));
+        $this->load_model('m_types', [$this->logged_in]);
         if (!$this->lang['sys.name']) { // Подргужаем языковые переменные
             $user_data = $this->models['m_types']->data;
             $this->get_user_data($user_data);
         }
-        $post_data = $_POST;
+        $post_data = SysClass::ee_cleanArray($_POST);
         $data_table = [
             'columns' => [
                 [
@@ -67,12 +67,12 @@ trait types_trait {
                     'filterable' => true
                 ], [
                     'field' => 'created_at',
-                    'title' => $this->lang['date_create'],
+                    'title' => $this->lang['sys.date_create'],
                     'sorted' => 'ASC',
                     'filterable' => true
                 ], [
                     'field' => 'updated_at',
-                    'title' => $this->lang['date_update'],
+                    'title' => $this->lang['sys.date_update'],
                     'sorted' => 'ASC',
                     'filterable' => true
                 ], [
@@ -94,13 +94,13 @@ trait types_trait {
                 'type' => 'date',
                 'id' => "created_at",
                 'value' => '',
-                'label' => $this->lang['date_create']
+                'label' => $this->lang['sys.date_create']
             ],
             'updated_at' => [
                 'type' => 'date',
                 'id' => "updated_at",
                 'value' => '',
-                'label' => $this->lang['date_update']
+                'label' => $this->lang['sys.date_update']
             ],
         ];
         if ($post_data && isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') { // AJAX
@@ -131,25 +131,26 @@ trait types_trait {
     /**
      * Добавить или редактировать категорию
      */
-    public function type_edit($arg) {
+    public function type_edit($params) {
         $this->access = array(1, 2);
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
             exit();
         }
         /* model */
-        $this->load_model('m_types', array($this->logged_in));
+        $this->load_model('m_types', [$this->logged_in]);
         /* get current user data */
         $user_data = $this->models['m_types']->data;
         $this->get_user_data($user_data);
-        if (in_array('id', $arg)) {
-            $id = filter_var($arg[array_search('id', $arg) + 1], FILTER_VALIDATE_INT);
-            if (isset($_POST['name']) && $_POST['name']) {
-                if (!$id = $this->models['m_types']->update_type_data($_POST)) {
+        $post_data = SysClass::ee_cleanArray($_POST);
+        if (in_array('id', $params)) {
+            $id = filter_var($params[array_search('id', $params) + 1], FILTER_VALIDATE_INT);
+            if (isset($post_data['name']) && $post_data['name']) {
+                if (!$id = $this->models['m_types']->update_type_data($post_data)) {
                     $notifications = new Class_notifications();
                     $notifications->add_notification_user($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
                 } else {
-                    if (!$_POST['type_id']) SysClass::return_to_main(200, ENV_URL_SITE . '/admin/type_edit/id/' . $id);
+                    if (!$post_data['type_id']) SysClass::return_to_main(200, ENV_URL_SITE . '/admin/type_edit/id/' . $id);
                 }
             }
             $get_type_data = (int)$id ? $this->models['m_types']->get_type_data($id) : [];

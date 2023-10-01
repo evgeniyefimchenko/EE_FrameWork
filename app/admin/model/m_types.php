@@ -70,8 +70,7 @@ Class Model_types Extends Users {
      * @return int|bool ID нового или обновленного типа или false в случае ошибки.
      */
     public function update_type_data($type_data = []) {
-        $allowed_fields = ['name', 'description', 'type_id'];
-        $type_data = SafeMySQL::gi()->filterArray($type_data, $allowed_fields);
+        $type_data = SafeMySQL::gi()->filterArray($type_data, SysClass::ee_get_fields_table(Constants::TYPES_TABLE));
         $type_data = array_map('trim', $type_data);
         if (empty($type_data['name'])) {
             return false;

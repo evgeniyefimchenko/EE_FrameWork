@@ -1,14 +1,11 @@
-/**
- * Подключается на всех страницах админ-панели
- */
-
+/*Страница админ-панели подключается в layouts Подключается на всех страницах админ-панели*/
 var text_message, color;
 
 actions = {
     showNotification: function (text_message, color, from, align) {
         // color = 'info'; // 'primary', 'info', 'success', 'warning', 'danger'
         return $.notify({
-            icon: "fa fa-bell",
+            icon: "fa-bell1",
             message: text_message
         }, {
             z_index: 10000,
@@ -25,7 +22,6 @@ actions = {
             type: 'POST',
             url: '/admin/ajax_admin',
             dataType: 'json',
-            async: false,
             data: {'get': 1},
             success: function (data) {
                 if (typeof data.error !== 'undefined') {
@@ -85,13 +81,17 @@ actions = {
             }
         });
     }
-}
+};
 
 // Загрузка и активация пользовательских настроек
 actions.loadOptionsUser();
 
 $(document).ready(function () {
-    $(".preloader").fadeOut();
+    $('a.nav-link').removeClass('active');
+    let $elem = $('a.nav-link[href="' + window.location.pathname + '"]');
+    $elem.addClass('active');
+    $($elem.attr('data-parent-bs-target')).addClass('show');
+    $('a[data-bs-target="' + $elem.attr('data-parent-bs-target') + '"]').attr('aria-expanded', true).removeClass('collapsed');    
     // Пометить все сообщения прочитанными
     $('#set_readed_all, #read_all_message').click(function () {
         let return_url = $(this).data('return');
@@ -105,15 +105,17 @@ $(document).ready(function () {
             }
         });
     });
+    $(".preloader").fadeOut();
 });
 
 window.addEventListener('DOMContentLoaded', event => {
     const sidebarToggle = document.body.querySelector('#sidebarToggle');
     if (sidebarToggle) {
         // Раскомментируйте чтобы сохранить боковую панель для переключения между обновлениями
-        // if (localStorage.getItem('sb|sidebar-toggle') === 'true') {
-        //     document.body.classList.toggle('sb-sidenav-toggled');
-        // }
+        if (localStorage.getItem('sb|sidebar-toggle') === 'true') {
+            document.body.classList.toggle('sb-sidenav-toggled');
+        }
+        //
         sidebarToggle.addEventListener('click', event => {
             event.preventDefault();
             document.body.classList.toggle('sb-sidenav-toggled');

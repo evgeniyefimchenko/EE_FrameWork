@@ -20,7 +20,7 @@ Class Controller_index Extends Controller_Base {
     private function get_user_data() {
         $this->access = array(100);
         if ($this->logged_in) {
-            $this->load_model('m_index', array($this->logged_in));
+            $this->load_model('m_index', [$this->logged_in]);
             /* get user data */
             $user_data = $this->models['m_index']->data;
             foreach ($user_data as $name => $val) {
@@ -39,7 +39,6 @@ Class Controller_index Extends Controller_Base {
             $this->lang = $lang;
         } else {
             $this->load_model('m_index');
-			// $this->models['m_index']->set_user_password(1, 'hedgehogelez@mail.ru', '65535');
             $this->check_install();
             $lang_code = Session::get('lang');
             if (!$lang_code) {
@@ -167,7 +166,7 @@ Class Controller_index Extends Controller_Base {
         }
         $this->get_user_data();
         $json['error'] = '';
-        $post_data = filter_input_array(INPUT_POST, $_POST);
+        $post_data = SysClass::ee_cleanArray($_POST);
         $email = trim($post_data['email']);
         $pass = trim($post_data['password']);
         if (!SysClass::validEmail($email)) {
@@ -200,7 +199,7 @@ Class Controller_index Extends Controller_Base {
             echo json_encode($json, JSON_UNESCAPED_UNICODE);
             die();
         }
-        $post_data = filter_input_array(INPUT_POST, $_POST);
+        $post_data = SysClass::ee_cleanArray($_POST);
         $email = trim($post_data['email']);
         $pass = trim($post_data['password']);
         $conf_pass = trim($post_data['password_confirmation']);
@@ -288,18 +287,19 @@ Class Controller_index Extends Controller_Base {
         if (count($params) > 1 || count($params) == 0 || !isset($_SERVER['HTTP_X_REQUESTED_WITH']) || strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) != 'xmlhttprequest' || empty(ENV_SITE)) {
             die(json_encode(array('error' => 'it`s a lie')));
         }
+        $post_data = SysClass::ee_cleanArray($_POST);
         if ($this->logged_in) {
             $this->access = array(100);
             if (!SysClass::get_access_user($this->logged_in, $this->access)) {
                 die(json_encode(array('error' => 'access denieded')));
             }
-            if ($params[0] == 'en' || $params[0] == 'ru') {
+            if ($params[0] == 'en' || $params[0] == 'ru') {                
                 Session::set('lang', $params[0]);
-                $_POST['localize'] = $params[0];
+                $post_data['localize'] = $params[0];
             }
-            $this->load_model('m_index', array($this->logged_in));
+            $this->load_model('m_index', [$this->logged_in]);
             $user_data = $this->models['m_index']->data;
-            foreach ($_POST as $key => $value) {
+            foreach ($post_data as $key => $value) {
                 if (array_key_exists($key, $user_data['options'])) {
                     $user_data['options'][$key] = $value;
                 }
@@ -318,8 +318,13 @@ Class Controller_index Extends Controller_Base {
         if ($params || !isset($_SERVER['HTTP_X_REQUESTED_WITH']) || strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) != 'xmlhttprequest' || empty(ENV_SITE)) {
             die('it`s a lie');
         }
+        $post_data = SysClass::ee_cleanArray($_POST);
         $this->get_user_data();
-        die(isset($this->lang[$_POST['text']]) ? $this->lang[$_POST['text']] : 'var ' . $_POST['text'] . ' not found!');
+        if (isset($post_data['loadAll']) && $post_data['loadAll'] == 'true') {
+            die(json_encode($this->lang));
+        } else {
+            die(isset($this->lang[$post_data['text']]) ? $this->lang[$post_data['text']] : 'var ' . $post_data['text'] . ' not found!');
+        }
     }
 
     /**

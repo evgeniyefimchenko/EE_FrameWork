@@ -10,7 +10,6 @@ if (ENV_SITE !== 1) {
  * Класс работы с пользователями
  * Является родителем для моделей главной страницы и административной панели
  */
-use Constants;
 
 Class Users {
 
@@ -46,7 +45,7 @@ Class Users {
         $res_array = [];
         if (SysClass::connect_db_exists()) {
             if (SafeMySQL::gi()->query('show tables like ?s', Constants::USERS_TABLE)->{"num_rows"} > 0) {
-                $sql_user = 'SELECT * FROM ?n WHERE `id` = ?i';
+                $sql_user = 'SELECT * FROM ?n WHERE `id` = ?i AND `deleted` = 0';
                 $res_array = SafeMySQL::gi()->getRow($sql_user, Constants::USERS_TABLE, (int) $id);
                 if ($res_array) {
                     $class_messages = new Class_messages();
@@ -70,7 +69,8 @@ Class Users {
                 }
             } else { // Нет таблицы users					
                 $this->create_tables(); //создаём необходимый набор таблиц в БД и первого пользователя с ролью администратора
-                $this->registration_new_user(array('name' => 'admin', 'email' => 'test@test.com', 'active' => '2', 'user_role' => '1', 'subscribed' => '1', 'comment' => 'Смените пароль администратора', 'pwd' => 'admin'), true);
+                $this->registration_new_user(array('name' => 'admin', 'email' => 'test@test.com', 'active' => '2', 'user_role' => '1', 'subscribed' => '0', 'comment' => 'Смените пароль администратора', 'pwd' => 'admin'), true);
+                $this->registration_new_user(array('name' => 'moderator', 'email' => 'test_moderator@test.com', 'active' => '2', 'user_role' => '2', 'subscribed' => '0', 'comment' => 'Смените пароль модератора', 'pwd' => 'moderator'), true);
                 if (ENV_TEST) {
                     echo 'База данных успешно развёрнута!';
                 }
@@ -137,7 +137,7 @@ Class Users {
      */
     public function get_users_data($order = 'id ASC', $where = NULL, $start = 0, $limit = 100) {
         $orderString = $order ? $order : 'id ASC';
-        $whereString = $where ? $where : '';
+        $whereString = $where ? $where . ' AND deleted = 0' : 'WHERE deleted = 0';
         $start = $start ? $start : 0;
         if ($orderString) {
             $sql_users = "SELECT `id` FROM ?n $whereString ORDER BY $orderString LIMIT ?i, ?i";
@@ -294,8 +294,7 @@ Class Users {
         }
         $sql = 'INSERT INTO ?n SET ?u';
         SafeMySQL::gi()->query($sql, Constants::USERS_TABLE, $fields);
-        $sql = 'SELECT MAX(`id`) FROM ?n';
-        $id_user = SafeMySQL::gi()->getOne($sql, Constants::USERS_TABLE);
+        $id_user = SafeMySQL::gi()->insertId();
         if (ENV_LOG && $id_user) {
             SysClass::SetLog('Зарегистрирован новый пользователь id=' . $id_user, 'info', $this->data['id']);
         }
@@ -425,7 +424,7 @@ Class Users {
      * Проверка существования почты в БД
      */
     public function get_email_exist($email) {
-        $sql = 'SELECT 1 FROM ?n WHERE `email` = ?s';
+        $sql = 'SELECT 1 FROM ?n WHERE `email` = ?s AND deleted = 0';
         return SafeMySQL::gi()->getOne($sql, Constants::USERS_TABLE, $email);
     }
 
@@ -500,108 +499,31 @@ Class Users {
     }
 
     /**
-     * 	Удаление пользователя
-     * 	@param id - id пользователя
-     * 	@param copy - флаг копирования в архивную таблицу
-     */
-    public function dell_user_data($id, $copy = false) {
-        if ($copy) {
-            $sql = 'INSERT INTO ?n SELECT *, CURRENT_TIMESTAMP FROM ?n WHERE id = ?i';
-            SafeMySQL::gi()->query($sql, Constants::DELL_USERS_TABLE, Constants::USERS_TABLE, $id);
-            $sql = 'DELETE FROM ?n WHERE `id` = ?i';
-            SafeMySQL::gi()->query($sql, Constants::USERS_TABLE, $id);
-            if (ENV_LOG) {
-                SysClass::SetLog('Пользователь id=' . $id . 'перемещён в таблицу удалённые ' . Constants::DELL_USERS_TABLE, 'info', $this->data['id']);
-            }
-        } else {
-            $sql = 'DELETE FROM ?n WHERE `id` = ?i';
-            SafeMySQL::gi()->query($sql, Constants::USERS_TABLE, $id);
-            if (ENV_LOG) {
-                SysClass::SetLog('Удалён пользователь id=' . $id, 'info', $this->data['id']);
-            }
-            $sql = 'DELETE a, d, m FROM ?n as a, ?n as d, ?n as m WHERE `a`.`user_id` = ?i AND `d`.`user_id` = ?i AND `m`.`user_id` = ?i';
-            SafeMySQL::gi()->query($sql, Constants::USERS_ACTIVATION_TABLE, Constants::USERS_DATA_TABLE, Constants::USERS_MESSAGE_TABLE, $id, $id, $id);
-            if (ENV_LOG) {
-                SysClass::SetLog('Удалены данные пользователя id=' . $id, 'info', $this->data['id']);
-            }
-        }
-    }
-
-    /**
-     * Генерация пользователей для теста
-     */
-    public function generate_test_users($count = 50, $role = 4, $active = 2) {
-        $namePrefixes = ['Алексей', 'Наталья', 'Сергей', 'Ольга', 'Дмитрий', 'Елена', 'Иван', 'Мария', 'Павел', 'Анастасия', 'Андрей', 'Татьяна', 'Роман', 'Светлана', 'Евгений'];
-        $comments = [
-            'Тестовый комментарий',
-            'Сгенерировано автоматически',
-            'Проверка функции',
-            'Данные для теста',
-            'Неизвестный пользователь'
-        ];
-        for ($i = 0; $i < $count; $i++) {
-            $name = $namePrefixes[array_rand($namePrefixes)] . '_' . mt_rand(1000, 9999);
-            $email = $name . ENV_DOMEN_NAME;
-            $commentPrefix = $comments[array_rand($comments)];
-            $comment = $commentPrefix . " (" . date("Y-m-d H:i:s") . ")";
-            $password = bin2hex(openssl_random_pseudo_bytes(4)); // 8-character random password
-            $this->registration_new_user([
-                'name' => $name,
-                'email' => $email,
-                'active' => $active,
-                'user_role' => $role,
-                'subscribed' => '1',
-                'comment' => $comment,
-                'pwd' => $password
-                    ], true);
-        }
-    }
-
-    /**
      * Создаёт необходимые таблицы в БД
      * Если нет подключения то вернёт false
      */
     public function create_tables() {
         /* Пользователи */
         $create_table = "CREATE TABLE IF NOT EXISTS ?n (
-						  `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
-						  `name` char(255) NOT NULL DEFAULT 'Merchant_ID',
-						  `email` char(255) NOT NULL,
-						  `pwd` varchar(255) NOT NULL,
-						  `active` tinyint(1) NOT NULL DEFAULT '1' COMMENT '1 - на подтверждении, 2 - активен,  3 - блокирован',
-						  `user_role` tinyint(2) NOT NULL DEFAULT '4' COMMENT 'таблица user_roles',
-						  `last_ip` char(20) DEFAULT NULL,
-						  `subscribed` tinyint(1) DEFAULT '1' COMMENT 'подписка на рассылку',
-						  `reg_date` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'дата регистрации',
-						  `last_activ` datetime DEFAULT NULL COMMENT 'дата крайней активности',
-						  `up_date` datetime NOT NULL COMMENT 'дата обновления инф.',
-						  `phone` varchar(255) NOT NULL,
-						  `session` varchar(255) NOT NULL,
-						  `comment` varchar(255) NOT NULL COMMENT 'Комментарий или дивиз пользователя',
-						  PRIMARY KEY (`id`),
-						  UNIQUE KEY `email` (`email`)
-						) ENGINE=innodb DEFAULT CHARSET=utf8 COMMENT='Пользователи сайта';";
+            `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+            `name` char(255) NOT NULL DEFAULT 'Merchant_ID',
+            `email` char(255) NOT NULL,
+            `pwd` varchar(255) NOT NULL,
+            `active` tinyint(1) NOT NULL DEFAULT '1' COMMENT '1 - на подтверждении, 2 - активен,  3 - блокирован',
+            `user_role` tinyint(2) NOT NULL DEFAULT '4' COMMENT 'таблица user_roles',
+            `last_ip` char(20) DEFAULT NULL,
+            `subscribed` tinyint(1) DEFAULT '1' COMMENT 'подписка на рассылку',
+            `reg_date` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'дата регистрации',
+            `last_activ` datetime DEFAULT NULL COMMENT 'дата крайней активности',
+            `up_date` datetime NOT NULL COMMENT 'дата обновления инф.',
+            `phone` varchar(255) NOT NULL,
+            `session` varchar(255) NOT NULL,
+            `comment` varchar(255) NOT NULL COMMENT 'Комментарий или дивиз пользователя',
+            `deleted` BOOLEAN NOT NULL DEFAULT 0 COMMENT 'Флаг удаленного пользователя',
+            PRIMARY KEY (`id`),
+            UNIQUE KEY `email` (`email`)
+        ) ENGINE=innodb DEFAULT CHARSET=utf8 COMMENT='Пользователи сайта';";
         SafeMySQL::gi()->query($create_table, Constants::USERS_TABLE);
-        /* Удалённые пользователи */
-        $create_table = "CREATE TABLE IF NOT EXISTS ?n (
-						  `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
-						  `name` char(255) NOT NULL DEFAULT 'Merchant_ID',
-						  `email` char(255) NOT NULL,
-						  `pwd` varchar(255) NOT NULL,
-						  `active` tinyint(1) UNSIGNED NOT NULL DEFAULT '1' COMMENT '1 - на подтверждении, 2 - активен,  3 - блокирован',
-						  `user_role` tinyint(2) UNSIGNED NOT NULL DEFAULT '3' COMMENT 'таблица user_roles',
-						  `last_ip` char(20) DEFAULT NULL,
-						  `subscribed` tinyint(1) DEFAULT '1' COMMENT 'Историческое поле',
-						  `reg_date` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'дата регистрации',
-						  `last_activ` datetime DEFAULT NULL COMMENT 'дата крайней активности',
-						  `up_date` datetime NOT NULL COMMENT 'дата обновления инф.',					  
-						  `phone` varchar(255) NOT NULL,
-						  `comment` varchar(255) NOT NULL COMMENT 'Комментарий или дивиз пользователя',
-						  `date_dell` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Время удаления',
-						  PRIMARY KEY (`id`),
-						  UNIQUE KEY `email` (`email`)
-						) ENGINE=innodb DEFAULT CHARSET=utf8 COMMENT='Удалённые пользователи сайта';";
-        SafeMySQL::gi()->query($create_table, Constants::DELL_USERS_TABLE);
         /* Роли пользователей */
         $create_table = "CREATE TABLE IF NOT EXISTS ?n (
                                                    `id` tinyint(2) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -609,7 +531,7 @@ Class Users {
                                                   PRIMARY KEY (`id`)
 						) ENGINE=innodb DEFAULT CHARSET=utf8 COMMENT='1-админ 2-модератор 3-пользователь 8-система';";
         SafeMySQL::gi()->query($create_table, Constants::USERS_ROLES_TABLE);
-
+        /* Добавим стандартные роли */
         $insert_data = "INSERT INTO ?n (`id`, `name`) VALUES
 						(1, 'Администратор'),
 						(2, 'Модератор'),
@@ -656,7 +578,8 @@ Class Users {
                         name VARCHAR(255) NOT NULL UNIQUE,
                         description VARCHAR(255),
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        language_code CHAR(2) NOT NULL DEFAULT 'RU' COMMENT 'Код языка по ISO 3166-2'
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения типов сущностей и категорий';";
         SafeMySQL::gi()->query($create_types_table, Constants::TYPES_TABLE);
         // Создание таблицы категорий
@@ -671,6 +594,7 @@ Class Users {
             status ENUM('active', 'hidden', 'disabled') NOT NULL DEFAULT 'active',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            language_code CHAR(2) NOT NULL DEFAULT 'RU' COMMENT 'Код языка по ISO 3166-2',
             INDEX (type_id),
             INDEX (parent_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения категорий сущностей';";
@@ -691,6 +615,7 @@ Class Users {
 			description TEXT,
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        language_code CHAR(2) NOT NULL DEFAULT 'RU' COMMENT 'Код языка по ISO 3166-2',
 			FOREIGN KEY (category_id) REFERENCES ?n(category_id),
 			INDEX (category_id)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения сущностей (продукты или страницы)';";
@@ -702,7 +627,8 @@ Class Users {
 			status ENUM('active', 'hidden', 'disabled') NOT NULL DEFAULT 'active',
 			description VARCHAR(255),
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        language_code CHAR(2) NOT NULL DEFAULT 'RU' COMMENT 'Код языка по ISO 3166-2'
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения типов свойств';";
         SafeMySQL::gi()->query($create_property_types_table, Constants::PROPERTY_TYPES_TABLE);
         // Таблица для хранения свойств
@@ -716,6 +642,7 @@ Class Users {
 			description VARCHAR(255),
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        language_code CHAR(2) NOT NULL DEFAULT 'RU' COMMENT 'Код языка по ISO 3166-2',
 			FOREIGN KEY (type_id) REFERENCES ?n(type_id),
 			INDEX (type_id)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения свойств';";
@@ -730,14 +657,14 @@ Class Users {
 			status ENUM('active', 'hidden', 'disabled') NOT NULL DEFAULT 'active',
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        language_code CHAR(2) NOT NULL DEFAULT 'RU' COMMENT 'Код языка по ISO 3166-2',
 			FOREIGN KEY (property_id) REFERENCES ?n(property_id),
 			INDEX (property_id),
 			INDEX (entity_id)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения значений свойств в формате JSON';";
         SafeMySQL::gi()->query($create_property_values_table, Constants::PROPERTY_VALUES_TABLE, Constants::PROPERTIES_TABLE);
-
         // Запись предварительных данных в БД
-        // Добавление основных типов катеорий
+        // Добавление основных типов категорий
         $types = [
             ['name' => 'Товары', 'description' => 'Для хранения информации о товарах'],
             ['name' => 'Страницы', 'description' => 'Для хранения информации о страницах сайта'],

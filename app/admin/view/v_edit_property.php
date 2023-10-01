@@ -38,7 +38,7 @@ if (ENV_SITE !== 1) {
                                     <input type="text" id="name-input" name="name" class="form-control" placeholder="Введите название..." value="<?= $property_data['name'] ?>">                                    
                                 </div>
                                 <div class="col-6 col-sm-3">
-                                    <label for="type_id-input"><?=$lang['type'] . ' ' . $lang['properties']?>:</label>
+                                    <label for="type_id-input"><?=$lang['sys.type'] . ' ' . $lang['properties']?>:</label>
                                     <div role="group" class="input-group">
                                         <select type="text" id="type_id-input" name="type_id" class="form-control">
                                             <?php foreach ($all_property_types as $item) { ?>
@@ -76,11 +76,11 @@ if (ENV_SITE !== 1) {
                             </div>
                             <div class="row mb-3">
                                 <div class="col-2">
-                                    <label for="registration-date-input"><?=$lang['date_create']?>:</label>
+                                    <label for="registration-date-input"><?=$lang['sys.date_create']?>:</label>
                                     <input type="text" disabled  class="form-control" value="<?= $property_data['created_at'] ?>">
                                 </div>
                                 <div class="col-2">
-                                    <label for="update-date-input"><?=$lang['date_update']?>:</label>
+                                    <label for="update-date-input"><?=$lang['sys.date_update']?>:</label>
                                     <input type="text" disabled class="form-control" value="<?= $property_data['updated_at'] ?>">
                                 </div>
                             </div>

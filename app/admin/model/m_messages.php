@@ -8,8 +8,6 @@
  * Модель сообщений пользователя
  */
 
-use Constants;
-
 Class Model_messages {
     
     /**

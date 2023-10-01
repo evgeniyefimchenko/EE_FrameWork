@@ -19,7 +19,7 @@ $C['ENV_DB_PREF'] = NULL;
 $C['ENV_SITE_NAME'] = ''; // Название сайта
 $C['ENV_SITE_DESCRIPTION'] = ''; // Описание сайта
 $C['ENV_SITE_AUTHOR'] = 'efimchenko.ru'; // Автор сайта
-$C['ENV_DATE_SITE_CREATE'] = ''; // Дата создания сайта
+$C['ENV_DATE_SITE_CREATE'] = '13.02.2023'; // Дата создания сайта
 $C['ENV_DIRSEP'] = DIRECTORY_SEPARATOR;  // Разделитель операционной системы
 $C['ENV_DOMEN_PROTOCOL'] = !empty($_SERVER['HTTPS']) && strtolower($_SERVER['HTTPS']) !== 'off' ? "https://" : "http://"; // Протокол сайта
 $C['ENV_DOMEN_NAME'] = $_SERVER['SERVER_NAME']; // Домена сайта
@@ -43,7 +43,7 @@ $C['ENV_EMAIL_TEMPLATE'] = $C['ENV_SITE_PATH'] . 'assets' . $C['ENV_DIRSEP'] . '
 $C['ENV_APP_DIRECTORY'] = 'app';    // Директория контроллеров
 $C['ENV_PATH_LANG'] = 'inc' . DIRECTORY_SEPARATOR . 'langs';    // Директория языковых файлов
 $get_lang_code = substr(Get_Client_Prefered_Language(), 0, 2);
-$C['ENV_DEF_LANG'] = $get_lang_code ? $get_lang_code : 'ru';    // Локализация по умолчанию,выбирает наиболее предпочитаемый язык пользователя или ru
+$C['ENV_DEF_LANG'] = $get_lang_code ? strtoupper($get_lang_code) : 'RU';    // Локализация по умолчанию,выбирает наиболее предпочитаемый язык пользователя или en
 $C['ENV_SITE_EMAIL'] = 'evgeniy@efimchenko.ru';   // Почта сайта ОБЯЗАТЕЛЬНОЕ ЗАПОЛНЕНИЕ
 $C['ENV_ADMIN_EMAIL'] = 'evgeniy@efimchenko.ru';  // Почта администратора сайта ОБЯЗАТЕЛЬНОЕ ЗАПОЛНЕНИЕ
 $C['ENV_SUPPORT_EMAIL'] = 'evgeniy@efimchenko.ru';  // Почта службы поддержки сайта

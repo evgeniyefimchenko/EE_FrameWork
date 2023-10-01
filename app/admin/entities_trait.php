@@ -19,7 +19,7 @@ trait entities_trait {
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main(200, '/show_login_form?return=admin');
         }
-        $this->load_model('m_entities', array($this->logged_in));
+        $this->load_model('m_entities', [$this->logged_in]);
         /* get data */
         $user_data = $this->models['m_entities']->data;
         $this->get_user_data($user_data);
@@ -41,23 +41,24 @@ trait entities_trait {
     /**
      * Добавить или редактировать сущность
      */
-    public function entitiy_edit($arg = []) {
+    public function entitiy_edit($params = []) {
         $this->access = array(1, 2);
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
             exit();
         }
         /* model */
-        $this->load_model('m_entities', array($this->logged_in));
+        $this->load_model('m_entities', [$this->logged_in]);
         $this->load_model('m_types', []);
         $this->load_model('m_categories', []);
         /* get current user data */
         $user_data = $this->models['m_entities']->data;
         $this->get_user_data($user_data);
-        if (in_array('id', $arg)) {
-            $id = filter_var($arg[array_search('id', $arg) + 1], FILTER_VALIDATE_INT);
-            if (isset($_POST['title']) && $_POST['title']) {             
-                if (!$new_id = $this->models['m_entities']->update_entitiy_data($_POST)) {
+        $post_data = SysClass::ee_cleanArray($_POST);
+        if (in_array('id', $params)) {
+            $id = filter_var($params[array_search('id', $params) + 1], FILTER_VALIDATE_INT);
+            if (isset($post_data['title']) && $post_data['title']) {             
+                if (!$new_id = $this->models['m_entities']->update_entitiy_data($post_data)) {
                     $notifications = new Class_notifications();
                     $notifications->add_notification_user($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
                 } else {
@@ -89,19 +90,19 @@ trait entities_trait {
     /**
      * Удаление сущности
      */
-    public function entitiy_dell($arg = []) {        
+    public function entitiy_dell($params = []) {        
         $this->access = array(1, 2);
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
             exit();
         }
         /* model */
-        $this->load_model('m_entities', array($this->logged_in));        
+        $this->load_model('m_entities', [$this->logged_in]);        
         /* get current user data */
         $user_data = $this->models['m_entities']->data;
         $this->get_user_data($user_data);
-        if (in_array('id', $arg)) {
-            $id = filter_var($arg[array_search('id', $arg) + 1], FILTER_VALIDATE_INT);
+        if (in_array('id', $params)) {
+            $id = filter_var($params[array_search('id', $params) + 1], FILTER_VALIDATE_INT);
             $res = $this->models['m_entities']->delete_entity($id);
             if (isset($res['error'])) {
                 $notifications = new Class_notifications();
@@ -120,12 +121,14 @@ trait entities_trait {
             SysClass::return_to_main();
             exit();
         }
-        $this->load_model('m_entities', array($this->logged_in));
+        $this->load_model('m_entities', [$this->logged_in]);
+        $this->load_model('m_types', []);
+        $all_types = $this->models['m_types']->get_all_types();
         if (!$this->lang['sys.name']) { // Подргужаем языковые переменные
             $user_data = $this->models['m_entities']->data;
             $this->get_user_data($user_data);
         }
-        $post_data = $_POST;
+        $post_data = SysClass::ee_cleanArray($_POST);
         $data_table = [
             'columns' => [
                 [
@@ -140,22 +143,22 @@ trait entities_trait {
                     'filterable' => true
                 ], [
                     'field' => 'category_id',
-                    'title' => $this->lang['category'],
+                    'title' => $this->lang['sys.category'],
                     'sorted' => 'ASC',
                     'filterable' => true
                 ], [
                     'field' => 'type_id',
-                    'title' => $this->lang['type'],
+                    'title' => $this->lang['sys.type'],
                     'sorted' => 'ASC',
                     'filterable' => true
                 ], [
                     'field' => 'created_at',
-                    'title' => $this->lang['date_create'],
+                    'title' => $this->lang['sys.date_create'],
                     'sorted' => 'ASC',
                     'filterable' => true
                 ], [
                     'field' => 'updated_at',
-                    'title' => $this->lang['date_update'],
+                    'title' => $this->lang['sys.date_update'],
                     'sorted' => 'ASC',
                     'filterable' => true
                 ], [
@@ -166,6 +169,10 @@ trait entities_trait {
                 ],
             ]
         ];
+        $filter_types[] = ['value' => 0, 'label' => 'Любой'];
+        foreach ($all_types as $item) {
+            $filter_types[] = ['value' => $item['type_id'], 'label' => $item['name']];
+        }        
         $filters = [
             'title' => [
                 'type' => 'text',
@@ -177,27 +184,27 @@ trait entities_trait {
                 'type' => 'text',
                 'id' => "category_id",
                 'value' => '',
-                'label' => $this->lang['category']
+                'label' => $this->lang['sys.category']
             ],
             'type_id' => [
                 'type' => 'select',
                 'id' => "type_id",
                 'value' => [],
-                'label' => $this->lang['type'],
-                'options' => [['value' => 0, 'label' => 'Любой']],
+                'label' => $this->lang['sys.type'],
+                'options' => $filter_types,
                 'multiple' => true
             ],
             'created_at' => [
                 'type' => 'date',
                 'id' => "created_at",
                 'value' => '',
-                'label' => $this->lang['date_create']
+                'label' => $this->lang['sys.date_create']
             ],
             'updated_at' => [
                 'type' => 'date',
                 'id' => "updated_at",
                 'value' => '',
-                'label' => $this->lang['date_update']
+                'label' => $this->lang['sys.date_update']
             ],
         ];
         if ($post_data && isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') { // AJAX
@@ -216,15 +223,15 @@ trait entities_trait {
                 'updated_at' => $item['updated_at'] ? date('d.m.Y', strtotime($item['updated_at'])) : '',
                 'actions' => '<a href="/admin/entitiy_edit/id/' . $item['entity_id'] . '"'
                 . 'class="btn btn-primary me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.edit'] . '"><i class="fas fa-edit"></i></a>'
-                . '<a href="/admin/entitiy_dell/id/' . $item['entity_id'] . '"'
+                . '<a href="/admin/entitiy_dell/id/' . $item['entity_id'] . '" onclick="return confirm(\'' . $this->lang['sys.delete'] . '?\');" '
                 . 'class="btn btn-danger me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.delete'] . '"><i class="fas fa-trash"></i></a>'
             ];
         }
-        $data_table['total_rows'] = $entities_array['total_count'];
-        if ($post_data) {
+        $data_table['total_rows'] = $entities_array['total_count'];        
+        if ($post_data) {            
             echo Plugins::ee_show_table('entity_table', $data_table, 'get_entities_data_table', $filters, $post_data["page"], $post_data["rows_per_page"], $selected_sorting);
             die;
-        } else {
+        } else {            
             return Plugins::ee_show_table('entity_table', $data_table, 'get_entities_data_table', $filters);
         }
     }

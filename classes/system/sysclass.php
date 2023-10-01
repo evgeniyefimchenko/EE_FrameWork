@@ -254,26 +254,25 @@ Class SysClass {
      * @param str $email - переданная почта
      * @return boolean
      */
-	public static function validEmail($emails) {
-		$pattern = '/.+@.+\..+/i'; // Всё остальное от лукавого!
+    public static function validEmail($emails) {
+        $pattern = '/.+@.+\..+/i'; // Всё остальное от лукавого!
+        // Если передана строка (один адрес электронной почты), преобразуем её в массив
+        if (is_string($emails)) {
+            $emails = [$emails];
+        }
 
-		// Если передана строка (один адрес электронной почты), преобразуем её в массив
-		if (is_string($emails)) {
-			$emails = [$emails];
-		} 
+        // Если передан массив, проходимся по каждому адресу и проверяем его
+        if (is_array($emails)) {
+            foreach ($emails as $email) {
+                if (!preg_match($pattern, $email)) {
+                    return false; // Возвращаем false при первом обнаружении невалидного адреса
+                }
+            }
+            return true; // Все адреса валидны
+        }
 
-		// Если передан массив, проходимся по каждому адресу и проверяем его
-		if (is_array($emails)) {
-			foreach ($emails as $email) {
-				if (!preg_match($pattern, $email)) {
-					return false; // Возвращаем false при первом обнаружении невалидного адреса
-				}
-			}
-			return true; // Все адреса валидны
-		}
-
-		return false; // Если передан не массив и не строка, возвращаем false
-	}
+        return false; // Если передан не массив и не строка, возвращаем false
+    }
 
     /**
      * Подбор ключевых слов, исключены слова из массива $adjectivearray
@@ -454,8 +453,8 @@ Class SysClass {
         } elseif ($code === 301) {
             $code_redirect = '301 Moved Permanently';
         } elseif ($code === 307) {
-			$code_redirect = '307 Temporary Redirect';
-		} else {
+            $code_redirect = '307 Temporary Redirect';
+        } else {
             $code_redirect = '404 Not Found';
         }
         if (ENV_TEST) {
@@ -761,8 +760,8 @@ Class SysClass {
                 "VN" => "Вьетнам",
                 "VG" => "Британские Виргинские острова",
                 "VI" => "Виргинские острова США",
-                "WF" => "Уоллис и Футуна",                
-            ];            
+                "WF" => "Уоллис и Футуна",
+            ];
         } else {
             $countries = array(
                 "CV" => "Cabo Verde",
@@ -940,7 +939,7 @@ Class SysClass {
             return $countries[$code];
         } else {
             return false;
-        }        
+        }
     }
 
     /**
@@ -1083,9 +1082,9 @@ Class SysClass {
      * Принимает до 5-ти значений
      */
     public static function pre_file($val, $temp = '', $temp1 = '', $temp2 = '', $temp3 = '') {
-        $test = '';
-        if ('test' == strtolower($val)) {
-            $test = 'test_';
+        $error = '';
+        if ('error' == strtolower($val)) {
+            $error = 'error_';
         }
         if (!file_exists(ENV_SITE_PATH . 'logs')) {
             mkdir(ENV_SITE_PATH . 'logs', 0777, true);
@@ -1096,7 +1095,7 @@ Class SysClass {
         $temp1 = $temp1 ? var_export($temp1, true) . PHP_EOL : '';
         $temp2 = $temp2 ? var_export($temp2, true) . PHP_EOL : '';
         $temp3 = $temp3 ? var_export($temp3, true) . PHP_EOL : '';
-        file_put_contents(ENV_SITE_PATH . 'logs' . ENV_DIRSEP . $test . date("Y-m-d") . '.txt', PHP_EOL . date("Y-m-d H:i:s") . ' из ' . $caller['file'] . ' Line: ' . $caller['line'] . ' Func: ' . $caller['function'] . PHP_EOL . var_export($val, true) . PHP_EOL . $temp . $temp1 . $temp2 . $temp3 . PHP_EOL, FILE_APPEND | LOCK_EX);
+        file_put_contents(ENV_SITE_PATH . 'logs' . ENV_DIRSEP . $error . date("Y-m-d") . '.txt', PHP_EOL . date("Y-m-d H:i:s") . ' из ' . $caller['file'] . ' Line: ' . $caller['line'] . ' Func: ' . $caller['function'] . PHP_EOL . var_export($val, true) . PHP_EOL . $temp . $temp1 . $temp2 . $temp3 . PHP_EOL, FILE_APPEND | LOCK_EX);
     }
 
     /**
@@ -1146,38 +1145,38 @@ Class SysClass {
      * @return string Имя файла резервной копии.
      */
     public static function ee_backup_files($dir, $exclude_dirs = array(), $password = null) {
-      // Создаем имя файла резервной копии
-      $backup_file = "backup_" . date("Ymd") . ".zip";
+        // Создаем имя файла резервной копии
+        $backup_file = "backup_" . date("Ymd") . ".zip";
 
-      // Создаем новый объект класса ZipArchive
-      $zip = new ZipArchive();
+        // Создаем новый объект класса ZipArchive
+        $zip = new ZipArchive();
 
-      // Открываем архив для записи и задаем пароль, если он задан
-      if ($zip->open($backup_file, ZIPARCHIVE::CREATE | ZIPARCHIVE::OVERWRITE) !== TRUE) {
-        die ("Ошибка: Не удалось создать архив");
-      }
-      if ($password) {
-        $zip->setPassword($password);
-      }
-
-      // Добавляем все файлы в директории к архиву
-      $files = scandir($dir);
-      foreach ($files as $file) {
-        if ($file != "." && $file != ".." && !in_array($file, $exclude_dirs)) {
-          $full_path = $dir . "/" . $file;
-          if (is_file($full_path)) {
-            $zip->addFile($full_path);
-          } elseif (is_dir($full_path)) {
-            backup_files_recursive($full_path, $zip, '', $exclude_dirs);
-          }
+        // Открываем архив для записи и задаем пароль, если он задан
+        if ($zip->open($backup_file, ZIPARCHIVE::CREATE | ZIPARCHIVE::OVERWRITE) !== TRUE) {
+            die("Ошибка: Не удалось создать архив");
         }
-      }
+        if ($password) {
+            $zip->setPassword($password);
+        }
 
-      // Закрываем архив
-      $zip->close();
+        // Добавляем все файлы в директории к архиву
+        $files = scandir($dir);
+        foreach ($files as $file) {
+            if ($file != "." && $file != ".." && !in_array($file, $exclude_dirs)) {
+                $full_path = $dir . "/" . $file;
+                if (is_file($full_path)) {
+                    $zip->addFile($full_path);
+                } elseif (is_dir($full_path)) {
+                    backup_files_recursive($full_path, $zip, '', $exclude_dirs);
+                }
+            }
+        }
 
-      // Возвращаем имя файла резервной копии
-      return $backup_file;
+        // Закрываем архив
+        $zip->close();
+
+        // Возвращаем имя файла резервной копии
+        return $backup_file;
     }
 
     /**
@@ -1192,58 +1191,57 @@ Class SysClass {
      * @return string Имя файла резервной копии.
      */
     function backup_database($host, $user, $password, $database, $backup_dir, $archive_password) {
-      // Создаем имя файла резервной копии
-      $backup_file = "backup_" . date("Ymd") . ".sql";
+        // Создаем имя файла резервной копии
+        $backup_file = "backup_" . date("Ymd") . ".sql";
 
-      // Создаем новый объект класса SafeMySQL
-      $db = new SafeMySQL(array(
-        'host' => $host,
-        'user' => $user,
-        'pass' => $password,
-        'db' => $database
-      ));
+        // Создаем новый объект класса SafeMySQL
+        $db = new SafeMySQL(array(
+            'host' => $host,
+            'user' => $user,
+            'pass' => $password,
+            'db' => $database
+        ));
 
-      // Проверяем, установлен ли mysqldump
-      $has_mysqldump = (bool) shell_exec('command -v mysqldump');
+        // Проверяем, установлен ли mysqldump
+        $has_mysqldump = (bool) shell_exec('command -v mysqldump');
 
-      if ($has_mysqldump) {
-        // Выполняем mysqldump для создания дампа базы данных
-        $command = "mysqldump -h {$host} -u {$user} -p{$password} {$database} > {$backup_dir}/{$backup_file}";
-        exec($command);
+        if ($has_mysqldump) {
+            // Выполняем mysqldump для создания дампа базы данных
+            $command = "mysqldump -h {$host} -u {$user} -p{$password} {$database} > {$backup_dir}/{$backup_file}";
+            exec($command);
 
-        // Архивируем файл с паролем
-        $archive_file = "{$backup_dir}/{$backup_file}.zip";
-        $zip = new ZipArchive();
-        $zip->open($archive_file, ZipArchive::CREATE);
-        $zip->setPassword($archive_password);
-        $zip->addFile("{$backup_dir}/{$backup_file}", $backup_file);
-        $zip->close();
+            // Архивируем файл с паролем
+            $archive_file = "{$backup_dir}/{$backup_file}.zip";
+            $zip = new ZipArchive();
+            $zip->open($archive_file, ZipArchive::CREATE);
+            $zip->setPassword($archive_password);
+            $zip->addFile("{$backup_dir}/{$backup_file}", $backup_file);
+            $zip->close();
 
-        // Удаляем исходный файл дампа
-        unlink("{$backup_dir}/{$backup_file}");
-      } else {
-        // Создаем дамп базы данных с помощью SafeMySQL
-        $dump = $db->dump();
+            // Удаляем исходный файл дампа
+            unlink("{$backup_dir}/{$backup_file}");
+        } else {
+            // Создаем дамп базы данных с помощью SafeMySQL
+            $dump = $db->dump();
 
-        // Записываем дамп в файл
-        file_put_contents("{$backup_dir}/{$backup_file}", $dump);
+            // Записываем дамп в файл
+            file_put_contents("{$backup_dir}/{$backup_file}", $dump);
 
-        // Архивируем файл с паролем
-        $archive_file = "{$backup_dir}/{$backup_file}.zip";
-        $zip = new ZipArchive();
-        $zip->open($archive_file, ZipArchive::CREATE);
-        $zip->setPassword($archive_password);
-        $zip->addFile("{$backup_dir}/{$backup_file}", $backup_file);
-        $zip->close();
+            // Архивируем файл с паролем
+            $archive_file = "{$backup_dir}/{$backup_file}.zip";
+            $zip = new ZipArchive();
+            $zip->open($archive_file, ZipArchive::CREATE);
+            $zip->setPassword($archive_password);
+            $zip->addFile("{$backup_dir}/{$backup_file}", $backup_file);
+            $zip->close();
 
-        // Удаляем исходный файл дампа
-        unlink("{$backup_dir}/{$backup_file}");
-      }
+            // Удаляем исходный файл дампа
+            unlink("{$backup_dir}/{$backup_file}");
+        }
 
-      // Возвращаем имя файла резервной копии
-      return $archive_file;
+        // Возвращаем имя файла резервной копии
+        return $archive_file;
     }
-
 
     /**
      * Конвертирует все ссылки контента src в base64 формат
@@ -1362,7 +1360,7 @@ Class SysClass {
         }
         throw new Exception('Ошибка декодирования!');
     }
-    
+
     /**
      * Более простые функции шифрования
      * @param type $string
@@ -1371,7 +1369,7 @@ Class SysClass {
      */
     public static function ee_reversibleEncrypt($string, $key) {
         $result = '';
-        for($i = 0; $i < strlen($string); $i++) {
+        for ($i = 0; $i < strlen($string); $i++) {
             $char = $string[$i];
             $keyChar = $key[$i % strlen($key)];
             $char = chr(ord($char) + ord($keyChar));
@@ -1383,17 +1381,17 @@ Class SysClass {
     public static function ee_reversibleDecrypt($string, $key) {
         $result = '';
         $string = base64_decode($string);
-        for($i = 0; $i < strlen($string); $i++) {
+        for ($i = 0; $i < strlen($string); $i++) {
             $char = $string[$i];
             $keyChar = $key[$i % strlen($key)];
             $char = chr(ord($char) - ord($keyChar));
             $result .= $char;
         }
         return $result;
-    }    
-
+    }
 
     // Более сложные функции обратного шифрования
+
     /**
      * Функция шифрования с использованием AES и SHA-512
      *
@@ -1409,17 +1407,17 @@ Class SysClass {
         $hmac = hash_hmac('sha512', $encrypted, $key, true);
         return base64_encode($iv . $hmac . $encrypted);
     }
-    
+
     public static function ee_decrypt($data, $key, $iv) {
-      // Декодируем данные из Base64
-      $data = base64_decode($data);
-      // Получаем хеш ключа с использованием SHA-512
-      $key = hash('sha512', $key, true);
-      // Расшифровываем данные с использованием AES-256-CBC
-      $decrypted = openssl_decrypt($data, 'aes-256-cbc', $key, OPENSSL_RAW_DATA, $iv);
-      return $decrypted;
+        // Декодируем данные из Base64
+        $data = base64_decode($data);
+        // Получаем хеш ключа с использованием SHA-512
+        $key = hash('sha512', $key, true);
+        // Расшифровываем данные с использованием AES-256-CBC
+        $decrypted = openssl_decrypt($data, 'aes-256-cbc', $key, OPENSSL_RAW_DATA, $iv);
+        return $decrypted;
     }
-    
+
     /**
      * Функция очистит многомерный массив от пустых значений
      * @param array $array
@@ -1440,23 +1438,124 @@ Class SysClass {
         }
         return $array;
     }
-    
+
     /**
-    * Преобразует значения массива в числа, если это возможно, или оставляет их как есть
-    * @param array $array Массив значений для преобразования.
-    * @return array Массив с преобразованными значениями.
-    */   
+     * Преобразует значения массива в числа, если это возможно, или оставляет их как есть
+     * @param array $array Массив значений для преобразования.
+     * @return array Массив с преобразованными значениями.
+     */
     public static function ee_convertArrayValuesToNumbers($array) {
         foreach ($array as $key => $value) {
             if (is_numeric($value)) {
                 if (strpos($value, '.') !== false) {
-                    $array[$key] = (float)$value;
+                    $array[$key] = (float) $value;
                 } else {
-                    $array[$key] = (int)$value;
+                    $array[$key] = (int) $value;
                 }
             }
         }
         return $array;
     }
-    
+
+    /**
+     * Очищает строковую переменную от специальных символов и обрезает пробелы с начала и конца строки.
+     * @param string $inputString Входная строка для очистки.
+     * @return string Очищенная строка.
+     */
+    public static function ee_cleanString($inputString) {
+        if (!is_string($inputString)) {
+            return false;  // Возвращает false, если входное значение не является строкой
+        }
+        $inputString = htmlspecialchars($inputString, ENT_QUOTES, 'UTF-8');  // Преобразование специальных символов в HTML-сущности
+        $inputString = strip_tags($inputString);  // Удаление HTML и PHP-тегов из строки
+        $inputString = trim($inputString);  // Удаление пробелов с начала и конца строки
+        return $inputString;
+    }
+
+    /**
+     * Очищает входной массив или строку от специальных символов и обрезает пробелы с начала и конца строки.
+     * Если элемент массива является строкой, он будет очищен от специальных символов и обрезан.
+     * Если элемент массива является другим массивом, функция будет рекурсивно вызвана для этого массива.
+     * @param array|string $input Входной массив или строка для очистки.
+     * @return array|string|false Очищенный массив, строка или false, если входное значение не является строкой или массивом.
+     */
+    public static function ee_cleanArray($input = []) {
+        if (is_string($input)) {
+            // Если входное значение является строкой, очищаем его и возвращаем
+            return self::ee_cleanString($input);
+        } elseif (is_array($input)) {
+            // Если входное значение является массивом, обрабатываем каждый элемент массива
+            foreach ($input as $key => $value) {
+                if (is_array($value)) {
+                    $input[$key] = self::ee_cleanArray($value);  // Рекурсивный вызов для вложенных массивов
+                } elseif (is_string($value)) {
+                    $input[$key] = self::ee_cleanString($value);  // Очистка строковых значений
+                }
+            }
+            return $input;
+        } else {
+            return false;  // Возвращает false для необработанных типов данных
+        }
+    }
+
+    /**
+     * Получает поля указанной таблицы из базы данных.
+     * Если поля уже были получены ранее и сохранены в константе, возвращает их оттуда.
+     * В противном случае получает поля из базы данных, обновляет файл constants.php и возвращает поля.
+     * @param string $tableName Имя таблицы, поля которой нужно получить.
+     * @return array Массив имен полей таблицы.
+     * @throws ReflectionException Если класс Constants не найден.
+     */
+    public static function ee_get_fields_table($tableName) {
+        $reflection = new ReflectionClass('Constants');
+        $fieldsKey = array_search($tableName, $reflection->getConstants());
+        $fieldsKey .= '_FIELDS';
+        $fields = $reflection->getConstant($fieldsKey);
+        if (!empty($fields) && count($fields)) {
+            return $fields;  // Если массив уже заполнен, возвращаем его
+        }
+        // Если массив не заполнен, получаем поля таблицы из базы данных
+        $fields = SafeMySQL::gi()->getAll("DESCRIBE ?n", $tableName);
+        $fieldNames = array_column($fields, 'Field');
+        // Обновляем файл constants.php
+        $constantsFile = ENV_SITE_PATH . 'classes/system/constants.php';
+        $fileContent = file_get_contents($constantsFile);
+        $newContent = preg_replace(
+                "/({$fieldsKey} = \[\])/",
+                "{$fieldsKey} = " . var_export($fieldNames, true),
+                $fileContent
+        );
+        file_put_contents($constantsFile, $newContent);
+        return $fieldNames;
+    }
+
+    /**
+     * Добавляет указанный префикс к именам полей в строке запроса.
+     * @param string $where Строка условия запроса, в которой нужно добавить префикс к именам полей.
+     * @param array $fields Массив имен полей, к которым нужно добавить префикс.
+     * @param string $prefix Префикс, который нужно добавить к именам полей.
+     * @return string Строка условия запроса с префиксированными именами полей.
+     * Пример использования:
+     * $where = "title LIKE '%example%' AND category_id = 1";
+     * $fields = ['title', 'category_id'];
+     * $prefix = 'e.';
+     * $prefixedWhere = SysClass::addPrefixToFields($where, $fields, $prefix);
+     * // $prefixedWhere будет содержать строку "e.title LIKE '%example%' AND e.category_id = 1"
+     */
+    public static function ee_addPrefixToFields($where, $fields, $prefix = '') {
+        $callback = function ($matches) use ($fields, $prefix) {
+            $field = $matches[1];
+            // Проверяем, является ли найденное слово именем поля
+            if (in_array($field, $fields)) {
+                // Если да, добавляем префикс
+                return $prefix . $field;
+            }
+            // Если нет, возвращаем слово без изменений
+            return $field;
+        };
+        // Применяем callback-функцию к каждому совпадению регулярного выражения
+        $prefixedWhere = preg_replace_callback('/\b([a-zA-Z_]+)\b/', $callback, $where);
+        return $prefixedWhere;
+    }
+
 }
