@@ -41,7 +41,7 @@ Class Plugins {
         $html .= self::generateFilterSection($id_table, $data_table, $filters);
         $html .= '<table id="' . $id_table . '" class="table ' . $add_class . '">';
         $html .= self::generateTableHeader($id_table, $data_table['columns'], $selected_sorting);
-        $html .= self::generateTableBody($data_table);
+        $html .= self::generateTableBody($data_table, $id_table);
         $html .= '</table>';  // закрыть таблицу
         $html .= self::generatePagination($id_table, $page, $data_table, $current_rows_per_page, $max_buttons);
         $html .= self::generateRowsPerPageSection($id_table, $data_table, $current_rows_per_page);
@@ -143,7 +143,7 @@ Class Plugins {
     /**
      * Генерирует HTML раздел заголовка таблицы на основе предоставленных данных.
      * @param string $id_table   Идентификатор таблицы, для которой создается заголовок.
-     * @param array  $columns Массив о колонках и их заголовках.
+     * @param array $columns Массив колонок.
      * @return string Возвращает HTML-код заголовка таблицы.
      */
     private static function generateTableHeader($id_table, $columns, $selected_sorting = []) {
@@ -169,7 +169,9 @@ Class Plugins {
                 $sortedIcon = $current_sorting == 'ASC' ? '<i class="fas fa-sort-up"></i>' : '<i class="fas fa-sort-down"></i>';
                 $sortedIndicator = '<a href="#" data-current-sort="' . $current_sorting . '" id="' . $id_table . '_column_' . $column['field'] . '_' . $current_sorting . '">' . $sortedIcon . '</a>';
             }
-            $html .= '<th>';
+            // Проверяем, установлено ли значение ширины для этой колонки
+            $widthStyle = isset($column['width']) ? ' style="width:' . (int) $column['width'] . '%;"' : ' style="width:auto;"';
+            $html .= '<th' . $widthStyle . '>';
             $html .= $column['title'] . $sortedIndicator;
             $html .= '</th>';
         }
@@ -178,22 +180,70 @@ Class Plugins {
     }
 
     /**
-     * Генерирует HTML раздел тела таблицы на основе предоставленных данных.
-     * @param array $data_table Массив данных таблицы, содержащий строки и информацию о колонках.
-     * @return string Возвращает HTML-код тела таблицы.
+     * Генерирует HTML для тела таблицы, включая вложенные таблицы, если они предоставлены.
+     *
+     * @param array $data_table Ассоциативный массив, содержащий данные для таблицы. Массив должен иметь следующую структуру:
+     *      [
+     *          'total_rows' => (int) Общее количество строк в таблице,
+     *          'columns' => (array) Массив ассоциативных массивов, каждый из которых представляет собой столбец в таблице. Каждый массив столбца должен иметь следующие ключи:
+     *              'field' => (string) Ключ, используемый для поиска значения этого столбца в массиве строк,
+     *              'align' => (string, optional) Выравнивание текста для этого столбца. Должно быть 'left', 'right' или 'center'.
+     *              'width' => (int, optional) Ширина столбца в процентах. Если параметр не передан, используется значение 'auto'.
+     *          'rows' => (array) Массив ассоциативных массивов, каждый из которых представляет собой строку в таблице. Каждый массив строк должен иметь ключи, соответствующие значениям 'field' массива столбцов.
+     *              'nested_table' => (array, optional) Ассоциативный массив, представляющий вложенную таблицу. Этот массив должен иметь ту же структуру, что и массив $data_table.
+     *      ]
+     * @param int $id_table ID таблицы
+     * @return string HTML для тела таблицы.
      */
-    private static function generateTableBody($data_table) {
+    private static function generateTableBody($data_table, $id_table) {
         $html = '<tbody>';
         if ($data_table['total_rows'] == 0 || count($data_table['rows']) == 0) { // Если записей нет
             $html .= '<tr><td colspan="' . count($data_table['columns']) . '" class="text-center">Нет записей</td></tr>';
         } else {
+            $count_row = 1;
             foreach ($data_table['rows'] as $row) {
                 $html .= '<tr>';
+                $firstColumn = true;  // Флаг для отслеживания первой колонки
                 foreach ($data_table['columns'] as $column) {
                     $value = $row[$column['field']];
-                    $html .= '<td>' . $value . '</td>';
+                    $textAlignStyle = isset($column['align']) ? ' style="text-align:' . $column['align'] . ';"' : '';
+                    $html .= '<td' . $textAlignStyle . '>';
+                    $html .= $value;
+                    if ($firstColumn && isset($row['nested_table'])) {
+                        $html .= '<div class="expand_nested_table" data-nested_table="#' . $id_table . '_nested_table_' . $count_row . '">' .
+                                '<i class="fa fa-plus"></i></div>';  // Кнопка "плюс" в первой колонке
+                    }
+                    $html .= '</td>';
+                    $firstColumn = false;  // Сброс флага после обработки первой колонки
                 }
                 $html .= '</tr>';
+                if (isset($row['nested_table'])) {
+                    $nested_table = $row['nested_table'];
+                    $colspan = count($data_table['columns']);
+                    $html .= '<tr class="tr_nested_table" id="' . $id_table . '_nested_table_' . $count_row . '"><td colspan="' . $colspan . '">';
+                    $html .= '<table class="nested_table">';
+                    // Заголовок вложенной таблицы
+                    $html .= '<thead><tr>';
+                    foreach ($nested_table['columns'] as $column) {
+                        $widthStyle = isset($column['width']) ? ' style="width:' . $column['width'] . '%;"' : '';
+                        $html .= '<th' . $widthStyle . '>' . $column['title'] . '</th>';
+                    }
+                    $html .= '</tr></thead>';
+                    $html .= '<tbody>';
+                    foreach ($nested_table['rows'] as $nested_row) {
+                        $html .= '<tr>';
+                        foreach ($nested_table['columns'] as $column) {
+                            $value = $nested_row[$column['field']];
+                            $textAlignStyle = isset($column['align']) ? ' style="text-align:' . $column['align'] . ';"' : '';
+                            $html .= '<td' . $textAlignStyle . '>' . $value . '</td>';
+                        }
+                        $html .= '</tr>';
+                    }
+                    $html .= '</tbody>';
+                    $html .= '</table>';
+                    $html .= '</td></tr>';
+                }
+                $count_row++;
             }
         }
         $html .= '</tbody>';
@@ -400,7 +450,7 @@ Class Plugins {
     public static function ee_show_table_prepare_params($post_data, $columns) {
         list($table_name, $extract_filters) = Plugins::ee_show_table_extractFilters($post_data); // $extract_filters извлекаем без префиксов что бы подставлять в запрос к БД
         $old_filters = isset($post_data[$table_name . '_old_filters']) ? json_decode(html_entity_decode($post_data[$table_name . '_old_filters'], ENT_QUOTES, 'UTF-8'), true) : null;
-        $filter = Plugins::ee_show_table_buildFilters($extract_filters, $columns, $table_name, $old_filters);        
+        $filter = Plugins::ee_show_table_buildFilters($extract_filters, $columns, $table_name, $old_filters);
         list($out_sort, $sort) = Plugins::ee_show_table_transformSortingKeys($post_data);
         $limit = ['page' => $post_data["page"], 'rows_per_page' => $post_data["rows_per_page"]];
         // Преобразование limit
@@ -413,12 +463,12 @@ Class Plugins {
         foreach ($filter as $key => $filterItem) {
             if ($filterItem['type'] === 'text' && !empty($filterItem['value']) && $filterItem['value']) { // Отсекаем пустые значения
                 $whereConditions[] = "$key LIKE '%" . $filterItem['value'] . "%'";
-            } elseif ($filterItem['type'] === 'select' && !empty($filterItem['value'])) {                
+            } elseif ($filterItem['type'] === 'select' && !empty($filterItem['value'])) {
                 if ($filterItem['value'][0]) {
                     if ($filterItem['multiple']) {
                         $whereConditions[] = $key . ' IN (' . implode(',', $filterItem['value']) . ')';
                     } else {
-                       $whereConditions[] = $key . ' = ' . $filterItem['value'][0]; 
+                        $whereConditions[] = $key . ' = ' . $filterItem['value'][0];
                     }
                 }
             } elseif ($filterItem['type'] === 'date' && !empty($filterItem['value'])) {
@@ -451,184 +501,10 @@ Class Plugins {
             $out_sort
         ];
     }
-
-    /**
-     * Пример структуры $data_table:
-     * 
-      $data_table = [
-      'columns' => [
-      [
-      'field' => 'name',       // Имя поля в данных
-      'title' => 'Имя',       // Заголовок столбца
-      'sorted' => 'ASC',      // Направление сортировки (ASC, DESC или false, если сортировка не применена)
-      'filterable' => true    // Возможность фильтрации по этому столбцу (true или false)
-      ],
-      [
-      'field' => 'age',
-      'title' => 'Возраст',
-      'sorted' => true,
-      'filterable' => true
-      ],
-      [
-      'field' => 'address',
-      'title' => 'Адрес',
-      'sorted' => false,
-      'filterable' => true
-      ],
-      [
-      'field' => 'gender',
-      'title' => 'Пол',
-      'sorted' => true,
-      'filterable' => true
-      ],
-      [
-      'field' => 'registration_date',
-      'title' => 'Дата регистрации',
-      'sorted' => false,
-      'filterable' => true
-      ],
-      // ... другие столбцы ...
-      ],
-      'rows' => [
-      [
-      'name' => 'Джон',
-      'age' => 25,
-      'address' => 'ул. Ленина, 5',
-      'gender' => 'Мужской',
-      'registration_date' => '2021-01-15'
-      ],
-      [
-      'name' => 'Джейн',
-      'age' => 30,
-      'address' => 'пр. Мира, 15',
-      'gender' => 'Женский',
-      'registration_date' => '2020-10-07'
-      ],
-      [
-      'name' => 'Иван',
-      'age' => 35,
-      'address' => 'ул. Комсомольская, 4',
-      'gender' => 'Мужской',
-      'registration_date' => '2019-02-14'
-      ],
-      [
-      'name' => 'Мария',
-      'age' => 28,
-      'address' => 'ул. Ленина, 22',
-      'gender' => 'Женский',
-      'registration_date' => '2018-05-21'
-      ],
-      [
-      'name' => 'Александр',
-      'age' => 42,
-      'address' => 'пр. Революции, 7',
-      'gender' => 'Мужской',
-      'registration_date' => '2016-12-12'
-      ],
-      [
-      'name' => 'Анна',
-      'age' => 23,
-      'address' => 'ул. Московская, 19',
-      'gender' => 'Женский',
-      'registration_date' => '2020-01-15'
-      ],
-      [
-      'name' => 'Дмитрий',
-      'age' => 37,
-      'address' => 'пр. Строителей, 8',
-      'gender' => 'Мужской',
-      'registration_date' => '2017-03-03'
-      ],
-      [
-      'name' => 'Ольга',
-      'age' => 31,
-      'address' => 'ул. Зеленая, 33',
-      'gender' => 'Женский',
-      'registration_date' => '2018-08-10'
-      ],
-      [
-      'name' => 'Сергей',
-      'age' => 40,
-      'address' => 'ул. Парковая, 5',
-      'gender' => 'Мужской',
-      'registration_date' => '2015-06-30'
-      ],
-      [
-      'name' => 'Екатерина',
-      'age' => 29,
-      'address' => 'пр. Королева, 50',
-      'gender' => 'Женский',
-      'registration_date' => '2019-09-09'
-      ],
-      [
-      'name' => 'Андрей',
-      'age' => 33,
-      'address' => 'ул. Приморская, 70',
-      'gender' => 'Мужской',
-      'registration_date' => '2020-04-20'
-      ],
-      [
-      'name' => 'Татьяна',
-      'age' => 26,
-      'address' => 'пр. Ветеранов, 2',
-      'gender' => 'Женский',
-      'registration_date' => '2021-02-28'
-      ],
-
-      // ... другие строки ...
-      ],
-      'total_rows' => 1020  // Общее количество записей (используется для пагинации)
-      ];
-      $filters = [];
-      $filters = [
-      'column1' => [
-      'type' => 'text', // тип фильтра: текстовое поле
-      'id' => "name", // идентификатор фильтра должен совпадать с ['columns']['field']
-      'value' => '', // значение по умолчанию
-      'label' => 'ФИО' // метка или заголовок фильтра
-      ],
-      'column2' => [
-      'type' => 'select', // тип фильтра: выпадающий список
-      'id' => "age",
-      'value' => ['option2', 'option1'],
-      'label' => 'Возраст',
-      'options' => [ // опции для выпадающего списка
-      ['value' => 'option1', 'label' => '30+'],
-      ['value' => 'option2', 'label' => '100-']
-      ],
-      'multiple' => true
-      ],
-      'column3' => [
-      'type' => 'checkbox', // тип фильтра: флажок
-      'id' => "address",
-      'value' => ['option1', 'option2'],
-      'label' => 'Адрес проживания',
-      'options' => [ // опции для флажка
-      ['value' => 'option1', 'label' => 'Москва', 'id' => 'option1_id'],
-      ['value' => 'option3', 'label' => 'Не москва', 'id' => 'option3_id'],
-      ['value' => 'option4', 'label' => 'Край света', 'id' => 'option4_id'],
-      ['value' => 'option2', 'label' => 'Начало света', 'id' => 'option2_id']
-      ]
-      ],
-      'columnDate' => [
-      'type' => 'text',
-      'id' => "gender",
-      'value' => '',
-      'label' => 'Пол'
-      ],
-      'columnDate1' => [
-      'type' => 'date',
-      'id' => "registration_date",
-      'value' => '2023-08-10',  // Пример даты по умолчанию
-      'label' => 'Дата регистрации'
-      ],
-      ];
-     */
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////END Plugin TABLE
+///////////////////////////////////////////////////////////////////////////////////////////////////////END Plugin TABLE
 
     /**
      * Генерирует вертикальное меню на основе предоставленных данных.
-     *
      * @param array $data Данные меню со следующей структурой:
      *                   - 'menuItems' => массив с элементами структуры меню
      *                   - 'footerTitle' => Заголовок для нижнего раздела меню
@@ -683,7 +559,6 @@ Class Plugins {
 
     /**
      * Генерирует верхний navbar на основе предоставленных данных.
-     *
      * @param array $data Данные для верхнего navbar.
      * @return string Сгенерированный HTML-код для верхнего navbar.
      */

@@ -85,7 +85,9 @@ trait properties_trait {
                     'field' => 'type_id',
                     'title' => 'ID',
                     'sorted' => 'ASC',
-                    'filterable' => false
+                    'filterable' => false,
+                    'width' => 5,
+                    'align' => 'center'
                 ], [
                     'field' => 'name',
                     'title' => $this->lang['sys.name'],
@@ -110,7 +112,9 @@ trait properties_trait {
                     'field' => 'actions',
                     'title' => $this->lang['sys.action'],
                     'sorted' => false,
-                    'filterable' => false
+                    'filterable' => false,
+                    'width' => 10,
+                    'align' => 'center'
                 ],
             ]
         ];
@@ -148,7 +152,10 @@ trait properties_trait {
                 'status' => $this->lang['sys.' . $item['status']],
                 'created_at' => date('d.m.Y', strtotime($item['created_at'])),
                 'updated_at' => $item['updated_at'] ? date('d.m.Y', strtotime($item['updated_at'])) : '',
-                'actions' => '<a href="/admin/type_properties_edit/id/' . $item['type_id'] . '" class="btn btn-primary me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.edit'] . '"><i class="fas fa-edit"></i></a>'
+                'actions' => '<a href="/admin/type_properties_edit/id/' . $item['type_id'] . '" class="btn btn-primary me-2" data-bs-toggle="tooltip"'
+                . 'data-bs-placement="top" title="' . $this->lang['sys.edit'] . '"><i class="fas fa-edit"></i></a>'
+                . '<a href="/admin/type_properties_delete/id/' . $item['type_id'] . '" onclick="return confirm(\'' . $this->lang['sys.delete'] . '?\');" '
+                . 'class="btn btn-danger me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.delete'] . '"><i class="fas fa-trash"></i></a>'
             ];
         }
         $data_table['total_rows'] = $features_array['total_count'];
@@ -356,5 +363,31 @@ trait properties_trait {
         $this->parameters_layout["title"] = 'Редактирование свойства';
         $this->show_layout($this->parameters_layout);
     }
+    
+    /**
+     * Удалит выбранный тип категории
+     * @param array $params
+     */
+    public function type_properties_delete($params = []) {
+        $this->access = array(1, 2);
+        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
+            SysClass::return_to_main();
+            exit();
+        }
+        $notifications = new Class_notifications();
+        if (in_array('id', $params)) {            
+            $id = filter_var($params[array_search('id', $params) + 1], FILTER_VALIDATE_INT);
+            $this->load_model('m_properties');
+            $res = $this->models['m_properties']->type_properties_delete($id);
+            if (count($res)) {
+                $notifications->add_notification_user($this->logged_in, ['text' => 'Ошибка удаления типа id=' . $id . '<br/>' . $res['error'], 'status' => 'danger']);                    
+            } else {
+                $notifications->add_notification_user($this->logged_in, ['text' => 'Удалено!', 'status' => 'info']);
+            }     
+        } else {
+            $notifications->add_notification_user($this->logged_in, ['text' => 'Нет обязательного параметра id', 'status' => 'danger']); 
+        }
+        SysClass::return_to_main(200, '/admin/types_properties');
+    }    
 
 }

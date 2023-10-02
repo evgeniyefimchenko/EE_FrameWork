@@ -1557,5 +1557,15 @@ Class SysClass {
         $prefixedWhere = preg_replace_callback('/\b([a-zA-Z_]+)\b/', $callback, $where);
         return $prefixedWhere;
     }
+    
+    /**
+     * Файервол проекта :-)
+     */
+    public static function guard() {
+        if (!isset($_SERVER['HTTP_USER_AGENT']) || empty($_SERVER['HTTP_USER_AGENT'])) {
+            http_response_code(400);
+            exit('Bad Request');
+        }
+    }
 
 }

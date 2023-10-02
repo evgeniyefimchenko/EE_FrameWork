@@ -199,9 +199,9 @@ Class Model_categories Extends Users {
             $category_id = $category_data['category_id'];
             unset($category_data['category_id']); // Удаляем category_id из массива данных, чтобы избежать его обновление
             $sql = "UPDATE ?n SET ?u WHERE `category_id` = ?i AND language_code = ?s";  // Обновлено                        
-            $result = SafeMySQL::gi()->query($sql, Constants::CATEGORIES_TABLE, $category_data, $category_id, $language_code);  // Обновлено
+            $result = SafeMySQL::gi()->query($sql, Constants::CATEGORIES_TABLE, $category_data, $category_id, $language_code);
             if (!$result) {
-                SysClass::pre_file('error', 'error SQL ' . SafeMySQL::gi()->parse($sql, Constants::CATEGORIES_TABLE, $category_data, $category_id, $language_code));  // Обновлено
+                SysClass::pre_file('error', 'error SQL ' . SafeMySQL::gi()->parse($sql, Constants::CATEGORIES_TABLE, $category_data, $category_id, $language_code));
             }
             return $result ? $category_id : false;
         } else {
@@ -209,9 +209,9 @@ Class Model_categories Extends Users {
         }
         // Проверяем уникальность названия в рамках одного типа
         $existingCategory = SafeMySQL::gi()->getRow(
-                "SELECT `category_id` FROM ?n WHERE `title` = ?s AND type_id = ?i AND language_code = ?s", // Обновлено
+                "SELECT `category_id` FROM ?n WHERE `title` = ?s AND type_id = ?i AND language_code = ?s",
                 Constants::CATEGORIES_TABLE,
-                $category_data['title'], $category_data['type_id'], $language_code  // Обновлено
+                $category_data['title'], $category_data['type_id'], $language_code
         );
         if ($existingCategory) {
             SysClass::pre_file('error', 'existingCategory title: ' . $category_data['title'] . ' type_id: ' . $category_data['type_id']);
@@ -238,7 +238,7 @@ Class Model_categories Extends Users {
         } catch (Exception $e) {
             $errorMessage = $e->getMessage();
             if (strpos($errorMessage, 'foreign key constraint fails') !== false) {
-                return ['error' => 'Невозможно удалить категорию, поскольку существуют объекты, ссылающиеся на эту категорию. Сначала удалите или обновите зависимые объекты.'];
+                return ['error' => 'Невозможно удалить категорию, поскольку существуют объекты, ссылающиеся на эту категорию!'];
             }
             return ['error' => $errorMessage];
         }

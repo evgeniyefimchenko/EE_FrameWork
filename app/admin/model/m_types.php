@@ -12,38 +12,37 @@ if (ENV_SITE !== 1) {
 Class Model_types Extends Users {
 
     /**
-     * Вернёт все типы
+     * Получает все типы, с учетом языка.
+     * @param string $language_code Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG.
+     * @return array Массив, содержащий ID и названия всех типов.
      */
-    public function get_all_types() {
-        $sql = "SELECT type_id, name FROM ?n";
-        $types = SafeMySQL::gi()->getInd('type_id', $sql, Constants::TYPES_TABLE);
+    public function get_all_types($language_code = ENV_DEF_LANG) {
+        $sql = "SELECT type_id, name FROM ?n WHERE language_code = ?s";
+        $types = SafeMySQL::gi()->getInd('type_id', $sql, Constants::TYPES_TABLE, $language_code);
         return $types;
     }
 
     /**
-     * Получает данные о типах
+     * Получает данные о типах с учетом параметров сортировки, фильтрации, пагинации и языка.
      * @param string $order Параметр для сортировки результатов запроса (по умолчанию: 'type_id ASC').
      * @param string|null $where Условие для фильтрации результатов запроса (по умолчанию: NULL).
      * @param int $start Начальная позиция для выборки результатов запроса (по умолчанию: 0).
      * @param int $limit Максимальное количество результатов для выборки (по умолчанию: 100).
+     * @param string $language_code Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG.
      * @return array Массив, содержащий данные о типах и общее количество типов.
      */
-    public function get_types_data($order = 'type_id ASC', $where = NULL, $start = 0, $limit = 100) {
+    public function get_types_data($order = 'type_id ASC', $where = NULL, $start = 0, $limit = 100, $language_code = ENV_DEF_LANG) {
         $orderString = $order ?: 'type_id ASC';
-        $whereString = $where ?: '';
+        $whereString = $where ? $where . " AND language_code = '$language_code'" : "WHERE language_code = '$language_code'";
         $start = $start ?: 0;
-
         $sql_types = "SELECT `type_id` FROM ?n $whereString ORDER BY $orderString LIMIT ?i, ?i";
         $res_array = SafeMySQL::gi()->getAll($sql_types, Constants::TYPES_TABLE, $start, $limit);
-
         $res = [];
         foreach ($res_array as $type) {
-            $res[] = $this->get_type_data($type['type_id']);  // Убедитесь, что у вас есть метод get_type_data
+            $res[] = $this->get_type_data($type['type_id'], $language_code);
         }
-
         $sql_count = "SELECT COUNT(DISTINCT `type_id`) as total_count FROM ?n $whereString";
         $total_count = SafeMySQL::gi()->getOne($sql_count, Constants::TYPES_TABLE);
-
         return [
             'data' => $res,
             'total_count' => $total_count
@@ -51,27 +50,30 @@ Class Model_types Extends Users {
     }
 
     /**
-     * Получает данные конкретного типа по его ID
-     * @param int $type_id ID типа, данные которого необходимо получить
-     * @return array|null Ассоциативный массив с данными типа или null, если тип не найден
+     * Получает данные конкретного типа по его ID и языку.
+     * @param int $type_id ID типа, данные которого необходимо получить.
+     * @param string $language_code Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG.
+     * @return array|null Ассоциативный массив с данными типа или null, если тип не найден.
      */
-    public function get_type_data($type_id) {
+    public function get_type_data($type_id, $language_code = ENV_DEF_LANG) {
         if (!$type_id) {
             return null;
         }
-        $sql = "SELECT * FROM ?n WHERE `type_id` = ?i";
-        $type_data = SafeMySQL::gi()->getRow($sql, Constants::TYPES_TABLE, $type_id);
+        $sql = "SELECT * FROM ?n WHERE `type_id` = ?i AND language_code = ?s";
+        $type_data = SafeMySQL::gi()->getRow($sql, Constants::TYPES_TABLE, $type_id, $language_code);
         return $type_data;
     }
 
     /**
-     * Обновляет существующий тип или создает новый.
+     * Обновляет существующий тип или создает новый с учетом языка.
      * @param array $type_data Ассоциативный массив с данными типа. Должен содержать ключи 'name' и 'description', и опционально 'type_id'.
+     * @param string $language_code Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG.
      * @return int|bool ID нового или обновленного типа или false в случае ошибки.
      */
-    public function update_type_data($type_data = []) {
+    public function update_type_data($type_data = [], $language_code = ENV_DEF_LANG) {
         $type_data = SafeMySQL::gi()->filterArray($type_data, SysClass::ee_get_fields_table(Constants::TYPES_TABLE));
         $type_data = array_map('trim', $type_data);
+        $type_data['language_code'] = $language_code;
         if (empty($type_data['name'])) {
             return false;
         }
@@ -86,17 +88,36 @@ Class Model_types Extends Users {
             return $result ? $type_id : false;
         }
         // Проверяем уникальность имени
-         $existingType = SafeMySQL::gi()->getRow(
-             "SELECT `type_id` FROM ?n WHERE `name` = ?s", 
-             Constants::TYPES_TABLE, 
-             $type_data['name']
-         );
-         if ($existingType) {
-             return false; // или вернуть какое-то сообщение об ошибке
-         }        
+        $existingType = SafeMySQL::gi()->getRow(
+                "SELECT `type_id` FROM ?n WHERE `name` = ?s AND language_code = ?s",
+                Constants::TYPES_TABLE,
+                $type_data['name'],
+                $language_code
+        );
+        if ($existingType) {
+            return false; // или вернуть какое-то сообщение об ошибке
+        }
         $sql = "INSERT INTO ?n SET ?u";
         $result = SafeMySQL::gi()->query($sql, Constants::TYPES_TABLE, $type_data);
         return $result ? SafeMySQL::gi()->insertId() : false;
+    }
+
+    /**
+     * Удалит тип категории
+     * @param int $type_id
+     */
+    public function delete_type($type_id) {
+        try {
+            $sql = 'SELECT 1 FROM ?n WHERE type_id = ?i';
+            if (SafeMySQL::gi()->getOne($sql, Constants::CATEGORIES_TABLE, $type_id)) {
+                return ['error' => 'Нельзя удалить тип категории, так как он используется!'];
+            }
+            $sql_delete = "DELETE FROM ?n WHERE type_id = ?i";
+            $result = SafeMySQL::gi()->query($sql_delete, Constants::TYPES_TABLE, $type_id);
+            return $result ? [] : ['error' => 'Ошибка при выполнении запроса DELETE'];
+        } catch (Exception $e) {
+            return ['error' => $e->getMessage()];
+        }
     }
 
 }

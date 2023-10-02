@@ -111,7 +111,19 @@ Class Controller_index Extends Controller_Base {
                     'age' => 25,
                     'address' => 'ул. Ленина, 5',
                     'gender' => 'Мужской',
-                    'registration_date' => '2021-01-15'
+                    'registration_date' => '2021-01-15',
+                    'nested_table' => [
+                        'columns' => [
+                            ['field' => 'detail_id', 'title' => 'Detail ID', 'width' => 20, 'align' => 'left'],
+                            ['field' => 'description', 'title' => 'Description', 'width' => 80, 'align' => 'left'],
+                            // ...
+                        ],
+                        'rows' => [
+                            ['detail_id' => 1, 'description' => 'Detail 1'],
+                            ['detail_id' => 2, 'description' => 'Detail 2'],
+                            // ...
+                        ],                
+                    ],
                 ],
                 [
                     'name' => 'Джейн',
@@ -510,7 +522,9 @@ Class Controller_index Extends Controller_Base {
                     'field' => 'id',
                     'title' => 'ID',
                     'sorted' => 'ASC',
-                    'filterable' => false
+                    'filterable' => false,
+                    'width' => 10,
+                    'align' => 'center'
                 ], [
                     'field' => 'name',
                     'title' => $this->lang['sys.name'],
@@ -545,7 +559,9 @@ Class Controller_index Extends Controller_Base {
                     'field' => 'actions',
                     'title' => $this->lang['sys.action'],
                     'sorted' => false,
-                    'filterable' => false
+                    'filterable' => false,
+                    'width' => 10,
+                    'align' => 'center'
                 ],
             ]
         ];
@@ -685,7 +701,9 @@ Class Controller_index Extends Controller_Base {
                     'field' => 'id',
                     'title' => 'ID',
                     'sorted' => 'ASC',
-                    'filterable' => false
+                    'filterable' => false,
+                    'width' => 10,
+                    'align' => 'center'
                 ], [
                     'field' => 'name',
                     'title' => $this->lang['sys.name'],
@@ -695,7 +713,9 @@ Class Controller_index Extends Controller_Base {
                     'field' => 'actions',
                     'title' => $this->lang['sys.action'],
                     'sorted' => false,
-                    'filterable' => false
+                    'filterable' => false,
+                    'width' => 10,
+                    'align' => 'center'
                 ],
             ]
         ];        
@@ -706,13 +726,18 @@ Class Controller_index Extends Controller_Base {
         } else {
             $users_array = $this->models['m_user_edit']->get_users_roles_data(false, false, false, 25);
         }
-
+        
         foreach ($users_array['data'] as $item) {
+            if (!in_array($item['id'], [1, 2, 3, 4, 8])) {
+                $html_actions = '<a href="/admin/users_role_edit/id/' . $item['id'] . '" class="btn btn-primary me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.edit'] . '"><i class="fas fa-edit"></i></a>
+				<a href="/admin/users_role_dell/id/' . $item['id'] . '" class="btn btn-danger" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.delete'] . '"><i class="fas fa-trash-alt"></i></a>';
+            } else {
+                $html_actions = '<a href="/admin/users_role_edit/id/' . $item['id'] . '" class="btn btn-primary me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.edit'] . '"><i class="fas fa-edit"></i></a>';
+            }
             $data_table['rows'][] = [
                 'id' => $item['id'],
                 'name' => $item['name'],
-                'actions' => '<a href="/admin/users_role_edit/id/' . $item['id'] . '" class="btn btn-primary me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.edit'] . '"><i class="fas fa-edit"></i></a>
-				<a href="/admin/users_role_dell/id/' . $item['id'] . '" class="btn btn-danger" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.delete'] . '"><i class="fas fa-trash-alt"></i></a>'
+                'actions' => $html_actions
             ];
         }
         $data_table['total_rows'] = $users_array['total_count'];

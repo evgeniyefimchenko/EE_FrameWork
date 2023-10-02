@@ -133,7 +133,9 @@ trait categories_trait {
                     'field' => 'category_id',
                     'title' => 'ID',
                     'sorted' => false,
-                    'filterable' => false
+                    'filterable' => false,
+                    'width' => 5,
+                    'align' => 'center'
                 ], [
                     'field' => 'title',
                     'title' => $this->lang['sys.name'],
@@ -168,7 +170,9 @@ trait categories_trait {
                     'field' => 'actions',
                     'title' => $this->lang['sys.action'],
                     'sorted' => false,
-                    'filterable' => false
+                    'filterable' => false,
+                    'width' => 10,
+                    'align' => 'center'
                 ],
             ]
         ];

@@ -8,7 +8,7 @@ if (ENV_SITE !== 1) {
 <!-- Редактирование свойства сущности -->
 <?php if (!$all_property_types) SysClass::return_to_main(200, '/admin/types_properties');?> 
 <main>    
-    <form id="edit_entitiy" action="/admin/property_edit/id/<?= $property_data['property_id'] ?>" method="POST">
+    <form id="edit_entity" action="/admin/property_edit/id/<?= $property_data['property_id'] ?>" method="POST">
         <input type="hidden" name="fake" value="1" />
         <div class="container-fluid px-4">
             <a href="/admin/property_edit/id" data-bs-toggle="tooltip" data-bs-placement="top" title="<?= $lang['sys.add'] ?>" type="button"

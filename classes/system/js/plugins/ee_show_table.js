@@ -79,6 +79,18 @@ $(document).ready(function () {
             }
             $("#" + tableId + "_filters").trigger("submit");
         });
+        // Скрытие и раскрытие дополнительной таблицы
+        $(document).off("click", ".expand_nested_table").on("click", ".expand_nested_table", function () {
+            var nestedTable = $($(this).attr('data-nested_table'));
+            nestedTable.slideToggle(100, function() {
+                var icon = $(this).find('i');
+                if (nestedTable.is(':visible')) {
+                    icon.removeClass('fa-plus').addClass('fa-minus');
+                } else {
+                    icon.removeClass('fa-minus').addClass('fa-plus');
+                }
+            }.bind(this));
+        });
     }
     // Обработчик события отправки формы
     $(document).on('submit', "[id$='_filters']", function (e) {
@@ -116,5 +128,6 @@ $(document).ready(function () {
     $("[id$='_content_tables']").each(function () {
         let tableId = $(this).attr('data-tableID');
         initEventHandlers(tableId);
-    });
+    });   
+    
 });

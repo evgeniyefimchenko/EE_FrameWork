@@ -7,7 +7,7 @@ if (ENV_SITE !== 1) {
 ?>
 <!-- Редактирование типа свойств сущности -->
 <main>    
-    <form id="edit_entitiy" action="/admin/type_properties_edit/id/<?= $property_type_data['type_id'] ?>" method="POST">
+    <form id="edit_entity" action="/admin/type_properties_edit/id/<?= $property_type_data['type_id'] ?>" method="POST">
         <input type="hidden" name="fake" value="1" />
         <div class="container-fluid px-4">
             <a href="/admin/type_properties_edit/id" data-bs-toggle="tooltip" data-bs-placement="top" title="<?= $lang['sys.add'] ?>" type="button"

@@ -426,14 +426,6 @@ legend + * {
   -webkit-appearance: textfield;
 }
 
-/* rtl:raw:
-[type="tel"],
-[type="url"],
-[type="email"],
-[type="number"] {
-  direction: ltr;
-}
-*/
 ::-webkit-search-decoration {
   -webkit-appearance: none;
 }
@@ -11527,268 +11519,6 @@ body {
   background-color: #e9ecef;
 }
 
-.dataTable-wrapper .dataTable-container {
-  font-size: 0.875rem;
-}
-
-.dataTable-wrapper.no-header .dataTable-container {
-  border-top: none;
-}
-
-.dataTable-wrapper.no-footer .dataTable-container {
-  border-bottom: none;
-}
-
-.dataTable-top {
-  padding: 0 0 1rem;
-}
-
-.dataTable-bottom {
-  padding: 0;
-}
-
-.dataTable-top > nav:first-child,
-.dataTable-top > div:first-child,
-.dataTable-bottom > nav:first-child,
-.dataTable-bottom > div:first-child {
-  float: left;
-}
-
-.dataTable-top > nav:last-child,
-.dataTable-top > div:last-child,
-.dataTable-bottom > nav:last-child,
-.dataTable-bottom > div:last-child {
-  float: right;
-}
-
-.dataTable-selector {
-  width: auto;
-  display: inline-block;
-  padding-left: 1.125rem;
-  padding-right: 2.125rem;
-  margin-right: 0.25rem;
-}
-
-.dataTable-info {
-  margin: 7px 0;
-}
-
-/* PAGER */
-.dataTable-pagination a:hover {
-  background-color: #e9ecef;
-}
-
-.dataTable-pagination .active a,
-.dataTable-pagination .active a:focus,
-.dataTable-pagination .active a:hover {
-  background-color: #0d6efd;
-}
-
-.dataTable-pagination .ellipsis a,
-.dataTable-pagination .disabled a,
-.dataTable-pagination .disabled a:focus,
-.dataTable-pagination .disabled a:hover {
-  cursor: not-allowed;
-}
-
-.dataTable-pagination .disabled a,
-.dataTable-pagination .disabled a:focus,
-.dataTable-pagination .disabled a:hover {
-  cursor: not-allowed;
-  opacity: 0.4;
-}
-
-.dataTable-pagination .pager a {
-  font-weight: bold;
-}
-
-/* TABLE */
-.dataTable-table {
-  border-collapse: collapse;
-}
-
-.dataTable-table > tbody > tr > td,
-.dataTable-table > tbody > tr > th,
-.dataTable-table > tfoot > tr > td,
-.dataTable-table > tfoot > tr > th,
-.dataTable-table > thead > tr > td,
-.dataTable-table > thead > tr > th {
-  vertical-align: top;
-  padding: 0.5rem 0.5rem;
-}
-
-.dataTable-table > thead > tr > th {
-  vertical-align: bottom;
-  text-align: left;
-  border-bottom: none;
-}
-
-.dataTable-table > tfoot > tr > th {
-  vertical-align: bottom;
-  text-align: left;
-}
-
-.dataTable-table th {
-  vertical-align: bottom;
-  text-align: left;
-}
-
-.dataTable-table th a {
-  text-decoration: none;
-  color: inherit;
-}
-
-.dataTable-sorter {
-  display: inline-block;
-  height: 100%;
-  position: relative;
-  width: 100%;
-  padding-right: 1rem;
-}
-
-.dataTable-sorter::before,
-.dataTable-sorter::after {
-  content: "";
-  height: 0;
-  width: 0;
-  position: absolute;
-  right: 4px;
-  border-left: 4px solid transparent;
-  border-right: 4px solid transparent;
-  opacity: 0.2;
-}
-
-.dataTable-sorter::before {
-  bottom: 4px;
-}
-
-.dataTable-sorter::after {
-  top: 0px;
-}
-
-.asc .dataTable-sorter::after,
-.desc .dataTable-sorter::before {
-  opacity: 0.6;
-}
-
-.dataTables-empty {
-  text-align: center;
-}
-
-.dataTable-top::after,
-.dataTable-bottom::after {
-  clear: both;
-  content: " ";
-  display: table;
-}
-
-.btn-datatable {
-  height: 20px !important;
-  width: 20px !important;
-  font-size: 0.75rem;
-  border-radius: 0.25rem !important;
-}
-
-# datatables
-.datatable-wrapper.no-header .datatable-container {
-	border-top: 1px solid #d9d9d9;
-}
-
-.datatable-wrapper.no-footer .datatable-container {
-	border-bottom: 1px solid #d9d9d9;
-}
-
-.datatable-top,
-.datatable-bottom {
-	padding: 8px 10px;
-}
-
-.datatable-top > nav:first-child,
-.datatable-top > div:first-child,
-.datatable-bottom > nav:first-child,
-.datatable-bottom > div:first-child {
-	float: left;
-}
-
-.datatable-top > nav:last-child,
-.datatable-top > div:last-child,
-.datatable-bottom > nav:last-child,
-.datatable-bottom > div:last-child {
-	float: right;
-}
-
-.datatable-selector {
-	padding: 6px;
-}
-
-.datatable-input {
-	padding: 6px 12px;
-}
-
-.datatable-info {
-	margin: 7px 0;
-}
-
-/* PAGER */
-.datatable-pagination ul {
-	margin: 0;
-	padding-left: 0;
-}
-
-.datatable-pagination li {
-	list-style: none;
-	float: left;
-}
-
-.datatable-pagination li.datatable-hidden {
-    visibility: hidden;
-}
-
-.datatable-pagination a {
-	border: 1px solid transparent;
-	float: left;
-	margin-left: 2px;
-	padding: 6px 12px;
-	position: relative;
-	text-decoration: none;
-	color: #333;
-    cursor: pointer;
-}
-
-.datatable-pagination a:hover {
-	background-color: #d9d9d9;
-}
-
-.datatable-pagination .datatable-active a,
-.datatable-pagination .datatable-active a:focus,
-.datatable-pagination .datatable-active a:hover {
-	background-color: #d9d9d9;
-	cursor: default;
-}
-
-.datatable-pagination .datatable-ellipsis a,
-.datatable-pagination .datatable-disabled a,
-.datatable-pagination .datatable-disabled a:focus,
-.datatable-pagination .datatable-disabled a:hover {
-    pointer-events: none;
-    cursor: default;
-}
-
-.datatable-pagination .datatable-disabled a,
-.datatable-pagination .datatable-disabled a:focus,
-.datatable-pagination .datatable-disabled a:hover {
-	cursor: not-allowed;
-	opacity: 0.4;
-}
-
-.datatable-pagination .datatable-pagination a {
-	font-weight: bold;
-}
-
-.dataTable {
-	width: 100%;
-}
-
 .notification-badge {
     display: inline-block;
     padding: 0.25em 0.5em;
@@ -11804,4 +11534,23 @@ body {
     position: relative;
     top: -10px; /* Адаптируйте эти значения */
     left: -10px; /* в соответствии с вашим дизайном */
+}
+
+.nested_table {
+    width: 100%;
+    margin-left: 5%;    
+}
+
+.tr_nested_table {
+    display: none;
+}
+
+.expand_nested_table {
+    background-color: #0dcaf0;
+    margin-left: 15px;
+    padding: 2px;
+    width: 13px;
+    cursor: pointer;
+    font-size: 10px;
+    border-radius: 5px;
 }
