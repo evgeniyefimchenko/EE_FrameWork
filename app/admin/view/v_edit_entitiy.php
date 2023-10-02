@@ -8,18 +8,18 @@ if (ENV_SITE !== 1) {
 <!-- Редактирование сущности -->
 <?php if (!$all_type) SysClass::return_to_main(200, '/admin/type_categories');?> 
 <main>    
-    <form id="edit_entitiy" action="/admin/entitiy_edit/id/<?= $entitiy_data['entity_id'] ?>" method="POST">
+    <form id="edit_entity" action="/admin/entity_edit/id/<?= $entity_data['entity_id'] ?>" method="POST">
         <input type="hidden" name="fake" value="1" />
         <div class="container-fluid px-4">
-            <a href="/admin/entitiy_edit/id" data-bs-toggle="tooltip" data-bs-placement="top" title="<?= $lang['sys.add'] ?>" type="button"
-               class="btn btn-info m-l-15 float-end<?= empty($entitiy_data['entity_id']) ? " d-none" : "" ?>">
+            <a href="/admin/entity_edit/id" data-bs-toggle="tooltip" data-bs-placement="top" title="<?= $lang['sys.add'] ?>" type="button"
+               class="btn btn-info m-l-15 float-end<?= empty($entity_data['entity_id']) ? " d-none" : "" ?>">
                 <i class="fa fa-plus-circle"></i>&nbsp;<?= $lang['sys.add'] ?>
             </a>
-            <h1 class="mt-4"><?= !$entitiy_data ? 'Добавить Сущность' : 'Редактировать Сущность' ?></h1>
+            <h1 class="mt-4"><?= !$entity_data ? 'Добавить Сущность' : 'Редактировать Сущность' ?></h1>
             <ol class="breadcrumb mb-4">
                 <li>
-                    <span id="entity_id" data-id="<?= $entitiy_data['entity_id'] ?>">id = <?php echo !$entitiy_data['entity_id'] ? 'Не присвоен' : $entitiy_data['entity_id'] ?></span>
-                    <input type="hidden" name="entity_id" class="form-control" value="<?= $entitiy_data['entity_id'] ? $entitiy_data['entity_id'] : 0 ?>">
+                    <span id="entity_id" data-id="<?= $entity_data['entity_id'] ?>">id = <?php echo !$entity_data['entity_id'] ? 'Не присвоен' : $entity_data['entity_id'] ?></span>
+                    <input type="hidden" name="entity_id" class="form-control" value="<?= $entity_data['entity_id'] ? $entity_data['entity_id'] : 0 ?>">
                 </li>              
             </ol>
             <div class="row">
@@ -38,19 +38,19 @@ if (ENV_SITE !== 1) {
                             <div class="row mb-3">
                                 <div class="col-6 col-sm-3">
                                     <label for="title-input"><?=$lang['sys.title']?>:</label>                                    
-                                    <input type="text" id="title-input" name="title" class="form-control" placeholder="Введите название..." value="<?= $entitiy_data['title'] ?>">                                    
+                                    <input type="text" id="title-input" name="title" class="form-control" placeholder="Введите название..." value="<?= $entity_data['title'] ?>">                                    
                                 </div>
                                 <div class="col-6 col-sm-3">
                                     <label for="category_id-input"><?=$lang['sys.category'] . ' ' . $lang['sys.parent']?>:</label>
                                     <div role="group" class="input-group">
-                                        <select <?=$entitiy_data['parent_entity_id'] ? "disabled " : ""?>type="text" id="category_id-input" name="category_id" class="form-control">
+                                        <select <?=$entity_data['parent_entity_id'] ? "disabled " : ""?>type="text" id="category_id-input" name="category_id" class="form-control">
                                             <?php foreach ($all_categories as $item) {
                                                 $prefix = str_repeat('-', $item['level'] * 2); // Умножаем уровень на 2, чтобы создать отступ
-                                                echo '<option ' . ($entitiy_data['category_id'] == $item['category_id'] ? "selected " : "") . 'value="' . $item['category_id'] . '">' .
+                                                echo '<option ' . ($entity_data['category_id'] == $item['category_id'] ? "selected " : "") . 'value="' . $item['category_id'] . '">' .
                                                         $prefix . ' ' . htmlspecialchars($item['title']) . ' (' . ($all_type[$item['type_id']]['name'] ? $all_type[$item['type_id']]['name'] : 'Нет') . ')</option>';
                                             } ?>                                        
                                         </select>
-                                        <?php if (!$entitiy_data['parent_entity_id']) { ?>
+                                        <?php if (!$entity_data['parent_entity_id']) { ?>
                                             <span role="button" class="input-group-text btn-primary" data-bs-toggle="tooltip" data-bs-placement="top" title="Отдельное окно">
                                                 <i class="fas fa-tree"></i><!-- Иконка со знаком вопроса -->
                                             </span> 
@@ -58,11 +58,11 @@ if (ENV_SITE !== 1) {
                                     </div>
                                 </div>
                                 <div class="col-6 col-sm-3">
-                                    <label for="parent_entity_id-input"><?=$lang['sys.entitiy']. ' ' . $lang['sys.parent']?>:</label>
+                                    <label for="parent_entity_id-input"><?=$lang['sys.entity']. ' ' . $lang['sys.parent']?>:</label>
                                     <div role="group" class="input-group">
                                         <select type="text" id="parent_entity_id-input" name="parent_entity_id" class="form-control">
                                             <?php foreach ($all_entities as $item) {
-                                                echo '<option ' . ($entitiy_data['parent_entity_id'] == $item['entity_id'] ? "selected " : "") . 'value="' . $item['entity_id'] . '">' . $item['title'] . '</option>';
+                                                echo '<option ' . ($entity_data['parent_entity_id'] == $item['entity_id'] ? "selected " : "") . 'value="' . $item['entity_id'] . '">' . $item['title'] . '</option>';
                                             } ?>
                                         </select>
                                         <span role="button" class="input-group-text btn-primary" data-bs-toggle="tooltip" data-bs-placement="top" title="Отдельное окно">
@@ -73,7 +73,7 @@ if (ENV_SITE !== 1) {
                                 <div class="col-6 col-sm-3">
                                     <label for="type_id-input"><?=$lang['sys.type']?>:</label>
                                     <div role="group" class="input-group">
-                                        <input type="text" disabled id="type_id-input" name="type_id" class="form-control" placeholder="Введите название..." value="<?= $entitiy_data['type_name'] ?>">
+                                        <input type="text" disabled id="type_id-input" name="type_id" class="form-control" placeholder="Введите название..." value="<?= $entity_data['type_name'] ?>">
                                         <span role="button" class="input-group-text btn-primary" data-bs-toggle="tooltip" data-bs-placement="top" title="Определяется из категории">
                                             <i class="fas fa-question-circle"></i><!-- Иконка со знаком вопроса -->
                                         </span>
@@ -85,7 +85,7 @@ if (ENV_SITE !== 1) {
                                             <?php $statuses = [['id' => 'active', 'name' => $lang['sys.active']], ['id' => 'disabled', 'name' => $lang['sys.blocked']], ['id' => 'hidden', 'name' => $lang['sys.not_confirmed']]] ?>
                                         <select required id="status-input" name="status" class="form-control">
                                             <?php foreach ($statuses as $item) { ?>
-                                                <option <?$entitiy_data['status'] == $item['id'] ? 'selected ' : ''?>value="<?= $item['id'] ?>"><?= $item['name'] ?></option>
+                                                <option <?$entity_data['status'] == $item['id'] ? 'selected ' : ''?>value="<?= $item['id'] ?>"><?= $item['name'] ?></option>
                                             <?php } ?>
                                         </select>
                                     </div>
@@ -93,24 +93,24 @@ if (ENV_SITE !== 1) {
                                 <div class="row mb-3">
                                     <div class="col-12 col-sm-12">
                                         <label for="description-input"><?=$lang['sys.description']?>:</label>
-                                        <textarea id="description-input" name="description" class="form-control"><?= $entitiy_data['description'] ?></textarea>
+                                        <textarea id="description-input" name="description" class="form-control"><?= $entity_data['description'] ?></textarea>
                                     </div>
                                 </div>							
                                 <div class="row mb-3">
                                     <div class="col-12 col-sm-12">
                                         <label for="short_description-input"><?=$lang['sys.short_description']?>:</label>
-                                        <textarea id="short_description-input" name="short_description" class="form-control"><?= $entitiy_data['short_description'] ?></textarea>
+                                        <textarea id="short_description-input" name="short_description" class="form-control"><?= $entity_data['short_description'] ?></textarea>
                                     </div>
                                 </div>							
                             </div>
                             <div class="row mb-3">
                                 <div class="col-2">
                                     <label for="registration-date-input"><?=$lang['sys.date_create']?>:</label>
-                                    <input type="text" disabled  class="form-control" value="<?= $entitiy_data['created_at'] ?>">
+                                    <input type="text" disabled  class="form-control" value="<?= $entity_data['created_at'] ?>">
                                 </div>
                                 <div class="col-2">
                                     <label for="update-date-input"><?=$lang['sys.date_update']?>:</label>
-                                    <input type="text" disabled class="form-control" value="<?= $entitiy_data['updated_at'] ?>">
+                                    <input type="text" disabled class="form-control" value="<?= $entity_data['updated_at'] ?>">
                                 </div>
                             </div>
                             <button type="submit" class="btn btn-primary">Сохранить</button>

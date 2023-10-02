@@ -59,7 +59,9 @@ trait types_trait {
                     'field' => 'type_id',
                     'title' => 'ID',
                     'sorted' => 'ASC',
-                    'filterable' => false
+                    'filterable' => false,
+                    'width' => 10,
+                    'align' => 'center'
                 ], [
                     'field' => 'name',
                     'title' => $this->lang['sys.name'],
@@ -79,7 +81,9 @@ trait types_trait {
                     'field' => 'actions',
                     'title' => $this->lang['sys.action'],
                     'sorted' => false,
-                    'filterable' => false
+                    'filterable' => false,
+                    'width' => 10,
+                    'align' => 'center'
                 ],
             ]
         ];
@@ -109,14 +113,16 @@ trait types_trait {
         } else {
             $users_array = $this->models['m_types']->get_types_data(false, false, false, 25);
         }
-
         foreach ($users_array['data'] as $item) {
             $data_table['rows'][] = [
                 'type_id' => $item['type_id'],
                 'name' => $item['name'],
                 'created_at' => date('d.m.Y', strtotime($item['created_at'])),
                 'updated_at' => $item['updated_at'] ? date('d.m.Y', strtotime($item['updated_at'])) : '',
-                'actions' => '<a href="/admin/type_edit/id/' . $item['type_id'] . '" class="btn btn-primary me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.edit'] . '"><i class="fas fa-edit"></i></a>'
+                'actions' => '<a href="/admin/type_edit/id/' . $item['type_id'] . '" class="btn btn-primary me-2" data-bs-toggle="tooltip"'
+                . 'data-bs-placement="top" title="' . $this->lang['sys.edit'] . '"><i class="fas fa-edit"></i></a>'
+                . '<a href="/admin/delete_type/id/' . $item['type_id'] . '" onclick="return confirm(\'' . $this->lang['sys.delete'] . '?\');" '
+                . 'class="btn btn-danger me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.delete'] . '"><i class="fas fa-trash"></i></a>'
             ];
         }
         $data_table['total_rows'] = $users_array['total_count'];
@@ -172,4 +178,29 @@ trait types_trait {
         $this->show_layout($this->parameters_layout);
     }
 
+    /**
+     * Удалит выбранный тип категории
+     * @param array $params
+     */
+    public function delete_type($params = []) {
+        $this->access = array(1, 2);
+        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
+            SysClass::return_to_main();
+            exit();
+        }
+        $notifications = new Class_notifications();
+        if (in_array('id', $params)) {            
+            $id = filter_var($params[array_search('id', $params) + 1], FILTER_VALIDATE_INT);
+            $this->load_model('m_types');
+            $res = $this->models['m_types']->delete_type($id);
+            if (count($res)) {
+                $notifications->add_notification_user($this->logged_in, ['text' => 'Ошибка удаления типа id=' . $id . '<br/>' . $res['error'], 'status' => 'danger']);                    
+            } else {
+                $notifications->add_notification_user($this->logged_in, ['text' => 'Удалено!', 'status' => 'info']);
+            }     
+        } else {
+            $notifications->add_notification_user($this->logged_in, ['text' => 'Нет обязательного параметра id', 'status' => 'danger']); 
+        }
+        SysClass::return_to_main(200, '/admin/type_categories');
+    }
 }

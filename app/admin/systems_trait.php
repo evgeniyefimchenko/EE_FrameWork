@@ -315,7 +315,7 @@ trait systems_trait {
         }
         // Вставка данных в таблицу сущностей
         foreach ($entitiesData as $entityData) {
-            $res = $this->models['m_entities']->update_entitiy_data($entityData);
+            $res = $this->models['m_entities']->update_entity_data($entityData);
         }
         return $res;
     }

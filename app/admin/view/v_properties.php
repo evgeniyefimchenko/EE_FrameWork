@@ -1,4 +1,4 @@
-аproperties<?php
+<?php
 if (ENV_SITE !== 1) {
     header("HTTP/1.1 301 Moved Permanently");
     header("Location: http://" . $_SERVER['HTTP_HOST']);
@@ -13,7 +13,7 @@ if (ENV_SITE !== 1) {
            class="btn btn-info m-l-15 float-end">
             <i class="fa fa-plus-circle"></i>&nbsp;<?= $lang['sys.add'] ?>
         </a>        
-        <h1 class="mt-4"><?= $lang['features'] ?></h1>
+        <h1 class="mt-4"><?= $lang['sys.features'] ?></h1>
         <div class="row">
             <div class="col">
                 <?= $properties_table ?>
