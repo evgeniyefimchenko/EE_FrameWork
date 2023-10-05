@@ -94,13 +94,14 @@ class Class_notifications {
         }
         $notifi_id = 0;
         foreach ($user_options['notifications'] as $key => $notification) {
-            if (!$notification['text'] || mb_strlen($notification['text']) < 3) {
-                unset($user_options['notifications'][$key]);
-            } else {
-                $user_options['notifications'][$key]['id'] = $notifi_id;
+            if ($notification['text'] && mb_strlen($notification['text']) >= 3) {
+                $notification['id'] = $notifi_id;
+                $filtered_notifications[] = $notification;
                 $notifi_id++;
             }
         }
+        // Обновление notifications с отфильтрованными и переиндексированными данными
+        $user_options['notifications'] = $filtered_notifications;
         $class_users->set_user_options($user_id, $user_options);
     }
 

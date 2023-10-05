@@ -23,13 +23,13 @@ actions = {
             url: '/admin/ajax_admin',
             dataType: 'json',
             data: {'get': 1},
-            success: function (data) {
+            success: function (data) {                
                 if (typeof data.error !== 'undefined') {
                     console.log('error', data);
                     actions.showNotification(lang_var('sys.data_read_error'), 'danger');
                 } else {
                     if (data.notifications && typeof data.notifications[0] !== 'undefined') {
-                        var d = new Date().getTime();
+                        var d = new Date().getTime();                        
                         for (key in data.notifications) {
                             if (data.notifications[key].status === 'info' || data.notifications[key].status === 'success' || data.notifications[key].status === 'danger') {
                                 actions.showNotification(data.notifications[key].text, data.notifications[key].status);
@@ -86,12 +86,18 @@ actions = {
 // Загрузка и активация пользовательских настроек
 actions.loadOptionsUser();
 
-$(document).ready(function () {
+function setActiveNavLink(path) {
     $('a.nav-link').removeClass('active');
-    let $elem = $('a.nav-link[href="' + window.location.pathname + '"]');
+    let $elem = $('a.nav-link[href="' + path + '"]');
     $elem.addClass('active');
     $($elem.attr('data-parent-bs-target')).addClass('show');
-    $('a[data-bs-target="' + $elem.attr('data-parent-bs-target') + '"]').attr('aria-expanded', true).removeClass('collapsed');    
+    $('a[data-bs-target="' + $elem.attr('data-parent-bs-target') + '"]').attr('aria-expanded', true).removeClass('collapsed');
+}
+
+$(document).ready(function () {
+    // Отметить выбранный элемент меню
+    setActiveNavLink(window.location.pathname);
+    
     // Пометить все сообщения прочитанными
     $('#set_readed_all, #read_all_message').click(function () {
         let return_url = $(this).data('return');
@@ -111,7 +117,7 @@ $(document).ready(function () {
 window.addEventListener('DOMContentLoaded', event => {
     const sidebarToggle = document.body.querySelector('#sidebarToggle');
     if (sidebarToggle) {
-        // Раскомментируйте чтобы сохранить боковую панель для переключения между обновлениями
+        // Раскомментируйте чтобы сохранить боковую панель при обновлении страницы
         if (localStorage.getItem('sb|sidebar-toggle') === 'true') {
             document.body.classList.toggle('sb-sidenav-toggled');
         }

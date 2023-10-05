@@ -9,7 +9,7 @@ if (ENV_SITE !== 1) {
 /**
  * Модель работы с типами категорий
  */
-Class Model_types Extends Users {
+Class Model_categories_types Extends Users {
 
     /**
      * Получает все типы, с учетом языка.
@@ -31,7 +31,7 @@ Class Model_types Extends Users {
      * @param string $language_code Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG.
      * @return array Массив, содержащий данные о типах и общее количество типов.
      */
-    public function get_types_data($order = 'type_id ASC', $where = NULL, $start = 0, $limit = 100, $language_code = ENV_DEF_LANG) {
+    public function get_categories_types_data($order = 'type_id ASC', $where = NULL, $start = 0, $limit = 100, $language_code = ENV_DEF_LANG) {
         $orderString = $order ?: 'type_id ASC';
         $whereString = $where ? $where . " AND language_code = '$language_code'" : "WHERE language_code = '$language_code'";
         $start = $start ?: 0;
@@ -39,7 +39,7 @@ Class Model_types Extends Users {
         $res_array = SafeMySQL::gi()->getAll($sql_types, Constants::TYPES_TABLE, $start, $limit);
         $res = [];
         foreach ($res_array as $type) {
-            $res[] = $this->get_type_data($type['type_id'], $language_code);
+            $res[] = $this->get_categories_type_data($type['type_id'], $language_code);
         }
         $sql_count = "SELECT COUNT(DISTINCT `type_id`) as total_count FROM ?n $whereString";
         $total_count = SafeMySQL::gi()->getOne($sql_count, Constants::TYPES_TABLE);
@@ -55,7 +55,7 @@ Class Model_types Extends Users {
      * @param string $language_code Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG.
      * @return array|null Ассоциативный массив с данными типа или null, если тип не найден.
      */
-    public function get_type_data($type_id, $language_code = ENV_DEF_LANG) {
+    public function get_categories_type_data($type_id, $language_code = ENV_DEF_LANG) {
         if (!$type_id) {
             return null;
         }
@@ -70,7 +70,7 @@ Class Model_types Extends Users {
      * @param string $language_code Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG.
      * @return int|bool ID нового или обновленного типа или false в случае ошибки.
      */
-    public function update_type_data($type_data = [], $language_code = ENV_DEF_LANG) {
+    public function update_categories_type_data($type_data = [], $language_code = ENV_DEF_LANG) {
         $type_data = SafeMySQL::gi()->filterArray($type_data, SysClass::ee_get_fields_table(Constants::TYPES_TABLE));
         $type_data = array_map('trim', $type_data);
         $type_data['language_code'] = $language_code;
@@ -106,7 +106,7 @@ Class Model_types Extends Users {
      * Удалит тип категории
      * @param int $type_id
      */
-    public function delete_type($type_id) {
+    public function delete_categories_type($type_id) {
         try {
             $sql = 'SELECT 1 FROM ?n WHERE type_id = ?i';
             if (SafeMySQL::gi()->getOne($sql, Constants::CATEGORIES_TABLE, $type_id)) {

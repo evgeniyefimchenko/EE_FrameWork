@@ -81,4 +81,6 @@ $lang['sys.user_edit'] = 'Редактирование пользователя'
 $lang['sys.comment'] = 'Комментарий';
 $lang['sys.safety'] = 'Безопасность';
 $lang['sys.basics'] = 'Основное';
+$lang['sys.yes'] = 'Да';
+$lang['sys.no'] = 'Нет';
 return $lang;

@@ -425,11 +425,29 @@ class SafeMySQL extends Singleton {
         $start = microtime(TRUE);
         $res = mysqli_query($this->conn, $query);
         $timer = microtime(TRUE) - $start;
+        if (ENV_LOG) {
+            $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
+            foreach ($backtrace as $item) {
+                $arr_backtrace[] = ['function' => $item['function'], 'line' => $item['line'], 'file' => $item['file'], 
+                'class' => $item['class'], 'type' => $item['type']];
+            }
+        } else {
+            $arr_backtrace = [];
+        }
+        // Получаем последний total_time из stats, если он существует
+         $lastTotalTime = 0; // значение по умолчанию
+         if (is_array($this->stats) && !empty($this->stats)) {
+             $lastTotalTime = isset(end($this->stats)['total_time']) ? end($this->stats)['total_time'] : 0;
+         }
+        // Считаем новый total_time
+        $newTotalTime = $lastTotalTime + $timer;
         $this->stats[] = array(
             'query' => $query,
-            'start' => $start,
             'timer' => $timer,
+            'total_time' => $newTotalTime,
+            'backtrace' => array_reverse($arr_backtrace),
         );
+
         if (!$res) {
             $error = mysqli_error($this->conn);
 
@@ -570,11 +588,12 @@ class SafeMySQL extends Singleton {
     }
 
     /**
-     * On a long run we can eat up too much memory with mere statsistics
-     * Let's keep it at reasonable size, leaving only last 100 entries.
+     * В долгосрочной перспективе мы можем съесть слишком много памяти простой статистикой.
+     * Давайте сохраним разумный размер, оставив только последние 10 записей.
      */
-    private function cutStats() {
-        if (count($this->stats) > 100) {
+    private function cutStats($count = 10) {
+        if (ENV_LOG) $count = 1000;
+        if (count($this->stats) > $count) {
             reset($this->stats);
             $first = key($this->stats);
             unset($this->stats[$first]);

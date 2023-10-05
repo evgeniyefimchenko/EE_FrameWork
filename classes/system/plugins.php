@@ -501,6 +501,7 @@ Class Plugins {
             $out_sort
         ];
     }
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////END Plugin TABLE
 
     /**
@@ -517,14 +518,16 @@ Class Plugins {
         foreach ($menuItems['headings'] as $heading => $items) {
             $html .= '<div class="sb-sidenav-menu-heading">' . $heading . '</div>';
             foreach ($items as $item) {
+                $attributes = isset($item['attributes']) ? ' ' . $item['attributes'] : '';
                 if (isset($item['subItems'])) {
-                    $html .= '<a class="nav-link collapsed" href="' . ($item['link'] ?: '#') . '" data-bs-toggle="collapse" data-bs-target="#collapse_' . $item['title'] . '" aria-expanded="false" aria-controls="collapse_' . $item['title'] . '">
-                                <div class="sb-nav-link-icon"><i class="fas ' . $item['icon'] . '"></i></div>' . $item['title'] .
+                    $html .= '<a class="nav-link collapsed" href="' . ($item['link'] ?: '#') . '" data-bs-toggle="collapse" data-bs-target="#collapse_' . $item['title'] . '" aria-expanded="false" aria-controls="collapse_' . $item['title'] . '"' . $attributes . '>
+                            <div class="sb-nav-link-icon"><i class="fas ' . $item['icon'] . '"></i></div>' . $item['title'] .
                             '<div class="sb-sidenav-collapse-arrow"><i class="fas fa-angle-down"></i></div></a>
-                                <div class="collapse" id="collapse_' . $item['title'] . '" aria-labelledby="headingOne" data-bs-parent="#sidenavAccordion"><nav class="sb-sidenav-menu-nested nav">';
+                        <div class="collapse" id="collapse_' . $item['title'] . '" aria-labelledby="headingOne" data-bs-parent="#sidenavAccordion"><nav class="sb-sidenav-menu-nested nav">';
                     foreach ($item['subItems'] as $subItem) {
+                        $subAttributes = isset($subItem['attributes']) ? ' ' . $subItem['attributes'] : '';
                         if ($subItem['link']) {
-                            $html .= '<a class="nav-link" href="' . $subItem['link'] . '" data-parent-bs-target="#collapse_' . $item['title'] . '">
+                            $html .= '<a class="nav-link" href="' . $subItem['link'] . '" data-parent-bs-target="#collapse_' . $item['title'] . '"' . $subAttributes . '>
                                     <div class="sb-nav-link-icon"><i class="fas ' . $subItem['icon'] . '"></i></div>' . $subItem['title'] .
                                     '</a>';
                         } else {
@@ -534,21 +537,23 @@ Class Plugins {
                     $html .= '</nav></div>';
                 } else {
                     if ($item['link']) {
-                        $html .= '<a class="nav-link" href="' . $item['link'] . '">
-                                    <div class="sb-nav-link-icon"><i class="fas ' . $item['icon'] . '"></i></div>' . $item['title'] .
+                        $html .= '<a class="nav-link" href="' . $item['link'] . '"' . $attributes . '>
+                                <div class="sb-nav-link-icon"><i class="fas ' . $item['icon'] . '"></i></div>' . $item['title'] .
                                 '</a>';
                     } else {
                         $html .= '<span class="nav">
-                                    </div>' . $item['title'] .
+                                <div class="sb-nav-link-icon"><i class="fas ' . $item['icon'] . '"></i></div>' . $item['title'] .
                                 '</span>';
                     }
                 }
             }
         }
-        $html .= '</div></div><div class="sb-sidenav-footer"><div class="nav"><div class="sb-sidenav-menu-heading">' . $footerTitle . '</div>';
+        $html .= '</div></div><div class="sb-sidenav-footer" style="height: 50px; cursor: cell;"><div class="nav"><div class="sb-sidenav-menu-heading">' . $footerTitle . '</div>';
         foreach ($menuItems['footer'] as $item) {
+            $footerAttributes = isset($item['attributes']) ? ' ' . $item['attributes'] : '';
+
             if ($item['link']) {
-                $html .= '<a class="nav-link" href="' . $item['link'] . '">' . $item['title'] . '</a>';
+                $html .= '<a class="nav-link" href="' . $item['link'] . '"' . $footerAttributes . '>' . $item['title'] . '</a>';
             } else {
                 $html .= '<span class="nav">' . $item['title'] . '</span>';
             }

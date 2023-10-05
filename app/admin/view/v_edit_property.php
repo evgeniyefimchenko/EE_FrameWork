@@ -59,11 +59,15 @@ if (ENV_SITE !== 1) {
                                 </div>
                             </div>
                             <div class="row mb-3">
-                                <div class="row mb-3">
-                                    <div class="col-12 col-sm-12">
-                                        <label for="default_values-input"><?=$lang['sys.default']?>:</label>
-                                        <input id="default_values-input" name="default_values" class="form-control" value="<?= htmlentities($property_data['default_values']) ?>">
-                                    </div>
+                                <div class="col-4 col-sm-4">
+                                    <label for="default_values-input"><?=$lang['sys.fields']?>:</label>
+                                    <?= Plugins::renderHtmlFields($property_data['fields']) ?>
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-4 col-sm-4">
+                                    <label for="default_values-input"><?=$lang['sys.default']?>:</label>
+                                    <input id="default_values-input" name="default_values" class="form-control" value="<?= var_export($property_data['default_values'], true) ?>">
                                 </div>
                             </div>
                             <div class="row mb-3">

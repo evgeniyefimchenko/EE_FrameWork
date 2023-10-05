@@ -49,7 +49,7 @@ trait entities_trait {
         }
         /* model */
         $this->load_model('m_entities', [$this->logged_in]);
-        $this->load_model('m_types', []);
+        $this->load_model('m_categories_types', []);
         $this->load_model('m_categories', []);
         /* get current user data */
         $user_data = $this->models['m_entities']->data;
@@ -69,7 +69,7 @@ trait entities_trait {
         } else { // Не передан ключевой параметр id
             SysClass::return_to_main(200, ENV_URL_SITE . '/admin/user_edit/id/' . $this->logged_in);
         }
-        $get_all_types = $this->models['m_types']->get_all_types();
+        $get_all_types = $this->models['m_categories_types']->get_all_types();
         $get_all_categories = $this->models['m_categories']->getCategoriesTree(null, null, true);
         $get_all_entities = $this->models['m_entities']->get_all_entities($id);
         /* view */
@@ -122,8 +122,8 @@ trait entities_trait {
             exit();
         }
         $this->load_model('m_entities', [$this->logged_in]);
-        $this->load_model('m_types', []);
-        $all_types = $this->models['m_types']->get_all_types();
+        $this->load_model('m_categories_types', []);
+        $all_types = $this->models['m_categories_types']->get_all_types();
         if (!$this->lang['sys.name']) { // Подргужаем языковые переменные
             $user_data = $this->models['m_entities']->data;
             $this->get_user_data($user_data);
