@@ -1085,6 +1085,8 @@ Class SysClass {
         $error = '';
         if ('error' == strtolower($val)) {
             $error = 'error_';
+        } else if ('sql' == strtolower($val)) {
+            $error = 'sql_';
         }
         if (!file_exists(ENV_SITE_PATH . 'logs')) {
             mkdir(ENV_SITE_PATH . 'logs', 0777, true);
@@ -1095,7 +1097,8 @@ Class SysClass {
         $temp1 = $temp1 ? var_export($temp1, true) . PHP_EOL : '';
         $temp2 = $temp2 ? var_export($temp2, true) . PHP_EOL : '';
         $temp3 = $temp3 ? var_export($temp3, true) . PHP_EOL : '';
-        file_put_contents(ENV_SITE_PATH . 'logs' . ENV_DIRSEP . $error . date("Y-m-d") . '.txt', PHP_EOL . date("Y-m-d H:i:s") . ' из ' . $caller['file'] . ' Line: ' . $caller['line'] . ' Func: ' . $caller['function'] . PHP_EOL . var_export($val, true) . PHP_EOL . $temp . $temp1 . $temp2 . $temp3 . PHP_EOL, FILE_APPEND | LOCK_EX);
+        $path = ENV_SITE_PATH . 'logs' . ENV_DIRSEP . $error . date("Y-m-d") . '.txt';
+        file_put_contents($path, PHP_EOL . date("Y-m-d H:i:s") . ' из ' . $caller['file'] . ' Line: ' . $caller['line'] . ' Func: ' . $caller['function'] . PHP_EOL . var_export($val, true) . PHP_EOL . $temp . $temp1 . $temp2 . $temp3 . PHP_EOL, FILE_APPEND | LOCK_EX);
     }
 
     /**

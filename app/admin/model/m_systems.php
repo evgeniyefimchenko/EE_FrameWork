@@ -15,10 +15,9 @@ Class Model_systems extends Users {
     /**
      * Очищает все таблицы в базе данных.
      * Этот метод получает список всех таблиц в текущей базе данных,
-     * и выполняет операцию TRUNCATE на каждой таблице для её очистки.
+     * и выполняет операцию DROP на каждой таблице для её очистки.
      * Операции выполняются в рамках одной транзакции, чтобы гарантировать,
-     * что все таблицы будут успешно очищены, или ни одна из таблиц не будет
-     * очищена в случае ошибки.
+     * что все таблицы будут успешно очищены, или ни одна из таблиц не будет удалена в случае ошибки.
      * @param int $user_id Кто вызвал
      * @throws Exception Если произошла ошибка во время очистки таблиц.
      */
@@ -30,7 +29,7 @@ Class Model_systems extends Users {
             try {
                 SafeMySQL::gi()->query("SET FOREIGN_KEY_CHECKS=0");  // отключаем проверку внешних ключей
                 foreach ($tables as $table) {
-                    SafeMySQL::gi()->query("TRUNCATE TABLE ?n", $table);
+                    SafeMySQL::gi()->query("DROP TABLE ?n", $table);
                 }
                 SafeMySQL::gi()->query("SET FOREIGN_KEY_CHECKS=1");  // включаем проверку внешних ключей обратно
                 SafeMySQL::gi()->query("COMMIT");
@@ -42,10 +41,11 @@ Class Model_systems extends Users {
         } else {
             $notifications->add_notification_user($user_id, ['text' => 'No tables found in the database.', 'status' => 'info']);
             return false;
-        }        
-        $this->registration_new_user(['name' => 'admin', 'email' => 'test@test.com', 'active' => '2', 'user_role' => '1', 'subscribed' => '1', 'comment' => 'Смените пароль администратора', 'pwd' => 'admin']);
-        $this->create_tables();
-        unlink($flagFilePath = ENV_LOGS_PATH . '/test_data_created.txt');
+        }
+        // Пересоздание БД и регистрация первичных пользователей
+        $this->get_user_data();
+        $flagFilePath = ENV_LOGS_PATH . 'test_data_created.txt';
+        if (file_exists($flagFilePath)) unlink($flagFilePath);
         return true;
     }
 

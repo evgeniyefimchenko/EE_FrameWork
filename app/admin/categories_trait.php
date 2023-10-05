@@ -50,7 +50,7 @@ trait categories_trait {
         }
         /* model */
         $this->load_model('m_categories', [$this->logged_in]);
-        $this->load_model('m_types', []);
+        $this->load_model('m_categories_types', []);
         /* get current user data */
         $user_data = $this->models['m_categories']->data;
         $this->get_user_data($user_data);
@@ -71,7 +71,7 @@ trait categories_trait {
         }
         $parents = $this->models['m_categories']->getCategoriesTree($id);
         /* view */
-        $get_all_types = $this->models['m_types']->get_all_types();
+        $get_all_types = $this->models['m_categories_types']->get_all_types();
         $this->view->set('category_data', $get_category_data);
         $this->view->set('parents', $parents);
         $this->view->set('all_type', $get_all_types);
@@ -210,8 +210,8 @@ trait categories_trait {
                 'label' => $this->lang['sys.date_update']
             ],
         ];
-        $this->load_model('m_types', []);
-        foreach ($this->models['m_types']->get_all_types() as $item) {
+        $this->load_model('m_categories_types', []);
+        foreach ($this->models['m_categories_types']->get_all_types() as $item) {
            $filters['type_id']['options'][] = ['value' => $item['type_id'], 'label' => $item['name']];  
         }
         if ($post_data && isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') { // AJAX

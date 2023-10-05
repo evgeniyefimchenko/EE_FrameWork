@@ -67,7 +67,7 @@ Class View {
             $path = $stack . ENV_DIRSEP . 'view' . ENV_DIRSEP . $add_path . $name . '.php';
         }
         if (!file_exists($path)) {
-            return 'Шаблон `' . $name . '` не существует. Полный путь: ' . $path;
+            return 'Шаблон `' . $name . '` не существует. Путь поиска: ' . $path;
         }
 
         foreach ($this->vars as $key => $value) {

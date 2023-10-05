@@ -64,10 +64,10 @@ Abstract Class Controller_Base {
             $session = Session::get('user_session');
         }
         if ($session) {
-            if (!SysClass::connect_db_exists() || SafeMySQL::gi()->query('show tables like ?s', ENV_DB_PREF . 'users')->{"num_rows"} === 0) {
+            if (!SysClass::connect_db_exists()) {
                 Session::destroy();
             } else {
-                $this->logged_in = $this->get_users_session_data($session);
+                if (!$this->logged_in) $this->logged_in = $this->get_users_session_data($session);
             }
         }
         $php_input = json_decode(file_get_contents('php://input'), true);

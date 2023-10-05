@@ -140,7 +140,7 @@ trait systems_trait {
             $status = 'info';            
             // Создаем тестовые данные
             $this->load_model('m_categories', []);
-            $this->load_model('m_types', []);            
+            $this->load_model('m_categories_types', []);            
             $this->load_model('m_entities', []);            
             $users = $this->generate_test_users();
             $cats = $this->generate_test_categories();
@@ -218,7 +218,7 @@ trait systems_trait {
      */
     private function generate_test_categories($count = 20, $parent_depth = 3) {
         // Получаем список существующих типов
-        $types = $this->models['m_types']->get_all_types();        
+        $types = $this->models['m_categories_types']->get_all_types();        
         if (empty($types)) {
             echo "No types found in the types table.";
             return;

@@ -39,7 +39,7 @@ $menuItems = [
                     'icon' => 'fa-regular fa-folder',
                     'subItems' => [
                         ['title' => 'Список', 'link' => '/admin/categories', 'icon' => 'fa-sharp fa-solid fa-list'],
-                        ['title' => 'Типы', 'link' => '/admin/type_categories', 'icon' => 'fa-sharp fa-solid fa-marker'],
+                        ['title' => 'Типы', 'link' => '/admin/types_categories', 'icon' => 'fa-sharp fa-solid fa-marker'],
                     ],
                 ],
                 [
@@ -57,6 +57,7 @@ $menuItems = [
                     'subItems' => [
                         ['title' => 'Список', 'link' => '/admin/properties', 'icon' => 'fa-sharp fa-solid fa-list'],
                         ['title' => 'Типы', 'link' => '/admin/types_properties', 'icon' => 'fa-sharp fa-solid fa-marker'],
+                        ['title' => 'Наборы свойств', 'link' => '/admin/properties_sets', 'icon' => 'fa-sharp fa-solid fa-sliders'],
                     ],                    
                 ],
                 [
@@ -97,6 +98,7 @@ $menuItems = [
                             'title' => 'Удалить данные БД',
                             'link' => '/admin/kill_em_all',
                             'icon' => 'fa-solid fa-book-skull',
+                            'attributes' => 'onclick="return confirm(\'Все таблицы БД будут удалены!\');"',
                         ],
                     ],
                 ],

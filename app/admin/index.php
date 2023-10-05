@@ -21,7 +21,7 @@ Class Controller_index Extends Controller_Base {
         systems_trait,
         emails_trait,
         categories_trait,
-        types_trait,
+        categories_types_trait,
         entities_trait,
         properties_trait;
 

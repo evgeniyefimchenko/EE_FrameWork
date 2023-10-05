@@ -33,28 +33,23 @@ Class Model_categories Extends Users {
         $orderString = $order ? $order : 'category_id ASC';
         $start = $start ? $start : 0;
         $params = [Constants::CATEGORIES_TABLE, $language_code, $start, $limit];
-
         if ($where) {
             $whereString = "$where AND language_code = ?s";
         } else {
             $whereString = "language_code = ?s";
         }
-
         if ($orderString) {
             $sql_categories = "SELECT `category_id` FROM ?n WHERE $whereString ORDER BY $orderString LIMIT ?i, ?i";
         } else {
             $sql_categories = "SELECT `category_id` FROM ?n WHERE $whereString LIMIT ?i, ?i";
         }
-
         $res_array = SafeMySQL::gi()->getAll($sql_categories, ...$params);
         $res = [];
         foreach ($res_array as $category) {
             $res[] = $this->get_category_data($category['category_id']);
         }
-
         $sql_count = "SELECT COUNT(*) as total_count FROM ?n WHERE $whereString";
         $total_count = SafeMySQL::gi()->getOne($sql_count, ...array_slice($params, 0, 2));  // передаем первые два параметра (имя таблицы и код языка)
-
         return [
             'data' => $res,
             'total_count' => $total_count
