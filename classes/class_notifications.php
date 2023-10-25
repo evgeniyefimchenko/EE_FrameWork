@@ -17,14 +17,14 @@ class Class_notifications {
     * @param type $user_id
     * @param type $text_notification
     */
-    public function kill_notification_by_text($user_id, $text_notification) {
-        $notifications = $this->get_notifications_user($user_id);
+    public static function kill_notification_by_text($user_id, $text_notification) {
+        $notifications = self::get_notifications_user($user_id);
         foreach ($notifications as $key => $notification) {
             if (mb_strpos($notification['text'], $text_notification) !== FALSE) {
                 unset($notifications[$key]);
             }
         }
-        $this->set_notifications_user($user_id, $notifications);
+        self::set_notifications_user($user_id, $notifications);
     }
     
     /**
@@ -32,14 +32,14 @@ class Class_notifications {
      * @param int $user_id - id пользователя
      * @param int $id - id оповещения
      */
-    public function kill_notification_by_id($user_id, $id) {
-        $notifications = $this->get_notifications_user($user_id);
+    public static function kill_notification_by_id($user_id, $id) {
+        $notifications = self::get_notifications_user($user_id);
         foreach ($notifications as $key => $notification) {
             if ($notification['id'] == $id) {
                 unset($notifications[$key]);
             }
         }
-        $this->set_notifications_user($user_id, $notifications);        
+        self::set_notifications_user($user_id, $notifications);        
     }
     
     /**
@@ -47,14 +47,14 @@ class Class_notifications {
      * @param int $user_id - id пользователя
      * @param str $status
      */
-    public function kill_notification_by_status($user_id, $status) {
-        $notifications = $this->get_notifications_user($user_id);
+    public static function kill_notification_by_status($user_id, $status) {
+        $notifications = self::get_notifications_user($user_id);
         foreach ($notifications as $key => $notification) {
             if ($notification['status'] == $status) {
                 unset($notifications[$key]);
             }
         }
-        $this->set_notifications_user($user_id, $notifications);        
+        self::set_notifications_user($user_id, $notifications);        
     }
 
     /**
@@ -62,7 +62,7 @@ class Class_notifications {
     * @param int $user_id - ID пользователя
     * @return array
     */
-    public function get_notifications_user($user_id) {
+    public static function get_notifications_user($user_id) {
         $class_users = new Users(array());
         $user_options = $class_users->get_user_options($user_id);
         return $user_options['notifications'];
@@ -73,9 +73,9 @@ class Class_notifications {
     * @param int $user_id ID - пользователя
     * @param array $notification - Массив с текстом и классом уведомления 'primary', 'info', 'success', 'warning', 'danger'
     */
-    public function add_notification_user($user_id, $notification = []) {
+    public static function add_notification_user($user_id, $notification = []) {
         $notification['showtime'] = '0';
-        $this->set_notifications_user($user_id, $notification, true);
+        self::set_notifications_user($user_id, $notification, true);
     }
 
     /**
@@ -111,21 +111,21 @@ class Class_notifications {
     * @param int $reading_time - время в формате UNIXTIME
     * @param int $id - ID уведомления
     */
-    public function set_reading_time($user_id, $reading_time, $id) {
-        $notifications = $this->get_notifications_user($user_id);
+    public static function set_reading_time($user_id, $reading_time, $id) {
+        $notifications = self::get_notifications_user($user_id);
         foreach ($notifications as $key => $notification) {
             if ($notification['id'] == $id) {
                 $notifications[$key]['showtime'] = $reading_time;
             }
         }
-        $this->set_notifications_user($user_id, $notifications);
+        self::set_notifications_user($user_id, $notifications);
     }
 
     /**
     * Удалит все уведомления пользователя
     * @param type $user_id
     */
-    public function kill_em_all($user_id) {
-        $this->set_notifications_user($user_id, []);
+    public static function kill_em_all($user_id) {
+        self::set_notifications_user($user_id, []);
     }
 }

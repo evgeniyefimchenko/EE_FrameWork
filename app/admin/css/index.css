@@ -11554,3 +11554,11 @@ body {
     font-size: 10px;
     border-radius: 5px;
 }
+
+.property_content span, .property_content input, .property_content select, .property_content button {
+    margin: 0 5px 10px 5px;
+}
+
+.property_content button {
+    font-size: xx-small;
+}

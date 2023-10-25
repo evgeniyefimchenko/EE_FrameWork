@@ -762,8 +762,7 @@ Class Controller_index Extends Controller_Base {
         if (in_array('id', $params)) {
             $id = filter_var($params[array_search('id', $params) + 1], FILTER_VALIDATE_INT);
             if (in_array($id, [1, 2, 3, 4, 8])) {
-                    $notifications = new Class_notifications();
-                    $notifications->add_notification_user($this->logged_in, ['text' => 'Невозможно удалить системные роли!', 'status' => 'danger']);                    
+                    Class_notifications::add_notification_user($this->logged_in, ['text' => 'Невозможно удалить системные роли!', 'status' => 'danger']);                    
             } else {
                 $this->load_model('m_user_edit');
                 $this->models['m_user_edit']->users_role_dell($id);
@@ -811,21 +810,20 @@ Class Controller_index Extends Controller_Base {
             SysClass::return_to_main();
             exit();
         }
-        $notifications = new Class_notifications();
         if (in_array('id', $params)) {            
             $id = filter_var($params[array_search('id', $params) + 1], FILTER_VALIDATE_INT);
             if (in_array($id, [1, 2])) {
-                $notifications->add_notification_user($this->logged_in, ['text' => 'Невозможно удалить системные роли!', 'status' => 'danger']);                    
+                Class_notifications::add_notification_user($this->logged_in, ['text' => 'Невозможно удалить системные роли!', 'status' => 'danger']);                    
             } else {
                 $this->load_model('m_user_edit');
                 if (!$this->models['m_user_edit']->delete_user($id)) {                    
-                    $notifications->add_notification_user($this->logged_in, ['text' => 'Ошибка удаления пользователя id=' . $id, 'status' => 'danger']);                    
+                    Class_notifications::add_notification_user($this->logged_in, ['text' => 'Ошибка удаления пользователя id=' . $id, 'status' => 'danger']);                    
                 } else {
-                    $notifications->add_notification_user($this->logged_in, ['text' => 'Помечен удалённым id=' . $id, 'status' => 'info']);
+                    Class_notifications::add_notification_user($this->logged_in, ['text' => 'Помечен удалённым id=' . $id, 'status' => 'info']);
                 }
             }            
         } else {
-            $notifications->add_notification_user($this->logged_in, ['text' => 'Нет обязательного параметра id', 'status' => 'danger']); 
+            Class_notifications::add_notification_user($this->logged_in, ['text' => 'Нет обязательного параметра id', 'status' => 'danger']); 
         }
         SysClass::return_to_main(200, '/admin/users');
     }

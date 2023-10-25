@@ -34,8 +34,9 @@ Class Plugins {
         if (!is_array($data_table)) {
             return '<div class="alert alert-danger text-center">Ошибка формата данных</div>';
         }
-        if (!is_string($add_class))
+        if (!is_string($add_class)) {
             $add_class = 'table-striped';
+        }
         $html = '<div class="mb-3" data-tableID="' . $id_table . '" id="' . $id_table . '_content_tables">';
         $html .= '<input type="hidden" id="' . $id_table . '_callback_function" value="' . $callback_function . '">';
         $html .= self::generateFilterSection($id_table, $data_table, $filters);
@@ -605,6 +606,219 @@ Class Plugins {
             }
         }
         $html .= '</ul></li></ul></nav>';
+        return $html;
+    }
+
+    /**
+     * Рендерит HTML-теги на основе переданного массива полей.
+     * Функция принимает массив, значения типы полей (например, "text", "select" и т.д.)
+     * На основе этого массива функция генерирует и выводит HTML-теги в контейнерах <div class="col-4 col-sm-4">
+     * @param array $fields
+     * @return void Функция ничего не возвращает, выводит HTML напрямую.
+     */
+    public static function renderPropertyHtmlFields($fields, $default = []) {
+        $count = 0;
+        $lang = include(ENV_SITE_PATH . ENV_PATH_LANG . '/' . Session::get('lang') . '.php');
+        if (!is_array($lang)) SysClass::pre('Языковой файл не подключен: ' . ENV_SITE_PATH . ENV_PATH_LANG . '/' . Session::get('lang') . '.php');
+        foreach ($fields as $type) {
+            echo $lang['sys.type'] . ' ' . ucfirst($type) . ': ';
+            echo '<div class="col-12 col-sm-12 mt-2 d-flex align-items-center property_content">';           
+            if ($type !== 'checkbox' && $type !== 'radio') {
+                echo '<span>' . $lang['sys.name'] . '</span>&nbsp;<input type="text" required name="property_data[' . $type . '_' . $count . '_label]"'
+                    . 'class="form-control mb-2 w-25" data-bs-toggle="tooltip" data-bs-placement="top"'
+                    . 'value="' . $default[$count]['label'] . '" />&nbsp'
+                    . '<span>' . $lang['sys.value'] . '</span>&nbsp';
+            }
+            switch ($type) {
+                case 'text':
+                    echo '<input type="text" class="form-control" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $lang['sys.default'] . '" '
+                        . 'name="property_data[' . $type . '_' . $count . '_default]" value="' . $default[$count]['default'] . '" />';
+                    break;
+                case 'date':
+                    echo '<input type="date" class="form-control" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $lang['sys.default'] . '" '
+                        . 'name="property_data[' . $type . '_' . $count . '_default]" value="' . $default[$count]['default'] . '" />';
+                    break;
+                case 'datetime-local':
+                    echo '<input type="datetime-local" class="form-control" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $lang['sys.default'] . '" '
+                        . 'name="property_data[' . $type . '_' . $count . '_default]" value="' . $default[$count]['default'] . '" />';
+                    break;
+                case 'hidden':
+                    echo '<input type="text" class="form-control" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $lang['sys.default'] . '" '
+                        . 'name="property_data[' . $type . '_' . $count . '_default]" value="' . $default[$count]['default'] . '" />';
+                    break;
+                case 'password':
+                    echo '<input type="password" class="form-control" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $lang['sys.default'] . '" '
+                        . 'name="property_data[' . $type . '_' . $count . '_default]" value="' . $default[$count]['default'] . '" />';
+                    break;
+                case 'file':
+                    echo self::ee_uploader() . '<div style="display: none;"><input type="file" class="form-control" data-bs-toggle="tooltip" data-bs-placement="top" '
+                        . 'title="' . $lang['sys.default'] . '" name="property_data[' . $type . '_' . $count . '_default]">'
+                        . '<span>' . $lang['sys.multiple_choice'] . '</span><div class="form-check">'
+                        . '<input class="form-check-input" type="checkbox" name="property_data[' . $type . '_' . $count . '_multiple]"'
+                        . ($default[$count]['multiple'] ? 'checked ' : '') . '/></div></div>';
+                    break;
+                case 'email':
+                    echo '<input type="email" class="form-control" data-bs-toggle="tooltip" data-bs-placement="top" '
+                         . 'title="' . $lang['sys.default'] . 'name="property_data[' . $type . '_' . $count . '_default]" value="' . $default[$count]['default'] . '" />';
+                    break;
+                case 'phone':
+                    echo '<input type="tel" class="form-control" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $lang['sys.default'] . '" '
+                        . 'name="property_data[' . $type . '_' . $count . '_default]" value="' . $default[$count]['default'] . '" />';
+                    break;
+                case 'select':
+                    $options = '';
+                    if ($default[$count]['default'] && is_array($arr_opt = explode('&', html_entity_decode($default[$count]['default'])))) {
+                        foreach ($arr_opt as $item) {
+                           if ($item) {
+                                $arr_item = explode('=', $item);
+                                $options .= '<option value="' . $arr_item[0] . '">' . $arr_item[1] . '</option>'; 
+                           }
+                        }
+                    }
+                    echo '<input type="hidden" name="property_data[' . $type . '_' . $count . '_default]" id="' . $type . '_' . $count . '_default"'
+                        . 'value="' . $default[$count]['default'] . '"/>'
+                        . '<select class="form-select" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $lang['sys.default'] . '"'
+                        . 'id="' . $type . '_' . $count . '">' . $options . '</select>'
+                        . '<span data-select-id="' . $type . '_' . $count . '" id="' . $type . '_' . $count . '_default_add_select_values" role="button"'
+                        . 'class="input-group-text btn-primary openModal" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $lang['sys.separate_window'] . '">'
+                        . '<i class="fas fa-tree"></i></span>'
+                        . '<span>' . $lang['sys.multiple_choice'] . '</span><div class="form-check">'
+                        . '<input class="form-check-input" type="checkbox" name="property_data[' . $type . '_' . $count . '_multiple]"'
+                        . ($default[$count]['multiple'] ? 'checked ' : '') . '/></div>';
+                    break;
+                case 'textarea':
+                    echo '<textarea class="form-control" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $lang['sys.default'] . '"'
+                        . 'name="property_data[' . $type . '_' . $count . '_default]"></textarea>';
+                    break;
+                case 'image':
+                    echo '<input type="file" accept="image/*" class="form-control" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $lang['sys.default'] . '" '
+                        . 'name="property_data[' . $type . '_' . $count . '_default]">'
+                        . '<span>' . $lang['sys.multiple_choice'] . '</span><div class="form-check">'
+                        . '<input class="form-check-input" type="checkbox" name="property_data[' . $type . '_' . $count . '_multiple]"'
+                        . ($default[$count]['multiple'] ? 'checked ' : '') . '/></div>';
+                    break;
+                case 'checkbox':
+                    $count_items = 0;
+                    if (isset($default[$count]['count']) && $default[$count]['count']) {
+                       $count_items = $default[$count]['count'];
+                    }
+                    $add_html = '';
+                    if ($count_items) {
+                        $default_arr = array_flip(explode(',', $default[$count]['default']));
+                        $value_count = 0;
+                        $first_element = ['name' => '', 'checked' => 0];
+                        foreach ($default[$count]['label'] as $k => $name) {
+                            if(!$value_count) {
+                                $first_element = ['name' => $name, 'checked' => $default_arr[$k]];
+                                $value_count++;
+                                continue;
+                            }
+                            $add_html .= '<div class="checkbox_container d-flex align-items-center">'
+                                    . '<span>' . $lang['sys.name'] . '</span>&nbsp;'
+                                    . '<input type="text" required value="' . $name . '" name="property_data[' . $type . '_' . $count . '_label][]"'
+                                    . 'class="form-control mb-2 w-25" data-bs-toggle="tooltip" data-bs-placement="top" />&nbsp'
+                                    . '<span>' . $lang['sys.value'] . '</span>&nbsp<div class="form-check float-start">'                        
+                                    . '<input type="checkbox" ' . (isset($default_arr[$k]) ? 'checked ' : '') . 'class="form-check-input" '
+                                    . 'data-bs-toggle="tooltip" data-bs-placement="top" value="' . $value_count . '"'
+                                    . 'title="' . $lang['sys.default'] . '" name="property_data[' . $type . '_' . $count . '_default][]"></div>'
+                                    . '<button type="button" class="btm btn-primary" data-general-name="' . $type . '_' . $count . '"'
+                                    . 'id="' . $type . '_' . $count . '_default_add_checkbox_values"><i class="fa fa-minus"></i></button></div>';
+                                    $value_count++;
+                        }
+                    }
+                    echo '<div class="parent_checkbox_container d-flex align-items-center row">'
+                        . '<input type="hidden" id="' . $type . '_' . $count . '_count" name="property_data[' . $type . '_' . $count . '_count]" value="' . $count_items . '">'
+                        . '<div class="input-group mb-3 w-75"><span class="input-group-text me-0">' . $lang['sys.heading'] . '</span>'
+                        . '<input type="text" class="form-control" name="property_data[' . $type . '_' . $count . '_title]" value="' . $default[$count]['title'] . '"/></div>'
+                        . '<div class="checkbox_container d-flex align-items-center">'
+                        . '<span>' . $lang['sys.name'] . '</span>&nbsp;'
+                        . '<input type="text" required value="' . $first_element['name'] . '" name="property_data[' . $type . '_' . $count . '_label][]"'
+                        . 'class="form-control mb-2 w-25" data-bs-toggle="tooltip" data-bs-placement="top" >&nbsp'
+                        . '<span>' . $lang['sys.value'] . '</span>&nbsp<div class="form-check float-start">'                        
+                        . '<input type="checkbox" ' . (isset($first_element['checked']) ? 'checked ' : '') . 'value="0" class="form-check-input" data-bs-toggle="tooltip" data-bs-placement="top" '
+                        . 'title="' . $lang['sys.default'] . '" name="property_data[' . $type . '_' . $count . '_default][]"></div>'                        
+                        . '<button type="button" class="btm btn-primary" data-general-name="' . $type . '_' . $count . '"'
+                        . 'id="' . $type . '_' . $count . '_default_add_checkbox_values"><i class="fa fa-plus"></i></button>'
+                        . '<span>' . $lang['sys.multiple_choice'] . '</span><div class="form-check">'
+                        . '<input class="form-check-input" type="checkbox" name="property_data[' . $type . '_' . $count . '_multiple]"'
+                        . ($default[$count]['multiple'] ? 'checked ' : '') . '/></div>'                        
+                        . '</div>' . $add_html . '</div>';
+                    break;
+                case 'radio':
+                    $count_items = 0;
+                    if (isset($default[$count]['count']) && $default[$count]['count']) {
+                       $count_items = $default[$count]['count'];
+                    }
+                    $add_html = '';
+                    if ($count_items) {
+                        $first_element = ['name' => '', 'checked' => 0];
+                        $default_arr = array_flip(explode(',', $default[$count]['default']));
+                        $value_count = 0;
+                        foreach ($default[$count]['label'] as $k => $name) {
+                            if(!$value_count) {
+                                $first_element = ['name' => $name, 'checked' => $default_arr[$k]];
+                                $value_count++;
+                                continue;
+                            }                            
+                            $add_html .= '<div class="radio_container d-flex align-items-center">'
+                                        . '<span>' . $lang['sys.name'] . '</span>&nbsp;'
+                                        . '<input type="text" required value="' . $name . '" name="property_data[' . $type . '_' . $count . '_label][]"'
+                                        . 'class="form-control mb-2 w-25" data-bs-toggle="tooltip" data-bs-placement="top" >&nbsp'
+                                        . '<span>' . $lang['sys.value'] . '</span>&nbsp<div class="form-check"><input type="radio"'
+                                        . ' ' . (isset($default_arr[$k]) ? 'checked ' : '') . 'class="form-check-input" data-bs-toggle="tooltip"'
+                                        . 'data-bs-placement="top" title="' . $lang['sys.default'] . '" value="' . $value_count . '" '
+                                        . 'name="property_data[' . $type . '_' . $count . '_default][]"></div>'
+                                        . '<button type="button" class="btm btn-primary" data-general-name="' . $type . '_' . $count . '"'
+                                        . 'id="' . $type . '_' . $count . '_default_add_checkbox_values"><i class="fa fa-minus"></i></button></div>';
+                            $value_count++;
+                        }
+                    }                    
+                    echo '<div class="parent_radio_container d-flex align-items-center row">'
+                        . '<input type="hidden" id="' . $type . '_' . $count . '_count" name="property_data[' . $type . '_' . $count . '_count]" value="' . $count_items . '">'
+                        . '<div class="input-group mb-3 w-75"><span class="input-group-text me-0">' . $lang['sys.heading'] . '</span>'
+                        . '<input type="text" class="form-control" name="property_data[' . $type . '_' . $count . '_title]" value="' . $default[$count]['title'] . '"/></div>'
+                        . '<div class="radio_container d-flex align-items-center">'
+                        . '<span>' . $lang['sys.name'] . '</span>&nbsp;'
+                        . '<input type="text" required value="' . $first_element['name'] . '" name="property_data[' . $type . '_' . $count . '_label][]"'
+                        . 'class="form-control mb-2 w-25" data-bs-toggle="tooltip" data-bs-placement="top" >&nbsp'
+                        . '<span>' . $lang['sys.value'] . '</span>&nbsp<div class="form-check"><input type="radio" class="form-check-input" data-bs-toggle="tooltip"'
+                        . 'data-bs-placement="top" title="' . $lang['sys.default'] . '" ' . (isset($first_element['checked']) ? 'checked ' : '') . 'value="0"'
+                        . ' name="property_data[' . $type . '_' . $count . '_default][]"></div>'
+                        . '<button type="button" class="btm btn-primary" data-general-name="' . $type . '_' . $count . '"'
+                        . 'id="' . $type . '_' . $count . '_default_add_radio_values"><i class="fa fa-plus"></i></button>'
+                        . '</div>' . $add_html . '</div>';
+                    break;
+                default:
+                    echo '<span class="text-danger">Unsupported field type: ' . $type . '</span>';
+            }
+            echo '<span>' . $lang['sys.required'] . '</span><div class="form-check"><input type="checkbox"'
+                    . 'class="form-check-input" name="property_data[' . $type . '_' . $count . '_required]"'
+                    . ($default[$count]['required'] ? 'checked ' : '') . '/></div></div><hr/>';
+            $count++;
+        }
+    }
+
+    public static function ee_uploader($params = []) {
+        $html = '
+<style>
+.fileItem {
+    margin-bottom: 10px;
+    position: relative;
+    border: 2px solid cyan;
+    border-radius: 5px;
+}
+
+.actionIcons {
+    position: absolute;
+    right: 10px;
+    bottom: 10px;
+    display: flex;
+    gap: 5px;
+}
+</style>
+        <input type="file" class="ee_fileInput" data-allowed-extensions="jpg,jpeg,png,txt,doc,pdf" multiple>             
+        <div class="preloadedFiles p-3 border bg-light rounded"></div>';
+        $html .= '<script src="' . ENV_URL_SITE . '/classes/system/js/plugins/ee_uploader.js" type="text/javascript" /></script>';
         return $html;
     }
 

@@ -153,8 +153,7 @@ trait categories_types_trait {
             $id = filter_var($params[array_search('id', $params) + 1], FILTER_VALIDATE_INT);
             if (isset($post_data['name']) && $post_data['name']) {
                 if (!$id = $this->models['m_categories_types']->update_categories_type_data($post_data)) {
-                    $notifications = new Class_notifications();
-                    $notifications->add_notification_user($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
+                    Class_notifications::add_notification_user($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
                 } else {
                     if (!$post_data['type_id']) SysClass::return_to_main(200, ENV_URL_SITE . '/admin/categories_type_edit/id/' . $id);
                 }
@@ -168,7 +167,7 @@ trait categories_types_trait {
         $this->view->set('type_data', $get_categories_types_data);
         $this->view->set('all_type', $get_all_types);
         $this->get_standart_view();
-        $this->view->set('body_view', $this->view->read('v_edit_type'));
+        $this->view->set('body_view', $this->view->read('v_edit_categories_type'));
         $this->html = $this->view->read('v_dashboard');
         /* layouts */
         $this->parameters_layout["layout_content"] = $this->html;
@@ -188,18 +187,17 @@ trait categories_types_trait {
             SysClass::return_to_main();
             exit();
         }
-        $notifications = new Class_notifications();
         if (in_array('id', $params)) {            
             $id = filter_var($params[array_search('id', $params) + 1], FILTER_VALIDATE_INT);
             $this->load_model('m_categories_types');
             $res = $this->models['m_categories_types']->delete_categories_type($id);
             if (count($res)) {
-                $notifications->add_notification_user($this->logged_in, ['text' => 'Ошибка удаления типа id=' . $id . '<br/>' . $res['error'], 'status' => 'danger']);                    
+                Class_notifications::add_notification_user($this->logged_in, ['text' => 'Ошибка удаления типа id=' . $id . '<br/>' . $res['error'], 'status' => 'danger']);                    
             } else {
-                $notifications->add_notification_user($this->logged_in, ['text' => 'Удалено!', 'status' => 'info']);
+                Class_notifications::add_notification_user($this->logged_in, ['text' => 'Удалено!', 'status' => 'info']);
             }     
         } else {
-            $notifications->add_notification_user($this->logged_in, ['text' => 'Нет обязательного параметра id', 'status' => 'danger']); 
+            Class_notifications::add_notification_user($this->logged_in, ['text' => 'Нет обязательного параметра id', 'status' => 'danger']); 
         }
         SysClass::return_to_main(200, '/admin/type_categories');
     }
