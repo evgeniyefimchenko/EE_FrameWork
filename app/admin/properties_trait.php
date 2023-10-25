@@ -275,7 +275,7 @@ trait properties_trait {
                 'created_at' => date('d.m.Y', strtotime($item['created_at'])),
                 'updated_at' => $item['updated_at'] ? date('d.m.Y', strtotime($item['updated_at'])) : '',
                 'actions' => '<a href="/admin/property_edit/id/' . $item['property_id'] . '" class="btn btn-primary me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.edit'] . '"><i class="fas fa-edit"></i></a>'
-                . '<a href="/admin/property_dell/id/' . $item['property_id'] . '" onclick="return confirm(\'' . $this->lang['sys.delete'] . '?\');" ' 
+                . '<a href="/admin/property_delete/id/' . $item['property_id'] . '" onclick="return confirm(\'' . $this->lang['sys.delete'] . '?\');" ' 
                 . 'class="btn btn-danger me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.delete'] . '"><i class="fas fa-trash"></i></a>'
             ];
         }
@@ -303,16 +303,15 @@ trait properties_trait {
         $this->get_user_data($user_data);
         $post_data = SysClass::ee_cleanArray($_POST);
         if (in_array('id', $params)) {
-            $notifications = new Class_notifications();
             $id = filter_var($params[array_search('id', $params) + 1], FILTER_VALIDATE_INT);
             if (isset($post_data['name']) && $post_data['name']) {                                
                 if (!is_array($post_data['fields']) || !count($post_data['fields'])) {
-                   $notifications->add_notification_user($this->logged_in, ['text' => 'Заполните хотя бы одно поле типа!', 'status' => 'danger']);
+                   Class_notifications::add_notification_user($this->logged_in, ['text' => 'Заполните хотя бы одно поле типа!', 'status' => 'danger']);
                    goto exit_update;
                 }
                 $post_data['fields'] = json_encode($post_data['fields']);
                 if (!$new_id = $this->models['m_properties']->update_property_type_data($post_data)) {                    
-                    $notifications->add_notification_user($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
+                    Class_notifications::add_notification_user($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
                 } else {
                     $id = $new_id;
                 }
@@ -357,12 +356,13 @@ trait properties_trait {
         $post_data = SysClass::ee_cleanArray($_POST);
         if (in_array('id', $params)) {
             $id = filter_var($params[array_search('id', $params) + 1], FILTER_VALIDATE_INT);
-            if (isset($post_data['name']) && $post_data['name']) {
+            if (isset($post_data['name']) && $post_data['name']) {                
+                $post_data['default_values'] = $this->prepare_default_values_property($post_data['property_data']);
                 if (!$new_id = $this->models['m_properties']->update_property_data($post_data)) {
-                    $notifications = new Class_notifications();
-                    $notifications->add_notification_user($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
+                    Class_notifications::add_notification_user($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
                 } else {
                     $id = $new_id;
+                    Class_notifications::add_notification_user($this->logged_in, ['text' => $this->lang['sys.success'], 'status' => 'info']);
                 }
             }
             $get_property_data = (int)$id ? $this->models['m_properties']->get_property_data($id) : [];
@@ -381,13 +381,71 @@ trait properties_trait {
         /* layouts */
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
+        // http://plugins.krajee.com/file-input
+        $this->parameters_layout["add_script"] .= '<script src="/assets/js/plugins/bootstrap-fileinput/js/plugins/buffer.min.js" type="text/javascript"></script>
+        <script src="/assets/js/plugins/bootstrap-fileinput/js/plugins/filetype.min.js" type="text/javascript"></script>
+        <script src="/assets/js/plugins/bootstrap-fileinput/js/plugins/piexif.min.js" type="text/javascript"></script>
+        <script src="/assets/js/plugins/bootstrap-fileinput/js/plugins/sortable.min.js" type="text/javascript"></script>';
+        $this->parameters_layout["add_script"] .= '<script src="/assets/js/plugins/bootstrap-fileinput/js/fileinput.min.js" type="text/javascript"></script>
+            <script src="/assets/js/plugins/bootstrap-fileinput/js/locales/ru.js" type="text/javascript"></script>
+            <script src="/assets/js/plugins/bootstrap-fileinput/themes/fa6/theme.js" type="text/javascript"></script>
+            <script src="/assets/js/plugins/bootstrap-fileinput/themes/explorer-fa6/theme.js" type="text/javascript"></script>';
+        $this->parameters_layout["add_style"] .= '<link href="/assets/js/plugins/bootstrap-fileinput/css/fileinput.min.css" media="all" rel="stylesheet" type="text/css"/>';       
+        $this->parameters_layout["add_style"] .= '<link href="/assets/js/plugins/bootstrap-fileinput/themes/explorer-fa6/theme.css" media="all" rel="stylesheet" type="text/css"/>';       
+        // My Script
         $this->parameters_layout["add_script"] .= '<script src="' . $this->get_path_controller() . '/js/property_edit.js" type="text/javascript" /></script>';
         $this->parameters_layout["title"] = 'Редактирование свойства';
         $this->show_layout($this->parameters_layout);
     }
     
     /**
-     * Удалит выбранный тип категории
+     * Подготавливает данные свойств для сохранения в формате JSON в базе данных.
+     * Функция принимает ассоциативный массив данных свойств, где ключи представляют собой
+     * строку, включающую тип свойства, порядковый номер и дополнительный ключ (если есть),
+     * а значения могут быть строками или массивами. Функция возвращает массив, структурированный
+     * для последующей конвертации в JSON, который может быть сохранен в базе данных.
+     * @param array $property_data Ассоциативный массив данных свойств.
+     * @return array
+     */    
+    private function prepare_default_values_property($property_data = []) {
+        $prepared_data = [];
+        foreach ($property_data as $key => $value) {
+            // Извлекаем порядковый номер и тип из ключа
+            if (preg_match('/([a-z\-]+)_([0-9]+)_?([a-z]*)/', $key, $matches)) {
+                $type = $matches[1];
+                $index = $matches[2];
+                $additional_key = isset($matches[3]) ? $matches[3] : null;
+                if (!isset($prepared_data[$index])) {
+                    $prepared_data[$index] = [
+                        'type' => $type,
+                        'label' => '',
+                        'title' => '',
+                        'default' => '',
+                        'required' => 0,
+                        'multiple' => 0
+                    ];
+                }
+                // Заполнение данных в зависимости от дополнительного ключа
+                if ($additional_key) {
+                    if ($additional_key === 'default' && is_array($value)) {
+                        $prepared_data[$index]['default'] = implode(',', $value);
+                    } elseif ($additional_key === 'multiple' && $value === 'on') {
+                        $prepared_data[$index]['multiple'] = 1;
+                    } elseif ($additional_key === 'required' && $value === 'on') {
+                        $prepared_data[$index]['required'] = 1;
+                    } else {
+                        $prepared_data[$index][$additional_key] = $value;
+                    }
+                }
+            }
+        }
+        ksort($prepared_data);
+        return SysClass::ee_remove_empty_values($prepared_data);
+    }
+
+    
+    /**
+     * Удалит выбранный тип свойства
      * @param array $params
      */
     public function type_properties_delete($params = []) {
@@ -395,25 +453,49 @@ trait properties_trait {
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
             exit();
-        }
-        $notifications = new Class_notifications();
+        }        
         if (in_array('id', $params)) {            
             $id = filter_var($params[array_search('id', $params) + 1], FILTER_VALIDATE_INT);
             $this->load_model('m_properties');
             $res = $this->models['m_properties']->type_properties_delete($id);
             if (count($res)) {
-                $notifications->add_notification_user($this->logged_in, ['text' => 'Ошибка удаления типа id=' . $id . '<br/>' . $res['error'], 'status' => 'danger']);                    
+                Class_notifications::add_notification_user($this->logged_in, ['text' => 'Ошибка удаления типа id=' . $id . '<br/>' . $res['error'], 'status' => 'danger']);                    
             } else {
-                $notifications->add_notification_user($this->logged_in, ['text' => 'Удалено!', 'status' => 'info']);
+                Class_notifications::add_notification_user($this->logged_in, ['text' => 'Удалено!', 'status' => 'info']);
             }     
         } else {
-            $notifications->add_notification_user($this->logged_in, ['text' => 'Нет обязательного параметра id', 'status' => 'danger']); 
+            Class_notifications::add_notification_user($this->logged_in, ['text' => 'Нет обязательного параметра id', 'status' => 'danger']); 
         }
         SysClass::return_to_main(200, '/admin/types_properties');
     }    
+    
+    /**
+     * Удалит свойство
+     * @param array $params
+     */
+    public function property_delete($params = []) {
+        $this->access = array(1, 2);
+        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
+            SysClass::return_to_main();
+            exit();
+        }        
+        if (in_array('id', $params)) {            
+            $property_id = filter_var($params[array_search('id', $params) + 1], FILTER_VALIDATE_INT);
+            $this->load_model('m_properties');
+            $res = $this->models['m_properties']->property_delete($property_id);
+            if (count($res)) {
+                Class_notifications::add_notification_user($this->logged_in, ['text' => 'Ошибка удаления свойства id=' . $property_id . '<br/>' . $res['error'], 'status' => 'danger']);                    
+            } else {
+                Class_notifications::add_notification_user($this->logged_in, ['text' => 'Удалено!', 'status' => 'info']);
+            }     
+        } else {
+            Class_notifications::add_notification_user($this->logged_in, ['text' => 'Нет обязательного параметра id', 'status' => 'danger']); 
+        }
+        SysClass::return_to_main(200, '/admin/properties');
+    }    
 
     /**
-     * Наборы свойств
+     * Наборы свойств ДОРАБОТАТЬ ПО ТРЕБОВАНИЮ!!!
      * @param type $params
      */
     public function properties_sets($params = []) {

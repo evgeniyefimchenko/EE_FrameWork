@@ -73,9 +73,9 @@ Class Model_properties Extends Users {
      * @return int|bool ID обновленного свойства или false в случае неудачи.
      */
     public function update_property_data($property_data = [], $language_code = ENV_DEF_LANG) {
-        $property_data = SafeMySQL::gi()->filterArray($property_data, SysClass::ee_get_fields_table(Constants::PROPERTIES_TABLE));
-        $property_data = array_map('trim', $property_data);
+        $property_data = SafeMySQL::gi()->filterArray($property_data, SysClass::ee_get_fields_table(Constants::PROPERTIES_TABLE));        
         $property_data['default_values'] = $property_data['default_values'] ? json_encode($property_data['default_values']) : '[]';
+        $property_data = array_map('trim', $property_data);                
         $property_data['is_multiple'] = $property_data['is_multiple'] == 'on' ? 1 : 0;
         $property_data['is_required'] = $property_data['is_required'] == 'on' ? 1 : 0;
         $property_data['language_code'] = $language_code;  // добавлено
@@ -210,6 +210,24 @@ Class Model_properties Extends Users {
             }
             $sql_delete = "DELETE FROM ?n WHERE type_id = ?i";
             $result = SafeMySQL::gi()->query($sql_delete, Constants::PROPERTY_TYPES_TABLE, $type_id);
+            return $result ? [] : ['error' => 'Ошибка при выполнении запроса DELETE'];
+        } catch (Exception $e) {
+            return ['error' => $e->getMessage()];
+        }
+    }
+    
+    /**
+     * Удалит свойство
+     * @param type $type_id
+     */
+    public function property_delete($property_id) {
+        try {
+            $sql = 'SELECT 1 FROM ?n WHERE property_id = ?i';
+            if (SafeMySQL::gi()->getOne($sql, Constants::PROPERTY_VALUES_TABLE, $property_id)) {
+                return ['error' => 'Нельзя удалить свойство, так как оно используется!'];
+            }
+            $sql_delete = "DELETE FROM ?n WHERE property_id = ?i";
+            $result = SafeMySQL::gi()->query($sql_delete, Constants::PROPERTIES_TABLE, $property_id);
             return $result ? [] : ['error' => 'Ошибка при выполнении запроса DELETE'];
         } catch (Exception $e) {
             return ['error' => $e->getMessage()];

@@ -8,7 +8,7 @@ if (ENV_SITE !== 1) {
 <!-- Редактирование свойства сущности -->
 <?php if (!$all_property_types) SysClass::return_to_main(200, '/admin/types_properties');?> 
 <main>    
-    <form id="edit_entity" action="/admin/property_edit/id/<?= $property_data['property_id'] ?>" method="POST">
+    <form id="edit_entity" action="/admin/property_edit/id/<?= $property_data['property_id'] ?>" method="POST" enctype="multipart/form-data">
         <input type="hidden" name="fake" value="1" />
         <div class="container-fluid px-4">
             <a href="/admin/property_edit/id" data-bs-toggle="tooltip" data-bs-placement="top" title="<?= $lang['sys.add'] ?>" type="button"
@@ -42,7 +42,7 @@ if (ENV_SITE !== 1) {
                                     <div role="group" class="input-group">
                                         <select type="text" id="type_id-input" name="type_id" class="form-control">
                                             <?php foreach ($all_property_types as $item) { ?>
-                                                <option value="<?=$item['type_id']?>"><?=$item['name']?></option>
+                                                <option <?=($property_data['type_id'] == $item['type_id'] ? 'selected ' : '')?>value="<?=$item['type_id']?>"><?=$item['name']?></option>
                                             <?php } ?>
                                         </select>
                                     </div>
@@ -50,24 +50,20 @@ if (ENV_SITE !== 1) {
                             </div>
                             <div class="row mb-3">
                                 <div class="col-3 col-sm-3">
-                                    <label for="is_multiple-input">Множественное:</label>
+                                    <label for="is_multiple-input"><?=$lang['sys.multiple_choice']?>:</label>
                                     <input type="checkbox" id="is_multiple" name="is_multiple" <?= ($property_data['is_multiple'] ? 'checked' : '') ?>/>
                                 </div>
                                 <div class="col-3 col-sm-3">                                    
-                                    <label for="is_required-input">Обязательное:</label>
-                                    <input type="checkbox" id="is_required" name="is_required" <?= ($property_data['is_multiple'] ? 'checked' : '') ?>/>
+                                    <label for="is_required-input"><?=$lang['sys.required']?>:</label>
+                                    <input type="checkbox" id="is_required" name="is_required" <?= ($property_data['is_required'] ? 'checked' : '') ?>/>
                                 </div>
                             </div>
                             <div class="row mb-3">
-                                <div class="col-4 col-sm-4">
-                                    <label for="default_values-input"><?=$lang['sys.fields']?>:</label>
-                                    <?= Plugins::renderHtmlFields($property_data['fields']) ?>
-                                </div>
-                            </div>
-                            <div class="row mb-3">
-                                <div class="col-4 col-sm-4">
-                                    <label for="default_values-input"><?=$lang['sys.default']?>:</label>
-                                    <input id="default_values-input" name="default_values" class="form-control" value="<?= var_export($property_data['default_values'], true) ?>">
+                                <div class="col-8 col-sm-8 card">
+                                    <div class="card-body">
+                                        <h5 class="card-title"><?=$lang['sys.fields'] . '(' . $lang['sys.field'] . ')'?></h5>
+                                        <?= Plugins::renderPropertyHtmlFields($property_data['fields'], $property_data['default_values']) ?>
+                                    </div>
                                 </div>
                             </div>
                             <div class="row mb-3">

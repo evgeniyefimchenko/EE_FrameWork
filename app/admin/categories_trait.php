@@ -59,8 +59,7 @@ trait categories_trait {
             $id = filter_var($params[array_search('id', $params) + 1], FILTER_VALIDATE_INT);
             if (isset($post_data['title']) && $post_data['title']) {                                
                 if (!$new_id = $this->models['m_categories']->update_category_data($post_data)) {
-                    $notifications = new Class_notifications();
-                    $notifications->add_notification_user($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
+                    Class_notifications::add_notification_user($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
                 } else {
                     $id = $new_id;
                 }
@@ -102,11 +101,10 @@ trait categories_trait {
         if (in_array('id', $params)) {
             $id = filter_var($params[array_search('id', $params) + 1], FILTER_VALIDATE_INT);
             $res = $this->models['m_categories']->delete_category($id);
-            $notifications = new Class_notifications();
             if (isset($res['error'])) {                
-                $notifications->add_notification_user($this->logged_in, ['text' => $res['error'], 'status' => 'danger']);                
+                Class_notifications::add_notification_user($this->logged_in, ['text' => $res['error'], 'status' => 'danger']);                
             } else {
-                $notifications->add_notification_user($this->logged_in, ['text' => 'Удалено', 'status' => 'success']);
+                Class_notifications::add_notification_user($this->logged_in, ['text' => 'Удалено', 'status' => 'success']);
             }
         }
         SysClass::return_to_main(200, ENV_URL_SITE . '/admin/categories');        

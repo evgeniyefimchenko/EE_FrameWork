@@ -130,7 +130,6 @@ trait systems_trait {
         }
         // Путь к файлу-флагу
         $flagFilePath = ENV_LOGS_PATH . '/test_data_created.txt';
-        $notifications = new Class_notifications();        
         // Проверяем, существует ли файл-флаг
         if (file_exists($flagFilePath)) {            
             $text_sessage = 'Уже есть тестовые данные, для создания дополнительных удалите файл ' . $flagFilePath;
@@ -154,7 +153,7 @@ trait systems_trait {
                 file_put_contents($flagFilePath, 'Test data created on ' . date('Y-m-d H:i:s'));
             }
         }
-        $notifications->add_notification_user($this->logged_in, ['text' => $text_sessage, 'status' => $status]);
+        Class_notifications::add_notification_user($this->logged_in, ['text' => $text_sessage, 'status' => $status]);
         SysClass::return_to_main(200, '/admin');
     }
 

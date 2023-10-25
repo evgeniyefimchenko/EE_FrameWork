@@ -22,7 +22,6 @@ Class Model_systems extends Users {
      * @throws Exception Если произошла ошибка во время очистки таблиц.
      */
     public function kill_db($user_id) {
-        $notifications = new Class_notifications();
         $tables = SafeMySQL::gi()->getCol("SHOW TABLES");
         if ($tables) {
             SafeMySQL::gi()->query("START TRANSACTION");
@@ -35,11 +34,11 @@ Class Model_systems extends Users {
                 SafeMySQL::gi()->query("COMMIT");
             } catch (Exception $e) {
                 SafeMySQL::gi()->query("ROLLBACK");
-                $notifications->add_notification_user($user_id, ['text' => $e, 'status' => 'danger']);
+                Class_notifications::add_notification_user($user_id, ['text' => $e, 'status' => 'danger']);
                 return false;
             }
         } else {
-            $notifications->add_notification_user($user_id, ['text' => 'No tables found in the database.', 'status' => 'info']);
+            Class_notifications::add_notification_user($user_id, ['text' => 'No tables found in the database.', 'status' => 'info']);
             return false;
         }
         // Пересоздание БД и регистрация первичных пользователей

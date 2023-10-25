@@ -655,7 +655,7 @@ Class Users {
 			value_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
 			entity_id INT UNSIGNED NOT NULL,
 			property_id INT UNSIGNED NOT NULL,
-			entity_type ENUM('category', 'page') NOT NULL,
+			entity_type ENUM('category', 'entity') NOT NULL,
 			value JSON NOT NULL,
 			status ENUM('active', 'hidden', 'disabled') NOT NULL DEFAULT 'active',
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -665,8 +665,7 @@ Class Users {
 			INDEX (property_id),
 			INDEX (entity_id)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения значений свойств в формате JSON';";
-            SafeMySQL::gi()->query($create_property_values_table, Constants::PROPERTY_VALUES_TABLE, Constants::PROPERTIES_TABLE);
-            
+            SafeMySQL::gi()->query($create_property_values_table, Constants::PROPERTY_VALUES_TABLE, Constants::PROPERTIES_TABLE);            
             // Таблица поиска по сайту
             $create_search_contents_table = "CREATE TABLE IF NOT EXISTS ?n (
                 id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

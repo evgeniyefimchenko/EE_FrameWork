@@ -73,7 +73,7 @@ if (ENV_SITE !== 1) {
                                                         $prefix . ' ' . htmlspecialchars($item['title']) . ' (' . ($all_type[$item['type_id']]['name'] ? $all_type[$item['type_id']]['name'] : 'Нет') . ')</option>';
                                             } ?>                                        
                                         </select>
-                                        <span role="button" class="input-group-text btn-primary" data-bs-toggle="tooltip" data-bs-placement="top" title="Отдельное окно">
+                                        <span role="button" class="input-group-text btn-primary" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $lang['sys.separate_window'] . '">
                                             <i class="fas fa-tree"></i><!-- Иконка со знаком вопроса -->
                                         </span>                                        
                                     </div>
