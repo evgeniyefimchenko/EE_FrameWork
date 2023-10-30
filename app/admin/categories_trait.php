@@ -80,6 +80,7 @@ trait categories_trait {
         /* layouts */
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
+        $this->parameters_layout["add_script"] .= '<script src="' . $this->get_path_controller() . '/js/edit_categories.js" type="text/javascript" /></script>';
         $this->parameters_layout["title"] = 'Редактирование категорий';
         $this->show_layout($this->parameters_layout);
     }

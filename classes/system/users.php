@@ -583,7 +583,7 @@ Class Users {
                         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                         language_code CHAR(2) NOT NULL DEFAULT 'RU' COMMENT 'Код языка по ISO 3166-2'
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения типов сущностей и категорий';";
-            SafeMySQL::gi()->query($create_types_table, Constants::TYPES_TABLE);
+            SafeMySQL::gi()->query($create_types_table, Constants::CATEGORIES_TYPES_TABLE);
             // Создание таблицы категорий
             // Шаг 1: Создание таблицы без внешних ключей
             $create_categories_table = "CREATE TABLE IF NOT EXISTS ?n (
@@ -605,7 +605,7 @@ Class Users {
             $add_foreign_keys = "ALTER TABLE ?n 
             ADD FOREIGN KEY (type_id) REFERENCES ?n(type_id),
             ADD FOREIGN KEY (parent_id) REFERENCES ?n(category_id);";
-            SafeMySQL::gi()->query($add_foreign_keys, Constants::CATEGORIES_TABLE, Constants::TYPES_TABLE, Constants::CATEGORIES_TABLE);
+            SafeMySQL::gi()->query($add_foreign_keys, Constants::CATEGORIES_TABLE, Constants::CATEGORIES_TYPES_TABLE, Constants::CATEGORIES_TABLE);
             // Создание таблицы сущностей
             $create_entities_table = "CREATE TABLE IF NOT EXISTS ?n (
 			entity_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -639,6 +639,7 @@ Class Users {
 			property_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
 			type_id INT UNSIGNED NOT NULL,
 			name VARCHAR(255) NOT NULL,
+                        status ENUM('active', 'hidden', 'disabled') NOT NULL DEFAULT 'active',
                         default_values JSON NOT NULL,
 			is_multiple BOOLEAN NOT NULL,
 			is_required BOOLEAN NOT NULL,
@@ -656,8 +657,7 @@ Class Users {
 			entity_id INT UNSIGNED NOT NULL,
 			property_id INT UNSIGNED NOT NULL,
 			entity_type ENUM('category', 'entity') NOT NULL,
-			value JSON NOT NULL,
-			status ENUM('active', 'hidden', 'disabled') NOT NULL DEFAULT 'active',
+			value JSON NOT NULL,			
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                         language_code CHAR(2) NOT NULL DEFAULT 'RU' COMMENT 'Код языка по ISO 3166-2',
@@ -665,7 +665,37 @@ Class Users {
 			INDEX (property_id),
 			INDEX (entity_id)
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения значений свойств в формате JSON';";
-            SafeMySQL::gi()->query($create_property_values_table, Constants::PROPERTY_VALUES_TABLE, Constants::PROPERTIES_TABLE);            
+            SafeMySQL::gi()->query($create_property_values_table, Constants::PROPERTY_VALUES_TABLE, Constants::PROPERTIES_TABLE);                        
+            // Таблица для хранения общей информации о наборе свойств.
+            $create_property_sets_table = "
+            CREATE TABLE IF NOT EXISTS ?n (
+                set_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(255) NOT NULL,
+                description TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения наборов свойств';";
+            SafeMySQL::gi()->query($create_property_sets_table, Constants::PROPERTY_SETS_TABLE);
+            // Таблица для представления отношения многие ко многим между типами категорий и наборами свойств.
+            $create_category_type_to_set_table = "
+            CREATE TABLE IF NOT EXISTS ?n (
+                type_id INT UNSIGNED NOT NULL,
+                set_id INT UNSIGNED NOT NULL,
+                PRIMARY KEY (type_id, set_id),
+                FOREIGN KEY (type_id) REFERENCES ?n(type_id),
+                FOREIGN KEY (set_id) REFERENCES ?n(set_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для связи типов категорий и наборов свойств';";
+            SafeMySQL::gi()->query($create_category_type_to_set_table, Constants::CATEGORY_TYPE_TO_PROPERTY_SET_TABLE, Constants::CATEGORIES_TYPES_TABLE, Constants::PROPERTY_SETS_TABLE);
+            // Таблица для представления отношения многие ко многим между наборами свойств и свойствами.
+            $create_set_to_properties_table = "
+            CREATE TABLE IF NOT EXISTS ?n (
+                set_id INT UNSIGNED NOT NULL,
+                property_id INT UNSIGNED NOT NULL,
+                PRIMARY KEY (set_id, property_id),
+                FOREIGN KEY (set_id) REFERENCES ?n(set_id),
+                FOREIGN KEY (property_id) REFERENCES ?n(property_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для связи наборов свойств и свойств';";
+            SafeMySQL::gi()->query($create_set_to_properties_table, Constants::PROPERTY_SET_TO_PROPERTIES_TABLE, Constants::PROPERTY_SETS_TABLE, Constants::PROPERTIES_TABLE);
             // Таблица поиска по сайту
             $create_search_contents_table = "CREATE TABLE IF NOT EXISTS ?n (
                 id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -694,7 +724,7 @@ Class Users {
             foreach ($types as $type) {
                 SafeMySQL::gi()->query(
                         "INSERT INTO ?n (name, description) VALUES (?s, ?s) ON DUPLICATE KEY UPDATE name = VALUES(name), description = VALUES(description)",
-                        Constants::TYPES_TABLE,
+                        Constants::CATEGORIES_TYPES_TABLE,
                         $type['name'],
                         $type['description']
                 );

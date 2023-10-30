@@ -10,7 +10,36 @@ if (ENV_SITE !== 1) {
  * Модель работы со свойствами
  */
 Class Model_properties Extends Users {
-
+    
+    /**
+     * Получает все свойства на основе статуса и языкового кода.     
+     * @param string $status Статус типа свойства Constants::ALL_STATUS
+     * @param string $language_code Языковой код для фильтрации. По умолчанию используется константа ENV_DEF_LANG.
+     * @return array Возвращает массив всех свойств, соответствующих заданным критериям.
+     */
+    public function get_all_properties($status = Constants::ALL_STATUS, $language_code = ENV_DEF_LANG, $short = true) {
+        if (is_string($status)) {
+            $status = [$status];
+        } else if (!is_array($status)) {
+            $status = Constants::ALL_STATUS;
+        }                
+        if ($short) {
+            $sql_properties = "SELECT * FROM ?n WHERE status IN (?a) AND language_code = ?s";
+            $res = SafeMySQL::gi()->getAll($sql_properties, Constants::PROPERTIES_TABLE, $status, $language_code);            
+            return $res;
+        } else {            
+            $sql_properties = "SELECT property_id FROM ?n WHERE status IN (?a) AND language_code = ?s";
+            $res = SafeMySQL::gi()->getAll($sql_properties, Constants::PROPERTIES_TABLE, $status, $language_code);            
+            foreach ($res as $item) {
+                $data_prop = $this->get_property_data($item['property_id'], $language_code, $status);
+                if (!$data_prop) continue;
+                $return[] = $data_prop;
+            }           
+            return $return;
+        }
+        return false;
+    }
+    
     /**
      * Получает данные свойств с учетом параметров сортировки, фильтрации и пагинации.
      * @param string $order Параметр для сортировки результатов (по умолчанию 'property_id ASC').
@@ -32,7 +61,9 @@ Class Model_properties Extends Users {
         $res_array = SafeMySQL::gi()->getAll($sql_properties, Constants::PROPERTIES_TABLE, $language_code, $start, $limit);
         $res = [];
         foreach ($res_array as $property) {
-            $res[] = $this->get_property_data($property['property_id'], $language_code);
+            $data_prop = $this->get_property_data($property['property_id'], $language_code);
+            if (!$data_prop) continue;
+            $res[] = $data_prop;
         }
         $sql_count = "SELECT COUNT(*) as total_count FROM ?n $whereString";
         $total_count = SafeMySQL::gi()->getOne($sql_count, Constants::PROPERTIES_TABLE, $language_code);
@@ -44,22 +75,29 @@ Class Model_properties Extends Users {
 
     /**
      * Получает данные одного свойства по его ID
-     * @param int $property_id ID свойства, для которого нужно получить данные.
-     * @param string $language_code Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG.
-     * @return array|null Массив с данными свойства или NULL, если свойство не найдено.
+     * @param int $property_id ID свойства, для которого нужно получить данные
+     * @param string $language_code Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG
+     * @param string $status Статус типа свойства Constants::ALL_STATUS
+     * @return array|null Массив с данными свойства или NULL, если свойство не найдено
      */
-    public function get_property_data($property_id, $language_code = ENV_DEF_LANG) {
-        $sql_property = "SELECT p.*, pt.name as type_name, pt.fields as fields 
+    public function get_property_data($property_id, $language_code = ENV_DEF_LANG, $status = Constants::ALL_STATUS) {
+        if (is_string($status)) {
+            $status = [$status];
+        } else if (!is_array($status)) {
+            $status = Constants::ALL_STATUS;
+        }
+        $sql_property = 'SELECT p.*, pt.name as type_name, pt.fields as fields 
             FROM ?n AS p 
             LEFT JOIN ?n AS pt ON p.type_id = pt.type_id 
-            WHERE p.property_id = ?i AND p.language_code = ?s";
+            WHERE pt.status IN (?a) AND p.property_id = ?i AND p.language_code = ?s';
         $property_data = SafeMySQL::gi()->getRow(
                 $sql_property,
                 Constants::PROPERTIES_TABLE,
                 Constants::PROPERTY_TYPES_TABLE,
+                $status,
                 $property_id,
                 $language_code
-        );
+        );        
         if (!$property_data) {
             return null;
         }
@@ -107,12 +145,18 @@ Class Model_properties Extends Users {
 
     /**
      * Получает все типы свойств из таблицы типов свойств.
+     * @param string $status Статус типа свойства Constants::ALL_STATUS
      * @param string $language_code Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG.
      * @return array Массив, содержащий все типы свойств, каждый из которых представлен ассоциативным массивом с данными типа свойства.
      */
-    public function get_all_property_types($language_code = ENV_DEF_LANG) {
-        $sql = "SELECT * FROM ?n WHERE language_code = ?s";
-        $property_types = SafeMySQL::gi()->getAll($sql, Constants::PROPERTY_TYPES_TABLE, $language_code);
+    public function get_all_property_types($status = Constants::ALL_STATUS, $language_code = ENV_DEF_LANG) {
+        if (is_string($status)) {
+            $status = [$status];
+        } else if (!is_array($status)) {
+            $status = Constants::ALL_STATUS;
+        }      
+        $sql = "SELECT * FROM ?n WHERE status IN (?a) AND language_code = ?s";
+        $property_types = SafeMySQL::gi()->getAll($sql, Constants::PROPERTY_TYPES_TABLE, $status, $language_code);
         return $property_types;
     }
 
