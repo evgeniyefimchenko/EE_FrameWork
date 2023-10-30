@@ -18,7 +18,7 @@ Class Model_categories_types Extends Users {
      */
     public function get_all_types($language_code = ENV_DEF_LANG) {
         $sql = "SELECT type_id, name FROM ?n WHERE language_code = ?s";
-        $types = SafeMySQL::gi()->getInd('type_id', $sql, Constants::TYPES_TABLE, $language_code);
+        $types = SafeMySQL::gi()->getInd('type_id', $sql, Constants::CATEGORIES_TYPES_TABLE, $language_code);
         return $types;
     }
 
@@ -36,13 +36,13 @@ Class Model_categories_types Extends Users {
         $whereString = $where ? $where . " AND language_code = '$language_code'" : "WHERE language_code = '$language_code'";
         $start = $start ?: 0;
         $sql_types = "SELECT `type_id` FROM ?n $whereString ORDER BY $orderString LIMIT ?i, ?i";
-        $res_array = SafeMySQL::gi()->getAll($sql_types, Constants::TYPES_TABLE, $start, $limit);
+        $res_array = SafeMySQL::gi()->getAll($sql_types, Constants::CATEGORIES_TYPES_TABLE, $start, $limit);
         $res = [];
         foreach ($res_array as $type) {
             $res[] = $this->get_categories_type_data($type['type_id'], $language_code);
         }
         $sql_count = "SELECT COUNT(DISTINCT `type_id`) as total_count FROM ?n $whereString";
-        $total_count = SafeMySQL::gi()->getOne($sql_count, Constants::TYPES_TABLE);
+        $total_count = SafeMySQL::gi()->getOne($sql_count, Constants::CATEGORIES_TYPES_TABLE);
         return [
             'data' => $res,
             'total_count' => $total_count
@@ -60,7 +60,7 @@ Class Model_categories_types Extends Users {
             return null;
         }
         $sql = "SELECT * FROM ?n WHERE `type_id` = ?i AND language_code = ?s";
-        $type_data = SafeMySQL::gi()->getRow($sql, Constants::TYPES_TABLE, $type_id, $language_code);
+        $type_data = SafeMySQL::gi()->getRow($sql, Constants::CATEGORIES_TYPES_TABLE, $type_id, $language_code);
         return $type_data;
     }
 
@@ -71,7 +71,7 @@ Class Model_categories_types Extends Users {
      * @return int|bool ID нового или обновленного типа или false в случае ошибки.
      */
     public function update_categories_type_data($type_data = [], $language_code = ENV_DEF_LANG) {
-        $type_data = SafeMySQL::gi()->filterArray($type_data, SysClass::ee_get_fields_table(Constants::TYPES_TABLE));
+        $type_data = SafeMySQL::gi()->filterArray($type_data, SysClass::ee_get_fields_table(Constants::CATEGORIES_TYPES_TABLE));
         $type_data = array_map('trim', $type_data);
         $type_data['language_code'] = $language_code;
         if (empty($type_data['name'])) {
@@ -84,13 +84,13 @@ Class Model_categories_types Extends Users {
             $type_id = $type_data['type_id'];
             unset($type_data['type_id']); // Удаляем type_id из массива данных, чтобы избежать его обновление
             $sql = "UPDATE ?n SET ?u WHERE `type_id` = ?i";
-            $result = SafeMySQL::gi()->query($sql, Constants::TYPES_TABLE, $type_data, $type_id);
+            $result = SafeMySQL::gi()->query($sql, Constants::CATEGORIES_TYPES_TABLE, $type_data, $type_id);
             return $result ? $type_id : false;
         }
         // Проверяем уникальность имени
         $existingType = SafeMySQL::gi()->getRow(
                 "SELECT `type_id` FROM ?n WHERE `name` = ?s AND language_code = ?s",
-                Constants::TYPES_TABLE,
+                Constants::CATEGORIES_TYPES_TABLE,
                 $type_data['name'],
                 $language_code
         );
@@ -98,7 +98,7 @@ Class Model_categories_types Extends Users {
             return false; // или вернуть какое-то сообщение об ошибке
         }
         $sql = "INSERT INTO ?n SET ?u";
-        $result = SafeMySQL::gi()->query($sql, Constants::TYPES_TABLE, $type_data);
+        $result = SafeMySQL::gi()->query($sql, Constants::CATEGORIES_TYPES_TABLE, $type_data);
         return $result ? SafeMySQL::gi()->insertId() : false;
     }
 
@@ -113,7 +113,7 @@ Class Model_categories_types Extends Users {
                 return ['error' => 'Нельзя удалить тип категории, так как он используется!'];
             }
             $sql_delete = "DELETE FROM ?n WHERE type_id = ?i";
-            $result = SafeMySQL::gi()->query($sql_delete, Constants::TYPES_TABLE, $type_id);
+            $result = SafeMySQL::gi()->query($sql_delete, Constants::CATEGORIES_TYPES_TABLE, $type_id);
             return $result ? [] : ['error' => 'Ошибка при выполнении запроса DELETE'];
         } catch (Exception $e) {
             return ['error' => $e->getMessage()];

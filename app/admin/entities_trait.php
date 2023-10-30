@@ -31,8 +31,8 @@ trait entities_trait {
         $this->html = $this->view->read('v_dashboard');
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';        
-        $this->parameters_layout["title"] = ENV_SITE_NAME . ' - entities';
-        $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION . ' - entities';
+        $this->parameters_layout["title"] = ENV_SITE_NAME . ' - ' . $this->lang['sys.entities'];
+        $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION . ' - ' . $this->lang['sys.entities'];
         $this->parameters_layout["canonical_href"] = ENV_URL_SITE . '/admin';
         $this->parameters_layout["keywords"] = Sysclass::keywords($this->html);
         $this->show_layout($this->parameters_layout);
@@ -49,8 +49,9 @@ trait entities_trait {
         }
         /* model */
         $this->load_model('m_entities', [$this->logged_in]);
-        $this->load_model('m_categories_types', []);
-        $this->load_model('m_categories', []);
+        $this->load_model('m_categories_types');
+        $this->load_model('m_categories');
+        $this->load_model('m_properties');
         /* get current user data */
         $user_data = $this->models['m_entities']->data;
         $this->get_user_data($user_data);
@@ -71,11 +72,17 @@ trait entities_trait {
         $get_all_types = $this->models['m_categories_types']->get_all_types();
         $get_all_categories = $this->models['m_categories']->getCategoriesTree(null, null, true);
         $get_all_entities = $this->models['m_entities']->get_all_entities($id);
+        $get_all_properties = $this->models['m_properties']->get_all_properties('active', ENV_DEF_LANG, false);
+        foreach (Constants::ALL_STATUS as $key => $value) {
+            $all_status[$key] = $this->lang['sys.' . $value];
+        }        
         /* view */
         $this->view->set('entity_data', $get_entity_data);
         $this->view->set('all_type', $get_all_types);
         $this->view->set('all_categories', $get_all_categories);
         $this->view->set('all_entities', $get_all_entities);
+        $this->view->set('all_properties', $get_all_properties);
+        $this->view->set('all_status', $all_status);
         $this->get_standart_view();
         $this->view->set('body_view', $this->view->read('v_edit_entity'));
         $this->html = $this->view->read('v_dashboard');
@@ -152,6 +159,11 @@ trait entities_trait {
                     'sorted' => 'ASC',
                     'filterable' => true
                 ], [
+                    'field' => 'status',
+                    'title' => $this->lang['sys.status'],
+                    'sorted' => 'ASC',
+                    'filterable' => true
+                ], [
                     'field' => 'created_at',
                     'title' => $this->lang['sys.date_create'],
                     'sorted' => 'ASC',
@@ -174,6 +186,10 @@ trait entities_trait {
         $filter_types[] = ['value' => 0, 'label' => 'Любой'];
         foreach ($all_types as $item) {
             $filter_types[] = ['value' => $item['type_id'], 'label' => $item['name']];
+        }
+        foreach (Constants::ALL_STATUS as $key => $value) {
+            $statuses[] = ['value' => $key, 'label' => $this->lang['sys.' . $value]];
+            $statuses_text[$key] = $this->lang['sys.' . $value];
         }        
         $filters = [
             'title' => [
@@ -194,6 +210,14 @@ trait entities_trait {
                 'value' => [],
                 'label' => $this->lang['sys.type'],
                 'options' => $filter_types,
+                'multiple' => true
+            ],
+            'status' => [
+                'type' => 'select',
+                'id' => "status",
+                'value' => [],
+                'label' => $this->lang['sys.status'],
+                'options' => $statuses,
                 'multiple' => true
             ],
             'created_at' => [
@@ -221,6 +245,7 @@ trait entities_trait {
                 'title' => $item['title'],
                 'category_id' => $item['category_title'] ? $item['category_title'] : 'Без категории',
                 'type_id' => $item['type_name'],
+                'status' => $statuses_text[$item['status']],
                 'created_at' => date('d.m.Y', strtotime($item['created_at'])),
                 'updated_at' => $item['updated_at'] ? date('d.m.Y', strtotime($item['updated_at'])) : '',
                 'actions' => '<a href="/admin/entity_edit/id/' . $item['entity_id'] . '"'

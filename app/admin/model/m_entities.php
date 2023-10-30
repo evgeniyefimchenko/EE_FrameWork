@@ -12,13 +12,13 @@ if (ENV_SITE !== 1) {
 Class Model_entities Extends Users {
 
     /**
-     * Получает данные всех страниц с возможностью сортировки, фильтрации и ограничения количества записей.
-     * @param string $order Строка с сортировкой (например, 'entity_id ASC').
-     * @param string|null $where Условие для фильтрации данных (опционально).
-     * @param int $start Начальная позиция для выборки (опционально).
-     * @param int $limit Количество записей для выборки (опционально).
-     * @param string $language_code Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG.
-     * @return array Массив с данными страниц.
+     * Получает данные всех страниц с возможностью сортировки, фильтрации и ограничения количества записей
+     * @param string $order Строка с сортировкой (например, 'entity_id ASC')
+     * @param string|null $where Условие для фильтрации данных (опционально)
+     * @param int $start Начальная позиция для выборки (опционально)
+     * @param int $limit Количество записей для выборки (опционально)
+     * @param string $language_code Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG
+     * @return array Массив с данными страниц
      */
     public function get_entities_data($order = 'entity_id ASC', $where = null, $start = 0, $limit = 100, $language_code = ENV_DEF_LANG) {
         $start = $start ? $start : 0;
@@ -45,7 +45,7 @@ Class Model_entities Extends Users {
             ORDER BY $order
             LIMIT ?i, ?i
         ";
-            $res_array = SafeMySQL::gi()->getAll($sql_entities, Constants::ENTITIES_TABLE, Constants::CATEGORIES_TABLE, Constants::TYPES_TABLE, $language_code, $start, $limit);
+            $res_array = SafeMySQL::gi()->getAll($sql_entities, Constants::ENTITIES_TABLE, Constants::CATEGORIES_TABLE, Constants::CATEGORIES_TYPES_TABLE, $language_code, $start, $limit);
         } else {
             // Если type_id отсутствует, применяем простой запрос
             $orderString = $order ? $order : 'e.entity_id ASC';
@@ -64,7 +64,7 @@ Class Model_entities Extends Users {
             LEFT JOIN ?n AS t ON c.type_id = t.type_id
             WHERE $where
         ";
-            $total_count = SafeMySQL::gi()->getOne($sql_count, Constants::ENTITIES_TABLE, Constants::CATEGORIES_TABLE, Constants::TYPES_TABLE, $language_code);
+            $total_count = SafeMySQL::gi()->getOne($sql_count, Constants::ENTITIES_TABLE, Constants::CATEGORIES_TABLE, Constants::CATEGORIES_TYPES_TABLE, $language_code);
         } else {
             $sql_count = "SELECT COUNT(*) as total_count FROM ?n WHERE $where";
             $total_count = SafeMySQL::gi()->getOne($sql_count, Constants::ENTITIES_TABLE, $language_code);
@@ -76,25 +76,32 @@ Class Model_entities Extends Users {
     }
 
     /**
-     * Получает данные одной страницы по её ID.
-     * @param int $entity_id ID страницы, для которой нужно получить данные.
-     * @param string $language_code Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG.
-     * @return array|null Массив с данными страницы или NULL, если страница не найдена.
+     * Получает данные одной страницы по её ID
+     * @param int $entity_id ID страницы, для которой нужно получить данные
+     * @param string $language_code Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG
+     * @param string $status Статус типа свойства Constants::ALL_STATUS
+     * @return array|null Массив с данными страницы или NULL, если страница не найдена
      */
-    public function get_entity_data($entity_id, $language_code = ENV_DEF_LANG) {
+    public function get_entity_data($entity_id, $language_code = ENV_DEF_LANG, $status = Constants::ALL_STATUS) {
+        if (is_string($status)) {
+            $status = [$status];
+        } else if (!is_array($status)) {
+            $status = Constants::ALL_STATUS;
+        }        
         $sql_entity = "
         SELECT e.*, c.title as category_title, t.name as type_name 
         FROM ?n AS e 
         LEFT JOIN ?n AS c ON e.category_id = c.category_id AND c.language_code = ?s
         LEFT JOIN ?n AS t ON c.type_id = t.type_id AND t.language_code = ?s
-        WHERE e.entity_id = ?i AND e.language_code = ?s";
+        WHERE e.status IN (?a) AND e.entity_id = ?i AND e.language_code = ?s";
         $entity_data = SafeMySQL::gi()->getRow(
                 $sql_entity,
                 Constants::ENTITIES_TABLE,
                 Constants::CATEGORIES_TABLE,
+                $language_code,                
+                Constants::CATEGORIES_TYPES_TABLE,                
                 $language_code,
-                Constants::TYPES_TABLE,                
-                $language_code,
+                $status,
                 $entity_id,
                 $language_code
         );
@@ -106,19 +113,24 @@ Class Model_entities Extends Users {
 
     /**
      * Получает все сущности, исключая одну по её ID
-     * @param int|null $excludeEntityId ID сущности для исключения из результатов (по умолчанию NULL).
-     * @param string $language_code Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG.
-     * @return array Массив ассоциативных массивов, каждый из которых содержит ID и заголовок сущности. Первый элемент массива всегда имеет entity_id 0 и пустой заголовок.
+     * @param int|null $excludeEntityId ID сущности для исключения из результатов (по умолчанию NULL)
+     * @param string $language_code Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG
+     * @param string $status Статус типа свойства Constants::ALL_STATUS
+     * @return array Массив ассоциативных массивов, каждый из которых содержит ID и заголовок сущности. Первый элемент массива всегда имеет entity_id 0 и пустой заголовок
      */
-    public function get_all_entities($excludeEntityId = null, $language_code = ENV_DEF_LANG) {
+    public function get_all_entities($excludeEntityId = null, $language_code = ENV_DEF_LANG, $status = Constants::ALL_STATUS) {
+        if (is_string($status)) {
+            $status = [$status];
+        } else if (!is_array($status)) {
+            $status = Constants::ALL_STATUS;
+        }         
         $add_query = '';
         if (is_numeric($excludeEntityId)) {
-            $add_query = ' WHERE entity_id != ' . $excludeEntityId;
+            $add_query = ' AND entity_id != ' . $excludeEntityId;
         }
         // Проверка, было ли уже добавлено условие WHERE, и добавление условия для language_code
-        $add_query .= (strpos($add_query, 'WHERE') !== false ? ' AND' : ' WHERE') . ' language_code = ?s';
-        $sql_entities = "SELECT entity_id, title FROM ?n" . $add_query;
-        $res = SafeMySQL::gi()->getAll($sql_entities, Constants::ENTITIES_TABLE, $language_code);  // Добавление параметра $language_code    
+        $sql_entities = "SELECT entity_id, title FROM ?n WHERE status IN (?a) AND language_code = ?s" . $add_query;
+        $res = SafeMySQL::gi()->getAll($sql_entities, Constants::ENTITIES_TABLE, $status, $language_code);  // Добавление параметра $language_code    
         array_unshift($res, [
             'entity_id' => 0,
             'title' => ''
@@ -129,8 +141,8 @@ Class Model_entities Extends Users {
     /**
      * Обновляет данные сущности в таблице сущностей.
      * @param array $entity_data Массив данных сущности.
-     * @param string $language_code Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG.
-     * @return int|bool Возвращает идентификатор обновленной сущности в случае успеха, или false в случае ошибки.
+     * @param string $language_code Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG
+     * @return int|bool Возвращает идентификатор обновленной сущности в случае успеха, или false в случае ошибки
      */
     public function update_entity_data($entity_data = [], $language_code = ENV_DEF_LANG) {
         $entity_data = SafeMySQL::gi()->filterArray($entity_data, SysClass::ee_get_fields_table(Constants::ENTITIES_TABLE));

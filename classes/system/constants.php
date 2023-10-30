@@ -7,7 +7,8 @@ if (ENV_SITE !== 1) {
 }
 
 /**
- * Класс констант
+ * Класс констант для оперативной работы
+ * Может быть дописан из статического класса SysClass::ee_get_fields_table($tableName)
  */
 Class Constants {
 
@@ -23,41 +24,29 @@ Class Constants {
             USERS_ACTIVATION_TABLE_FIELDS = [],
             CATEGORIES_TABLE = ENV_DB_PREF . 'categories',
             CATEGORIES_TABLE_FIELDS = [],
-            TYPES_TABLE = ENV_DB_PREF . 'categories_types',
-            TYPES_TABLE_FIELDS = [],
+            CATEGORIES_TYPES_TABLE = ENV_DB_PREF . 'categories_types',
+            CATEGORIES_TYPES_TABLE_FIELDS = [],
             ENTITIES_TABLE = ENV_DB_PREF . 'entities',
             ENTITIES_TABLE_FIELDS = [],
             PROPERTY_TYPES_TABLE = ENV_DB_PREF . 'property_types',
-            PROPERTY_TYPES_TABLE_FIELDS = array (
-  0 => 'type_id',
-  1 => 'name',
-  2 => 'status',
-  3 => 'fields',
-  4 => 'description',
-  5 => 'created_at',
-  6 => 'updated_at',
-  7 => 'language_code',
-),
+            PROPERTY_TYPES_TABLE_FIELDS = [],
             PROPERTIES_TABLE = ENV_DB_PREF . 'properties',
-            PROPERTIES_TABLE_FIELDS = array (
-  0 => 'property_id',
-  1 => 'type_id',
-  2 => 'name',
-  3 => 'default_values',
-  4 => 'is_multiple',
-  5 => 'is_required',
-  6 => 'description',
-  7 => 'created_at',
-  8 => 'updated_at',
-  9 => 'language_code',
-),
+            PROPERTIES_TABLE_FIELDS = [],
             PROPERTY_VALUES_TABLE = ENV_DB_PREF . 'property_values',
             PROPERTY_VALUES_TABLE_FIELDS = [],
+            PROPERTY_SETS_TABLE = ENV_DB_PREF . 'property_sets',
+            PROPERTY_SETS_TABLE_FIELDS = [],
+            CATEGORY_TYPE_TO_PROPERTY_SET_TABLE = ENV_DB_PREF . 'category_type_to_property_set',
+            CATEGORY_TYPE_TO_PROPERTY_SET_TABLE_FIELDS = [],
+            PROPERTY_SET_TO_PROPERTIES_TABLE = ENV_DB_PREF . 'property_set_to_properties',
+            PROPERTY_SET_TO_PROPERTIES_TABLE_FIELDS = [],
             SEARCH_CONTENTS_TABLE = ENV_DB_PREF . 'search_contents',
-            ALL_STATUS = ['active' => 'active', 'hidden' => 'hidden', 'disabled' => 'disabled'],
-            ALL_TYPE_PROPERTY_TYPES_FIELDS = [
+			SEARCH_CONTENTS_TABLE_FIELDS = [],
+            ALL_STATUS = ['active' => 'active', 'hidden' => 'hidden', 'disabled' => 'disabled'], // Ручное заполнение
+            ALL_TYPE_PROPERTY_TYPES_FIELDS = [ // Ручное заполнение
                 "text" => "Text",
                 "date" => "Date",
+                "time" => "Time",
                 "datetime-local" => "DateTime",
                 "hidden" => "Hidden",
                 "password" => "Password",
@@ -70,6 +59,4 @@ Class Constants {
                 "checkbox" => "Checkbox",
                 "radio" => "Radio Button"
             ];
-
-
 }

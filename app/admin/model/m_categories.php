@@ -79,7 +79,7 @@ Class Model_categories Extends Users {
                 $category_id,
                 Constants::CATEGORIES_TABLE,
                 Constants::CATEGORIES_TABLE,
-                Constants::TYPES_TABLE,
+                Constants::CATEGORIES_TYPES_TABLE,
                 $category_id,
                 $language_code
         );

@@ -24,15 +24,15 @@ if (ENV_SITE !== 1) {
             </ol>
             <div class="row">
                 <div class="col">
-                    <ul class="nav nav-tabs" id="eeTab" role="tablist">
+                    <ul class="nav nav-tabs" id="ee_Tab" role="tablist">
                         <li class="nav-item" role="presentation">
                             <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic-tab-pane" type="button" role="tab" aria-controls="basic-tab-pane" aria-selected="true">Основное</button>
                         </li>
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="features-tab" data-bs-toggle="tab" data-bs-target="#features-tab-pane" type="button" role="tab" aria-controls="features-tab-pane"><?=$lang['features']?></button>
+                            <button class="nav-link" id="features-tab" data-bs-toggle="tab" data-bs-target="#features-tab-pane" type="button" role="tab" aria-controls="features-tab-pane"><?=$lang['sys.features']?></button>
                         </li>
                     </ul>
-                    <div class="tab-content" id="eeTabContent">
+                    <div class="tab-content" id="ee_TabContent">
                         <!-- Основное содержимое -->
                         <div class="tab-pane fade show active mt-3" id="basic-tab-pane" role="tabpanel" aria-labelledby="basic-tab">
                             <div class="row mb-3">
@@ -81,11 +81,10 @@ if (ENV_SITE !== 1) {
                                 </div>                                
                                 <div class="row mb-3">
                                     <div class="col-6 col-sm-3">
-                                        <label for="status-input">Статус:</label>
-                                            <?php $statuses = [['id' => 'active', 'name' => $lang['sys.active']], ['id' => 'disabled', 'name' => $lang['sys.blocked']], ['id' => 'hidden', 'name' => $lang['sys.not_confirmed']]] ?>
+                                        <label for="status-input">Статус:</label>                                            
                                         <select required id="status-input" name="status" class="form-control">
-                                            <?php foreach ($statuses as $item) { ?>
-                                                <option <?$entity_data['status'] == $item['id'] ? 'selected ' : ''?>value="<?= $item['id'] ?>"><?= $item['name'] ?></option>
+                                            <?php foreach ($all_status as $key => $value) { ?>
+                                                <option <?=($entity_data['status'] == $key ? 'selected ' : '')?>value="<?= $key ?>"><?= $value ?></option>
                                             <?php } ?>
                                         </select>
                                     </div>
@@ -117,7 +116,17 @@ if (ENV_SITE !== 1) {
                         </div>
                         <!-- Свойства -->
                         <div class="tab-pane fade show mt-3" id="features-tab-pane" role="tabpanel" aria-labelledby="features-tab">
-                            features
+                            <?php
+                                $html = '';
+                                foreach ($all_properties as $property_data) {
+                                    $html .= '<h4>' . $property_data['name'] . ':</h4>';
+                                    $html .= '<div class="card"><div class="card-body">';
+                                    // Опциональная функция вывода свойств/характеристаик для сущности в Админ панели
+                                    $html .= Plugins::renderPropertyHtmlFieldsByAdmin($property_data['fields'], $property_data['default_values']);
+                                    $html .= '</div></div>';
+                                }
+                                echo $html;
+                            ?>
                         </div>                        
                     </div>
                 </div>

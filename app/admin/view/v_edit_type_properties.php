@@ -43,8 +43,8 @@ if (ENV_SITE !== 1) {
                                     <label for="type_id-input"><?= $lang['sys.status'] ?>:</label>
                                     <div role="group" class="input-group">
                                         <select type="text" id="status-input" name="status" class="form-control">
-                                            <?php foreach ($all_property_types as $key => $value) { ?>
-                                                <option value="<?= $key ?>"><?= $value ?></option>
+                                            <?php foreach ($all_status as $key => $value) { ?>
+                                                <option <?=($property_type_data['status'] == $key ? 'selected ' : '')?>value="<?= $key ?>"><?= $value ?></option>
                                             <?php } ?>
                                         </select>
                                     </div>
