@@ -27,7 +27,7 @@ trait categories_types_trait {
         $this->get_standart_view();
         $types_table = $this->get_categories_types_data_table();
         $this->view->set('types_table', $types_table);
-        $this->view->set('body_view', $this->view->read('v_types'));
+        $this->view->set('body_view', $this->view->read('v_categories_types'));
         $this->html = $this->view->read('v_dashboard');
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';

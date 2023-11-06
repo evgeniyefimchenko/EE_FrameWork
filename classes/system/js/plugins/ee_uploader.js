@@ -19,24 +19,33 @@
             }
         }
 
-        this.each(function() {
+        this.each(function() { // Ищем все поля для инициализации
             var $input = $(this);
             var allowedExtensions = $input.data('allowed-extensions').split(',');
-            var $uploadButton = $('<span role="button" class="badge bg-secondary mb-2">Нажми для загрузки</span>');
+            var $uploadButton = $('<span role="button" class="badge bg-secondary m-2">Нажми для загрузки</span>');
+            var or_tag = '<small class="m-auto text-center text-muted w-100">ИЛИ</small>';
+            var $uploadButton_url = $('<span role="button" class="badge bg-secondary m-2">Вставь URL</span>');
             var $preloadedFilesContainer = $('<div class="preloadedFiles p-3 border bg-light rounded"></div>');
-            $input.after($uploadButton, $preloadedFilesContainer);
+            $input.after($preloadedFilesContainer, $uploadButton, or_tag, $uploadButton_url);
             $input.hide();
-
             $uploadButton.on('click', function() {
                 $input.trigger('click');
-            });            
-
+            });           
+            $uploadButton_url.on('click', function() {
+                $('#uploadModal-' + $input.attr('id')).modal('show');
+            });
+            $('#add-file-by-url-' + $input.attr('id')).on('click', function() {
+                var url = $('#file-url-input-' + $input.attr('id')).val();
+                if (url) {
+                    alert(url);
+                }
+            });
             $input.on('change', function() {
                 var files = this.files;
                 for (var i = 0; i < files.length; i++) {
                     var file = files[i];
                     var fileExtension = file.name.split('.').pop().toLowerCase();
-                    if (allowedExtensions.indexOf(fileExtension) === -1) {
+                    if (allowedExtensions.length > 0 && allowedExtensions[0] !== "" && allowedExtensions.indexOf(fileExtension) === -1) {
                         alert(file.name + ' not supported!');
                         continue;
                     }
@@ -51,7 +60,7 @@
                     if (fileExtension === 'jpg' || fileExtension === 'jpeg' || fileExtension === 'png') {
                         var reader = new FileReader();
                         reader.onload = function(e) {
-                            var image = $('<img class="mt-2" style="width: 200px;">').attr('src', e.target.result);
+                            var image = $('<img class="m-auto" style="max-width: 190px; max-height: 190px;">').attr('src', e.target.result);
                             fileContainer.append(image);
                         };
                         reader.readAsDataURL(file);
@@ -60,19 +69,25 @@
                         var iconContainer = $('<div class="mt-2 w-100 text-center"></div>').html(iconMarkup);
                         fileContainer.append(iconContainer);
                     }
-                    $preloadedFilesContainer.find('.fileItem').css('transform', 'scale(0.25)');
                     $preloadedFilesContainer.append(fileContainer);
                 }
-                $('.deleteIcon').click(function() {
-                    event.stopPropagation();
-                    $(this).closest('.fileItem').remove();
-                });
-                $('.editIcon').click(function() {
-                    event.stopPropagation();
-                    // Логика редактирования файла
-                    alert('Редактирование файла');
-                });
+                $preloadedFilesContainer.sortable({
+                    placeholder: "ui-state-highlight", // Класс для плейсхолдера
+                    cursor: 'move', // Изменение курсора при перетаскивании
+                    update: function(event, ui) {
+                        // Здесь можно обработать событие после изменения порядка элементов,
+                        // например, обновить скрытое поле формы с новым порядком
+                    }
+                }).disableSelection();                
             });
+            $('#upload-content-' + $input.attr('id')).on('click', '.deleteIcon', function(event) {
+                event.stopPropagation();
+                $(this).closest('.fileItem').remove();
+            });            
+            $('#upload-content-' + $input.attr('id')).on('click', '.editIcon', function(event) {
+                event.stopPropagation();
+                alert('Редактирование файла');
+            });            
         });
         return this;
     };

@@ -64,8 +64,9 @@ Abstract Class Controller_Base {
             $session = Session::get('user_session');
         }
         if ($session) {
-            if (!SysClass::connect_db_exists()) {
+            if (!SysClass::check_install()) {
                 Session::destroy();
+                Cookies::clear('user_session');
             } else {
                 if (!$this->logged_in) $this->logged_in = $this->get_users_session_data($session);
             }
@@ -185,26 +186,26 @@ Abstract Class Controller_Base {
      * @return id пользователя или false
      */
     private function get_users_session_data($session) {
-        if (ENV_AUTH_USER === 1) {
-            $sql = 'SELECT `id`, `last_ip` FROM ?n WHERE `session` = ?s';
-            $user = SafeMySQL::gi()->getRow($sql, ENV_DB_PREF . 'users', $session);
-        }
         if (ENV_AUTH_USER === 0) {
             $user_id = Session::get('user_id');
             $sql = 'SELECT `id`, `last_ip` FROM ?n WHERE `id` = ?i';
-            $user = SafeMySQL::gi()->getRow($sql, ENV_DB_PREF . 'users', $user_id);
+            $user_data = SafeMySQL::gi()->getRow($sql, ENV_DB_PREF . 'users', $user_id);
+        }
+        if (ENV_AUTH_USER === 1) {
+            $sql = 'SELECT `id`, `last_ip` FROM ?n WHERE `session` = ?s';
+            $user_data = SafeMySQL::gi()->getRow($sql, ENV_DB_PREF . 'users', $session);
         }
         if (ENV_AUTH_USER === 2) {
             $user_id = Cookies::get('user_id');
             $sql = 'SELECT `id`, `last_ip` FROM ?n WHERE `id` = ?i';
-            $user = SafeMySQL::gi()->getRow($sql, ENV_DB_PREF . 'users', $user_id);
+            $user_data = SafeMySQL::gi()->getRow($sql, ENV_DB_PREF . 'users', $user_id);
         }
-        if (ENV_ONE_IP_ONE_USER && $user['last_ip'] !== SysClass::client_ip()) {
+        if (ENV_ONE_IP_ONE_USER && $user_data['last_ip'] !== SysClass::client_ip()) {
             return false;
         } else {
             $sql = 'UPDATE ?n SET `last_activ` = NOW() WHERE `id` = ?i';
-            SafeMySQL::gi()->query($sql, ENV_DB_PREF . 'users', $user['id']);
-            return $user['id'];
+            SafeMySQL::gi()->query($sql, ENV_DB_PREF . 'users', $user_data['id']);
+            return $user_data['id'];
         }
     }
 

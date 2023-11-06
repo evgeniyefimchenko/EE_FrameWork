@@ -1,4 +1,4 @@
-/*Редактирование типа свойства*/
+/* Редактирование типа свойства */
 $(document).ready(function () {
     setActiveNavLink('/admin/types_properties');
     $(document).on('click', '.add-field-btn', function(e){
