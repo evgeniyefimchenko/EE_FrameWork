@@ -8,7 +8,7 @@ if (ENV_SITE !== 1) {
 <!-- Таблица наборов свойств -->
 <main>
     <div class="container-fluid px-4">
-        <a href="/admin/edit_property_sets/id" data-bs-toggle="tooltip" data-bs-placement="top" title="<?= $lang['sys.add'] ?>" type="button"
+        <a href="/admin/edit_property_set/id" data-bs-toggle="tooltip" data-bs-placement="top" title="<?= $lang['sys.add'] ?>" type="button"
            class="btn btn-info m-l-15 float-end">
             <i class="fa fa-plus-circle"></i>&nbsp;<?= $lang['sys.add'] ?>
         </a>        

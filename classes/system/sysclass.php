@@ -943,6 +943,37 @@ Class SysClass {
     }
 
     /**
+     * Проверяет наличие основных конфигурационных параметров и состояние установки проекта
+     * Метод проверяет следующие условия:
+     * - Правильность настроек базы данных в файле configuration.php
+     * - Наличие и валидность обязательных адресов электронной почты
+     * - Наличие даты создания сайта в файле configuration.php
+     * - Возможность соединения с базой данных
+     * - Наличие основной таблицы пользователей в базе данных
+     * В случае обнаружения проблем метод выводит соответствующие предупреждения
+     * @return bool Возвращает true, если все проверки пройдены успешно
+     * @throws Exception Возможное исключение, если соединение с базой данных не установлено или настройки проекта не произведены
+     */
+    public static function check_install() {
+        if (!ENV_DB_USER || !ENV_DB_PASS) { // Нет настроек для БД
+            SysClass::pre('Выполните необходимые настройки в файле configuration.php для базы данных!');
+        }
+        if (!ENV_SITE_EMAIL ||!ENV_ADMIN_EMAIL || !SysClass::validEmail([ENV_SITE_EMAIL, ENV_ADMIN_EMAIL])) { // Нет обязательных адресов почты или они не валидны
+            SysClass::pre('Выполните необходимые настройки в файле configuration.php для электронной почты!');
+        }       
+        if (!ENV_DATE_SITE_CREATE) {
+           SysClass::pre('Выполните необходимые настройки в файле configuration.php для даты создания сайта!'); 
+        }
+        if (!self::connect_db_exists()) {
+           SysClass::pre('Нет соединения с БД Выполните необходимые настройки в файле configuration.php'); 
+        }
+        if (SafeMySQL::gi()->query('show tables like ?s', Constants::USERS_TABLE)->{"num_rows"} === 0) {
+            new Users(true);            
+        }
+        return true;
+    }    
+    
+    /**
      * Проверка возможности соединения с БД
      * @param str $host - хост базы данных
      * @param str $user - пользователь MySql
@@ -958,9 +989,9 @@ Class SysClass {
                 return true;
             } catch (Exception $ex) {
                 if (ENV_TEST) {
-                    echo $ex->getMessage();
-                    return false;
+                    echo $ex->getMessage();                    
                 }
+                return false;
             }
         }
         return false;
@@ -1101,6 +1132,16 @@ Class SysClass {
         file_put_contents($path, PHP_EOL . date("Y-m-d H:i:s") . ' из ' . $caller['file'] . ' Line: ' . $caller['line'] . ' Func: ' . $caller['function'] . PHP_EOL . var_export($val, true) . PHP_EOL . $temp . $temp1 . $temp2 . $temp3 . PHP_EOL, FILE_APPEND | LOCK_EX);
     }
 
+    /**
+     * Проверяет, является ли строка правильным JSON.
+     * @param string $string Строка для проверки.
+     * @return bool Возвращает true, если строка является правильным JSON.
+     */
+    public static function ee_isValidJson($string) {
+        json_decode($string);
+        return json_last_error() === JSON_ERROR_NONE;
+    }    
+    
     /**
      * Копирование папки $source в $dest
      * Во всех переменны используется полный путь к категориям

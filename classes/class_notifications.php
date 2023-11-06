@@ -84,7 +84,7 @@ class Class_notifications {
     * @param int $user_id
     * @param array $new_notifications новые оповещения
     */
-    private function set_notifications_user($user_id, $new_notifications = [], $add = false) {
+    private static function set_notifications_user($user_id, $new_notifications = [], $add = false) {
         $class_users = new Users([]);
         $user_options = $class_users->get_user_options($user_id);
         if ($add) {                    

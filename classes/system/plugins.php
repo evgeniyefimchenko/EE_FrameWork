@@ -634,7 +634,7 @@ Class Plugins {
                 $result .= '<span>' . $lang['sys.name'] . '</span>&nbsp;<input type="text" required name="property_data[' . $type . '_' . $count . '_label]"'
                     . 'class="form-control mb-2 w-25" data-bs-toggle="tooltip" data-bs-placement="top"'
                     . 'value="' . $default[$count]['label'] . '" />&nbsp'
-                    . '<span>' . $lang['sys.value'] . '</span>&nbsp';
+                    . '<span ' . (in_array($type, ["file", "image"]) ? " style=\"display: none;\"" : "") . '>' . $lang['sys.value'] . '</span>&nbsp';
             }            
             switch ($type) {
                 case 'text':                    
@@ -658,9 +658,7 @@ Class Plugins {
                         . 'name="property_data[' . $type . '_' . $count . '_default]" value="' . $default[$count]['default'] . '" />';
                     break;
                 case 'file':
-                    $result .= self::ee_uploader() . '<div style="display: none;"><input type="file" class="form-control" data-bs-toggle="tooltip" data-bs-placement="top" '
-                        . 'title="' . $lang['sys.default'] . '" name="property_data[' . $type . '_' . $count . '_default]">'
-                        . '<span>' . $lang['sys.multiple_choice'] . '</span><div class="form-check">'
+                    $result .= '<span>' . $lang['sys.multiple_choice'] . '</span><div class="form-check">'
                         . '<input class="form-check-input" type="checkbox" name="property_data[' . $type . '_' . $count . '_multiple]"'
                         . ($default[$count]['multiple'] ? 'checked ' : '') . '/></div></div>';
                     break;
@@ -698,9 +696,7 @@ Class Plugins {
                         . 'name="property_data[' . $type . '_' . $count . '_default]"></textarea>';
                     break;
                 case 'image':
-                    $result .= '<input type="file" accept="image/*" class="form-control" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $lang['sys.default'] . '" '
-                        . 'name="property_data[' . $type . '_' . $count . '_default]">'
-                        . '<span>' . $lang['sys.multiple_choice'] . '</span><div class="form-check">'
+                    $result .= self::ee_uploader() . '<span>' . $lang['sys.multiple_choice'] . '</span><div class="form-check">'
                         . '<input class="form-check-input" type="checkbox" name="property_data[' . $type . '_' . $count . '_multiple]"'
                         . ($default[$count]['multiple'] ? 'checked ' : '') . '/></div>';
                     break;
@@ -807,7 +803,7 @@ Class Plugins {
     }
 
     /**
-     * Вывод свойств для сущности
+     * Вывод свойств для сущности !!!&&&!!
      * @param type $params
      */
     public static function renderPropertyHtmlFieldsByAdmin($fields, $default = []) {
@@ -848,7 +844,7 @@ Class Plugins {
                         . 'name="property_data[' . $type . '_' . $count . '_default]" value="' . $default[$count]['default'] . '" />';
                     break;
                 case 'file':
-                    $result .= self::ee_uploader() . '<div style="display: none;"><input type="file" class="form-control" data-bs-toggle="tooltip" data-bs-placement="top" '
+                    $result .= '<div style="display: none;"><input type="file" class="form-control" data-bs-toggle="tooltip" data-bs-placement="top" '
                         . 'title="' . $lang['sys.default'] . '" name="property_data[' . $type . '_' . $count . '_default]">'
                         . '<span>' . $lang['sys.multiple_choice'] . '</span><div class="form-check">'
                         . '<input class="form-check-input" type="checkbox" disabled '
@@ -996,24 +992,54 @@ Class Plugins {
     }
     
     public static function ee_uploader($params = []) {
+        $params = [
+            'name' => 'test',
+            'id' => 'test_id_' . rand(1, 100),
+            'allowed_extensions' => '',
+            'multiplay' => 'multiplay'
+        ];
         $html = '
-<style>
-.fileItem {
-    margin-bottom: 10px;
-    position: relative;
-    border: 2px solid cyan;
-    border-radius: 5px;
-}
+        <style>
+        .fileItem {
+            margin-bottom: 10px;
+            position: relative;
+            border: 2px solid cyan;
+            border-radius: 5px;
+        }
 
-.actionIcons {
-    position: absolute;
-    right: 10px;
-    bottom: 10px;
-    display: flex;
-    gap: 5px;
-}
-</style>
-        <input type="file" class="ee_fileInput" data-ee_uploader="true" data-allowed-extensions="jpg,jpeg" multiple>';
+        .actionIcons {
+            position: absolute;
+            right: 10px;
+            bottom: 10px;
+            display: flex;
+            gap: 5px;
+        }
+        </style>';
+        
+        $html .= '<div class="card" id="upload-content-' . $params['id'] . '">';
+        $html .= '<input type="file" class="ee_fileInput" name="' . $params['name'] . '" id="' . $params['id'] . '" data-ee_uploader="true" data-allowed-extensions="' . $params['allowed_extensions'] . '" ' . $params['allowed_extensions'] . '>';        
+        // HTML для модального окна
+        $html .= '<div class="modal fade" id="uploadModal-' . $params['id'] . '" tabindex="-1" aria-labelledby="uploadModalLabel-' . $params['id'] . '" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="uploadModalLabel-' . $params['id'] . '">Загрузка по ссылке</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="input-group mb-3">
+                            <input type="text" class="form-control" id="file-url-input-' . $params['id'] . '" placeholder="Вставьте URL">
+                            <button class="btn btn-outline-secondary" type="button" id="add-file-by-url-' . $params['id'] . '">Добавить</button>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                    </div>
+                </div>
+            </div>
+        </div>';
+        $html .= '</div>';
+        $html .= '<link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css"><script src="//code.jquery.com/ui/1.12.1/jquery-ui.js"></script>';
         $html .= '<script src="' . ENV_URL_SITE . '/classes/system/js/plugins/ee_uploader.js" type="text/javascript" /></script>';
         return $html;
     }

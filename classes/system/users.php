@@ -17,13 +17,16 @@ Class Users {
     private $lang = []; // Языковые переменные в рамках этого класса
     public $data;
 
-    public function __construct($param = []) {
-        if (count($param)) {
-            $user_id = array_shift($param);
-        } else {
+    public function __construct($params = []) {
+        $user_id = 0;
+        $create_table = false;
+        if (is_array($params) && count($params)) {
+            $user_id = array_shift($params);
+        } else if (is_bool($params) && $params === true){
             $user_id = 0;
+            $create_table = true;
         }
-        $this->data = $this->get_user_data($user_id);
+        $this->data = $this->get_user_data($user_id, $create_table);
     }
 
     /**
@@ -38,41 +41,40 @@ Class Users {
      * Возвращает подготовленные данные пользователя
      * личные + настройки интерфейса
      * @param id - идентификатор пользователя в базе
+     * @param bool $create_table Развернёт БД
      * @return именованный массив
      */
-    public function get_user_data($id = 0) {
+    public function get_user_data($id = 0, $create_table = false) {
         $res_array = [];
-        if (SysClass::connect_db_exists()) {
-            if (SafeMySQL::gi()->query('show tables like ?s', Constants::USERS_TABLE)->{"num_rows"} > 0) {
-                $sql_user = 'SELECT * FROM ?n WHERE `id` = ?i AND `deleted` = 0';
-                $res_array = SafeMySQL::gi()->getRow($sql_user, Constants::USERS_TABLE, (int) $id);
-                if ($res_array) {
-                    $class_messages = new Class_messages();
-                    $res_array['count_unread_messages'] = $class_messages->get_count_unread_messages($id);
-                    $res_array['count_messages'] = $class_messages->get_count_messages($id);
-                    $res_array['messages'] = $res_array['count_unread_messages'] ? $class_messages->get_messages_user($id) : [];
-                    unset($class_messages);
-                    $res_array['user_role_text'] = $this->get_text_role($res_array['user_role']);
-                    $res_array['active_text'] = $this->get_text_active($res_array['active']);
-                    $res_array['subscribed_text'] = $res_array['subscribed'] > 0 ? 'Подписан' : 'Не подписан';
-                    $res_array['options'] = $this->get_user_options($id);
-                } else { // Первичное заполнение полей для незарегистрированного пользователя
-                    $res_array['new_user'] = 1;
-                    $res_array['user_role'] = 4;
-                    $res_array['active'] = 1;
-                    $res_array['subscribed'] = 1;
-                    $res_array['options'] = json_decode(self::BASE_OPTIONS_USER, true);
-                    $res_array['user_role_text'] = $this->get_text_role($res_array['user_role']);
-                    $res_array['active_text'] = $this->get_text_active($res_array['active']);
-                    $res_array['subscribed_text'] = 'Подписан';
-                }
-            } else { // Нет таблицы users
-                $this->create_tables(); //создаём необходимый набор таблиц в БД и первого пользователя с ролью администратора
-                $this->registration_new_user(array('name' => 'admin', 'email' => 'test@test.com', 'active' => '2', 'user_role' => '1', 'subscribed' => '0', 'comment' => 'Смените пароль администратора', 'pwd' => 'admin'), true);
-                $this->registration_new_user(array('name' => 'moderator', 'email' => 'test_moderator@test.com', 'active' => '2', 'user_role' => '2', 'subscribed' => '0', 'comment' => 'Смените пароль модератора', 'pwd' => 'moderator'), true);
-                if (ENV_TEST) {
-                    echo 'База данных успешно развёрнута!';
-                }
+        if (!$create_table) {
+            $sql_user = 'SELECT * FROM ?n WHERE `id` = ?i AND `deleted` = 0';
+            $res_array = SafeMySQL::gi()->getRow($sql_user, Constants::USERS_TABLE, (int) $id);
+            if ($res_array) {
+                $class_messages = new Class_messages();
+                $res_array['count_unread_messages'] = $class_messages->get_count_unread_messages($id);
+                $res_array['count_messages'] = $class_messages->get_count_messages($id);
+                $res_array['messages'] = $res_array['count_unread_messages'] ? $class_messages->get_messages_user($id) : [];
+                unset($class_messages);
+                $res_array['user_role_text'] = $this->get_text_role($res_array['user_role']);
+                $res_array['active_text'] = $this->get_text_active($res_array['active']);
+                $res_array['subscribed_text'] = $res_array['subscribed'] > 0 ? 'Подписан' : 'Не подписан';
+                $res_array['options'] = $this->get_user_options($id);
+            } else { // Первичное заполнение полей для незарегистрированного пользователя
+                $res_array['new_user'] = 1;
+                $res_array['user_role'] = 4;
+                $res_array['active'] = 1;
+                $res_array['subscribed'] = 1;
+                $res_array['options'] = json_decode(self::BASE_OPTIONS_USER, true);
+                $res_array['user_role_text'] = $this->get_text_role($res_array['user_role']);
+                $res_array['active_text'] = $this->get_text_active($res_array['active']);
+                $res_array['subscribed_text'] = 'Подписан';
+            }
+        } else {
+            $this->create_tables(); //создаём необходимый набор таблиц в БД и первого пользователя с ролью администратора
+            $this->registration_new_user(array('name' => 'admin', 'email' => 'test@test.com', 'active' => '2', 'user_role' => '1', 'subscribed' => '0', 'comment' => 'Смените пароль администратора', 'pwd' => 'admin'), true);
+            $this->registration_new_user(array('name' => 'moderator', 'email' => 'test_moderator@test.com', 'active' => '2', 'user_role' => '2', 'subscribed' => '0', 'comment' => 'Смените пароль модератора', 'pwd' => 'moderator'), true);
+            if (ENV_TEST) {
+                echo 'База данных успешно развёрнута!';
             }
         }
         return $res_array;
@@ -524,7 +526,7 @@ Class Users {
             `deleted` BOOLEAN NOT NULL DEFAULT 0 COMMENT 'Флаг удаленного пользователя',
             PRIMARY KEY (`id`),
             UNIQUE KEY `email` (`email`)
-        ) ENGINE=innodb DEFAULT CHARSET=utf8 COMMENT='Пользователи сайта';";
+            ) ENGINE=innodb DEFAULT CHARSET=utf8 COMMENT='Пользователи сайта';";
             SafeMySQL::gi()->query($create_table, Constants::USERS_TABLE);
             /* Роли пользователей */
             $create_table = "CREATE TABLE IF NOT EXISTS ?n (
@@ -599,7 +601,7 @@ Class Users {
             language_code CHAR(2) NOT NULL DEFAULT 'RU' COMMENT 'Код языка по ISO 3166-2',
             INDEX (type_id),
             INDEX (parent_id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения категорий сущностей';";
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения категорий сущностей';";
             SafeMySQL::gi()->query($create_categories_table, Constants::CATEGORIES_TABLE);
             // Шаг 2: Добавление внешних ключей
             $add_foreign_keys = "ALTER TABLE ?n 
@@ -731,21 +733,15 @@ Class Users {
             }
             // Добавление основных типов свойств
             $property_types = [
-                ['name' => 'Строка', 'description' => 'Тип свойства для хранения строковых данных', 'status' => 'active'],
-                ['name' => 'Число', 'description' => 'Тип свойства для хранения числовых данных', 'status' => 'active'],
-                ['name' => 'Дата', 'description' => 'Тип свойства для хранения дат', 'status' => 'active'],
-                ['name' => 'Интервал дат', 'description' => 'Тип свойства для хранения интервалов дат', 'status' => 'active'],
-                ['name' => 'Картинка', 'description' => 'Тип свойства для хранения изображений', 'status' => 'active'],
+                ['name' => 'Строка', 'description' => 'Тип свойства для хранения строковых данных', 'status' => 'active', 'fields' => '["text"]'],
+                ['name' => 'Число', 'description' => 'Тип свойства для хранения числовых данных', 'status' => 'active', 'fields' => '["text"]'],
+                ['name' => 'Дата', 'description' => 'Тип свойства для хранения дат', 'status' => 'active', 'fields' => '["date"]'],
+                ['name' => 'Интервал дат', 'description' => 'Тип свойства для хранения интервалов дат', 'status' => 'active', 'fields' => '["date", "date"]'],
+                ['name' => 'Картинка', 'description' => 'Тип свойства для хранения изображений', 'status' => 'active', 'fields' => '["image"]'],
+                ['name' => 'Сложный тип', 'description' => 'Многосоставной тип данных для теста', 'status' => 'active', 'fields' => '["image", "datetime-local", "hidden", "phone"]'],
             ];
-
             foreach ($property_types as $type) {
-                SafeMySQL::gi()->query(
-                        "INSERT INTO ?n (name, description, status) VALUES (?s, ?s, ?s) ON DUPLICATE KEY UPDATE name = VALUES(name), description = VALUES(description), status = VALUES(status)",
-                        Constants::PROPERTY_TYPES_TABLE,
-                        $type['name'],
-                        $type['description'],
-                        $type['status']
-                );
+                SafeMySQL::gi()->query("INSERT INTO ?n SET ?u", Constants::PROPERTY_TYPES_TABLE, $type);
             }
             SafeMySQL::gi()->query("COMMIT");
         } catch (Exception $e) {
@@ -762,7 +758,7 @@ Class Users {
             $echo .= "Total time: " . $item['total_time'] . PHP_EOL;
             $echo .= "Backtrace: " . var_export($item['backtrace'], true) . PHP_EOL;
         }
-        SysClass::pre_file('sql', $echo);
+        SysClass::pre_file('sql', 'База данных успешно развёрнута.', $echo);
         if (ENV_LOG) {
             SysClass::SetLog('База данных успешно развёрнута.');
         }

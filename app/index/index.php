@@ -39,7 +39,6 @@ Class Controller_index Extends Controller_Base {
             $this->lang = $lang;
         } else {
             $this->load_model('m_index');
-            $this->check_install();
             $lang_code = Session::get('lang');
             if (!$lang_code) {
                 $lang_code = ENV_DEF_LANG;
@@ -324,23 +323,6 @@ Class Controller_index Extends Controller_Base {
             die(json_encode($this->lang));
         } else {
             die(isset($this->lang[$post_data['text']]) ? $this->lang[$post_data['text']] : 'var ' . $post_data['text'] . ' not found!');
-        }
-    }
-
-    /**
-     * Проверка установки проекта
-     */
-    public function check_install() {
-        if (!ENV_DB_USER || !ENV_DB_PASS) { // Нет настроек для БД
-            SysClass::pre('Выполните необходимые настройки в файле configuration.php для базы данных!');
-        }
-
-        if (!ENV_SITE_EMAIL ||!ENV_ADMIN_EMAIL || !SysClass::validEmail([ENV_SITE_EMAIL, ENV_ADMIN_EMAIL])) { // Нет обязательных адресов почты или они не валидны
-            SysClass::pre('Выполните необходимые настройки в файле configuration.php электронной почты!');
-        }
-        
-        if (!ENV_DATE_SITE_CREATE) {
-           SysClass::pre('Выполните необходимые настройки в файле configuration.php даты создания сайта!'); 
         }
     }
 

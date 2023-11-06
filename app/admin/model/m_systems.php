@@ -42,7 +42,7 @@ Class Model_systems extends Users {
             return false;
         }
         // Пересоздание БД и регистрация первичных пользователей
-        $this->get_user_data();
+        $this->get_user_data(0, true);
         $flagFilePath = ENV_LOGS_PATH . 'test_data_created.txt';
         if (file_exists($flagFilePath)) unlink($flagFilePath);
         return true;

@@ -60,7 +60,7 @@ trait systems_trait {
         if (!SysClass::get_access_user($this->logged_in, $this->access) || array_filter($params)) {
             SysClass::return_to_main();
             exit();
-        }        
+        }
         $this->load_model('m_systems', [$this->logged_in]);
         $this->models['m_systems']->kill_db($this->logged_in);
         SysClass::return_to_main(200, '/admin');
@@ -72,13 +72,11 @@ trait systems_trait {
         $dbuser = ENV_DB_USER;   // имя пользователя базы данных
         $dbpass = ENV_DB_PASS;   // пароль пользователя базы данных
         $dbname = ENV_DB_NAME;   // название базы данных
-        $return_value = '';
         $dir = ENV_SITE_PATH . '/' . ENV_BACKUP_CAT . '/';
         $kill_hour = 190; // Через сколько начинать удалять старые копии
         if (!is_dir($dir)) {
             mkdir($dir, 0750, true);
         }
-
         if (!is_writable($dir)) {
             die('Директория ' . $dir . ' не доступна для записи.');
         }
@@ -89,7 +87,6 @@ trait systems_trait {
         } else {
             $res .= 'Ошибка создания арихива БД ' . $dbbackup . PHP_EOL;
         }
-
         if ($dh = opendir($dir)) {
             while (($file = readdir($dh)) !== false) {
                 if (filemtime($dir . $file) < strtotime('-' . $kill_hour . ' hours') && $file != '.' && $file != '..' && $file != 'db_upload.php') {
@@ -108,7 +105,6 @@ trait systems_trait {
             $res .= 'Удалять пока нечего.' . PHP_EOL . '--------------------------------------------------------';
         }
         file_put_contents($dir . 'logs_db.txt', date('d.m.Y H:i:s') . ' : ' . $res . PHP_EOL, FILE_APPEND | LOCK_EX);
-
         SysClass::copydirect(ENV_SITE_PATH, $dir . 'files' . ENV_DIRSEP . date('d-m-Y-H:i:s'), true, [ENV_SITE_PATH . ENV_BACKUP_CAT]);
         SysClass::create_zip_archive(ENV_SITE_PATH, $dir . 'files' . ENV_DIRSEP . date('d-m-Y-H:i:s') . '.zip', $dir . 'files' . ENV_DIRSEP . date('d-m-Y-H:i:s'));
     }
@@ -131,23 +127,27 @@ trait systems_trait {
         // Путь к файлу-флагу
         $flagFilePath = ENV_LOGS_PATH . '/test_data_created.txt';
         // Проверяем, существует ли файл-флаг
-        if (file_exists($flagFilePath)) {            
+        if (file_exists($flagFilePath)) {
             $text_sessage = 'Уже есть тестовые данные, для создания дополнительных удалите файл ' . $flagFilePath;
             $status = 'danger';
         } else {
             $text_sessage = 'Тестовые данны записаны!';
-            $status = 'info';            
+            $status = 'info';
             // Создаем тестовые данные
-            $this->load_model('m_categories', []);
-            $this->load_model('m_categories_types', []);            
-            $this->load_model('m_entities', []);            
+            $this->load_model('m_categories');
+            $this->load_model('m_categories_types');
+            $this->load_model('m_entities');
+            $this->load_model('m_properties');
             $users = $this->generate_test_users();
             $cats = $this->generate_test_categories();
             $ent = $this->generate_test_entities();
-            if (!$users || !$cats || !$ent) {
+            $prop = $this->generate_test_properties();
+            $sets_prop = $this->generate_test_sets_prop();
+            if (!$users || !$cats || !$ent || !$prop || !$sets_prop) {
                 $text_sessage = 'Ошибка создания тестовых данных!<br/>Users: ' . var_export($users, true) . '<br/>Categories: <br/>'
-                . var_export($cats, true) . '<br/>Entities<br/>' . var_export($ent, true);
-                $status = 'danger';                
+                        . var_export($cats, true) . '<br/>Entities<br/>' . var_export($ent, true) . '<br/>Properties<br/>' . var_export($prop, true)
+                         . '<br/>Sets Properties<br/>' . var_export($sets_prop, true);
+                $status = 'danger';
             } else {
                 // Создаем файл-флаг                
                 file_put_contents($flagFilePath, 'Test data created on ' . date('Y-m-d H:i:s'));
@@ -156,7 +156,141 @@ trait systems_trait {
         Class_notifications::add_notification_user($this->logged_in, ['text' => $text_sessage, 'status' => $status]);
         SysClass::return_to_main(200, '/admin');
     }
+    
+    /**
+     * Генерирует тестовые наборы свойств.
+     * Для каждого набора свойств выбирает случайное подмножество свойств из всех доступных и добавляет его в базу данных.
+     *
+     * @param int $count Количество тестовых наборов свойств, которые нужно сгенерировать.
+     * @return bool Возвращает true, если все тестовые наборы свойств успешно созданы, иначе возвращает false.
+     *
+     * Примечание: предполагается, что функция get_all_properties возвращает массив всех доступных свойств, и что 
+     * в вашей системе имеется необходимая логика для связывания этих свойств с наборами, если это требуется.
+     */
+    private function generate_test_sets_prop($count = 10): bool {
+        $all_properties = $this->models['m_properties']->get_all_properties();
+        if (empty($all_properties)) {
+            return false; // Нет свойств для создания наборов
+        }
 
+        for ($i = 0; $i < $count; $i++) {
+            $random_keys = array_rand($all_properties, rand(1, count($all_properties))); // Получаем случайные ключи
+            $random_properties = array_map(function($key) use ($all_properties) {
+                return $all_properties[$key]['property_id']; // Извлекаем property_id
+            }, (array)$random_keys); // Приведение к массиву нужно для случая, когда выбирается только одно свойство
+
+            $set_name = 'Test Set ' . ($i + rand(1, 1000));
+            $property_set_data = [
+                'name' => $set_name,
+                'description' => SysClass::generate_uuid()
+            ];
+            $set_id = $this->models['m_properties']->update_property_set_data($property_set_data);
+            if (!$set_id) {
+                return false;
+            }
+            $this->models['m_properties']->addPropertiesToSet($set_id, $random_properties);
+        }
+        return true;
+    }
+    
+    private function generate_test_properties($count = 50) {
+        $props_name = [
+            "Цвет", // свойство продукта
+            "Вес", // свойство продукта
+            "Размер", // свойство одежды или обуви
+            "Материал", // свойство мебели или одежды
+            "Производитель", // свойство электроники или автомобиля
+            "Дата производства", // свойство продукта питания
+            "Срок годности", // свойство продукта питания
+            "Мощность", // свойство электроники
+            "Объем", // свойство продукта или автомобиля
+            "Тип топлива", // свойство автомобиля
+            "Страна производства", // свойство любого товара
+            "Гарантия", // свойство электроники
+            "Возрастные ограничения", // свойство игрушек или фильмов
+            "Жанр", // свойство книги или фильма
+            "Автор", // свойство книги
+            "Количество страниц", // свойство книги
+            "Разрешение экрана", // свойство телевизора или монитора
+            "Тип диска", // свойство компьютера или плеера
+            "Вместимость", // свойство сумки или рюкзака
+            "Тип крепления", // свойство спортивного инвентаря
+            "Способ приготовления", // свойство продукта питания
+            "Количество участников", // свойство настольной игры
+            "Продолжительность", // свойство фильма или спектакля
+            "Тип батареи", // свойство электронного устройства
+            "Тип соединения", // свойство гаджета (например, Bluetooth, Wi-Fi)
+            "Уровень сложности", // свойство образовательного курса
+            "Длительность курса", // свойство образовательного курса
+            "Стиль", // свойство одежды или декора
+            "Сезон", // свойство одежды
+            "Вкус", // свойство продукта питания или напитка
+            "Формат", // свойство книги или диска
+            "Температурный режим", // свойство холодильника или кондиционера
+            "Световой поток", // свойство лампы
+            "Тип лампы", // свойство светильника
+            "Класс энергоэффективности", // свойство бытовой техники
+            "Ширина", // свойство мебели или двери
+            "Высота", // свойство мебели или двери
+            "Глубина", // свойство мебели
+            "Состав", // свойство косметики или продукта питания
+            "Срок службы", // свойство электроники или мебели
+            "Тип установки", // свойство мебели или бытовой техники
+            "Тип привода", // свойство часов или автомобиля
+            "Класс безопасности", // свойство сейфа или автомобиля
+            "Форма", // свойство украшения или мебели
+            "Стиль дизайна", // свойство интерьера или веб-сайта
+            "Метод печати", // свойство принтера
+            "Частота обновления", // свойство монитора или телевизора
+        ];
+        $all_property_types = $this->models['m_properties']->get_all_property_types();
+        // Смешаем массив типов свойств для случайного выбора
+        shuffle($all_property_types);
+        $types_count = count($all_property_types);
+        $count_name = count($props_name);
+        // Смешаем массивы, чтобы каждый раз генерировать разные свойства
+        shuffle($props_name);
+        shuffle($all_property_types);
+        for ($i = 0; $i < $count; $i++) {
+            $key_type = $i % $types_count;
+            $property_data = [
+                'name' => $props_name[rand(0, $count_name - 1)] . '_' . random_int($i, 1000000),
+                'type_id' => $all_property_types[$key_type]['type_id'],
+                'default_values' => $this->create_default_values($all_property_types[$key_type]['fields'], $props_name),
+                'is_multiple' => random_int(0, 1),
+                'is_required' => random_int(0, 1)
+            ];
+            $result = $this->models['m_properties']->update_property_data($property_data);
+            if (!$result) {
+                SysClass::pre_file('error', 'generate_test_properties');
+                return $result;
+            }        
+        }
+        return true;
+    }
+    
+    /**
+     * Генерирует массив значений по умолчанию для свойств, основанных на типах полей
+     * Каждому типу поля присваивается случайное имя из предоставленного массива и случайные значения для множественности и обязательности
+     * @param string $params JSON-строка, представляющая типы полей и их параметры
+     * @param array $props_name Массив названий свойств, из которых будет выбрано случайное название для каждого свойства
+     * @return string JSON-строка с массивом сгенерированных значений по умолчанию для каждого типа поля
+     */
+    private function create_default_values(string $params, array $props_name) {
+        $max_prop_name_count = count($props_name) - 1;
+        foreach (json_decode($params, true) as $field_type => $val) {
+            $value = [
+                "type" => $field_type,
+                "label" => $props_name[random_int(0, $max_prop_name_count)] . '_' . random_int(333, 777),
+                "multiple" => random_int(0, 1),
+                "required" => random_int(0, 1),
+                "default" => ''
+            ];
+            $default_values[] = $value;
+        }
+        return json_encode($default_values, JSON_UNESCAPED_UNICODE);
+    }
+    
     /**
      * Генерирует тестовых пользователей и добавляет их в базу данных.
      * @param int $count Количество генерируемых пользователей. По умолчанию 50.
@@ -217,7 +351,7 @@ trait systems_trait {
      */
     private function generate_test_categories($count = 20, $parent_depth = 3) {
         // Получаем список существующих типов
-        $types = $this->models['m_categories_types']->get_all_types();        
+        $types = $this->models['m_categories_types']->get_all_types();
         if (empty($types)) {
             echo "No types found in the types table.";
             return;
@@ -236,9 +370,9 @@ trait systems_trait {
             $add_name = SysClass::generate_uuid();
             $categoriesData[] = [
                 'type_id' => $randomTypeId,
-                'title' => 'Test Category ' . $add_name ,
-                'description' => 'Description for Test Category ' . $add_name ,
-                'short_description' => 'Short Description for Test Category ' . $add_name ,
+                'title' => 'Test Category ' . $add_name,
+                'description' => 'Description for Test Category ' . $add_name,
+                'short_description' => 'Short Description for Test Category ' . $add_name,
                 'parent_id' => NULL,
                 'status' => $randomStatus,
                 'created_at' => $randomDate
@@ -266,7 +400,7 @@ trait systems_trait {
             ];
             if (!$categoryId) {
                 SysClass::pre(['categoryData', $categoryData, $categoriesData]);
-            }            
+            }
             $res = $this->models['m_categories']->update_category_data($categoryData);
         }
         if (!$res) {

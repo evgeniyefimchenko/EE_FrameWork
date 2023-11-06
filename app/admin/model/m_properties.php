@@ -10,7 +10,7 @@ if (ENV_SITE !== 1) {
  * Модель работы со свойствами
  */
 Class Model_properties Extends Users {
-    
+
     /**
      * Получает все свойства на основе статуса и языкового кода.     
      * @param string $status Статус типа свойства Constants::ALL_STATUS
@@ -22,24 +22,25 @@ Class Model_properties Extends Users {
             $status = [$status];
         } else if (!is_array($status)) {
             $status = Constants::ALL_STATUS;
-        }                
+        }
         if ($short) {
             $sql_properties = "SELECT * FROM ?n WHERE status IN (?a) AND language_code = ?s";
-            $res = SafeMySQL::gi()->getAll($sql_properties, Constants::PROPERTIES_TABLE, $status, $language_code);            
+            $res = SafeMySQL::gi()->getAll($sql_properties, Constants::PROPERTIES_TABLE, $status, $language_code);
             return $res;
-        } else {            
+        } else {
             $sql_properties = "SELECT property_id FROM ?n WHERE status IN (?a) AND language_code = ?s";
-            $res = SafeMySQL::gi()->getAll($sql_properties, Constants::PROPERTIES_TABLE, $status, $language_code);            
+            $res = SafeMySQL::gi()->getAll($sql_properties, Constants::PROPERTIES_TABLE, $status, $language_code);
             foreach ($res as $item) {
                 $data_prop = $this->get_property_data($item['property_id'], $language_code, $status);
-                if (!$data_prop) continue;
+                if (!$data_prop)
+                    continue;
                 $return[] = $data_prop;
-            }           
+            }
             return $return;
         }
         return false;
     }
-    
+
     /**
      * Получает данные свойств с учетом параметров сортировки, фильтрации и пагинации.
      * @param string $order Параметр для сортировки результатов (по умолчанию 'property_id ASC').
@@ -62,7 +63,8 @@ Class Model_properties Extends Users {
         $res = [];
         foreach ($res_array as $property) {
             $data_prop = $this->get_property_data($property['property_id'], $language_code);
-            if (!$data_prop) continue;
+            if (!$data_prop)
+                continue;
             $res[] = $data_prop;
         }
         $sql_count = "SELECT COUNT(*) as total_count FROM ?n $whereString";
@@ -97,7 +99,7 @@ Class Model_properties Extends Users {
                 $status,
                 $property_id,
                 $language_code
-        );        
+        );
         if (!$property_data) {
             return null;
         }
@@ -111,11 +113,15 @@ Class Model_properties Extends Users {
      * @return int|bool ID обновленного свойства или false в случае неудачи.
      */
     public function update_property_data($property_data = [], $language_code = ENV_DEF_LANG) {
-        $property_data = SafeMySQL::gi()->filterArray($property_data, SysClass::ee_get_fields_table(Constants::PROPERTIES_TABLE));        
-        $property_data['default_values'] = $property_data['default_values'] ? json_encode($property_data['default_values']) : '[]';
-        $property_data = array_map('trim', $property_data);                
-        $property_data['is_multiple'] = $property_data['is_multiple'] == 'on' ? 1 : 0;
-        $property_data['is_required'] = $property_data['is_required'] == 'on' ? 1 : 0;
+        $property_data = SafeMySQL::gi()->filterArray($property_data, SysClass::ee_get_fields_table(Constants::PROPERTIES_TABLE));
+        if (is_array($property_data['default_values'])) {
+            $property_data['default_values'] = json_encode($property_data['default_values'], JSON_UNESCAPED_UNICODE);
+        } elseif (!SysClass::ee_isValidJson($property_data['default_values'])) {
+            $property_data['default_values'] = '[]';
+        }        
+        $property_data = array_map('trim', $property_data);
+        $property_data['is_multiple'] = $property_data['is_multiple'] == 'on' || $property_data['is_multiple'] == 1 ? 1 : 0;
+        $property_data['is_required'] = $property_data['is_required'] == 'on' || $property_data['is_required'] == 1 ? 1 : 0;
         $property_data['language_code'] = $language_code;  // добавлено
         if (empty($property_data['name']) || !isset($property_data['type_id'])) {
             return false;
@@ -136,6 +142,7 @@ Class Model_properties Extends Users {
                 $property_data['name'], $property_data['type_id'], $language_code
         );
         if ($existingProperty) {
+            SysClass::pre_file('error', 'update_property_data Error: existingProperty', $property_data);
             return false;
         }
         $sql = "INSERT INTO ?n SET ?u";
@@ -154,7 +161,7 @@ Class Model_properties Extends Users {
             $status = [$status];
         } else if (!is_array($status)) {
             $status = Constants::ALL_STATUS;
-        }      
+        }
         $sql = "SELECT * FROM ?n WHERE status IN (?a) AND language_code = ?s";
         $property_types = SafeMySQL::gi()->getAll($sql, Constants::PROPERTY_TYPES_TABLE, $status, $language_code);
         return $property_types;
@@ -241,7 +248,7 @@ Class Model_properties Extends Users {
         $result = SafeMySQL::gi()->query($sql, Constants::PROPERTY_TYPES_TABLE, $property_type_data);
         return $result ? SafeMySQL::gi()->insertId() : false;
     }
-    
+
     /**
      * Удалит тип свойства
      * @param type $type_id
@@ -259,7 +266,7 @@ Class Model_properties Extends Users {
             return ['error' => $e->getMessage()];
         }
     }
-    
+
     /**
      * Удалит свойство
      * @param type $type_id
@@ -275,6 +282,146 @@ Class Model_properties Extends Users {
             return $result ? [] : ['error' => 'Ошибка при выполнении запроса DELETE'];
         } catch (Exception $e) {
             return ['error' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Получает данные наборов свойств с учетом параметров сортировки, фильтрации и пагинации.
+     * @param string $order Параметр для сортировки результатов (по умолчанию 'set_id ASC').
+     * @param string|null $where Условие для фильтрации результатов (по умолчанию NULL).
+     * @param int $start Начальный индекс для пагинации результатов (по умолчанию 0).
+     * @param int $limit Максимальное количество результатов для возврата (по умолчанию 100).
+     * @return array Массив, содержащий данные наборов свойств и общее количество наборов свойств.
+     */
+    public function get_property_sets_data($order = 'set_id ASC', $where = null, $start = 0, $limit = 100) {
+        $orderString = $order ? $order : 'set_id ASC';
+        $whereString = $where ? "WHERE " . $where : '';
+        $start = $start ? $start : 0;
+
+        $sql_sets = "SELECT `set_id` FROM ?n $whereString ORDER BY $orderString LIMIT ?i, ?i";
+        $res_array = SafeMySQL::gi()->getAll($sql_sets, Constants::PROPERTY_SETS_TABLE, $start, $limit);
+
+        $res = [];
+        foreach ($res_array as $set) {
+            $data_set = $this->get_property_set_data($set['set_id']);
+            if (!$data_set)
+                continue;
+            $res[] = $data_set;
+        }
+
+        $sql_count = "SELECT COUNT(*) as total_count FROM ?n $whereString";
+        $total_count = SafeMySQL::gi()->getOne($sql_count, Constants::PROPERTY_SETS_TABLE);
+
+        return [
+            'data' => $res,
+            'total_count' => $total_count
+        ];
+    }
+
+    /**
+     * Получает данные одного набора свойств по его ID
+     * @param int $set_id ID набора свойств, для которого нужно получить данные.
+     * @return array|null Массив с данными набора свойств или NULL, если набор свойств не найден.
+     */
+    public function get_property_set_data($set_id) {
+        // Получаем основные данные набора свойств
+        $sql_set = 'SELECT * FROM ?n WHERE set_id = ?i';
+        $set_data = SafeMySQL::gi()->getRow($sql_set, Constants::PROPERTY_SETS_TABLE, $set_id);
+        if (!$set_data) {
+            return null;
+        }
+        // Получаем свойства, связанные с этим набором
+        $sql_properties = '
+        SELECT p.property_id as p_id, p.name 
+        FROM ?n p
+        JOIN ?n ps2p ON p.property_id = ps2p.property_id
+        WHERE ps2p.set_id = ?i
+        ';
+        $properties = SafeMySQL::gi()->getIndCol('p_id', $sql_properties, Constants::PROPERTIES_TABLE, Constants::PROPERTY_SET_TO_PROPERTIES_TABLE, $set_id);
+        // Добавляем свойства к данным набора
+        $set_data['properties'] = $properties;
+        return $set_data;
+    }
+
+    /**
+     * Обновляет данные набора свойств в таблице наборов свойств
+     * @param array $property_set_data Ассоциативный массив с данными набора свойств для обновления.
+     * @return int|bool ID обновленного набора свойств или false в случае неудачи.
+     */
+    public function update_property_set_data($property_set_data = []) {
+        $property_set_data = SafeMySQL::gi()->filterArray($property_set_data, SysClass::ee_get_fields_table(Constants::PROPERTY_SETS_TABLE));
+        $property_set_data = array_map('trim', $property_set_data);
+        if (empty($property_set_data['name'])) {
+            return false;
+        }
+        if (!empty($property_set_data['set_id']) && $property_set_data['set_id'] != 0) {
+            $set_id = $property_set_data['set_id'];
+            unset($property_set_data['set_id']); // Удаляем set_id из массива данных, чтобы избежать его обновление
+
+            $sql = "UPDATE ?n SET ?u WHERE `set_id` = ?i";
+            $result = SafeMySQL::gi()->query($sql, Constants::PROPERTY_SETS_TABLE, $property_set_data, $set_id);
+            return $result ? $set_id : false;
+        } else {
+            unset($property_set_data['set_id']);
+        }
+        // Проверяем уникальность имени набора свойств
+        $existingSet = SafeMySQL::gi()->getRow(
+                "SELECT `set_id` FROM ?n WHERE `name` = ?s",
+                Constants::PROPERTY_SETS_TABLE,
+                $property_set_data['name']
+        );
+        if ($existingSet) {
+            return false;
+        }
+        $sql = "INSERT INTO ?n SET ?u";
+        $result = SafeMySQL::gi()->query($sql, Constants::PROPERTY_SETS_TABLE, $property_set_data);
+        return $result ? SafeMySQL::gi()->insertId() : false;
+    }
+
+    /**
+     * Удалит набор свойств.
+     * @param int $set_id - ID набора свойств
+     * @return array - Массив с результатом или ошибкой
+     */
+    public function property_set_delete($set_id) {
+        try {
+            // Проверяем, используется ли данный набор свойств в связи с типами категорий
+            $sql = 'SELECT 1 FROM ?n WHERE set_id = ?i';
+            if (SafeMySQL::gi()->getOne($sql, Constants::CATEGORY_TYPE_TO_PROPERTY_SET_TABLE, $set_id)) {
+                return ['error' => 'Нельзя удалить набор свойств, так как он связан с типами категорий!'];
+            }
+            // Проверяем, используется ли данный набор свойств в связи со свойствами
+            $sql = 'SELECT 1 FROM ?n WHERE set_id = ?i';
+            if (SafeMySQL::gi()->getOne($sql, Constants::PROPERTY_SET_TO_PROPERTIES_TABLE, $set_id)) {
+                return ['error' => 'Нельзя удалить набор свойств, так как он связан со свойствами!'];
+            }
+            // Если проверки прошли успешно, удаляем набор свойств
+            $sql_delete = "DELETE FROM ?n WHERE set_id = ?i";
+            $result = SafeMySQL::gi()->query($sql_delete, Constants::PROPERTY_SETS_TABLE, $set_id);
+            return $result ? [] : ['error' => 'Ошибка при выполнении запроса DELETE'];
+        } catch (Exception $e) {
+            return ['error' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Удалить все свойства для указанного набора свойств
+     * @param int $set_id ID набора свойств
+     */
+    public function deletePreviousProperties(int $set_id): void {
+        $delete_previous_properties = "DELETE FROM ?n WHERE set_id = ?i";
+        SafeMySQL::gi()->query($delete_previous_properties, 'property_set_to_properties', $set_id);
+    }
+
+    /**
+     * Добавить выбранные свойства в таблицу связей наборов свойств и свойств
+     * @param int   $set_id ID набора свойств
+     * @param array $selected_properties Массив с ID свойств
+     */
+    public function addPropertiesToSet(int $set_id, array $selected_properties): void {
+        foreach ($selected_properties as $property_id) {
+            $insert_query = "INSERT INTO ?n (set_id, property_id) VALUES (?i, ?i)";
+            SafeMySQL::gi()->query($insert_query, Constants::PROPERTY_SET_TO_PROPERTIES_TABLE, $set_id, $property_id);
         }
     }
 

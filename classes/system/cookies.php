@@ -162,7 +162,7 @@ class Cookies {
      * @return str Возвращает чистый текст или зашифрованный текст в соответствии с настройками
      */
     private static function authcode($string, $operation = 'DECODE') {
-        $ckey_length = 4;   // Случайная длина ключа, значение 0-32;
+        $ckey_length = 7;   // Случайная длина ключа, значение 0-32;
         $key = self::$_securekey;
         $key = md5($key);
         $keya = md5(substr($key, 0, 16));
