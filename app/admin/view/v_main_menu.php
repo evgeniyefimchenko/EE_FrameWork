@@ -25,8 +25,8 @@ $menuItems = [
                     'link' => '#',
                     'icon' => 'fa-solid fa-users-gear',
                     'subItems' => [
-                        ['title' => 'Список', 'link' => '/admin/users', 'icon' => 'fa-sharp fa-solid fa-list'],
-                        ['title' => 'Роли', 'link' => '/admin/users_roles', 'icon' => 'fa-solid fa-users-between-lines'],
+                        ['title' => $lang['sys.list'], 'link' => '/admin/users', 'icon' => 'fa-sharp fa-solid fa-list'],
+                        ['title' => $lang['sys.roles'], 'link' => '/admin/users_roles', 'icon' => 'fa-solid fa-users-between-lines'],
                         ['title' => 'Удалённые(Архив)', 'link' => '/admin/deleted_users', 'icon' => 'fa-solid fa-trash'],
                     ],
                 ],
@@ -38,8 +38,8 @@ $menuItems = [
                     'link' => '#',
                     'icon' => 'fa-regular fa-folder',
                     'subItems' => [
-                        ['title' => 'Список', 'link' => '/admin/categories', 'icon' => 'fa-sharp fa-solid fa-list'],
-                        ['title' => 'Типы', 'link' => '/admin/types_categories', 'icon' => 'fa-sharp fa-solid fa-marker'],
+                        ['title' => $lang['sys.list'], 'link' => '/admin/categories', 'icon' => 'fa-sharp fa-solid fa-list'],
+                        ['title' => $lang['sys.types'], 'link' => '/admin/types_categories', 'icon' => 'fa-sharp fa-solid fa-marker'],
                     ],
                 ],
                 [
@@ -47,7 +47,7 @@ $menuItems = [
                     'link' => '#',
                     'icon' => 'fa-regular fa-file',
                     'subItems' => [
-                        ['title' => 'Список', 'link' => '/admin/entities', 'icon' => 'fa-sharp fa-solid fa-list'],
+                        ['title' => $lang['sys.list'], 'link' => '/admin/entities', 'icon' => 'fa-sharp fa-solid fa-list'],
                     ],
                 ],
                 [
@@ -55,9 +55,9 @@ $menuItems = [
                     'link' => '#',
                     'icon' => 'fa-solid fa-gears',
                     'subItems' => [
-                        ['title' => 'Список', 'link' => '/admin/properties', 'icon' => 'fa-sharp fa-solid fa-list'],
-                        ['title' => 'Типы', 'link' => '/admin/types_properties', 'icon' => 'fa-sharp fa-solid fa-marker'],
-                        ['title' => 'Наборы свойств', 'link' => '/admin/properties_sets', 'icon' => 'fa-sharp fa-solid fa-sliders'],
+                        ['title' => $lang['sys.list'], 'link' => '/admin/properties', 'icon' => 'fa-sharp fa-solid fa-list'],
+                        ['title' => $lang['sys.types'], 'link' => '/admin/types_properties', 'icon' => 'fa-sharp fa-solid fa-marker'],
+                        ['title' => $lang['sys.property_sets'], 'link' => '/admin/properties_sets', 'icon' => 'fa-sharp fa-solid fa-sliders'],
                     ],                    
                 ],
                 [

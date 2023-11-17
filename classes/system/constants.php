@@ -36,7 +36,14 @@ Class Constants {
   9 => 'language_code',
 ),
             CATEGORIES_TYPES_TABLE = ENV_DB_PREF . 'categories_types',
-            CATEGORIES_TYPES_TABLE_FIELDS = [],
+            CATEGORIES_TYPES_TABLE_FIELDS = array (
+  0 => 'type_id',
+  1 => 'name',
+  2 => 'description',
+  3 => 'created_at',
+  4 => 'updated_at',
+  5 => 'language_code',
+),
             ENTITIES_TABLE = ENV_DB_PREF . 'entities',
             ENTITIES_TABLE_FIELDS = array (
   0 => 'entity_id',

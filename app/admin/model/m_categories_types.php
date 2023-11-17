@@ -67,7 +67,7 @@ Class Model_categories_types Extends Users {
     /**
      * Обновляет существующий тип или создает новый с учетом языка.
      * @param array $type_data Ассоциативный массив с данными типа. Должен содержать ключи 'name' и 'description', и опционально 'type_id'.
-     * @param string $language_code Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG.
+     * @param string $language_code Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG
      * @return int|bool ID нового или обновленного типа или false в случае ошибки.
      */
     public function update_categories_type_data($type_data = [], $language_code = ENV_DEF_LANG) {
@@ -106,7 +106,7 @@ Class Model_categories_types Extends Users {
      * Удалит тип категории
      * @param int $type_id
      */
-    public function delete_categories_type($type_id) {
+    public function delete_categories_type(int $type_id) {
         try {
             $sql = 'SELECT 1 FROM ?n WHERE type_id = ?i';
             if (SafeMySQL::gi()->getOne($sql, Constants::CATEGORIES_TABLE, $type_id)) {
@@ -119,5 +119,43 @@ Class Model_categories_types Extends Users {
             return ['error' => $e->getMessage()];
         }
     }
-
+    
+    /**
+     * Вернёт все наборы свойств привязанные к типу категории
+     * @param int $type_id
+     * @return array
+     */
+    public function get_categories_type_sets_data(int $type_id = 0) {
+        $sql = 'SELECT set_id FROM ?n WHERE type_id = ?i';
+        return SafeMySQL::gi()->getCol($sql, Constants::CATEGORY_TYPE_TO_PROPERTY_SET_TABLE, $type_id);
+    }
+    
+    /**
+     * Обновляет связи между типами категориями и наборами свойств
+     * @param int   $type_id  Идентификатор типа категории для обновления связей
+     * @param array $set_ids  Идентификаторы наборов свойств для связывания с указанным типом категории
+     */    
+    public function update_categories_type_sets_data(int $type_id, array $set_ids) {
+        $sql = "INSERT INTO ?n SET ?u";
+        foreach ($set_ids as $set_id) {
+            $data = ['type_id' => $type_id, 'set_id' => $set_id];
+            SafeMySQL::gi()->query($sql, Constants::CATEGORY_TYPE_TO_PROPERTY_SET_TABLE, $data); 
+        }              
+    }
+    
+    /**
+     * Удаляет связи между типами категорий и наборами свойств для указанных идентификаторов типов категорий
+     * @param int|array $type_ids Идентификаторы типов категорий для удаления связей
+     * @return void
+     */
+    public function delete_categories_type_sets_data($type_ids) {
+        if (!is_array($type_ids)) {
+            $type_ids = [$type_ids];
+        } else {
+            $type_ids = implode(',', $type_ids);
+        }
+        $sql_delete = "DELETE FROM ?n WHERE type_id IN (?a)";
+        return SafeMySQL::gi()->query($sql_delete, Constants::CATEGORY_TYPE_TO_PROPERTY_SET_TABLE, $type_ids);
+    }
+    
 }

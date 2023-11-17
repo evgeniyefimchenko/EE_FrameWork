@@ -302,7 +302,7 @@ Class Plugins {
         $possible_rows = [10, 25, 50, 100];
         $count_row = is_array($data_table['rows']) ? count($data_table['rows']) : 0;
         $html = '<div class="rows-per-page-section">';
-        $html .= '<label for="' . $id_table . '-rows-per-page">Количество строк:</label>';
+        $html .= '<label for="' . $id_table . '-rows-per-page">Количество строк:&nbsp;</label>';
         $html .= '<select id="' . $id_table . '-rows-per-page" class="form-select form-select-sm d-inline-block" style="width: auto; cursor: pointer;">';
 
         foreach ($possible_rows as $value) {

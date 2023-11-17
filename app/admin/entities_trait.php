@@ -87,6 +87,7 @@ trait entities_trait {
         $this->view->set('body_view', $this->view->read('v_edit_entity'));
         $this->html = $this->view->read('v_dashboard');
         /* layouts */
+        $this->parameters_layout["add_script"] .= '<script src="' . $this->get_path_controller() . '/js/edit_entities.js" type="text/javascript" /></script>';
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
         $this->parameters_layout["title"] = 'Редактирование Сущности';

@@ -114,7 +114,7 @@ if (ENV_SITE !== 1) {
                             </div>
                             <button type="submit" class="btn btn-primary">Сохранить</button>
                         </div>
-                        <!-- Свойства -->
+                        <!-- Характеристики -->
                         <div class="tab-pane fade show mt-3" id="features-tab-pane" role="tabpanel" aria-labelledby="features-tab">
                             <?php
                                 $html = '';

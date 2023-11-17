@@ -69,10 +69,14 @@ trait categories_trait {
             SysClass::return_to_main(200, ENV_URL_SITE . '/admin/category_edit/id/');
         }
         $parents = $this->models['m_categories']->getCategoriesTree($id);
+        $get_category_entities = $this->models['m_categories']->get_category_entities($id);
+        $get_categories_type_sets_data = $this->models['m_categories_types']->get_categories_type_sets_data($id);
         /* view */
         $get_all_types = $this->models['m_categories_types']->get_all_types();
         $this->view->set('category_data', $get_category_data);
         $this->view->set('parents', $parents);
+        $this->view->set('category_entities', $get_category_entities);
+        $this->view->set('categories_type_sets_data', $get_categories_type_sets_data);
         $this->view->set('all_type', $get_all_types);
         $this->get_standart_view();
         $this->view->set('body_view', $this->view->read('v_edit_category'));
