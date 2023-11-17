@@ -145,6 +145,7 @@ trait categories_types_trait {
         }
         /* model */
         $this->load_model('m_categories_types', [$this->logged_in]);
+        $this->load_model('m_properties');
         /* get current user data */
         $user_data = $this->models['m_categories_types']->data;
         $this->get_user_data($user_data);
@@ -152,6 +153,10 @@ trait categories_types_trait {
         if (in_array('id', $params)) {
             $id = filter_var($params[array_search('id', $params) + 1], FILTER_VALIDATE_INT);
             if (isset($post_data['name']) && $post_data['name']) {
+                if (isset($post_data['property_set']) && is_array($post_data['property_set'])) {
+                    $this->models['m_categories_types']->delete_categories_type_sets_data($id);
+                    $this->models['m_categories_types']->update_categories_type_sets_data($id, $post_data['property_set']);
+                }
                 if (!$id = $this->models['m_categories_types']->update_categories_type_data($post_data)) {
                     Class_notifications::add_notification_user($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
                 } else {
@@ -166,6 +171,8 @@ trait categories_types_trait {
         /* view */
         $this->view->set('type_data', $get_categories_types_data);
         $this->view->set('all_type', $get_all_types);
+        $this->view->set('property_sets_data', $this->models['m_properties']->get_property_sets_data());
+        $this->view->set('categories_type_sets_data', $this->models['m_categories_types']->get_categories_type_sets_data($id));
         $this->get_standart_view();
         $this->view->set('body_view', $this->view->read('v_edit_categories_type'));
         $this->html = $this->view->read('v_dashboard');

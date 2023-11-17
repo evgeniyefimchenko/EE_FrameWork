@@ -26,10 +26,13 @@ if (ENV_SITE !== 1) {
                 <div class="col">
                     <ul class="nav nav-tabs" id="eeTab" role="tablist">
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic-tab-pane" type="button" role="tab" aria-controls="basic-tab-pane" aria-selected="true">Основное</button>
+                            <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic-tab-pane" type="button" role="tab" aria-controls="basic-tab-pane" aria-selected="true"><?=$lang['sys.basics']?></button>
                         </li>
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="entities-tab" data-bs-toggle="tab" data-bs-target="#entities-tab-pane" type="button" role="tab" aria-controls="entities-tab-pane" aria-selected="false">Сущности категории</button>
+                            <button class="nav-link" id="entities-tab" data-bs-toggle="tab" data-bs-target="#entities-tab-pane" type="button" role="tab" aria-controls="entities-tab-pane" aria-selected="false"><?=$lang['sys.category_entities']?></button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="property_sets-tab" data-bs-toggle="tab" data-bs-target="#property_sets-tab-pane" type="button" role="tab" aria-controls="property_sets-tab-pane" aria-selected="false"><?=$lang['sys.property_sets']?></button>
                         </li>
                     </ul>
                     <div class="tab-content" id="eeTabContent">
@@ -118,7 +121,17 @@ if (ENV_SITE !== 1) {
                         <div class="tab-pane fade mt-3" id="entities-tab-pane" role="tabpanel" aria-labelledby="entities-tab">
                             <div class="row">
                                 <div class="col">
-                                    <?= $category_entitys ?>
+                                    <?= var_export($category_entities) ?>
+                                    <hr/>
+                                    <?= var_export($category_data['category_path']) ?>                                    
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Наборы свойств категории(с унаследованными) -->
+                        <div class="tab-pane fade mt-3" id="property_sets-tab-pane" role="tabpanel" aria-labelledby="property_sets-tab">
+                            <div class="row">
+                                <div class="col">
+                                    <?= var_export($categories_type_sets_data) ?>
                                 </div>
                             </div>
                         </div>

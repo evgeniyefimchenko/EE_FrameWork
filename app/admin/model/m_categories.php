@@ -86,6 +86,7 @@ Class Model_categories Extends Users {
         if (!$category_data) {
             return null;
         }
+        $category_data['category_path'] = $this->get_patch_category($category_data['category_id']);
         return $category_data;
     }
 
@@ -135,10 +136,10 @@ Class Model_categories Extends Users {
     }
 
     /**
-     * Рекурсивная функция для построения дерева категорий.
-     * @param array $categories Массив категорий.
-     * @param int $parentId ID родительской категории (по умолчанию 0).
-     * @param string $prefix Префикс для визуального отображения уровня вложенности (по умолчанию пустая строка).
+     * Рекурсивная функция для построения дерева категорий
+     * @param array $categories Массив категорий
+     * @param int $parentId ID родительской категории
+     * @param int $level Уровень вложенности
      * @return array Дерево категорий.
      */
     private function buildTree(array $categories, int $parentId = 0, int $level = 0): array {
@@ -221,9 +222,9 @@ Class Model_categories Extends Users {
     }
 
     /**
-     * Удаляет категорию по указанному entity_id из таблицы entities.
-     * @param int $category_id Идентификатор сущности для удаления.
-     * @return bool Возвращает true в случае успешного удаления, или false в случае ошибки.
+     * Удаляет категорию по указанному category_id из таблицы Constants::CATEGORIES_TABLE
+     * @param int $category_id Идентификатор сущности для удаления
+     * @return bool Возвращает true в случае успешного удаления, или false в случае ошибки
      */
     public function delete_category($category_id) {
         try {
@@ -238,5 +239,58 @@ Class Model_categories Extends Users {
             return ['error' => $errorMessage];
         }
     }
+    
+    /**
+     * Вернёт все сущности категории или множества категорий
+     * @param int|array $category_ids ID категории
+     * @param string $language_code Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG
+     * @return type
+     */
+    public function get_category_entities(int $category_ids = 0, $language_code = ENV_DEF_LANG) {
+        if (!is_array($category_ids)) {
+            $category_ids = [$category_ids];
+        } else {
+            $category_ids = implode(',', $category_ids);
+        }
+        $sql = 'SELECT entity_id, title, status, short_description, parent_entity_id FROM ?n WHERE category_id IN (?a) AND language_code = ?s';
+        return SafeMySQL::gi()->getAll($sql, Constants::ENTITIES_TABLE, $category_ids, $language_code);
+    }
 
+    /**
+     * Получает иерархический массив всех родительских категорий для указанной категории
+     * @param int   $category_id Идентификатор категории для поиска родительских категорий
+     * @param array $categories   Массив категорий для поиска внутри
+     * @return array Иерархический массив родительских категорий
+     */
+    private function get_parent_categories_hierarchy(int $category_id, array $categories): array {
+        $parentIds = [];        
+        foreach ($categories as $category) {            
+            if ($category['category_id'] == $category_id) {             
+                if ($category['parent_id']) {
+                    $parentIds[] = (int)$category['parent_id'];
+                    $parentIds = array_merge($parentIds, $this->get_parent_categories_hierarchy($category['parent_id'], $categories));
+                }
+                break;
+            }
+        }
+        return array_reverse($parentIds);
+    }
+    
+    /**
+    * Получает путь категории в виде строки, включая родительские категории
+    * @param int $category_id Идентификатор категории, для которой нужно получить путь
+    * @return string Строка, представляющая путь категории в виде "parent/child/grandchild/category_id"
+    * Или массив при  $string = false
+    */   
+    public function get_patch_category(int $category_id, $string = true) {
+        $query = "SELECT category_id, parent_id FROM ?n";
+        $categories = SafeMySQL::gi()->getAll($query, Constants::CATEGORIES_TABLE);        
+        $res = $this->get_parent_categories_hierarchy($category_id, $categories);
+        if (count($res)) {            
+            return $string ? implode('/', $res) . '/' . $category_id : array_merge($res, [$category_id]);
+        } else {
+            return $category_id;
+        }
+    }   
+    
 }

@@ -19,7 +19,7 @@
             }
         }
 
-        this.each(function() { // Ищем все поля для инициализации
+        this.each(function() {
             var $input = $(this);
             var allowedExtensions = $input.data('allowed-extensions').split(',');
             var $uploadButton = $('<span role="button" class="badge bg-secondary m-2">Нажми для загрузки</span>');
@@ -37,7 +37,18 @@
             $('#add-file-by-url-' + $input.attr('id')).on('click', function() {
                 var url = $('#file-url-input-' + $input.attr('id')).val();
                 if (url) {
-                    alert(url);
+                    $.ajax({
+                        type: 'HEAD',
+                        url: url,
+                        success: function() {
+                            alert('Файл найден по ссылке: ' + url);
+                        },
+                        error: function() {
+                            alert('Файл не найден или нет доступа по ссылке: ' + url);
+                        }
+                    });
+                } else {
+                    alert('Пожалуйста, введите URL.');
                 }
             });
             $input.on('change', function() {
