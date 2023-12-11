@@ -1,17 +1,14 @@
 <?php
 
-if (ENV_SITE !== 1) {
-    header("HTTP/1.1 301 Moved Permanently");
-    header("Location: http://" . $_SERVER['HTTP_HOST']);
-    exit();
-}
+namespace classes\system;
+
+use classes\plugins\SafeMySQL;
 
 /**
  * Системный класc для использования во всём проекте
  * Все методы статические
- * @author Evgeniy Efimchenko efimchenko.ru  
  */
-Class SysClass {
+class SysClass {
 
     function __construct() {
         throw new Exception('Static only.');
@@ -228,50 +225,47 @@ Class SysClass {
     }
 
     /**
-     * Определяет авторизованность и уровень доступа пользователя
-     * по переданным параметрам
-     * @param int $id - id пользователя из таблицы users
-     * @param array int $access -  Массив с id пользователей из таблицы user_roles для проверки
-     * 100 - все зарегистрированные пользователи
-     * @return boolean
+     * Проверяет доступ пользователя к определенному ресурсу на основе его идентификатора и роли.
+     * Если пользователь не авторизован или не имеет необходимой роли доступа, он будет перенаправлен на форму входа.
+     * Параметры вызывающей функции и её имя передаются в форму входа через URL, с использованием слешей для разделения.
+     * @param int $id Идентификатор пользователя. Если не указан или равен 0, считается, что пользователь не авторизован.
+     * @param array $access Массив ролей, имеющих доступ. Если роль пользователя не входит в этот массив, доступ будет отклонен.
+     * @return bool Возвращает TRUE, если у пользователя есть доступ, иначе FALSE.
      */
     public static function get_access_user($id = 0, $access = array()) {
-        if (!$id || !filter_var($id, FILTER_VALIDATE_INT)) { // Всех не авторизованных отправляем авторизоваться
-            $trace = debug_backtrace();
-            $caller = $trace[1];
-            self::return_to_main(200, '/show_login_form?return=' . $caller['function']);
+        if (!$id || !filter_var($id, FILTER_VALIDATE_INT)) {
+            // Формирование строки запроса с параметрами через слеш
+            $queryParams = 'return=' . $_SERVER['REQUEST_URI'];
+            self::return_to_main(200, '/show_login_form?' . $queryParams);
         }
-        $user_date = new Users(array($id));
+        $user_data = new Users(array($id));
         $add_access = array(100);
-        if (!in_array($user_date->get_user_role($id), $access) && !array_intersect($add_access, $access)) { // Проверка доступа
+        if (!in_array($user_data->get_user_role($id), $access) && !array_intersect($add_access, $access)) {
             return FALSE;
         }
         return TRUE;
     }
-
+    
     /**
-     * Проверка почты на валидность
-     * @param str $email - переданная почта
-     * @return boolean
+     * Проверка адресов электронной почты на валидность.
+     * Поддерживает как латинские, так и международные символы.
+     * @param string|string[] $emails Строка с одним адресом электронной почты или массив адресов.
+     * @return bool Возвращает true, если все адреса валидны, иначе false.
      */
-    public static function validEmail($emails) {
-        $pattern = '/.+@.+\..+/i'; // Всё остальное от лукавого!
-        // Если передана строка (один адрес электронной почты), преобразуем её в массив
+    public static function validEmail(mixed $emails): bool {
+        $pattern = '/.+@.+\..+/i'; // Базовый шаблон для проверки электронной почты
         if (is_string($emails)) {
             $emails = [$emails];
         }
-
-        // Если передан массив, проходимся по каждому адресу и проверяем его
         if (is_array($emails)) {
             foreach ($emails as $email) {
-                if (!preg_match($pattern, $email)) {
-                    return false; // Возвращаем false при первом обнаружении невалидного адреса
+                if (!is_string($email) || !preg_match($pattern, $email)) {
+                    return false;
                 }
             }
-            return true; // Все адреса валидны
+            return true;
         }
-
-        return false; // Если передан не массив и не строка, возвращаем false
+        return false;
     }
 
     /**
@@ -392,87 +386,68 @@ Class SysClass {
     }
 
     /**
-     * Транслитерация ошибочного ввода на
-     * английской раскладке
-     * @param str $s
-     * @return str
+     * Транслитерация ошибочного ввода на английской раскладке.
+     * @param string $s Входная строка для транслитерации.
+     * @return string Транслитерированная строка.
      */
-    public static function transliterate_error_input($s) {
-        $s = str_replace(array("\n", "\r"), " ", $s); // убираем перевод каретки
-        $s = preg_replace("/\s+/", ' ', $s); // удаляем повторяющие пробелы
-        $s = trim($s); // убираем пробелы в начале и конце строки
-        $s = function_exists('mb_strtolower') ? mb_strtolower($s) : strtolower($s); // переводим строку в нижний регистр (иногда нужно задать локаль)
-        $s = strtr($s, array_flip(array(
-            "а" => "f", "А" => "F",
-            "б" => ",", "Б" => "<",
-            "в" => "d", "В" => "D",
-            "г" => "u", "Г" => "D",
-            "д" => "l", "Д" => "L",
-            "е" => "t", "Е" => "T",
-            "ё" => "`", "Ё" => "~",
-            "ж" => ";", "Ж" => ":",
-            "з" => "p", "З" => "P",
-            "и" => "b", "И" => "B",
-            "й" => "q", "Й" => "Q",
-            "к" => "r", "К" => "R",
-            "л" => "k", "Л" => "K",
-            "м" => "v", "М" => "V",
-            "н" => "y", "Н" => "Y",
-            "о" => "j", "О" => "J",
-            "п" => "g", "П" => "G",
-            "р" => "h", "Р" => "H",
-            "с" => "c", "С" => "C",
-            "т" => "n", "Т" => "N",
-            "у" => "e", "У" => "E",
-            "ф" => "a", "Ф" => "A",
-            "х" => "[", "Х" => "{",
-            "ц" => "w", "Ц" => "W",
-            "ч" => "x", "Ч" => "X",
-            "ш" => "i", "Ш" => "I",
-            "щ" => "o", "Щ" => "O",
-            "ъ" => "]", "Ъ" => "}",
-            "ы" => "s", "Ы" => "S",
-            "ь" => "m", "Ь" => "M",
-            "э" => "'", "Э" => "\"",
-            "ю" => ".", "Ю" => ">",
-            "я" => "z", "Я" => "Z",
-            "," => "?", "." => "/"
-        )));
-        return $s; // возвращаем результат
+    public static function transliterate_error_input(string $s): string {
+        $s = preg_replace("/\s+/", ' ', trim($s)); // Убираем лишние пробелы и переводы строк
+        $s = mb_strtolower($s); // Переводим строку в нижний регистр
+        $transliterationMap = [
+            "а" => "f", "б" => ",", "в" => "d", "г" => "u", "д" => "l",
+            "е" => "t", "ё" => "`", "ж" => ";", "з" => "p", "и" => "b",
+            "й" => "q", "к" => "r", "л" => "k", "м" => "v", "н" => "y",
+            "о" => "j", "п" => "g", "р" => "h", "с" => "c", "т" => "n",
+            "у" => "e", "ф" => "a", "х" => "[", "ц" => "w", "ч" => "x",
+            "ш" => "i", "щ" => "o", "ъ" => "]", "ы" => "s", "ь" => "m",
+            "э" => "'", "ю" => ".", "я" => "z", "," => "?", "." => "/",
+            // Добавляем капитализированные версии
+            ...array_map(fn($v, $k) => [$k => strtoupper($v)], array_keys($transliterationMap), $transliterationMap)
+        ];
+        // Транслитерация каждого символа
+        $s = strtr($s, $transliterationMap);
+        return $s;
     }
 
     /**
-     * Переадресует на страницу с переданным кодом
-     * По умолчанию код 404 и редирект на главную страницу сайта
-     * @param int $code код ответа сервера
-     * @param str $url куда редирект
+     * Переадресует на указанную страницу с заданным HTTP кодом ответа.
+     * По умолчанию используется код 404 и редирект на главную страницу.
+     * Если заголовки уже были отправлены, использует JavaScript для редиректа.
+     * @param int $code Код HTTP ответа.
+     * @param string $url URL для перенаправления.
      */
     public static function return_to_main($code = 404, $url = ENV_URL_SITE) {
-        if ($code === 404) {
-            $code_redirect = '404 Not Found';
-        } elseif ($code === 301) {
-            $code_redirect = '301 Moved Permanently';
-        } elseif ($code === 307) {
-            $code_redirect = '307 Temporary Redirect';
-        } else {
-            $code_redirect = '404 Not Found';
-        }
+        $code_redirect = match ($code) {
+            200 => '200 OK',
+            301 => '301 Moved Permanently',
+            307 => '307 Temporary Redirect',
+            400 => '400 Bad Request',
+            401 => '401 Unauthorized',
+            403 => '403 Forbidden',
+            500 => '500 Internal Server Error',
+            default => '404 Not Found'
+        };
         if (ENV_TEST) {
             $stack = debug_backtrace();
-            echo ' Возврат из ' . $stack[0]['file'] . ' line ' . $stack[0]['line'] . ' to ' . $url . ' code=' . $code_redirect . '<br/>';
-            die();
+            self::pre('Возврат из ' . $stack[0]['file'] . ' line ' . $stack[0]['line'] . ' to ' . $url . ' code=' . $code_redirect . '<br/>');
         }
-        /* Если это не редирект то вывести шаблон ошибки */
+        // Если заголовки уже были отправлены, используем JavaScript для редиректа
+        if (headers_sent()) {
+            echo "<script type='text/javascript'>window.location.href = '" . $url . "';</script>";
+            exit;
+        }
+        // Установка HTTP-заголовка для редиректа
+        header("HTTP/1.1 " . $code_redirect);
+        // Если это ошибка, отображаем соответствующую страницу ошибки
         if ($code >= 400) {
             Session::set('code', $code_redirect);
-            headers_sent() ? NULL : header("HTTP/1.1 " . $code_redirect);
             include_once(ENV_SITE_PATH . "error.php");
             Session::set('code', NULL);
-            die();
+            exit;
         }
-        headers_sent() ? NULL : header("HTTP/1.1 " . $code_redirect);
-        headers_sent() ? NULL : header("Location: " . $url);
-        die();
+        // Для остальных случаев выполняем перенаправление
+        header("Location: " . $url);
+        exit;
     }
 
     /**
@@ -1600,6 +1575,22 @@ Class SysClass {
         // Применяем callback-функцию к каждому совпадению регулярного выражения
         $prefixedWhere = preg_replace_callback('/\b([a-zA-Z_]+)\b/', $callback, $where);
         return $prefixedWhere;
+    }
+    
+    /**
+     * Выводит трассировку стека вызовов функций.
+     */
+    public static function printStackTrace() {
+        $trace = debug_backtrace();
+        array_shift($trace);
+        echo 'Трассировка:<br/>';
+        foreach ($trace as $item) {
+            echo "Класс: " . ($item['class'] ?? 'N/A') . "<br/>";
+            echo "Функция: " . $item['function'] . "<br/>";
+            echo "Линия: " . ($item['line'] ?? 'N/A') . "<br/>";
+            echo "Файл: " . ($item['file'] ?? 'N/A') . "<br/>";
+            echo "<hr/>";
+        }
     }
     
     /**

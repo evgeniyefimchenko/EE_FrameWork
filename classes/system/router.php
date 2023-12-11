@@ -6,6 +6,8 @@ if (ENV_SITE !== 1) {
     exit();
 }
 
+namespace classes\system;
+
 /**
  * Роутинг проекта
  * при отсутствии контроллера или действия в указанном пути
@@ -107,7 +109,7 @@ Class Router {
         $temp_class = 'Controller_' . $controller;
         if (ENV_TEST) {
             echo '<pre>';            
-			var_dump(['file' => $file, 'controller' => $temp_class, 'action' => $action, 'args' => $args]);
+            var_dump(['file' => $file, 'controller' => $temp_class, 'action' => $action, 'args' => $args]);
             echo '</pre>';
         }        
         if (empty($action) || !method_exists(new $temp_class, $action)) {
@@ -141,7 +143,7 @@ Class Router {
 
     /**
      * Удаляет все index и лишние слэши
-     * вернёт текущий путь или выполнит редирект 301 на валидный
+     * вернёт текущий путь или выполнит редирект 307 на валидный
      */
     private function remove_double_path($param) { 
         $dell_index = preg_replace('/index/', '', $param);

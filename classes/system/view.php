@@ -1,30 +1,24 @@
 <?php
 
-if (ENV_SITE !== 1) {
-    header("HTTP/1.1 301 Moved Permanently");
-    header("Location: http://" . $_SERVER['HTTP_HOST']);
-    exit();
-}
+namespace classes\system;
 
 /**
  * Класс представлений
- * устанавливает переменные и удаляет шаблону
- * Загружает представление в контроллер
- * @author Evgeniy Efimchenko efimchenko.ru 
+ * Устанавливает переменные и загружает шаблоны представления.
  */
-Class View {
+class View {
 
-    private $vars = array();
+    private array $vars = [];
 
     /**
-     * Установит переменную представления
-     * @param str $varname - имя переменной
-     * @param var $value - значение переменной
-     * @param boolean $overwrite
-     * @return boolean
+     * Устанавливает переменную представления.
+     * @param string $varname Имя переменной.
+     * @param mixed $value Значение переменной.
+     * @param bool $overwrite Флаг, указывающий на возможность перезаписи переменной.
+     * @return bool Возвращает true, если переменная установлена.
      */
-    public function set($varname, $value, $overwrite = false) {
-        if (isset($this->vars[$varname]) == true && $overwrite == false) {
+    public function set(string $varname, mixed $value, bool $overwrite = false): bool {
+        if (isset($this->vars[$varname]) && !$overwrite) {
             trigger_error('Переменная `' . $varname . '`. Уже установлена, перезапись не разрешена.', E_USER_NOTICE);
             return false;
         }
@@ -33,62 +27,53 @@ Class View {
     }
 
     /**
-     * Считывает переменную представления
+     * Получает значение установленной переменной представления.
+     * @param string $varname Имя переменной.
+     * @return mixed Значение переменной или FALSE, если переменная не установлена.
      */
-    public function get($varname) {
-        if (isset($this->vars[$varname]) == true) {
-            return $this->vars[$varname];
-        } else {
-            return FALSE;
-        }
+    public function get(string $varname): mixed {
+        return $this->vars[$varname] ?? false;
     }
 
     /**
-     * Удаляет переменные представления
-     * @param str $varname - имя переменной
+     * Удаляет переменную представления.
+     * @param string $varname Имя переменной.
      */
-    function remove($varname) {
+    public function remove(string $varname): void {
         unset($this->vars[$varname]);
     }
 
     /**
-     * Загружает представление в контроллер
-     * @param str $name - Имя представления
-     * @param str $add_path - Доп. путь к представлению
-     * @param boolean $full_path - флаг полного пути к представлению
-     * @return boolean
+     * Загружает представление.
+     * @param string $name Имя представления.
+     * @param string $add_path Дополнительный путь к представлению.
+     * @param bool $full_path Если true, используется полный путь.
+     * @return string Содержимое загруженного представления.
      */
-    public function read($name, $add_path = '', $full_path = FALSE) {
-        if ($full_path) {
-            $path = $name;
-        } else {
-            $stack = debug_backtrace();
-            $stack = dirname($stack[0]['file']);
-            $path = $stack . ENV_DIRSEP . 'view' . ENV_DIRSEP . $add_path . $name . '.php';
-        }
+    public function read(string $name, string $add_path = '', bool $full_path = false): string {
+        $path = $full_path ? $name : dirname(ENV_CONTROLLER_PATH) . ENV_DIRSEP . 'views' . ENV_DIRSEP . $add_path . $name . '.php';
         if (!file_exists($path)) {
             return 'Шаблон `' . $name . '` не существует. Путь поиска: ' . $path;
         }
-
-        foreach ($this->vars as $key => $value) {
-            $$key = $value;
-        }
-
+        extract($this->vars);
         ob_start();
-        include_once ($path);
+        try {
+            include_once($path);
+        } catch (Throwable $e) {
+            ob_end_clean();
+            throw $e;
+        }
         return ob_get_clean();
     }
 
     /**
-     * Существует ли переданное представление
-     * в папке представлений контроллера
-     * @return полный путь или FALSE
+     * Проверяет, существует ли переданное представление.
+     * @param string $view Имя представления.
+     * @return string|bool Полный путь к представлению, если оно существует, иначе FALSE.
      */
-    public function view_exists($view) {
+    public function view_exists(string $view): string|bool {
         $view_file = $view . '.php';
-        $stack = debug_backtrace();
-        $stack = dirname($stack[0]['file']);
-        $path = $stack . ENV_DIRSEP . 'view';
+        $path = dirname(ENV_CONTROLLER_PATH) . ENV_DIRSEP . 'views';
         return Sysclass::search_file($path, $view_file);
     }
 

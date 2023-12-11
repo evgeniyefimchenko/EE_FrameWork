@@ -54,6 +54,7 @@ $lang['sys.short_description'] = 'Краткое описание';
 $lang['sys.phone'] = 'Телефон';
 $lang['sys.site'] = 'Сайт';
 $lang['sys.status'] = 'Статус';
+$lang['sys.not_assigned'] = 'Не присвоен';
 $lang['sys.default'] = 'По умолчанию';
 $lang['sys.optional'] = 'Опционально';
 $lang['sys.title'] = 'Название';

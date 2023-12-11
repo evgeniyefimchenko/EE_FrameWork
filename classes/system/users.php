@@ -579,13 +579,15 @@ Class Users {
             // Создание таблицы типов категорий
             $create_types_table = "CREATE TABLE IF NOT EXISTS ?n (
                         type_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                        parent_type_id INT UNSIGNED NULL,
                         name VARCHAR(255) NOT NULL UNIQUE,
                         description VARCHAR(255),
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                        language_code CHAR(2) NOT NULL DEFAULT 'RU' COMMENT 'Код языка по ISO 3166-2'
+                        language_code CHAR(2) NOT NULL DEFAULT 'RU' COMMENT 'Код языка по ISO 3166-2',
+                        FOREIGN KEY (parent_type_id) REFERENCES ?n(type_id)
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения типов сущностей и категорий';";
-            SafeMySQL::gi()->query($create_types_table, Constants::CATEGORIES_TYPES_TABLE);
+            SafeMySQL::gi()->query($create_types_table, Constants::CATEGORIES_TYPES_TABLE, Constants::CATEGORIES_TYPES_TABLE);
             // Создание таблицы категорий
             // Шаг 1: Создание таблицы без внешних ключей
             $create_categories_table = "CREATE TABLE IF NOT EXISTS ?n (

@@ -1,15 +1,13 @@
 <?php
 
-if (ENV_SITE !== 1) {
-    header("HTTP/1.1 301 Moved Permanently");
-    header("Location: http://" . $_SERVER['HTTP_HOST']);
-    exit();
-}
+use classes\system\ControllerBase;
+use classes\system\SysClass;
+use classes\system\Session;
 
 /**
  * Класс контроллера главной страницы сайта
  */
-Class Controller_index Extends Controller_Base {
+class ControllerIndex Extends ControllerBase {
 
     private $lang = []; // Языковые переменные в рамках этого класса
 
@@ -19,36 +17,33 @@ Class Controller_index Extends Controller_Base {
      */
     private function get_user_data() {
         $this->access = array(100);
-        if ($this->logged_in) {
-            $this->load_model('m_index', [$this->logged_in]);
-            /* get user data */
-            $user_data = $this->models['m_index']->data;
+        if ($this->logged_in) {          
+            $user_data = $this->users->data;
             foreach ($user_data as $name => $val) {
                 $this->view->set($name, $val);
             }
-            if (mb_strlen($user_data['options']['localize']) > 1 && empty(Session::get('lang'))) { // Проверка на наличие локали в настройках пользователя
+            if (strlen($user_data['options']['localize']) > 1 && empty(Session::get('lang'))) { // Проверка на наличие локали в настройках пользователя
                 $lang_code = $user_data['options']['localize'];
             } else { // Записываем локаль в опции пользователя
                 $lang_code = Session::get('lang');
                 $user_data['options']['localize'] = $lang_code;
-                $this->models['m_index']->set_user_options($this->logged_in, $user_data['options']);
+                $this->users->set_user_options($this->logged_in, $user_data['options']);
             }
             include_once(ENV_SITE_PATH . ENV_PATH_LANG . '/' . $lang_code . '.php');
             Session::set('lang', $lang_code);
             $this->view->set('lang', $lang);
             $this->lang = $lang;
         } else {
-            $this->load_model('m_index');
             $lang_code = Session::get('lang');
             if (!$lang_code) {
                 $lang_code = ENV_DEF_LANG;
                 Session::set('lang', $lang_code);
             }
-            include(ENV_SITE_PATH . ENV_PATH_LANG . '/' . $lang_code . '.php');
-            $this->lang = $lang;
-            $this->view->set('lang', $lang);
-            $this->models['m_index']->set_lang($lang);
         }
+        include(ENV_SITE_PATH . ENV_PATH_LANG . '/' . $lang_code . '.php');
+        $this->lang = $lang;
+        $this->view->set('lang', $lang);
+        $this->users->set_lang($lang);
     }
 
     /**
@@ -75,7 +70,7 @@ Class Controller_index Extends Controller_Base {
         /* layouts */
         $this->parameters_layout["title"] = ENV_SITE_NAME . ' - General page';
         $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION;
-        $this->parameters_layout["keywords"] = Sysclass::keywords($this->html);
+        $this->parameters_layout["keywords"] = SysClass::keywords($this->html);
         $this->parameters_layout["layout_content"] = $this->html;
         $this->show_layout($this->parameters_layout);
     }
@@ -94,7 +89,7 @@ Class Controller_index Extends Controller_Base {
         /* layouts */
         $this->parameters_layout["title"] = ENV_SITE_NAME . ' - About Us';
         $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION;
-        $this->parameters_layout["keywords"] = Sysclass::keywords($this->html);
+        $this->parameters_layout["keywords"] = SysClass::keywords($this->html);
         $this->parameters_layout["layout_content"] = $this->html;
         $this->show_layout($this->parameters_layout);
     }
@@ -113,7 +108,7 @@ Class Controller_index Extends Controller_Base {
         /* layouts */
         $this->parameters_layout["title"] = ENV_SITE_NAME . ' - Contact';
         $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION;
-        $this->parameters_layout["keywords"] = Sysclass::keywords($this->html);
+        $this->parameters_layout["keywords"] = SysClass::keywords($this->html);
         $this->parameters_layout["layout_content"] = $this->html;
         $this->show_layout($this->parameters_layout);
     }
@@ -130,7 +125,7 @@ Class Controller_index Extends Controller_Base {
         }
 
         $this->get_user_data();
-        $this->models['m_index']->get_admin_profile(); // Если профиля админа не существует то он будет создан test@test.com admin
+        $this->users->get_admin_profile(); // Если профиля админа не существует то он будет создан test@test.com admin
 
         /* view */
         if ($this->view->get('new_user') || !$this->logged_in) {
@@ -146,7 +141,7 @@ Class Controller_index Extends Controller_Base {
         $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="' . $this->get_path_controller() . '/css/login-register.css"/>';
         $this->parameters_layout["title"] = ENV_SITE_NAME;
         $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION . ' - Login/Registration Form';
-        $this->parameters_layout["keywords"] = Sysclass::keywords($this->html);
+        $this->parameters_layout["keywords"] = SysClass::keywords($this->html);
         $this->parameters_layout["layout"] = 'login_form';
         $this->parameters_layout["layout_content"] = $this->html;
         $this->show_layout($this->parameters_layout);
@@ -173,7 +168,7 @@ Class Controller_index Extends Controller_Base {
             die(json_encode($json, JSON_UNESCAPED_UNICODE));
         }
 
-        $json['error'] = $this->models['m_index']->confirm_user($email, $pass);
+        $json['error'] = $this->users->confirm_user($email, $pass);
         die(json_encode($json, JSON_UNESCAPED_UNICODE));
     }
 
@@ -209,11 +204,11 @@ Class Controller_index Extends Controller_Base {
             $json['error'] .= $this->lang['sys.password_mismatch'];
         }
 
-        if (!$json['error'] && $this->models['m_index']->get_email_exist($email)) {
+        if (!$json['error'] && $this->users->get_email_exist($email)) {
             $json['error'] .= $this->lang['sys.the_mail_is_already_busy'];
         }
 
-        if (!$json['error'] && !$this->models['m_index']->registration_users($email, $pass)) {
+        if (!$json['error'] && !$this->users->registration_users($email, $pass)) {
             $json['error'] .= $this->lang['sys.db_registration_error'];
         }
 
@@ -225,9 +220,9 @@ Class Controller_index Extends Controller_Base {
 
         if ($json['error'] === '') {
             if (ENV_CONFIRM_EMAIL == 1) {
-                $json['error'] = $this->models['m_index']->send_register_code($email) ? '' : $this->lang['sys.email_sending_error'];
+                $json['error'] = $this->users->send_register_code($email) ? '' : $this->lang['sys.email_sending_error'];
             } else {
-                $this->models['m_index']->confirm_user($email, '', true); /* Автологин */
+                $this->users->confirm_user($email, '', true); /* Автологин */
             }
         }
         echo json_encode($json);
@@ -239,12 +234,12 @@ Class Controller_index Extends Controller_Base {
      */
     public function activation($params) {
         $this->get_user_data();
-        if ($this->models['m_index']->get_email_exist($params[1])) {
-            $active = $this->models['m_index']->get_user_stat($this->models['m_index']->get_user_id_by_email($params[1]));
+        if ($this->users->get_email_exist($params[1])) {
+            $active = $this->users->get_user_stat($this->users->get_user_id_by_email($params[1]));
             if ($active == 1) {
                 if (password_verify($params[1], base64_decode($params[0]))) {
-                    if ($this->models['m_index']->dell_activation_code($params[1], $params[0])) {
-                        $this->models['m_index']->confirm_user($params[1], '', true); /* Автологин */
+                    if ($this->users->dell_activation_code($params[1], $params[0])) {
+                        $this->users->confirm_user($params[1], '', true); /* Автологин */
                         $this->parameters_layout["layout_content"] = $this->lang['sys.successfully_activated'] . ' <meta http-equiv="refresh" content="7;URL=' . ENV_URL_SITE . '">';
                     } else {
                         $this->parameters_layout["layout_content"] = $this->lang['sys.activation_error'] . ' <meta http-equiv="refresh" content="7;URL=' . ENV_URL_SITE . '">';
@@ -297,13 +292,13 @@ Class Controller_index Extends Controller_Base {
                 $post_data['localize'] = $params[0];
             }
             $this->load_model('m_index', [$this->logged_in]);
-            $user_data = $this->models['m_index']->data;
+            $user_data = $this->users->data;
             foreach ($post_data as $key => $value) {
                 if (array_key_exists($key, $user_data['options'])) {
                     $user_data['options'][$key] = $value;
                 }
             }
-            $this->models['m_index']->set_user_options($this->logged_in, $user_data['options']);
+            $this->users->set_user_options($this->logged_in, $user_data['options']);
         } else {
             Session::set('lang', $params[0]);
         }

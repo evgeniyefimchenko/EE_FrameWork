@@ -1,17 +1,12 @@
 <?php
 
-if (ENV_SITE !== 1) {
-    header("HTTP/1.1 301 Moved Permanently");
-    header("Location: http://" . $_SERVER['HTTP_HOST']);
-    exit();
-}
+namespace classes\system;
 
 /**
  * Системный класc для создания плагинов на страницах сайта
  * Все методы статические
- * @author Evgeniy Efimchenko efimchenko.ru  
  */
-Class Plugins {
+class Plugins {
 
     function __construct() {
         throw new Exception('Static only.');
@@ -46,8 +41,8 @@ Class Plugins {
         $html .= '</table>';  // закрыть таблицу
         $html .= self::generatePagination($id_table, $page, $data_table, $current_rows_per_page, $max_buttons);
         $html .= self::generateRowsPerPageSection($id_table, $data_table, $current_rows_per_page);
-        if (!isset($_SERVER['HTTP_X_REQUESTED_WITH']) && !strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') {
-            $html .= '<script src="' . ENV_URL_SITE . '/classes/system/js/plugins/ee_show_table.js" type="text/javascript" /></script>';
+        if (!isset($_SERVER['HTTP_X_REQUESTED_WITH']) || strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) != 'xmlhttprequest') {
+            $html .= '<script src="' . ENV_URL_SITE . '/classes/system/js/plugins/ee_show_table.js" type="text/javascript"></script>';
         }
         return $html;
     }
@@ -627,6 +622,9 @@ Class Plugins {
         if (!is_array($default) && is_string($default)) {
             $default = json_decode($default, true);            
         }
+        if (!count($default)) {
+            $default[] = ['label' => '', 'default' => '', 'required' => 0, 'multiple' => 0];
+        }
         foreach ($fields as $type) {            
             $result .= $lang['sys.type'] . ' ' . ucfirst($type) . ': ';
             $result .= '<div class="col-12 col-sm-12 mt-2 d-flex align-items-center property_content">';           
@@ -817,6 +815,9 @@ Class Plugins {
         if (!is_array($default) && is_string($default)) {
             $default = json_decode($default, true);            
         }
+        if (!count($default)) {
+            $default[] = ['label' => '', 'default' => '', 'required' => 0, 'multiple' => 0];
+        }        
         foreach ($fields as $type) {
             $result .= '<div class="col-6 col-sm-6 mt-2 d-flex align-items-center">';           
             if ($type !== 'checkbox' && $type !== 'radio') {
@@ -1044,4 +1045,134 @@ Class Plugins {
         return $html;
     }
 
+    /**
+     * Рекурсивно создает строку с опциями выпадающего списка для иерархических типов категорий.
+     * Каждый дочерний уровень типа будет иметь увеличенный отступ для визуального представления иерархии.
+     * Добавляет в начало списка пустой элемент <option>, чтобы обеспечить возможность выбора "пустоты".
+     * @param array $types Массив типов категорий, где каждый тип содержит ключи 'type_id', 'parent_type_id', 'name' и, возможно, 'children'.
+     * @param int $selected_type_id ID выбранного типа. Этот тип будет отмечен как выбранный в выпадающем списке.
+     * @param int $parent_type_id ID родительского типа для текущего уровня иерархии. По умолчанию равен 0, что соответствует корневому уровню.
+     * @param int $level Текущий уровень иерархии. Используется для добавления отступов дочерним элементам. По умолчанию равен 0 для корневого уровня.
+     * @return string Строка с HTML кодом опций для элемента <select>
+     */
+public static function show_type_categogy_for_select($types, $selected_type_id = null, $level = 0) {
+    $html = '';
+    if ($level == 0) {
+        $html .= '<option value=""' . (empty($selected_type_id) ? ' selected' : '') . '>---</option>';
+    }
+
+    foreach ($types as $type) {
+        $indent = str_repeat("--", $level);
+        $selected = $selected_type_id == $type['type_id'] ? ' selected' : '';
+        $html .= '<option value="' . $type['type_id'] . '"' . $selected . '>' . $indent . $type['name'] . '</option>';
+
+        if (!empty($type['children'])) {
+            $html .= self::show_type_categogy_for_select($type['children'], $selected_type_id, $level + 1);
+        }
+    }
+
+    return $html;
+}
+
+
+    /**
+    * Рекурсивно выводит опции категорий для элемента select HTML, формируя иерархическую структуру.
+    * Каждая подкатегория имеет отступ, соответствующий ее уровню вложенности.
+    * @param array $categories Массив категорий, где каждая категория содержит информацию о себе и, возможно, о своих подкатегориях ('children').
+    * @param int $selectedCategoryId ID выбранной категории. Если ID совпадает с ID категории в массиве, эта категория будет отмечена как выбранная.
+    * @param int $parentId ID родительской категории для текущего уровня иерархии. По умолчанию 0 (верхний уровень).
+    * @param int $level Текущий уровень иерархии. Используется для определения количества отступов перед названием категории.
+    * @return string Строка HTML с опциями категорий для использования в элементе select.
+    */
+    public static function show_categogy_for_select($categories, $selectedCategoryId, $parentId = 0, $level = 0) {
+        $html = '';
+        foreach ($categories as $category) {
+            if ($category['parent_id'] == $parentId) {
+                $indent = str_repeat('-', $level * 2);
+                $selected = $selectedCategoryId == $category['category_id'] ? 'selected' : '';
+                $html .= "<option $selected value='{$category['category_id']}'>{$indent} {$category['title']}</option>";
+                if (!empty($category['children'])) {
+                    $html .= self::show_categogy_for_select($category['children'], $selectedCategoryId, $category['category_id'], $level + 1);
+                }
+            }
+        }
+        return $html;
+    }    
+
+    /**
+     * Рекурсивно выводит дерево категорий в виде аккордеона Bootstrap.
+     * @param array $categories Массив категорий.
+     * @param string $parentId Родительский ID для связи элементов аккордеона.
+     * @return string HTML код дерева категорий в виде аккордеона.
+     */
+    public static function renderCategoryTree($categories, $parentId = "root") {
+        $html = "<div class='accordion' id='accordionCategory{$parentId}'>";
+        foreach ($categories as $category) {
+            // Пропускаем категорию с ID 0
+            if ($category['category_id'] === 0) {
+                continue;
+            }
+
+            $childId = "category{$category['category_id']}";
+            $titleWithId = "({$category['category_id']}) {$category['title']}";
+
+            // Определяем, есть ли дочерние элементы
+            $hasChildren = !empty($category['children']);
+            $buttonClass = $hasChildren ? 'accordion-button collapsed' : 'accordion-button collapsed no-chevron';
+
+            $html .= "<div class='accordion-item'>
+                        <h2 class='accordion-header' id='heading{$childId}'>
+                            <button class='{$buttonClass}' type='button' " . ($hasChildren ? "data-bs-toggle='collapse' data-bs-target='#collapse{$childId}' aria-expanded='false'" : "") . " aria-controls='collapse{$childId}'>
+                                {$titleWithId}
+                            </button>
+                        </h2>";
+
+            if ($hasChildren) {
+                $html .= "<div id='collapse{$childId}' class='accordion-collapse collapse' aria-labelledby='heading{$childId}' data-bs-parent='#accordionCategory{$parentId}'>
+                            <div class='accordion-body'>";
+                $html .= self::renderCategoryTree($category['children'], $category['category_id']);
+                $html .= "  </div>
+                        </div>";
+            }
+
+            $html .= "</div>";
+        }
+        $html .= "</div>";
+
+        return $html;
+    }
+
+    
+    /**
+     * Генерирует HTML код модального окна Bootstrap 5.
+     * @param string $id Идентификатор модального окна.
+     * @param string $title Заголовок окна.
+     * @param string $bodyContent Содержимое тела окна.
+     * @param array $buttons Массив кнопок. Каждый элемент массива должен содержать текст кнопки, классы стилей и опционально тип кнопки
+     *[
+        ['text' => 'Закрыть', 'class' => 'btn-secondary', 'type' => 'button', 'meta' => 'data-bs-dismiss="modal"'],
+        ['text' => 'Сохранить изменения', 'class' => 'btn-primary', 'type' => 'submit']
+      ]
+     * @return string HTML код модального окна.
+     */
+    public static function ee_generateModal($id, $title, $bodyContent, $buttons = [['text' => 'Закрыть', 'class' => 'btn-secondary', 'type' => 'button', 'meta' => 'data-bs-dismiss="modal"']]) {
+        $html = "<div class='modal fade' id='{$id}' tabindex='-1' aria-labelledby='{$id}Label' aria-hidden='true'>
+                    <div class='modal-dialog modal-dialog-centered modal-dialog-scrollable'>
+                        <div class='modal-content'>
+                            <div class='modal-header'>
+                                <h5 class='modal-title' id='{$id}Label'>{$title}</h5>
+                                <button type='button' class='btn-close' data-bs-dismiss='modal' aria-label='Close'></button>
+                            </div>
+                            <div class='modal-body' style='overflow-y: auto; max-height: 80vh;'>
+                                {$bodyContent}
+                            </div>
+                            <div class='modal-footer'>";
+        foreach ($buttons as $button) {
+            $buttonType = $button['type'] ?? 'button';
+            $meta = $button['meta'] ?? '';
+            $html .= "<button type='{$buttonType}' class='btn {$button['class']}' {$meta}>{$button['text']}</button>";
+        }
+        $html .= "</div></div></div></div>";
+        return $html;
+    }
 }
