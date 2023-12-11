@@ -11562,3 +11562,7 @@ body {
 .property_content button {
     font-size: xx-small;
 }
+
+.accordion-button.no-chevron::after {
+    display: none;
+}

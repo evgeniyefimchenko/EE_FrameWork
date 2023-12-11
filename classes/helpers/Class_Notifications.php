@@ -1,16 +1,10 @@
 <?php
-if (ENV_SITE !== 1) {
-    header("HTTP/1.1 301 Moved Permanently");
-    header("Location: http://" . $_SERVER['HTTP_HOST']);
-    exit();
-}
 
 /*
  * Класс для работы с уведомлениями
  * подключается в необходимых моделях
  */
-
-class Class_notifications {
+class Class_Notifications {
 
     /**
     * Удалит все найденные уведомления по переданному тексту

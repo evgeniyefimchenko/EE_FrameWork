@@ -48,3 +48,39 @@
     });
 })();
 
+/**
+ * Отправляет AJAX-запрос к указанному URL
+ * @param {string} url URL-адрес, по которому будет отправлен запрос.
+ * @param {Object} data Объект с данными, которые будут отправлены в запросе.
+ * @param {string} method HTTP-метод запроса, например 'GET' или 'POST'. 
+ * @param {string} [dataType] Тип данных, ожидаемых в ответе (например, 'json', 'xml', 'html').
+ * @param {Function} [successCallback] Функция обратного вызова, которая будет вызвана при успешном ответе.
+ *                                      Принимает один аргумент - данные ответа.
+ * @param {Function} [errorCallback] Функция обратного вызова, которая будет вызвана при возникновении ошибки.
+ *                                    Принимает три аргумента: jqXHR, textStatus и errorThrown.
+ * @param {Object} [headers] Объект с заголовками запроса.
+ */
+function sendAjaxRequest(url, data, method, dataType = 'json', successCallback, errorCallback, headers = {}) {
+    $.ajax({
+        url: url,
+        type: method,
+        data: data,
+        headers: headers,
+        dataType: dataType,
+        success: function(response) {
+            if (successCallback && typeof successCallback === 'function') {
+                successCallback(response);
+            }
+        },
+        error: function(jqXHR, textStatus, errorThrown) {
+            if (errorCallback && typeof errorCallback === 'function') {
+                errorCallback(jqXHR, textStatus, errorThrown);
+            } else {
+                console.error('sendAjaxRequest error:', jqXHR, textStatus, errorThrown);
+            }
+        }
+    });
+}
+
+
+

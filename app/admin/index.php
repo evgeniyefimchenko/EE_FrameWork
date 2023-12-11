@@ -1,29 +1,36 @@
 <?php
 
-if (ENV_SITE !== 1) {
-    header("HTTP/1.1 301 Moved Permanently");
-    header("Location: http://" . $_SERVER['HTTP_HOST']);
-    exit();
-}
+use classes\system\ControllerBase;
+use classes\system\SysClass;
+use classes\system\Plugins;
+use classes\system\Session;
+
+use app\admin\MessagesTrait;
+use app\admin\NotificationsTrait;
+use app\admin\SystemsTrait;
+use app\admin\EmailsTrait;
+use app\admin\CategoriesTrait;
+use app\admin\CategoriesTypesTrait;
+use app\admin\EntitiesTrait;
+use app\admin\PropertiesTrait;
 
 /*
  * Админ-панель
  */
-
-Class Controller_index Extends Controller_Base {
+class ControllerIndex Extends ControllerBase {
 
     private $lang = []; // Языковые переменные в рамках этого класса
     private $free_active_status = [1 => 'Не подтверждён', 2 => 'Активен', 3 => 'Заблокирован'];
 
     /* Подключение traits */
-    use messages_trait,
-        notifications_trait,
-        systems_trait,
-        emails_trait,
-        categories_trait,
-        categories_types_trait,
-        entities_trait,
-        properties_trait;
+    use MessagesTrait,
+        NotificationsTrait,
+        SystemsTrait,
+        EmailsTrait,
+        CategoriesTrait,
+        CategoriesTypesTrait,
+        EntitiesTrait,
+        PropertiesTrait;
 
     /**
      * Главная страница админ-панели
@@ -37,12 +44,12 @@ Class Controller_index Extends Controller_Base {
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main(200, '/show_login_form?return=admin');
         }
-        /* model */
-        $this->load_model('m_index', [$this->logged_in]);
+        /* models */
+
         /* get user data - все переменные пользователя доступны в представлениях */
-        $user_data = $this->models['m_index']->data;
+        $user_data = $this->users->data;
         $this->get_user_data($user_data);
-        /* view */
+        /* views */
         $this->get_standart_view();
         /* Отобразить контент согласно уровня доступа */
         if ($user_data['user_role'] == 1) { // Доступ для администратора
@@ -58,7 +65,7 @@ Class Controller_index Extends Controller_Base {
         $this->parameters_layout["title"] = ENV_SITE_NAME . ' - DASHBOARD';
         $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION . ' - DASHBOARD';
         $this->parameters_layout["canonical_href"] = ENV_URL_SITE . '/admin';
-        $this->parameters_layout["keywords"] = Sysclass::keywords($this->html);
+        $this->parameters_layout["keywords"] = SysClass::keywords($this->html);
         $this->show_layout($this->parameters_layout);
     }
 
@@ -272,7 +279,7 @@ Class Controller_index Extends Controller_Base {
         /* model */
         $this->load_model('m_index', [$this->logged_in]);
         /* get user data - все переменные пользователя доступны в представлениях */
-        $user_data = $this->models['m_index']->data;
+        $user_data = $this->users->data;
         $this->get_user_data($user_data);
         /* view */
         $this->get_standart_view();
@@ -285,7 +292,7 @@ Class Controller_index Extends Controller_Base {
         $this->parameters_layout["title"] = ENV_SITE_NAME . ' - UPGRADE';
         $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION . ' - UPGRADE';
         $this->parameters_layout["canonical_href"] = ENV_URL_SITE . '/admin/upgrade';
-        $this->parameters_layout["keywords"] = Sysclass::keywords($this->html);
+        $this->parameters_layout["keywords"] = SysClass::keywords($this->html);
         $this->show_layout($this->parameters_layout);
     }
 
@@ -304,7 +311,7 @@ Class Controller_index Extends Controller_Base {
             $lang_code = Session::get('lang');
             $user_data['options']['localize'] = $lang_code;
             $this->load_model('m_index', [$this->logged_in]);
-            $this->models['m_index']->set_user_options($this->logged_in, $user_data['options']);
+            $this->users->set_user_options($this->logged_in, $user_data['options']);
         }
         $lang = include(ENV_SITE_PATH . ENV_PATH_LANG . '/' . $lang_code . '.php');
         if (!is_array($lang))
@@ -338,7 +345,7 @@ Class Controller_index Extends Controller_Base {
         /* model */
         $this->load_model('m_index', [$this->logged_in]);
         /* get data */
-        $user_data = $this->models['m_index']->data;
+        $user_data = $this->users->data;
         $this->get_user_data($user_data);
         /* Read POST data */
         $post_data = SysClass::ee_cleanArray($_POST);
@@ -349,7 +356,7 @@ Class Controller_index Extends Controller_Base {
                         $user_data['options'][$key] = $value;
                     }
                 }
-                echo $this->models['m_index']->set_user_options($this->logged_in, $user_data['options']);
+                echo $this->users->set_user_options($this->logged_in, $user_data['options']);
                 exit();
             case isset($post_data['get']):
                 echo json_encode($user_data['options']);
@@ -373,13 +380,13 @@ Class Controller_index Extends Controller_Base {
         /* model */
         $this->load_model('m_index', [$this->logged_in]);
         /* get current user data */
-        $user_data = $this->models['m_index']->data;
+        $user_data = $this->users->data;
         $this->get_user_data($user_data);
         if (in_array('id', $params)) {                                                       // Пользователь передан получаем данные из базы
             $id = filter_var($params[array_search('id', $params) + 1], FILTER_VALIDATE_INT);
-            $get_user_context = is_integer($id) ? $this->models['m_index']->get_user_data($id) : [];
+            $get_user_context = is_integer($id) ? $this->users->get_user_data($id) : [];
             /* Нельзя посмотреть чужую карточку равной себе роли или выше */
-            if (!$id || $this->models['m_index']->data['user_role'] >= $get_user_context['user_role'] && $this->logged_in != $id) {
+            if (!$id || $this->users->data['user_role'] >= $get_user_context['user_role'] && $this->logged_in != $id) {
                 SysClass::return_to_main(200, ENV_URL_SITE . '/admin/user_edit/id/' . $this->logged_in);
             }
         } else {                                                                            // Не передан ключевой параметр id
@@ -388,7 +395,7 @@ Class Controller_index Extends Controller_Base {
 
         $this->load_model('m_user_edit');
         /* Если не админ и модер и карточка не своя возвращаем */
-        if ($this->models['m_index']->data['user_role'] > 2 && $this->logged_in != $id) {
+        if ($this->users->data['user_role'] > 2 && $this->logged_in != $id) {
             SysClass::return_to_main(200, ENV_URL_SITE . '/admin/user_edit/id/' . $this->logged_in);
         }
         /* get data */
@@ -431,19 +438,19 @@ Class Controller_index Extends Controller_Base {
         $id = filter_var($params[array_search('id', $params) + 1], FILTER_VALIDATE_INT);
         /* model */
         $this->load_model('m_index', [$this->logged_in]);
-        if ($this->models['m_index']->data['user_role'] > 2 && $this->logged_in != $id) { // Роль меньше модератора или id не текущего пользователя выходим
+        if ($this->users->data['user_role'] > 2 && $this->logged_in != $id) { // Роль меньше модератора или id не текущего пользователя выходим
             echo json_encode(array('error' => 'error no access'));
             exit();
         }
         /* set data user */
         $post_data['phone'] = isset($post_data['phone']) ? preg_replace('/[^0-9+]/', '', $post_data['phone']) : null;
-        if ($this->models['m_index']->data['phone'] && $this->models['m_index']->data['user_role'] > 2) {
+        if ($this->users->data['phone'] && $this->users->data['user_role'] > 2) {
             unset($post_data['phone']);
         }
 
         if ($post_data['new'] == '1') {
-            if ($this->models['m_index']->registration_new_user($post_data)) {
-                $new_id = $this->models['m_index']->get_user_id(trim($post_data['email']));
+            if ($this->users->registration_new_user($post_data)) {
+                $new_id = $this->users->get_user_id(trim($post_data['email']));
                 echo json_encode(array('error' => 'no', 'id' => $new_id));
                 exit();
             } else {
@@ -456,12 +463,12 @@ Class Controller_index Extends Controller_Base {
         } else {
             $post_data['subscribed'] = 0;
         }
-        if ($this->models['m_index']->set_user_data($id, $post_data)) {
-            $user_role = $this->models['m_index']->get_user_role($id);
+        if ($this->users->set_user_data($id, $post_data)) {
+            $user_role = $this->users->get_user_role($id);
             if (isset($post_data['user_role']) && $post_data['user_role'] != $user_role) { // Сменилась роль пользователя, оповещаем админа и пишем лог
                 $mail = new Class_mail();
-                $mail->send_mail($this->models['m_index']->get_user_email(1), 'changed status(' . $user_role . ' to ' . $post_data['user_role'] . ') to user', 'User ' . $this->logged_in . ' changed status to user ' . $id);
-                SysClass::SetLog('Изменили роль пользователю ID=' . $id . ' с ' . $this->models['m_index']->data['user_role'] . ' на ' . $post_data['user_role'], 'info', $this->logged_in);
+                $mail->send_mail($this->users->get_user_email(1), 'changed status(' . $user_role . ' to ' . $post_data['user_role'] . ') to user', 'User ' . $this->logged_in . ' changed status to user ' . $id);
+                SysClass::SetLog('Изменили роль пользователю ID=' . $id . ' с ' . $this->users->data['user_role'] . ' на ' . $post_data['user_role'], 'info', $this->logged_in);
             }
             echo json_encode(array('error' => 'no', 'id' => $id));
             exit();
@@ -486,7 +493,7 @@ Class Controller_index Extends Controller_Base {
         /* model */
         $this->load_model('m_index', [$this->logged_in]);
         /* get data */
-        $user_data = $this->models['m_index']->data;
+        $user_data = $this->users->data;
         $this->get_user_data($user_data);
         /* view */
         $this->get_standart_view();
@@ -512,7 +519,7 @@ Class Controller_index Extends Controller_Base {
         }
         $this->load_model('m_index', [$this->logged_in]);
         if (!$this->lang['sys.name']) { // Подргужаем языковые переменные
-            $user_data = $this->models['m_index']->data;
+            $user_data = $this->users->data;
             $this->get_user_data($user_data);
         }
         $post_data = SysClass::ee_cleanArray($_POST);
@@ -620,9 +627,9 @@ Class Controller_index Extends Controller_Base {
 
         if ($post_data && isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') { // AJAX
             list($params, $filters, $selected_sorting) = Plugins::ee_show_table_prepare_params($post_data, $data_table['columns']);
-            $users_array = $this->models['m_index']->get_users_data($params['order'], $params['where'], $params['start'], $params['limit']);
+            $users_array = $this->users->get_users_data($params['order'], $params['where'], $params['start'], $params['limit']);
         } else {
-            $users_array = $this->models['m_index']->get_users_data(false, false, false, 25);
+            $users_array = $this->users->get_users_data(false, false, false, 25);
         }
 
         foreach ($users_array['data'] as $item) {
@@ -666,7 +673,7 @@ Class Controller_index Extends Controller_Base {
         /* model */
         $this->load_model('m_index', [$this->logged_in]);
         /* get data */
-        $user_data = $this->models['m_index']->data;
+        $user_data = $this->users->data;
         $this->get_user_data($user_data);
         /* view */
         $this->get_standart_view();
@@ -691,7 +698,7 @@ Class Controller_index Extends Controller_Base {
         }
         $this->load_model('m_index', [$this->logged_in]);
         if (!$this->lang['sys.name']) { // Подргужаем языковые переменные
-            $user_data = $this->models['m_index']->data;
+            $user_data = $this->users->data;
             $this->get_user_data($user_data);
         }
         $post_data = SysClass::ee_cleanArray($_POST);
@@ -762,7 +769,7 @@ Class Controller_index Extends Controller_Base {
         if (in_array('id', $params)) {
             $id = filter_var($params[array_search('id', $params) + 1], FILTER_VALIDATE_INT);
             if (in_array($id, [1, 2, 3, 4, 8])) {
-                    Class_notifications::add_notification_user($this->logged_in, ['text' => 'Невозможно удалить системные роли!', 'status' => 'danger']);                    
+                    ClassNotifications::add_notification_user($this->logged_in, ['text' => 'Невозможно удалить системные роли!', 'status' => 'danger']);                    
             } else {
                 $this->load_model('m_user_edit');
                 $this->models['m_user_edit']->users_role_dell($id);
@@ -813,17 +820,17 @@ Class Controller_index Extends Controller_Base {
         if (in_array('id', $params)) {            
             $id = filter_var($params[array_search('id', $params) + 1], FILTER_VALIDATE_INT);
             if (in_array($id, [1, 2])) {
-                Class_notifications::add_notification_user($this->logged_in, ['text' => 'Невозможно удалить системные роли!', 'status' => 'danger']);                    
+                ClassNotifications::add_notification_user($this->logged_in, ['text' => 'Невозможно удалить системные роли!', 'status' => 'danger']);                    
             } else {
                 $this->load_model('m_user_edit');
                 if (!$this->models['m_user_edit']->delete_user($id)) {                    
-                    Class_notifications::add_notification_user($this->logged_in, ['text' => 'Ошибка удаления пользователя id=' . $id, 'status' => 'danger']);                    
+                    ClassNotifications::add_notification_user($this->logged_in, ['text' => 'Ошибка удаления пользователя id=' . $id, 'status' => 'danger']);                    
                 } else {
-                    Class_notifications::add_notification_user($this->logged_in, ['text' => 'Помечен удалённым id=' . $id, 'status' => 'info']);
+                    ClassNotifications::add_notification_user($this->logged_in, ['text' => 'Помечен удалённым id=' . $id, 'status' => 'info']);
                 }
             }            
         } else {
-            Class_notifications::add_notification_user($this->logged_in, ['text' => 'Нет обязательного параметра id', 'status' => 'danger']); 
+            ClassNotifications::add_notification_user($this->logged_in, ['text' => 'Нет обязательного параметра id', 'status' => 'danger']); 
         }
         SysClass::return_to_main(200, '/admin/users');
     }

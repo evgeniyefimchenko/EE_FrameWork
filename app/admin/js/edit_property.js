@@ -84,22 +84,25 @@ $(document).ready(function () {
         });
         $('#' + general_name + '_count').val(count);
     }
+    
     // Смена типа свойства
     $('#type_id-input').change(function() {
-        var currentSelectedValue = $(this).val(); // текущее выбранное значение
+        var currentSelectedValue = $(this).val();
+        var previousValue = $(this).data('previous');
+        if ($('#name-input').val().trim() === '') {
+            alert('Введите название!');
+            $(this).val(previousValue);
+            return false;
+        }
         var isConfirmed = confirm("Вы уверены, что хотите сменить тип свойства? Все поля будут очищены!");
         if (!isConfirmed) {
-            $(this).val($(this).data('previous')); 
+            $(this).val(previousValue);
         } else {
             $(this).data('previous', currentSelectedValue);
             $('#fields_contents').remove();
-            $('button[type=submit]').click();
+            $('button[type=submit]').click(); // Переписать на AJAX
         }
     }).data('previous', $('#type_id-input').val());
-
-    
-    // http://plugins.krajee.com/file-input
-    // $('input[type="file"]').fileinput();
 
 });
 
