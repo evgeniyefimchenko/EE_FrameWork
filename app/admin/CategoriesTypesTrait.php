@@ -20,9 +20,6 @@ trait CategoriesTypesTrait {
             SysClass::return_to_main(200, '/show_login_form?return=admin');
         }
         $this->load_model('m_categories_types');
-        /* get data */
-        $user_data = $this->users->data;
-        $this->get_user_data($user_data);
         /* view */
         $this->get_standart_view();
         $types_table = $this->get_categories_types_data_table();
@@ -48,10 +45,6 @@ trait CategoriesTypesTrait {
             exit();
         }
         $this->load_model('m_categories_types');
-        if (!$this->lang['sys.name']) { // Подргужаем языковые переменные
-            $user_data = $this->users->data;
-            $this->get_user_data($user_data);
-        }
         $post_data = SysClass::ee_cleanArray($_POST);
         $data_table = [
             'columns' => [
@@ -154,12 +147,15 @@ trait CategoriesTypesTrait {
         /* model */
         $this->load_model('m_categories_types');
         $this->load_model('m_properties');
-        /* get current user data */
-        $user_data = $this->users->data;
-        $this->get_user_data($user_data);
+        
         $post_data = SysClass::ee_cleanArray($_POST);
         if (in_array('id', $params)) {
-            $id = filter_var($params[array_search('id', $params) + 1], FILTER_VALIDATE_INT);
+            $key_id = array_search('id', $params);
+            if ($key_id !== false && isset($params[$key_id + 1])) {
+                $id = filter_var($params[$key_id + 1], FILTER_VALIDATE_INT);
+            } else {
+                $id = 0; 
+            }
             if (isset($post_data['name']) && $post_data['name']) {                
                 if (!$id = $this->models['m_categories_types']->update_categories_type_data($post_data)) {
                     ClassNotifications::add_notification_user($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
@@ -208,7 +204,12 @@ trait CategoriesTypesTrait {
             exit();
         }
         if (in_array('id', $params)) {            
-            $id = filter_var($params[array_search('id', $params) + 1], FILTER_VALIDATE_INT);
+            $key_id = array_search('id', $params);
+            if ($key_id !== false && isset($params[$key_id + 1])) {
+                $id = filter_var($params[$key_id + 1], FILTER_VALIDATE_INT);
+            } else {
+                $id = 0; 
+            }
             $this->load_model('m_categories_types');
             $res = $this->models['m_categories_types']->delete_categories_type($id);
             if (count($res)) {

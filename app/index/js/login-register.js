@@ -98,12 +98,19 @@ $(document).ready(function () {
     $("#log_form").submit(async function (e) {
         e.preventDefault();
         const formData = $(this).serialize();
+
+        // Получение параметра 'return' из URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const returnUrl = urlParams.get('return');
+
         await performAjaxRequest('/login', formData, async function (data) {
             if (data.error !== "") {
                 await shakeModal(data['error']);
             } else {
                 await shakeModal(lang_var('sys.welcome') + '!', true);
-                window.location = "/admin";
+
+                // Переход на адрес из параметра 'return', если он существует, иначе переход на '/admin'
+                window.location = returnUrl ? returnUrl : "/admin";
             }
         });
     });

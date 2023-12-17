@@ -17,10 +17,7 @@ trait EmailsTrait {
             exit();
         }
         /* model */
-        $this->load_model('m_settings', [$this->logged_in]);
-        /* get user data - все переменные пользователя доступны в представлениях */
-        $user_data = $this->models['m_settings']->data;
-        $this->get_user_data($user_data);
+        $this->load_model('m_settings');
         /* view */
         $this->get_standart_view();        
         $path = ENV_EMAIL_TEMPLATE . ENV_DIRSEP . $params[0] . ENV_DIRSEP . 'body.tpl';

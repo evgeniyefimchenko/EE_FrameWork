@@ -1,3 +1,3 @@
 <div style="width: 100%; text-align: center;">
-	Подключаемое содержимое из view
+    Подключаемое содержимое из view
 </div>

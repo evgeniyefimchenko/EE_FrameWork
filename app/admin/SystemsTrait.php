@@ -2,6 +2,8 @@
 
 namespace app\admin;
 
+use classes\system\SysClass;
+
 /**
  * Функции работы с логами
  */
@@ -17,10 +19,8 @@ trait SystemsTrait {
             exit();
         }
         /* model */
-        $this->load_model('m_systems', [$this->logged_in]);
-        /* get user data - все переменные пользователя доступны в представлениях */
-        $user_data = $this->models['m_systems']->data;
-        $this->get_user_data($user_data);
+        $this->load_model('m_systems');
+        
         $log_items = $this->models['m_systems']->get_general_logs();
         $get_API_logs = $this->models['m_systems']->get_API_logs();
         $text_logs = [];
@@ -57,7 +57,7 @@ trait SystemsTrait {
             SysClass::return_to_main();
             exit();
         }
-        $this->load_model('m_systems', [$this->logged_in]);
+        $this->load_model('m_systems');
         $this->models['m_systems']->kill_db($this->logged_in);
         SysClass::return_to_main(200, '/admin');
     }
@@ -320,14 +320,14 @@ trait SystemsTrait {
             'Всегда нахожу то, что нужно.',
             'Самые лучшие цены!'
         ];
-        $this->load_model('m_systems', [$this->logged_in]);
+        $this->load_model('m_systems');
         for ($i = 0; $i < $count; $i++) {
             $name = $namePrefixes[array_rand($namePrefixes)] . '_' . mt_rand(1000, 9999);
             $email = $name . '@' . ENV_DOMEN_NAME;
             $commentPrefix = $comments[array_rand($comments)];
             $comment = $commentPrefix . " (" . date("Y-m-d H:i:s") . ")";
             $password = bin2hex(openssl_random_pseudo_bytes(4)); // 8-character random password
-            $res = $this->models['m_systems']->registration_new_user([
+            $res = $this->users->registration_new_user([
                 'name' => $name,
                 'email' => $email,
                 'active' => $active,

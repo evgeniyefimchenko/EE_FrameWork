@@ -20,10 +20,6 @@ trait EntitiesTrait {
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main(200, '/show_login_form?return=admin');
         }
-        $this->load_model('m_entities');
-        /* get data */
-        $user_data = $this->users->data;
-        $this->get_user_data($user_data);
         /* view */
         $this->get_standart_view();
         $entities_table = $this->get_entities_data_table();
@@ -66,12 +62,15 @@ trait EntitiesTrait {
         $this->load_model('m_categories_types');
         $this->load_model('m_categories');
         $this->load_model('m_properties');
-        /* get current user data */
-        $user_data = $this->users->data;
-        $this->get_user_data($user_data);
+
         $post_data = SysClass::ee_cleanArray($_POST);
         if (in_array('id', $params)) {
-            $id = filter_var($params[array_search('id', $params) + 1], FILTER_VALIDATE_INT);
+            $key_id = array_search('id', $params);
+            if ($key_id !== false && isset($params[$key_id + 1])) {
+                $id = filter_var($params[$key_id + 1], FILTER_VALIDATE_INT);
+            } else {
+                $id = 0; 
+            }
             if (isset($post_data['title']) && $post_data['title']) {             
                 if (!$new_id = $this->models['m_entities']->update_entity_data($post_data)) {
                     ClassNotifications::add_notification_user($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
@@ -120,11 +119,14 @@ trait EntitiesTrait {
         }
         /* model */
         $this->load_model('m_entities');        
-        /* get current user data */
-        $user_data = $this->users->data;
-        $this->get_user_data($user_data);
+
         if (in_array('id', $params)) {
-            $id = filter_var($params[array_search('id', $params) + 1], FILTER_VALIDATE_INT);
+            $key_id = array_search('id', $params);
+            if ($key_id !== false && isset($params[$key_id + 1])) {
+                $id = filter_var($params[$key_id + 1], FILTER_VALIDATE_INT);
+            } else {
+                $id = 0; 
+            }
             $res = $this->models['m_entities']->delete_entity($id);
             if (isset($res['error'])) {
                 ClassNotifications::add_notification_user($this->logged_in, ['text' => $res['error'], 'status' => 'danger']);                
@@ -145,10 +147,6 @@ trait EntitiesTrait {
         $this->load_model('m_entities');
         $this->load_model('m_categories_types', []);
         $all_types = $this->models['m_categories_types']->get_all_types();
-        if (!$this->lang['sys.name']) { // Подргужаем языковые переменные
-            $user_data = $this->users->data;
-            $this->get_user_data($user_data);
-        }
         $post_data = SysClass::ee_cleanArray($_POST);
         $data_table = [
             'columns' => [

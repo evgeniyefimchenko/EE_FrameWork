@@ -1,6 +1,7 @@
 /*Редактирование профиля пользователя*/
 
 $(document).ready(function () {
+    setActiveNavLink('/admin/users');
     $("#edit_users").submit(function (event) {
         event.preventDefault();
         var form = $(this);

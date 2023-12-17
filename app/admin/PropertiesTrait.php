@@ -21,9 +21,6 @@ trait PropertiesTrait {
             SysClass::return_to_main(200, '/show_login_form?return=admin');
         }
         $this->load_model('m_properties');
-        /* get data */
-        $user_data = $this->users->data;
-        $this->get_user_data($user_data);
         /* view */
         $this->get_standart_view();
         $properties_data = $this->get_properties_data_table();
@@ -49,10 +46,6 @@ trait PropertiesTrait {
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main(200, '/show_login_form?return=admin');
         }
-        $this->load_model('m_properties');
-        /* get data */
-        $user_data = $this->users->data;
-        $this->get_user_data($user_data);
         /* view */
         $this->get_standart_view();
         $types_properties_data = $this->get_types_properties_data_table();
@@ -75,10 +68,6 @@ trait PropertiesTrait {
             exit();
         }
         $this->load_model('m_properties');
-        if (!$this->lang['sys.name']) { // Подргужаем языковые переменные
-            $user_data = $this->users->data;
-            $this->get_user_data($user_data);
-        }
         $post_data = SysClass::ee_cleanArray($_POST);
         $data_table = [
             'columns' => [
@@ -178,10 +167,6 @@ trait PropertiesTrait {
             exit();
         }
         $this->load_model('m_properties');
-        if (!$this->lang['sys.name']) { // Подргужаем языковые переменные
-            $user_data = $this->users->data;
-            $this->get_user_data($user_data);
-        }
         $post_data = SysClass::ee_cleanArray($_POST);
         $data_table = [
             'columns' => [
@@ -309,12 +294,14 @@ trait PropertiesTrait {
         ];
         /* model */
         $this->load_model('m_properties');
-        /* get current user data */
-        $user_data = $this->users->data;
-        $this->get_user_data($user_data);
         $post_data = SysClass::ee_cleanArray($_POST);
         if (in_array('id', $params)) {
-            $id = filter_var($params[array_search('id', $params) + 1], FILTER_VALIDATE_INT);
+            $key_id = array_search('id', $params);
+            if ($key_id !== false && isset($params[$key_id + 1])) {
+                $id = filter_var($params[$key_id + 1], FILTER_VALIDATE_INT);
+            } else {
+               $id = 0; 
+            }
             if (isset($post_data['name']) && $post_data['name']) {
                 if (!is_array($post_data['fields']) || !count($post_data['fields'])) {
                     ClassNotifications::add_notification_user($this->logged_in, ['text' => 'Заполните хотя бы одно поле типа!', 'status' => 'danger']);
@@ -367,9 +354,7 @@ trait PropertiesTrait {
         ];
         /* model */
         $this->load_model('m_properties');
-        /* get current user data */
-        $user_data = $this->users->data;
-        $this->get_user_data($user_data);
+        
         $post_data = SysClass::ee_cleanArray($_POST);
         if (in_array('id', $params)) {
             $key_id = array_search('id', $params);
@@ -469,7 +454,12 @@ trait PropertiesTrait {
             exit();
         }
         if (in_array('id', $params)) {
-            $id = filter_var($params[array_search('id', $params) + 1], FILTER_VALIDATE_INT);
+            $key_id = array_search('id', $params);
+            if ($key_id !== false && isset($params[$key_id + 1])) {
+                $id = filter_var($params[$key_id + 1], FILTER_VALIDATE_INT);
+            } else {
+               $id = 0; 
+            }
             $this->load_model('m_properties');
             $res = $this->models['m_properties']->type_properties_delete($id);
             if (count($res)) {
@@ -494,7 +484,12 @@ trait PropertiesTrait {
             exit();
         }
         if (in_array('id', $params)) {
-            $property_id = filter_var($params[array_search('id', $params) + 1], FILTER_VALIDATE_INT);
+            $key_id = array_search('id', $params);
+            if ($key_id !== false && isset($params[$key_id + 1])) {
+                $property_id = filter_var($params[$key_id + 1], FILTER_VALIDATE_INT);
+            } else {
+                $property_id = 0; 
+            }            
             $this->load_model('m_properties');
             $res = $this->models['m_properties']->property_delete($property_id);
             if (count($res)) {
@@ -517,11 +512,7 @@ trait PropertiesTrait {
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
             exit();
-        }
-        $this->load_model('m_properties');
-        /* get data */
-        $user_data = $this->users->data;
-        $this->get_user_data($user_data);
+        }        
         $properties_property_sets_table = $this->get_properties_property_sets_table();
         /* view */
         $this->get_standart_view();
@@ -547,10 +538,6 @@ trait PropertiesTrait {
             exit();
         }
         $this->load_model('m_properties');
-        if (!$this->lang['sys.name']) { // Подргужаем языковые переменные
-            $user_data = $this->users->data;
-            $this->get_user_data($user_data);
-        }
         $post_data = SysClass::ee_cleanArray($_POST);
         $data_table = [
             'columns' => [
@@ -650,13 +637,15 @@ trait PropertiesTrait {
             'description' => '',
             'created_at' => false,
             'updated_at' => false
-        ];        
-        /* get current user data */
-        $user_data = $this->users->data;
-        $this->get_user_data($user_data);
+        ];
         $post_data = SysClass::ee_cleanArray($_POST);
         if (in_array('id', $params)) {
-            $id = filter_var($params[array_search('id', $params) + 1], FILTER_VALIDATE_INT);
+            $key_id = array_search('id', $params);
+            if ($key_id !== false && isset($params[$key_id + 1])) {
+                $id = filter_var($params[$key_id + 1], FILTER_VALIDATE_INT);
+            } else {
+                $id = 0; 
+            }
             // Обработка основных полей
             if (isset($post_data['name']) && $post_data['name']) {
                 if (!$new_id = $this->models['m_properties']->update_property_set_data($post_data)) {
@@ -705,7 +694,12 @@ trait PropertiesTrait {
             exit();
         }
         if (in_array('id', $params)) {
-            $set_id = filter_var($params[array_search('id', $params) + 1], FILTER_VALIDATE_INT);
+            $key_id = array_search('id', $params);
+            if ($key_id !== false && isset($params[$key_id + 1])) {
+                $set_id = filter_var($params[$key_id + 1], FILTER_VALIDATE_INT);
+            } else {
+                $set_id = 0;
+            }
             $this->load_model('m_properties');
             $res = $this->models['m_properties']->property_set_delete($set_id);
             if (count($res)) {

@@ -19,7 +19,19 @@ class View {
      */
     public function set(string $varname, mixed $value, bool $overwrite = false): bool {
         if (isset($this->vars[$varname]) && !$overwrite) {
-            trigger_error('Переменная `' . $varname . '`. Уже установлена, перезапись не разрешена.', E_USER_NOTICE);
+            $trace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
+            foreach ($trace as $item) {
+                $formattedTrace[] = [
+                    'function' => $item['function'] ?? 'N/A',
+                    'line' => $item['line'] ?? 'N/A',
+                    'file' => $item['file'] ?? 'N/A',
+                    'class' => $item['class'] ?? 'N/A',
+                    'type' => $item['type'] ?? 'N/A',
+                    'object' => $item['object'] ?? 'N/A',
+                ];
+            }
+            $add_trace = PHP_EOL . 'Полный стек вызовов: ' . print_r($formattedTrace, true) . PHP_EOL;
+            trigger_error('Переменная `' . $varname . '`. Уже установлена, перезапись не разрешена.' . $add_trace, E_USER_NOTICE);
             return false;
         }
         $this->vars[$varname] = $value;

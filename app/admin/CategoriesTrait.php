@@ -19,10 +19,6 @@ trait CategoriesTrait {
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main(200, '/show_login_form?return=admin/categories');
         }
-        $this->load_model('m_categories');
-        /* get data */
-        $user_data = $this->users->data;
-        $this->get_user_data($user_data);
         /* view */
         $this->get_standart_view();
         $categories_table = $this->get_categories_data_table();
@@ -52,12 +48,14 @@ trait CategoriesTrait {
         $this->load_model('m_categories');
         $this->load_model('m_categories_types');
         $this->load_model('m_properties');
-        /* get current user data */
-        $user_data = $this->users->data;
-        $this->get_user_data($user_data);
         $post_data = SysClass::ee_cleanArray($_POST);        
         if (in_array('id', $params)) {
-            $id = filter_var($params[array_search('id', $params) + 1], FILTER_VALIDATE_INT);
+            $key_id = array_search('id', $params);
+            if ($key_id !== false && isset($params[$key_id + 1])) {
+                $id = filter_var($params[$key_id + 1], FILTER_VALIDATE_INT);
+            } else {
+                $id = 0; 
+            }
             if (isset($post_data['title']) && $post_data['title']) {                                
                 if (!$new_id = $this->models['m_categories']->update_category_data($post_data)) {
                     ClassNotifications::add_notification_user($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
@@ -145,12 +143,14 @@ trait CategoriesTrait {
             exit();
         }
         /* model */
-        $this->load_model('m_categories');        
-        /* get current user data */
-        $user_data = $this->users->data;
-        $this->get_user_data($user_data);
+        $this->load_model('m_categories');
         if (in_array('id', $params)) {
-            $id = filter_var($params[array_search('id', $params) + 1], FILTER_VALIDATE_INT);
+            $key_id = array_search('id', $params);
+            if ($key_id !== false && isset($params[$key_id + 1])) {
+                $id = filter_var($params[$key_id + 1], FILTER_VALIDATE_INT);
+            } else {
+                $id = 0; 
+            }
             $res = $this->models['m_categories']->delete_category($id);
             if (isset($res['error'])) {                
                 ClassNotifications::add_notification_user($this->logged_in, ['text' => $res['error'], 'status' => 'danger']);                
@@ -171,10 +171,6 @@ trait CategoriesTrait {
             exit();
         }
         $this->load_model('m_categories');
-        if (!$this->lang['sys.name']) { // Подргужаем языковые переменные
-            $user_data = $this->users->data;
-            $this->get_user_data($user_data);
-        }
         $post_data = SysClass::ee_cleanArray($_POST);
         $data_table = [
             'columns' => [

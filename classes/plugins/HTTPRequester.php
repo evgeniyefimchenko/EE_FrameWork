@@ -1,5 +1,9 @@
 <?php
 
+namespace classes\system;
+
+use classes\system\SysClass;
+
 /**
  * Класс взаимодействия с внешними сервисами по средством Curl
  * Реализован по правилам REST API
@@ -63,14 +67,15 @@ class HTTPRequester {
     }
 
     /**
-     * Отправит сформированный запрос на удалённый сервер
-     * @param str $url - полный адрес запроса
-     * @param str $method - метод REST API
-     * @param str $params - строка с параметрами
-     * @param array $header - заголовок
-     * @return values - ответ сервера
+     * Отправляет сформированный запрос на удаленный сервер.
+     * @param string $url Полный адрес запроса.
+     * @param string $method Метод REST API.
+     * @param string|array $params Строка или массив с параметрами.
+     * @param array $header Заголовки запроса.
+     * @return string Ответ сервера.
+     * @throws Exception В случае ошибки cURL.
      */
-    public static function HTTPRequest($url = '', $method = 'POST', $params = [], $header) {
+    public static function HTTPRequest(string $url, string $method = 'POST', $params = [], array $header = []): string {
         if (!count($header)) {
             $header = ['Content-Type: application/json'];
         }
@@ -79,13 +84,21 @@ class HTTPRequester {
         curl_setopt($curl, CURLOPT_HTTPHEADER, $header);
         curl_setopt($curl, CURLOPT_HEADER, false);
         curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, 30);
-        curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, true); // Включить проверку SSL
         curl_setopt($curl, CURLOPT_TIMEOUT, 30);
-        curl_setopt($curl, CURLOPT_RETURNTRANSFER, TRUE);
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($curl, CURLOPT_CUSTOMREQUEST, $method);
-        curl_setopt($curl, CURLOPT_POST, 1);
+        if ($method == 'POST') {
+            curl_setopt($curl, CURLOPT_POST, 1);
+        }
+        if (!is_string($params)) {
+            $params = http_build_query($params);
+        }
         curl_setopt($curl, CURLOPT_POSTFIELDS, $params);
         $response = curl_exec($curl);
+        if (curl_errno($curl)) {
+            throw new Exception(curl_error($curl));
+        }
         curl_close($curl);
         return $response;
     }

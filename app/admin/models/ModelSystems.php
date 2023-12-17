@@ -1,7 +1,7 @@
 <?php
 
 use classes\plugins\SafeMySQL;
-use classes\system\Constants;
+use classes\system\Users;
 
 /**
  * Модель системных действий
@@ -38,7 +38,7 @@ class ModelSystems {
             return false;
         }
         // Пересоздание БД и регистрация первичных пользователей
-        $this->get_user_data(0, true);
+        new Users(true);
         $flagFilePath = ENV_LOGS_PATH . 'test_data_created.txt';
         if (file_exists($flagFilePath)) unlink($flagFilePath);
         return true;
