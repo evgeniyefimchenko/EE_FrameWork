@@ -14,7 +14,7 @@ if (!count($all_type)) {
         <input type="hidden" name="fake" value="1" />
         <div class="container-fluid px-4">
             <a href="/admin/category_edit/id" data-bs-toggle="tooltip" data-bs-placement="top" title="<?= $lang['sys.add'] ?>" type="button"
-               class="btn btn-info m-l-15 float-end<?= empty($category_data['category_id']) ? " d-none" : "" ?>">
+               class="btn btn-info mx-1 float-end<?= empty($category_data['category_id']) ? " d-none" : "" ?>">
                 <i class="fa fa-plus-circle"></i>&nbsp;<?= $lang['sys.add'] ?>
             </a>
             <h1 class="mt-4"><?= !$category_data ? 'Добавить категорию' : 'Редактировать категорию' ?></h1>

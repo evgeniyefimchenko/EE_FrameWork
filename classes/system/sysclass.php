@@ -3,6 +3,7 @@
 namespace classes\system;
 
 use classes\plugins\SafeMySQL;
+use classes\system\Constants;
 
 /**
  * Системный класc для использования во всём проекте
@@ -113,31 +114,10 @@ class SysClass {
     }
 
     /**
-     * Генерация уникального uuid
+     * Генерация уникального UUIDv4
      */
     public static function generate_uuid() {
-        return sprintf('%04x%04x-%04x-%04x-%04x-%04x%04x%04x', mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0x0fff) | 0x4000, mt_rand(0, 0x3fff) | 0x8000, mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
-        );
-    }
-
-    /**
-     * Логирование в БД(если включено в ENV_LOG)
-     * @param str $changes - Какое изменение
-     * @param str $flag - тип сообщения info success error
-     * @param int $who - Кто вызвал(по умолчанию система id = 8)
-     */
-    public static function SetLog($changes = 'not change', $flag = 'info', $who = 8) {
-        $who = $who === NULL ? 8 : $who;
-    }
-
-    /**
-     * Вернёт записи лога по переданным параметрам
-     * @param количество записей $count
-     * @return array
-     */
-    public static function GetLog($count = 5) {
-        $sql = 'SELECT * FROM ' . ENV_DB_PREF . '`logs` ORDER BY `id` LIMIT ?i';
-        return SafeMySQL::gi()->getAll($sql, $count);
+        return sprintf('%04x%04x-%04x-%04x-%04x-%04x%04x%04x', mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0x0fff) | 0x4000, mt_rand(0, 0x3fff) | 0x8000, mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff));
     }
 
     /**
@@ -1072,39 +1052,68 @@ class SysClass {
      * @param bool $flag - Флаг моментального вывода, если указать false то вывод произойдёт только при указании GET параметра show_pre
      * @return var_dump die
      */
-    public static function pre($val, $flag = true) {
+    public static function pre($val, $full_stack = false, $flag = true) {
         if (isset($_GET['show_pre']) || $flag) {
-            $trace = debug_backtrace();
+            $add_trace = '';
+            $trace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
+            if ($full_stack) {
+                $formattedTrace = [];
+                foreach ($trace as $item) {
+                    $formattedTrace[] = [
+                        'function' => $item['function'] ?? 'N/A',
+                        'line' => $item['line'] ?? 'N/A',
+                        'file' => $item['file'] ?? 'N/A',
+                        'class' => $item['class'] ?? 'N/A',
+                        'type' => $item['type'] ?? 'N/A',
+                        'object' => $item['object'] ?? 'N/A',
+                    ];
+                }
+                $add_trace = '<hr/><b>Полный стек вызовов:</b> ' . print_r($formattedTrace, true);
+            }            
             $caller = $trace[1];
-            echo $caller['file'] . ' ' . $caller['line'] . ' ' . $caller['function'] . PHP_EOL . '<br/><pre style="width: max-content; background: blue; border-radius: 5px; color: white; font-size: 16px; padding: 2%;">';
+            echo $caller['file'] . ' ' . $caller['line'] . ' ' . $caller['function'] . PHP_EOL . '<br/><pre style="width: max-content; background: blue; border-radius: 5px; color: white; font-size: 16px; padding: 2%;">';                
             echo htmlentities(var_export($val, true), ENT_QUOTES);
+            echo $add_trace;
             echo '</pre>';
             die;
         }
     }
 
     /**
-     * Функция логирования в файл
-     * Принимает до 5-ти значений
+     * Функция логирования в файл с расширенной информацией.
+     * @param string $subFolder Подпапка для лога.
+     * @param string $initiator Инициатор записи в лог.
+     * @param mixed $result Результат для логирования.
+     * @param mixed $details Дополнительные детали.
      */
-    public static function pre_file($val, $temp = '', $temp1 = '', $temp2 = '', $temp3 = '') {
-        $error = '';
-        if ('error' == strtolower($val)) {
-            $error = 'error_';
-        } else if ('sql' == strtolower($val)) {
-            $error = 'sql_';
+    public static function pre_file(string $subFolder, string $initiator, $result, $details = '') {
+        if (ENV_LOG) {
+            $logsPath = ENV_LOGS_PATH . $subFolder;
+            if (!file_exists($logsPath)) {
+                mkdir($logsPath, 0777, true);
+            }
+            $trace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
+            $formattedTrace = [];
+            foreach ($trace as $item) {
+                $formattedTrace[] = [
+                    'function' => $item['function'] ?? 'N/A',
+                    'line' => $item['line'] ?? 'N/A',
+                    'file' => $item['file'] ?? 'N/A',
+                    'class' => $item['class'] ?? 'N/A',
+                    'type' => $item['type'] ?? 'N/A',
+                    'object' => $item['object'] ?? 'N/A',
+                ];
+            }
+            $result = var_export($result, true);
+            $details = var_export($details, true);
+            $path = $logsPath . ENV_DIRSEP . date("Y-m-d") . '.txt';
+            $logMessage = PHP_EOL . date("Y-m-d H:i:s");
+            $logMessage .= PHP_EOL . "Инициатор: " . $initiator;
+            $logMessage .= PHP_EOL . "Результат: " . $result;
+            $logMessage .= PHP_EOL . "Детали: " . $details;
+            $logMessage .= PHP_EOL . "Полный стек вызовов: " . print_r($formattedTrace, true);
+            file_put_contents($path, $logMessage, FILE_APPEND | LOCK_EX);
         }
-        if (!file_exists(ENV_SITE_PATH . 'logs')) {
-            mkdir(ENV_SITE_PATH . 'logs', 0777, true);
-        }
-        $trace = debug_backtrace();
-        $caller = $trace[1];
-        $temp = $temp ? var_export($temp, true) . PHP_EOL : '';
-        $temp1 = $temp1 ? var_export($temp1, true) . PHP_EOL : '';
-        $temp2 = $temp2 ? var_export($temp2, true) . PHP_EOL : '';
-        $temp3 = $temp3 ? var_export($temp3, true) . PHP_EOL : '';
-        $path = ENV_SITE_PATH . 'logs' . ENV_DIRSEP . $error . date("Y-m-d") . '.txt';
-        file_put_contents($path, PHP_EOL . date("Y-m-d H:i:s") . ' из ' . $caller['file'] . ' Line: ' . $caller['line'] . ' Func: ' . $caller['function'] . PHP_EOL . var_export($val, true) . PHP_EOL . $temp . $temp1 . $temp2 . $temp3 . PHP_EOL, FILE_APPEND | LOCK_EX);
     }
 
     /**
@@ -1526,7 +1535,7 @@ class SysClass {
      * @throws ReflectionException Если класс Constants не найден.
      */
     public static function ee_get_fields_table($tableName) {
-        $reflection = new ReflectionClass('Constants');
+        $reflection = new \ReflectionClass('classes\system\Constants');
         $fieldsKey = array_search($tableName, $reflection->getConstants());
         $fieldsKey .= '_FIELDS';
         $fields = $reflection->getConstant($fieldsKey);

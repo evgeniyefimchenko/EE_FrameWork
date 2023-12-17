@@ -9,7 +9,7 @@ use classes\system\Plugins;
         <input type="hidden" name="fake" value="1" />
         <div class="container-fluid px-4">
             <a href="/admin/edit_property/id" data-bs-toggle="tooltip" data-bs-placement="top" title="<?= $lang['sys.add'] ?>" type="button"
-               class="btn btn-info m-l-15 float-end<?= empty($property_data['property_id']) ? " d-none" : "" ?>">
+               class="btn btn-info mx-1 float-end<?= empty($property_data['property_id']) ? " d-none" : "" ?>">
                 <i class="fa fa-plus-circle"></i>&nbsp;<?= $lang['sys.add'] ?>
             </a>
             <h1 class="mt-4"><?= !$property_data['property_id'] ? 'Добавить Свойство' : 'Редактировать Свойство' ?></h1>
@@ -69,7 +69,7 @@ use classes\system\Plugins;
                                 <div class="col-8 col-sm-8 card">
                                     <div class="card-body" id="fields_contents">
                                         <h5 class="card-title"><?=$lang['sys.fields'] . '(' . $lang['sys.field'] . ')'?></h5>
-                                        <?= Plugins::renderPropertyHtmlFields($property_data['fields'], $property_data['default_values']) ?>
+                                        <?= Plugins::renderPropertyHtmlFields($property_data['fields'], $property_data['default_values'], $lang) ?>
                                     </div>
                                 </div>
                             </div>

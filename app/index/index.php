@@ -9,43 +9,6 @@ use classes\system\Session;
  */
 class ControllerIndex Extends ControllerBase {
 
-    private $lang = []; // Языковые переменные в рамках этого класса
-
-    /**
-     * Загрузит в представление данные пользователя, модель m_index
-     * И языковой массив данных в представления, сессию и свойство класса
-     */
-    private function get_user_data() {
-        $this->access = array(100);
-        if ($this->logged_in) {          
-            $user_data = $this->users->data;
-            foreach ($user_data as $name => $val) {
-                $this->view->set($name, $val);
-            }
-            if (strlen($user_data['options']['localize']) > 1 && empty(Session::get('lang'))) { // Проверка на наличие локали в настройках пользователя
-                $lang_code = $user_data['options']['localize'];
-            } else { // Записываем локаль в опции пользователя
-                $lang_code = Session::get('lang');
-                $user_data['options']['localize'] = $lang_code;
-                $this->users->set_user_options($this->logged_in, $user_data['options']);
-            }
-            include_once(ENV_SITE_PATH . ENV_PATH_LANG . '/' . $lang_code . '.php');
-            Session::set('lang', $lang_code);
-            $this->view->set('lang', $lang);
-            $this->lang = $lang;
-        } else {
-            $lang_code = Session::get('lang');
-            if (!$lang_code) {
-                $lang_code = ENV_DEF_LANG;
-                Session::set('lang', $lang_code);
-            }
-        }
-        include(ENV_SITE_PATH . ENV_PATH_LANG . '/' . $lang_code . '.php');
-        $this->lang = $lang;
-        $this->view->set('lang', $lang);
-        $this->users->set_lang($lang);
-    }
-
     /**
      * Загрузка стандартных представлений
      */
@@ -62,7 +25,6 @@ class ControllerIndex Extends ControllerBase {
         if ($params) {
             SysClass::return_to_main();
         }
-        $this->get_user_data();
         /* view */
         $this->get_standart_view();
         $this->view->set('top_panel', $this->view->read('v_top_panel'));
@@ -82,7 +44,6 @@ class ControllerIndex Extends ControllerBase {
         if ($params) {
             SysClass::return_to_main();
         }
-        $this->get_user_data();
         /* view */
         $this->get_standart_view();
         $this->html = $this->view->read('v_about');
@@ -101,7 +62,6 @@ class ControllerIndex Extends ControllerBase {
         if ($params) {
             SysClass::return_to_main();
         }
-        $this->get_user_data();
         /* view */
         $this->get_standart_view();
         $this->html = $this->view->read('v_contact');
@@ -123,10 +83,7 @@ class ControllerIndex Extends ControllerBase {
         if ($params) {
             SysClass::return_to_main();
         }
-
-        $this->get_user_data();
         $this->users->get_admin_profile(); // Если профиля админа не существует то он будет создан test@test.com admin
-
         /* view */
         if ($this->view->get('new_user') || !$this->logged_in) {
             $this->html = $this->view->read('v_login_form');
@@ -158,7 +115,6 @@ class ControllerIndex Extends ControllerBase {
             $json['error'] = $this->lang['sys.no_connection_to_db'];
             die(json_encode($json, JSON_UNESCAPED_UNICODE));
         }
-        $this->get_user_data();
         $json['error'] = '';
         $post_data = SysClass::ee_cleanArray($_POST);
         $email = trim($post_data['email']);
@@ -167,7 +123,6 @@ class ControllerIndex Extends ControllerBase {
             $json['error'] = $this->lang['sys.invalid_mail_format'];
             die(json_encode($json, JSON_UNESCAPED_UNICODE));
         }
-
         $json['error'] = $this->users->confirm_user($email, $pass);
         die(json_encode($json, JSON_UNESCAPED_UNICODE));
     }
@@ -187,7 +142,6 @@ class ControllerIndex Extends ControllerBase {
         if ($params || !isset($_SERVER['HTTP_X_REQUESTED_WITH']) || strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) != 'xmlhttprequest' || empty(ENV_SITE)) {
             die(json_encode(array('error' => 'it`s a lie')));
         }
-        $this->get_user_data();
         if (!SysClass::connect_db_exists()) {
             $json['error'] = $this->lang['sys.no_connection_to_db'];
             echo json_encode($json, JSON_UNESCAPED_UNICODE);
@@ -214,8 +168,8 @@ class ControllerIndex Extends ControllerBase {
 
         $json['error'] = $json['error'] ? $json['error'] : '';
 
-        if (ENV_LOG && $json['error'] != '') {
-            SysClass::SetLog('Ошибка регистрации ' . $json['error'] . ' Почта: ' . $email . ' Пароль: ' . $pass . ' Дубль: ' . $conf_pass, 'error', 8);
+        if ($json['error'] != '') {
+            SysClass::pre_file('index_error', 'register', 'Ошибка регистрации', ['error' => $json['error'], 'email' => $email]);
         }
 
         if ($json['error'] === '') {
@@ -233,7 +187,6 @@ class ControllerIndex Extends ControllerBase {
      * @params array $params - $params[1] - почта $params[0] - Код
      */
     public function activation($params) {
-        $this->get_user_data();
         if ($this->users->get_email_exist($params[1])) {
             $active = $this->users->get_user_stat($this->users->get_user_id_by_email($params[1]));
             if ($active == 1) {
@@ -243,9 +196,7 @@ class ControllerIndex Extends ControllerBase {
                         $this->parameters_layout["layout_content"] = $this->lang['sys.successfully_activated'] . ' <meta http-equiv="refresh" content="7;URL=' . ENV_URL_SITE . '">';
                     } else {
                         $this->parameters_layout["layout_content"] = $this->lang['sys.activation_error'] . ' <meta http-equiv="refresh" content="7;URL=' . ENV_URL_SITE . '">';
-                        if (ENV_LOG) {
-                            SysClass::SetLog('Ошибка удаления активационного кода ' . $params[0] . ' для' . $params[1], 'error');
-                        }
+                        SysClass::pre_file('index_error', 'activation', 'Ошибка удаления активационного кода', ['code' => $params[0], 'email' => $params[1]]);
                     }
                 } else {
                     SysClass::return_to_main();
@@ -268,9 +219,7 @@ class ControllerIndex Extends ControllerBase {
         if (!isset($_SERVER['HTTP_X_REQUESTED_WITH']) || strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) != 'xmlhttprequest' || empty(ENV_SITE)) {
             die(json_encode(array('error' => 'it`s a lie')));
         }
-        $this->get_user_data();
-
-        die('Ouuuu this fuck');
+        die('in development');
     }
 
     /**
@@ -291,7 +240,7 @@ class ControllerIndex Extends ControllerBase {
                 Session::set('lang', $params[0]);
                 $post_data['localize'] = $params[0];
             }
-            $this->load_model('m_index', [$this->logged_in]);
+            $this->load_model('m_index');
             $user_data = $this->users->data;
             foreach ($post_data as $key => $value) {
                 if (array_key_exists($key, $user_data['options'])) {
@@ -313,7 +262,6 @@ class ControllerIndex Extends ControllerBase {
             die('it`s a lie');
         }
         $post_data = SysClass::ee_cleanArray($_POST);
-        $this->get_user_data();
         if (isset($post_data['loadAll']) && $post_data['loadAll'] == 'true') {
             die(json_encode($this->lang));
         } else {

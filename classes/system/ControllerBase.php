@@ -15,6 +15,8 @@ abstract class ControllerBase {
      */
     abstract function index($param = []);
 
+    protected $lang = []; // Языковые переменные
+    
     /**
      * Массив содержащий ID ролей пользователей имеющих доступ к странице
      * инициализируется внутри каждой функции контроллера
@@ -32,6 +34,11 @@ abstract class ControllerBase {
      * Массив с подключенными моделями
      */
     protected $models = [];
+    
+    /**
+     * Класс PHP хуков     
+     */
+    protected $hooks = [];
 
     /**
      * Экземпляр класса для работы с представлениями
@@ -51,7 +58,7 @@ abstract class ControllerBase {
     /**
      * Содержит начальные папраметры макета(layout) определённого в контроллере
      */
-    protected $parameters_layout = ['add_script' => '', 'add_style' => '', 'canonical_href' => ENV_URL_SITE, 'layout' => 'index', 'image_twiter' => 'favicon.png', 'image_social' => 'favicon.png'];
+    protected $parameters_layout = ['description' => '', 'keywords' => '', 'add_script' => '', 'add_style' => '', 'canonical_href' => ENV_URL_SITE, 'layout' => 'index', 'image_twiter' => 'favicon.png', 'image_social' => 'favicon.png'];
 
     /**
      * Конструктор класса принимает экземпляр класса представления из /classes/system/Router.php.
@@ -62,15 +69,60 @@ abstract class ControllerBase {
         $this->view = $view instanceof View ? $view : new View();
         $sessionKey = ENV_AUTH_USER === 2 ? 'user_session' : 'user_session';
         $session = ENV_AUTH_USER === 2 ? Cookies::get($sessionKey) : Session::get($sessionKey);
-        if ($session && SysClass::check_install()) {
+        if ($session) {
             $this->logged_in = $this->logged_in ?? $this->get_users_session_data($session);
         } else {
             Session::destroy();
             Cookies::clear('user_session');
-        }        
+        }
+        SysClass::check_install();
         $this->users = new Users($this->logged_in);
-        $php_input = json_decode(file_get_contents('php://input'), true) ?? [];
-        $_REQUEST = array_merge($php_input, $_REQUEST, $_GET, $_POST, $_SERVER);
+        $user_data = $this->users->data;
+        // Прогрузка пользовательских данных в представления и языковой массив        
+        $this->set_user_data($user_data);
+        // Объединение серверных параметров
+        $input_data = file_get_contents('php://input');
+        $php_input = SysClass::ee_isValidJson($input_data) ? json_decode($input_data, true) : [$input_data];
+        define('__REQUEST', array_merge($php_input, $_REQUEST, $_GET, $_POST, $_SERVER));
+    }
+    
+    /**
+     * Загрузит в представление данные пользователя
+     * И языковой массив
+     * @param $user_data - Данные пользователя для загрузки
+     */
+    private function set_user_data($user_data) {        
+        if (!isset($user_data['new_user']) || $user_data['new_user'] != 1) {
+            foreach ($user_data as $name => $val) {
+                $this->view->set($name, $val);
+            }
+            $s_lang = Session::get('lang');
+            if (strlen($user_data['options']['localize']) > 1 && empty($s_lang)) { // Проверка на наличие локали в настройках пользователя
+                $lang_code = $user_data['options']['localize'];
+            } else { // Записываем локаль в опции пользователя
+                $lang_code = $s_lang;
+                $user_data['options']['localize'] = $lang_code;
+                $this->users->set_user_options($this->logged_in, $user_data['options']);
+            }
+        } else {
+            $lang_code = Session::get('lang');
+            if (!$lang_code) {
+                $lang_code = ENV_DEF_LANG;
+                Session::set('lang', $lang_code);
+            }
+        }
+        $lang = include(ENV_SITE_PATH . ENV_PATH_LANG . '/' . $lang_code . '.php');
+        if (!is_array($lang)) {
+            SysClass::pre_file('lang_errors', 'base get_user_data', var_export($lang, true), 'Языковой файл не подключен: ' . ENV_SITE_PATH . ENV_PATH_LANG . '/' . $lang_code . '.php');
+        }
+        Session::set('lang', $lang_code);
+        $this->view->set('lang', $lang);
+        // Фильтрация массива языковых элементов, содержащих 'sys' в ключе
+        $sysLang = array_filter($lang, function ($key) {
+            return strpos($key, 'sys.') === 0;
+        }, ARRAY_FILTER_USE_KEY);
+        $this->users->lang = $sysLang;
+        $this->lang = $lang;
     }
 
     /**
@@ -83,7 +135,7 @@ abstract class ControllerBase {
      */
     protected function load_model(string $model, array $arg = [], string $path = '', bool $reload = false): void {
         if (count($this->access) == 0) {
-            SysClass::pre('Не указаны права доступа на ' . $model);
+            SysClass::pre('Не указаны права доступа на ' . $model, true);
         }
         // Определение пути к модели
         $parts = explode('_', substr($model, 2));
@@ -166,24 +218,24 @@ abstract class ControllerBase {
     private function get_users_session_data($session) {
         if (ENV_AUTH_USER === 0) {
             $user_id = Session::get('user_id');
-            $sql = 'SELECT `id`, `last_ip` FROM ?n WHERE `id` = ?i';
+            $sql = 'SELECT `user_id`, `last_ip` FROM ?n WHERE `user_id` = ?i';
             $user_data = SafeMySQL::gi()->getRow($sql, ENV_DB_PREF . 'users', $user_id);
         }
         if (ENV_AUTH_USER === 1) {
-            $sql = 'SELECT `id`, `last_ip` FROM ?n WHERE `session` = ?s';
+            $sql = 'SELECT `user_id`, `last_ip` FROM ?n WHERE `session` = ?s';
             $user_data = SafeMySQL::gi()->getRow($sql, ENV_DB_PREF . 'users', $session);
         }
         if (ENV_AUTH_USER === 2) {
             $user_id = Cookies::get('user_id');
-            $sql = 'SELECT `id`, `last_ip` FROM ?n WHERE `id` = ?i';
+            $sql = 'SELECT `user_id`, `last_ip` FROM ?n WHERE `user_id` = ?i';
             $user_data = SafeMySQL::gi()->getRow($sql, ENV_DB_PREF . 'users', $user_id);
         }
         if (ENV_ONE_IP_ONE_USER && $user_data['last_ip'] !== SysClass::client_ip()) {
             return false;
         } else {
-            $sql = 'UPDATE ?n SET `last_activ` = NOW() WHERE `id` = ?i';
-            SafeMySQL::gi()->query($sql, ENV_DB_PREF . 'users', $user_data['id']);
-            return $user_data['id'];
+            $sql = 'UPDATE ?n SET `last_activ` = NOW() WHERE `user_id` = ?i';
+            SafeMySQL::gi()->query($sql, ENV_DB_PREF . 'users', $user_data['user_id']);
+            return $user_data['user_id'];
         }
     }
 

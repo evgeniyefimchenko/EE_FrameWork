@@ -1,6 +1,8 @@
 <?php
 
-namespace classes\system;
+namespace classes\helpers;
+
+use classes\system\SysClass;
 
 /*
  * Класс для работы с почтой
@@ -8,7 +10,7 @@ namespace classes\system;
  * используется для совместимости и масштабируемости с разными классами отправки почты
  */
 
-class Class_Mail {
+class ClassMail {
 
     private $mail_class;
 
@@ -40,7 +42,7 @@ class Class_Mail {
      * @param str $template название шаблона письма, должно соответствовать его папке в ENV_EMAIL_TEMPLATE
      * @return boolean - сообщение о ошибке или TRUE
      */
-    public function send_mail($to, $subject, $body, $template = false) {
+    public static function send_mail($to, $subject, $body, $template = false) {
         if (is_numeric($to)) {
             $user = new Users([$to]);            
             $email = $user->data['email'];
@@ -63,9 +65,7 @@ class Class_Mail {
         $this->mail_class->Subject = $subject;
         $this->mail_class->msgHTML($body);
         if ($this->mail_class->send() == false) {
-            if (ENV_LOG) {
-                SysClass::SetLog('Отправка письма на ' . $email . ' завершилась неудачей! Ошибка: ' . $this->mail_class->ErrorInfo, 'error');
-            }            
+            SysClass::pre_file('email_error', 'send_mail', 'Отправка письма завершилась неудачей', ['error' => $this->mail_class->ErrorInfo, 'email' => $email]);
             return $this->mail_class->ErrorInfo;
         } else {
             return true;

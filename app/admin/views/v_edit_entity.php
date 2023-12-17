@@ -9,7 +9,7 @@ use classes\system\Plugins;
         <input type="hidden" name="fake" value="1" />
         <div class="container-fluid px-4">
             <a href="/admin/entity_edit/id" data-bs-toggle="tooltip" data-bs-placement="top" title="<?= $lang['sys.add'] ?>" type="button"
-               class="btn btn-info m-l-15 float-end<?= empty($entity_data['entity_id']) ? " d-none" : "" ?>">
+               class="btn btn-info mx-1 float-end<?= empty($entity_data['entity_id']) ? " d-none" : "" ?>">
                 <i class="fa fa-plus-circle"></i>&nbsp;<?= $lang['sys.add'] ?>
             </a>
             <h1 class="mt-4"><?= !$entity_data ? 'Добавить Сущность' : 'Редактировать Сущность' ?></h1>
@@ -42,7 +42,7 @@ use classes\system\Plugins;
                                 <div class="col-6 col-sm-3">
                                     <label for="category_id-input"><?=$lang['sys.category'] . ' ' . $lang['sys.parent']?>:</label>
                                     <div role="group" class="input-group">
-                                        <select <?=$entity_data['parent_entity_id'] ? "disabled " : ""?>type="text" id="category_id-input" name="category_id" class="form-control">
+                                        <select required <?=$entity_data['parent_entity_id'] ? "disabled " : ""?>type="text" id="category_id-input" name="category_id" class="form-control">
                                             <?php foreach ($all_categories as $item) {
                                                 $prefix = str_repeat('-', $item['level'] * 2); // Умножаем уровень на 2, чтобы создать отступ
                                                 echo '<option ' . ($entity_data['category_id'] == $item['category_id'] ? "selected " : "") . 'value="' . $item['category_id'] . '">' .
@@ -121,7 +121,7 @@ use classes\system\Plugins;
                                     $html .= '<h4>' . $property_data['name'] . '</h4>';
                                     $html .= '<div class="card"><div class="card-body">';
                                     // Опциональная функция вывода свойств/характеристаик для сущности в Админ панели
-                                    $html .= Plugins::renderPropertyHtmlFieldsByAdmin($property_data['fields'], $property_data['default_values']);
+                                    $html .= Plugins::renderPropertyHtmlFieldsByAdmin($property_data['fields'], $property_data['default_values'], $lang);
                                     $html .= '</div></div>';
                                 }
                                 echo $html;

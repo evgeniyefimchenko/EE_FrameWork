@@ -23,7 +23,7 @@ actions = {
             url: '/admin/ajax_admin',
             dataType: 'json',
             data: {'get': 1},
-            success: function (data) {                
+            success: function (data) {
                 if (typeof data.error !== 'undefined') {
                     console.log('error', data);
                     actions.showNotification(lang_var('sys.data_read_error'), 'danger');

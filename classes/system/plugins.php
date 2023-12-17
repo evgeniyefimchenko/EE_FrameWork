@@ -167,7 +167,8 @@ class Plugins {
             }
             // Проверяем, установлено ли значение ширины для этой колонки
             $widthStyle = isset($column['width']) ? ' style="width:' . (int) $column['width'] . '%;"' : ' style="width:auto;"';
-            $html .= '<th' . $widthStyle . '>';
+            $add_class = isset($column['align']) ? 'text-' . $column['align'] : '';
+            $html .= '<th' . $widthStyle . ' class="' . $add_class .'">';
             $html .= $column['title'] . $sortedIndicator;
             $html .= '</th>';
         }
@@ -611,11 +612,9 @@ class Plugins {
      * @param array $fields
      * @return void Функция ничего не возвращает, выводит HTML напрямую.
      */
-    public static function renderPropertyHtmlFields($fields, $default = []) {
+    public static function renderPropertyHtmlFields(mixed $fields, array $default = [], array $lang = []) {
         $count = 0;
-        $result = '';
-        $lang = include(ENV_SITE_PATH . ENV_PATH_LANG . '/' . Session::get('lang') . '.php');
-        if (!is_array($lang)) SysClass::pre('Языковой файл не подключен: ' . ENV_SITE_PATH . ENV_PATH_LANG . '/' . Session::get('lang') . '.php');                
+        $result = '';                
         if (!is_array($fields) && is_string($fields)) {
             $fields = json_decode($fields, true);            
         }
@@ -804,11 +803,9 @@ class Plugins {
      * Вывод свойств для сущности !!!&&&!!
      * @param type $params
      */
-    public static function renderPropertyHtmlFieldsByAdmin($fields, $default = []) {
+    public static function renderPropertyHtmlFieldsByAdmin(mixed $fields, array $default = [], array $lang = []) {
         $count = 0;
-        $result = '';
-        $lang = include(ENV_SITE_PATH . ENV_PATH_LANG . '/' . Session::get('lang') . '.php');
-        if (!is_array($lang)) SysClass::pre('Языковой файл не подключен: ' . ENV_SITE_PATH . ENV_PATH_LANG . '/' . Session::get('lang') . '.php');                
+        $result = '';               
         if (!is_array($fields) && is_string($fields)) {
             $fields = json_decode($fields, true);            
         }
