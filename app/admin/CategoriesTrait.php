@@ -15,7 +15,7 @@ trait CategoriesTrait {
      * Список категорий
      */
     public function categories() {
-        $this->access = array(1, 2);
+        $this->access = [1, 2];
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main(200, '/show_login_form?return=admin/categories');
         }
@@ -39,11 +39,27 @@ trait CategoriesTrait {
      * Добавить или редактировать категорию
      */
     public function category_edit($params) {
-        $this->access = array(1, 2);
+        $this->access = [1, 2];
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main(200, '/show_login_form?return=admin/categories');
             exit();
         }
+        $default_data = [
+            'category_id' => 0,
+            'type_id' => 0,
+            'title' => '',
+            'description' => '',
+            'short_description' => '',
+            'parent_id' => 0,
+            'status' => '',
+            'created_at' => '',
+            'updated_at' => '',
+            'parent_title' => '',
+            'type_name' => '',
+            'entity_count' => '',
+            'category_path' => '',
+            'category_path_text' => '',
+        ];
         /* model */
         $this->load_model('m_categories');
         $this->load_model('m_categories_types');
@@ -63,7 +79,8 @@ trait CategoriesTrait {
                     $id = $new_id;
                 }
             }
-            $get_category_data = (int)$id ? $this->models['m_categories']->get_category_data($id) : [];
+            $get_category_data = (int)$id ? $this->models['m_categories']->get_category_data($id) : $default_data;
+            $get_category_data = $get_category_data ? $get_category_data : $default_data;
         } else { // Не передан ключевой параметр id
             SysClass::return_to_main(200, ENV_URL_SITE . '/admin/category_edit/id/');
         }
@@ -112,7 +129,7 @@ trait CategoriesTrait {
      * @param type $params
      */
     public function get_type_category($params =[]) {
-        $this->access = array(1, 2);
+        $this->access = [1, 2];
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
             exit();
@@ -137,7 +154,7 @@ trait CategoriesTrait {
      * Удаление категории
      */
     public function category_dell($params = []) {        
-        $this->access = array(1, 2);
+        $this->access = [1, 2];
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
             exit();
@@ -165,7 +182,7 @@ trait CategoriesTrait {
      * Вернёт таблицу категоий
      */
     public function get_categories_data_table() {
-        $this->access = array(1, 2);
+        $this->access = [1, 2];
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
             exit();

@@ -90,16 +90,16 @@ use classes\system\Plugins;
                                 </div>
                                 <div class="row mb-3">
                                     <div class="col-12 col-sm-12">
-                                        <label for="description-input"><?=$lang['sys.description']?>:</label>
-                                        <textarea id="description-input" name="description" class="form-control"><?= $entity_data['description'] ?></textarea>
-                                    </div>
-                                </div>							
-                                <div class="row mb-3">
-                                    <div class="col-12 col-sm-12">
                                         <label for="short_description-input"><?=$lang['sys.short_description']?>:</label>
                                         <textarea id="short_description-input" name="short_description" class="form-control"><?= $entity_data['short_description'] ?></textarea>
                                     </div>
-                                </div>							
+                                </div>                                
+                                <div class="row mb-3">
+                                    <div class="col-12 col-sm-12">
+                                        <label for="description-input"><?=$lang['sys.description']?>:</label>
+                                        <textarea id="description-input" name="description" class="form-control"><?= $entity_data['description'] ?></textarea>
+                                    </div>
+                                </div>
                             </div>
                             <div class="row mb-3">
                                 <div class="col-2">

@@ -142,6 +142,8 @@ class ControllerIndex Extends ControllerBase {
         if ($params || !isset($_SERVER['HTTP_X_REQUESTED_WITH']) || strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) != 'xmlhttprequest' || empty(ENV_SITE)) {
             die(json_encode(array('error' => 'it`s a lie')));
         }
+        $json = [];
+        $json['error'] = '';
         if (!SysClass::connect_db_exists()) {
             $json['error'] = $this->lang['sys.no_connection_to_db'];
             echo json_encode($json, JSON_UNESCAPED_UNICODE);

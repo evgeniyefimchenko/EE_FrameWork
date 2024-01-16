@@ -15,7 +15,7 @@ trait CategoriesTypesTrait {
      * Список категорий
      */
     public function types_categories() {
-        $this->access = array(1, 2);
+        $this->access = [1, 2];
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main(200, '/show_login_form?return=admin');
         }
@@ -39,7 +39,7 @@ trait CategoriesTypesTrait {
      * Вернёт таблицу категоий
      */
     public function get_categories_types_data_table() {
-        $this->access = array(1, 2);
+        $this->access = [1, 2];
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
             exit();
@@ -131,7 +131,7 @@ trait CategoriesTypesTrait {
      * Добавить или редактировать тип категории
      */
     public function categories_type_edit($params) {
-        $this->access = array(1, 2);
+        $this->access = [1, 2];
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
             exit();
@@ -198,7 +198,7 @@ trait CategoriesTypesTrait {
      * @param array $params
      */
     public function delete_categories_type($params = []) {
-        $this->access = array(1, 2);
+        $this->access = [1, 2];
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
             exit();

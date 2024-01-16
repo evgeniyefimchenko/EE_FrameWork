@@ -16,7 +16,7 @@ trait EntitiesTrait {
      * Список сущностей
      */
     public function entities() {
-        $this->access = array(1, 2);
+        $this->access = [1, 2];
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main(200, '/show_login_form?return=admin');
         }
@@ -39,7 +39,7 @@ trait EntitiesTrait {
      * Добавить или редактировать сущность
      */
     public function entity_edit($params = []) {
-        $this->access = array(1, 2);
+        $this->access = [1, 2];
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
             exit();
@@ -112,7 +112,7 @@ trait EntitiesTrait {
      * Удаление сущности
      */
     public function entity_dell($params = []) {        
-        $this->access = array(1, 2);
+        $this->access = [1, 2];
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
             exit();
@@ -139,7 +139,7 @@ trait EntitiesTrait {
      * Вернёт таблицу категоий
      */
     public function get_entities_data_table() {
-        $this->access = array(1, 2);
+        $this->access = [1, 2];
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
             exit();

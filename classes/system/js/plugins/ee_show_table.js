@@ -43,6 +43,9 @@ $(document).ready(function () {
             } else {
                 $("#" + tableId + "_filters").append('<input type="hidden" name="sort_' + field + '" value="' + newSort + '">');
             }
+            if (pageInput.length) {
+                pageInput.val(1); // После сортировки принудительно возвращаем на первую страницу
+            }            
             $("#" + tableId + "_filters").trigger("submit");
         });
         // Обработчик события click на кнопке сброса
@@ -104,7 +107,6 @@ $(document).ready(function () {
         }
         let filter_data = form.serialize();
         $('#' + tableId + '_content_tables').css('opacity', '0.2');
-        console.log('preloader OUT');
         $('#preloader').fadeIn(500);
         $.ajax({
             url: '/admin/' + callbackInput.val(),
@@ -128,6 +130,5 @@ $(document).ready(function () {
     $("[id$='_content_tables']").each(function () {
         let tableId = $(this).attr('data-tableID');
         initEventHandlers(tableId);
-    });   
-    
+    });
 });

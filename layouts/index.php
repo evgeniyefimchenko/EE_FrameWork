@@ -53,24 +53,24 @@
     </head>
     <body>
         <!-- Preloader -->
-        <div id="preloader" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(255, 255, 255, 0.9); z-index: 9999; display: flex; justify-content: center; align-items: center;">
+        <div id="preloader" class="preloader">
             <div class="spinner-border text-primary" role="status">
                 <span class="visually-hidden">Loading...</span>
             </div>
         </div>
         <!-- End Preloader -->
-
         <!-- Основной контент страниц -->
         <?= $layout_content ?>
-        <!-- JS scripts -->
+        <!-- start of non-relocatable JS scripts -->
         <script src="<?= ENV_URL_SITE ?>/assets/js/plugins/jquery.min.js" type="text/javascript"></script>
         <script src="<?= ENV_URL_SITE ?>/assets/bootstrap/js/bootstrap.bundle.min.js" type="text/javascript"></script>
         <!-- core -->
         <script src="<?= ENV_URL_SITE ?>/classes/system/js/core.js" type="text/javascript"></script>
         <!-- General scripts -->
         <script src="<?= ENV_URL_SITE . '/' . ENV_APP_DIRECTORY ?>/index/js/index.js" type="text/javascript" /></script>
-    <!-- Добавленные скрипты из контроллера -->
-    <?= $add_script ?>
-    <!-- ported scripts -->
+        <!-- end of non-relocatable JS scripts -->
+        <!-- Добавленные скрипты из контроллера -->
+        <?= $add_script ?>
+        <!-- ported scripts -->
 </body>
 </html>

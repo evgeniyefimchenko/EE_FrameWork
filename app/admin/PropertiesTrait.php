@@ -16,7 +16,7 @@ trait PropertiesTrait {
      * Список свойств
      */
     public function properties() {
-        $this->access = array(1, 2);
+        $this->access = [1, 2];
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main(200, '/show_login_form?return=admin');
         }
@@ -42,7 +42,7 @@ trait PropertiesTrait {
      * Список типов свойств
      */
     public function types_properties() {
-        $this->access = array(1, 2);
+        $this->access = [1, 2];
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main(200, '/show_login_form?return=admin');
         }
@@ -62,7 +62,7 @@ trait PropertiesTrait {
     }
 
     public function get_types_properties_data_table() {
-        $this->access = array(1, 2);
+        $this->access = [1, 2];
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
             exit();
@@ -161,7 +161,7 @@ trait PropertiesTrait {
      * Вернёт таблицу свойств
      */
     public function get_properties_data_table() {
-        $this->access = array(1, 2);
+        $this->access = [1, 2];
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
             exit();
@@ -278,7 +278,7 @@ trait PropertiesTrait {
      * Добавить или редактировать тип свойств
      */
     public function type_properties_edit($params = []) {
-        $this->access = array(1, 2);
+        $this->access = [1, 2];
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
             exit();
@@ -343,7 +343,7 @@ trait PropertiesTrait {
      * Добавить или редактировать свойство
      */
     public function edit_property($params) {
-        $this->access = array(1, 2);
+        $this->access = [1, 2];
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
             exit();
@@ -448,7 +448,7 @@ trait PropertiesTrait {
      * @param array $params
      */
     public function type_properties_delete($params = []) {
-        $this->access = array(1, 2);
+        $this->access = [1, 2];
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
             exit();
@@ -478,7 +478,7 @@ trait PropertiesTrait {
      * @param array $params
      */
     public function property_delete($params = []) {
-        $this->access = array(1, 2);
+        $this->access = [1, 2];
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
             exit();
@@ -508,7 +508,7 @@ trait PropertiesTrait {
      * @param type $params
      */
     public function properties_sets($params = []) {
-        $this->access = array(1, 2);
+        $this->access = [1, 2];
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
             exit();
@@ -532,7 +532,7 @@ trait PropertiesTrait {
      * Вернёт таблицу наборов свойств
      */
     public function get_properties_property_sets_table() {
-        $this->access = array(1, 2);
+        $this->access = [1, 2];
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
             exit();
@@ -624,7 +624,7 @@ trait PropertiesTrait {
      * @throws Exception Если возникают проблемы с доступом, функция перенаправляет пользователя на главную страницу.
      */
     public function edit_property_set($params = []) {
-        $this->access = array(1, 2);
+        $this->access = [1, 2];
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
             exit();
@@ -688,7 +688,7 @@ trait PropertiesTrait {
      * @param array $params
      */
     public function property_set_delete($params = []) {
-        $this->access = array(1, 2);
+        $this->access = [1, 2];
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
             exit();

@@ -25,7 +25,7 @@ $topbarData = [
 ];
 
 foreach ($messages as $message) {
-	if (!$message['date_read']) {
+	if (!isset($message['date_read']) || !$message['date_read']) {
 		$color = '#bcbebf';
 		switch ($message['status']) { // 'primary', 'info', 'success', 'warning', 'danger'			
 			case 'info' : $icon = 'fa-solid fa-circle-info'; $color='#61bdd1'; break;

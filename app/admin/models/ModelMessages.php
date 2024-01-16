@@ -15,25 +15,24 @@ class ModelMessages {
         $needsJoin = strpos($where, 'author_id') !== false || strpos($order, 'author_id') !== false;
         $order = SysClass::ee_addPrefixToFields($order, SysClass::ee_get_fields_table(Constants::USERS_MESSAGE_TABLE), 'm.');
         $where = SysClass::ee_addPrefixToFields($where, SysClass::ee_get_fields_table(Constants::USERS_MESSAGE_TABLE), 'm.');
-        $order = $needsJoin ? str_replace('author_id', 't.author_id', $order) : $order;
-        $where = $needsJoin ? str_replace('author_id', 't.author_id', $where) : $where;
         $whereString = $where ? "$where AND " : "";
-        $whereString .= "m.user_id = ?i";        
+        if (is_array($user_id)) {
+           $whereString .= "m.user_id IN ?a"; 
+        } else {        
+            $whereString .= "m.user_id = ?i";
+        }
         $params = [Constants::USERS_MESSAGE_TABLE, Constants::USERS_TABLE, $user_id, $start, $limit];
-
         // Обновленный запрос с JOIN для получения имени автора
         $sql_messages = "SELECT m.*, u.name as author_name FROM ?n m 
                          LEFT JOIN ?n u ON m.author_id = u.user_id
                          WHERE $whereString 
                          ORDER BY $orderString LIMIT ?i, ?i";
         $res_array = SafeMySQL::gi()->getAll($sql_messages, ...$params);
-
         // Для подсчета общего количества сообщений, убираем LIMIT
         $sql_count = "SELECT COUNT(*) as total_count FROM ?n m 
                       LEFT JOIN ?n u ON m.author_id = u.user_id
                       WHERE $whereString";
         $total_count = SafeMySQL::gi()->getOne($sql_count, Constants::USERS_MESSAGE_TABLE, Constants::USERS_TABLE, $user_id);
-
         return [
             'data' => $res_array,
             'total_count' => $total_count

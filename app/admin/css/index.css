@@ -11529,11 +11529,11 @@ body {
     text-align: center;
     white-space: nowrap;
     vertical-align: baseline;
-    background-color: #dc3545; /* Красный цвет фона */
+    background-color: #dc3545;
     border-radius: 10px;
     position: relative;
-    top: -10px; /* Адаптируйте эти значения */
-    left: -10px; /* в соответствии с вашим дизайном */
+    top: -10px;
+    left: -10px;
 }
 
 .nested_table {
@@ -11565,4 +11565,17 @@ body {
 
 .accordion-button.no-chevron::after {
     display: none;
+}
+
+.preloader {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(255, 255, 255, 0.9);
+    z-index: 9999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }

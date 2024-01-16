@@ -15,7 +15,11 @@ Class Constants {
     public const USERS_TABLE = ENV_DB_PREF . 'users',
             USERS_TABLE_FIELDS = [],
             USERS_ROLES_TABLE = ENV_DB_PREF . 'user_roles',
-            USERS_ROLES_TABLE_FIELDS = [],
+            USERS_ROLES_TABLE_FIELDS = array (
+  0 => 'role_id',
+  1 => 'name',
+  2 => 'language_code',
+),
             USERS_DATA_TABLE = ENV_DB_PREF . 'users_data',
             USERS_DATA_TABLE_FIELDS = [],
             USERS_MESSAGE_TABLE = ENV_DB_PREF . 'users_message',
