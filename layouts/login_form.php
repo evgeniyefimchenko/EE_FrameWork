@@ -58,11 +58,12 @@
         </div>
         <!-- Основной контент страниц -->
         <?= $layout_content ?>
-        <!-- JS scripts -->
+        <!-- start of non-relocatable JS scripts -->
         <script src="<?= ENV_URL_SITE ?>/assets/js/plugins/jquery.min.js" type="text/javascript"></script>
         <script src="<?= ENV_URL_SITE ?>/assets/bootstrap/js/bootstrap.bundle.min.js" type="text/javascript"></script>
         <!-- core -->
-        <script src="<?= ENV_URL_SITE ?>/classes/system/js/core.js" type="text/javascript"></script>	
+        <script src="<?= ENV_URL_SITE ?>/classes/system/js/core.js" type="text/javascript"></script>
+        <!-- end of non-relocatable JS scripts -->
         <!-- Добавленные скрипты из контроллера -->
         <?= $add_script ?>
         <!-- ported scripts -->		

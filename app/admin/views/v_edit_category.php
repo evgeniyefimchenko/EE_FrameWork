@@ -41,13 +41,13 @@ if (!count($all_type)) {
                     </ul>
                     <div class="tab-content" id="eeTabContent">
                         <!-- Основное содержимое -->
-                        <div class="tab-pane fade show active mt-3" id="basic-tab-pane" role="tabpanel" aria-labelledby="basic-tab">
+                        <div class="tab-pane show active mt-3" id="basic-tab-pane" role="tabpanel" aria-labelledby="basic-tab">
                             <div class="row mb-3">
                                 <div class="col-6 col-sm-3">
                                     <label for="name-input"><?=$lang['sys.title']?>:</label>
                                     <div role="group" class="input-group">
                                         <input type="text" id="title-input" name="title" class="form-control" placeholder="Введите название..." value="<?= $category_data['title'] ?>">
-                                        <span role="button" class="input-group-text btn-info" data-bs-toggle="tooltip" data-bs-placement="top" title="Название должно быть уникальность в рамках одного типа">
+                                        <span role="button" class="input-group-text btn-info" data-bs-toggle="tooltip" data-bs-placement="top" title="Название должно быть уникально в рамках одного типа">
                                             <i class="fas fa-question-circle"></i><!-- Иконка со знаком вопроса -->
                                         </span>
                                     </div>
@@ -95,16 +95,16 @@ if (!count($all_type)) {
                                 </div>
                                 <div class="row mb-3">
                                     <div class="col-12 col-sm-12">
-                                        <label for="description-input"><?=$lang['sys.description']?>:</label>
-                                        <textarea id="description-input" name="description" class="form-control"><?= $category_data['description'] ?></textarea>
-                                    </div>
-                                </div>							
-                                <div class="row mb-3">
-                                    <div class="col-12 col-sm-12">
                                         <label for="short_description-input"><?=$lang['sys.short_description']?>:</label>
                                         <textarea id="short_description-input" name="short_description" class="form-control"><?= $category_data['short_description'] ?></textarea>
                                     </div>
-                                </div>							
+                                </div>                                
+                                <div class="row mb-3">
+                                    <div class="col-12 col-sm-12">
+                                        <label for="description-input"><?=$lang['sys.description']?>:</label>
+                                        <textarea id="description-input" name="description" class="form-control"><?= $category_data['description'] ?></textarea>
+                                    </div>
+                                </div>
                             </div>
                             <div class="row mb-3">
                                 <div class="col-2">

@@ -61,9 +61,9 @@ abstract class ControllerBase {
     protected $parameters_layout = ['description' => '', 'keywords' => '', 'add_script' => '', 'add_style' => '', 'canonical_href' => ENV_URL_SITE, 'layout' => 'index', 'image_twiter' => 'favicon.png', 'image_social' => 'favicon.png'];
 
     /**
-     * Конструктор класса принимает экземпляр класса представления из /classes/system/Router.php.
-     * Проверяет сессию пользователя и записывает id в logged_in.
-     * @param mixed $view Экземпляр класса представления.
+     * Конструктор класса принимает экземпляр класса представления из /classes/system/Router.php
+     * Проверяет сессию пользователя и записывает id в logged_in
+     * @param mixed $view Экземпляр класса представления
      */
     function __construct($view = null) {
         $this->view = $view instanceof View ? $view : new View();
@@ -92,28 +92,40 @@ abstract class ControllerBase {
      * @param $user_data - Данные пользователя для загрузки
      */
     private function set_user_data($user_data) {        
+        $get_lang_code = '';
         if (!isset($user_data['new_user']) || $user_data['new_user'] != 1) {
             foreach ($user_data as $name => $val) {
                 $this->view->set($name, $val);
             }
             $s_lang = Session::get('lang');
             if (strlen($user_data['options']['localize']) > 1 && empty($s_lang)) { // Проверка на наличие локали в настройках пользователя
+                $get_lang_code = 'user_data options localize';
                 $lang_code = $user_data['options']['localize'];
             } else { // Записываем локаль в опции пользователя
+                $get_lang_code = 'user_data Session';
                 $lang_code = $s_lang;
                 $user_data['options']['localize'] = $lang_code;
                 $this->users->set_user_options($this->logged_in, $user_data['options']);
             }
         } else {
             $lang_code = Session::get('lang');
+            $get_lang_code = 'Session';
             if (!$lang_code) {
                 $lang_code = ENV_DEF_LANG;
+                $get_lang_code = 'ENV_DEF_LANG';
                 Session::set('lang', $lang_code);
             }
         }
-        $lang = include(ENV_SITE_PATH . ENV_PATH_LANG . '/' . $lang_code . '.php');
+        $lang_path = ENV_SITE_PATH . ENV_PATH_LANG . '/' . $lang_code . '.php';
+        $lang = file_exists($lang_path) ? include($lang_path) : false;
         if (!is_array($lang)) {
-            SysClass::pre_file('lang_errors', 'base get_user_data', var_export($lang, true), 'Языковой файл не подключен: ' . ENV_SITE_PATH . ENV_PATH_LANG . '/' . $lang_code . '.php');
+            SysClass::pre_file('lang_errors', 'base get_user_data ' . var_export($get_lang_code, true), var_export($lang, true), 'Языковой файл не найден(подключаем ENV_PROTO_LANGUAGE'
+                    . ' ' . ENV_PROTO_LANGUAGE . '): ' . $lang_path);
+            $lang_path = ENV_SITE_PATH . ENV_PATH_LANG . '/' . ENV_PROTO_LANGUAGE . '.php';
+            $lang_code = ENV_PROTO_LANGUAGE;
+            if (file_exists($lang_path)) {
+                $lang = include($lang_path);
+            }
         }
         Session::set('lang', $lang_code);
         $this->view->set('lang', $lang);
@@ -126,12 +138,12 @@ abstract class ControllerBase {
     }
 
     /**
-     * Загружает модель для контроллера.
-     * @param string $model Имя файла модели без расширения, например 'm_index'.
-     * @param array $arg Массив аргументов для передачи в конструктор модели.
-     * @param string $path Опциональный абсолютный путь к модели.
-     * @param bool $reload Определяет, нужно ли перезагружать модель, если она уже была загружена ранее.
-     * @throws Exception Если модель или класс модели не найдены.
+     * Загружает модель для контроллера
+     * @param string $model Имя файла модели без расширения, например 'm_index'
+     * @param array $arg Массив аргументов для передачи в конструктор модели
+     * @param string $path Опциональный абсолютный путь к модели
+     * @param bool $reload Определяет, нужно ли перезагружать модель, если она уже была загружена ранее
+     * @throws Exception Если модель или класс модели не найдены
      */
     protected function load_model(string $model, array $arg = [], string $path = '', bool $reload = false): void {
         if (count($this->access) == 0) {
@@ -158,9 +170,12 @@ abstract class ControllerBase {
     }
 
     /**
-     * Выводит макет в сборе с представлением и компрессией кода при ENV_COMPRESS_HTML
-     * @param - дополнительные или переопределённые параметры макета в именнованом массиве (parameters_layout)
-     * @layout - название макета, берётся из параметров или index по умолчанию
+     * Обрабатывает и отображает макет, перемещая JavaScript скрипты после указанного комментария, за исключением скриптов между специальными маркерами
+     * Эта функция загружает указанный файл макета, обрабатывает его содержимое и перемещает JavaScript скрипты
+     * Все скрипты, кроме тех, что находятся между <!-- start of non-relocatable JS scripts --> и <!-- end of non-relocatable JS scripts -->,
+     * будут перемещены после маркера <!-- ported scripts -->, удаляя при этом дубликаты скриптов
+     * Функция также поддерживает сжатие HTML если установлена соответствующая настройка
+     * @param array $param Параметры для настройки макета, включая имя макета и другие значения
      */
     protected function show_layout($param) {
         extract($param);
@@ -174,27 +189,22 @@ abstract class ControllerBase {
         }
         $this->html = ob_get_contents();
         ob_end_clean();
-
-        // Выделяем участок от начала страницы до <!-- JS scripts -->
-        preg_match("/^(.*?)(<!-- JS scripts -->)/si", $this->html, $matches);
-        if (isset($matches[1])) {
-            $beforeJsScripts = $matches[1];
-
-            // Находим все скрипты в этом участке
-            preg_match_all("/<script.*?<\/script>/si", $beforeJsScripts, $scriptMatches);
-
-            if (isset($scriptMatches[0]) && $scriptMatches[0]) {
-                // Удаляем найденные скрипты из этого участка
-                foreach ($scriptMatches[0] as $script) {
-                    $this->html = str_replace($script, '', $this->html);
-                }
-
-                // Вставляем скрипты сразу после <!-- ported scripts -->
-                $scripts = implode("\n", $scriptMatches[0]);
-                $this->html = str_replace('<!-- ported scripts -->', "<!-- ported scripts -->\n" . $scripts, $this->html);
-            }
+        // Сохраняем не перемещаемые скрипты и заменяем их маркером
+        $nonRelocatableScriptMarker = 'NON_RELOCATABLE_SCRIPTS';
+        preg_match("/<!-- start of non-relocatable JS scripts -->(.*?)<!-- end of non-relocatable JS scripts -->/si", $this->html, $nonRelocatableScripts);
+        if (!empty($nonRelocatableScripts[1])) {
+            $this->html = str_replace($nonRelocatableScripts[0], $nonRelocatableScriptMarker, $this->html);
         }
-
+        // Находим, удаляем дубликаты и убираем все остальные скрипты
+        preg_match_all("/<script.*?<\/script>/si", $this->html, $scriptMatches);
+        $scriptsFound = array_unique($scriptMatches[0]);
+        $this->html = preg_replace("/<script.*?<\/script>/si", '', $this->html);
+        // Вставляем скрипты обратно в HTML после <!-- ported scripts -->
+        $scriptsString = implode("\n", $scriptsFound);
+        $this->html = str_replace('<!-- ported scripts -->', "<!-- ported scripts -->\n" . $scriptsString, $this->html);
+        if (!empty($nonRelocatableScripts[1])) {
+            $this->html = str_replace($nonRelocatableScriptMarker, $nonRelocatableScripts[0], $this->html);
+        }
         if (ENV_COMPRESS_HTML) {
             echo Sysclass::one_line($this->html);
         } else {

@@ -4,6 +4,7 @@ use classes\system\ControllerBase;
 use classes\system\SysClass;
 use classes\system\Constants;
 use classes\system\Plugins;
+use classes\helpers\ClassNotifications;
 use app\admin\MessagesTrait;
 use app\admin\NotificationsTrait;
 use app\admin\SystemsTrait;
@@ -335,7 +336,7 @@ class ControllerIndex Extends ControllerBase {
      * @param type $params
      */
     public function user_edit($params) {
-        $this->access = array(1, 2);
+        $this->access = [1, 2];
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
             exit();
@@ -345,13 +346,13 @@ class ControllerIndex Extends ControllerBase {
         if (in_array('id', $params)) {
             $key_id = array_search('id', $params);
             if ($key_id !== false && isset($params[$key_id + 1])) {
-                $id = filter_var($params[$key_id + 1], FILTER_VALIDATE_INT);
+                $user_id = filter_var($params[$key_id + 1], FILTER_VALIDATE_INT);
             } else {
-                $id = 0;
+                $user_id = 0;
             }
-            $get_user_context = is_integer($id) ? $this->users->get_user_data($id) : [];
+            $get_user_context = is_integer($user_id) ? $this->users->get_user_data($user_id) : [];
             /* Нельзя посмотреть чужую карточку равной себе роли или выше */
-            if (!$id || $this->users->data['user_role'] >= $get_user_context['user_role'] && $this->logged_in != $id) {
+            if (!$user_id || $this->users->data['user_role'] >= $get_user_context['user_role'] && $this->logged_in != $user_id) {
                 SysClass::return_to_main(200, ENV_URL_SITE . '/admin/user_edit/id/' . $this->logged_in);
             }
         } else {                                                                            // Не передан ключевой параметр id
@@ -360,7 +361,7 @@ class ControllerIndex Extends ControllerBase {
 
         $this->load_model('m_user_edit');
         /* Если не админ и модер и карточка не своя возвращаем */
-        if ($this->users->data['user_role'] > 2 && $this->logged_in != $id) {
+        if ($this->users->data['user_role'] > 2 && $this->logged_in != $user_id) {
             SysClass::return_to_main(200, ENV_URL_SITE . '/admin/user_edit/id/' . $this->logged_in);
         }
         /* get data */
@@ -451,7 +452,7 @@ class ControllerIndex Extends ControllerBase {
      * @param arg - массив аргументов для поиска
      */
     public function users($params = array()) {
-        $this->access = array(1, 2);
+        $this->access = [1, 2];
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
             exit();
@@ -473,7 +474,7 @@ class ControllerIndex Extends ControllerBase {
      * Вернёт таблицу пользователей
      */
     public function get_users_table() {
-        $this->access = array(1, 2);
+        $this->access = [1, 2];
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
             exit();
@@ -621,7 +622,7 @@ class ControllerIndex Extends ControllerBase {
      * @param type $params
      */
     public function users_roles($params = []) {
-        $this->access = array(1, 2);
+        $this->access = [1, 2];
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
             exit();
@@ -634,7 +635,7 @@ class ControllerIndex Extends ControllerBase {
         /* layouts */
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
-        $this->parameters_layout["title"] = 'Роли пользователей';
+        $this->parameters_layout["title"] = 'Роли пользователей';        
         $this->show_layout($this->parameters_layout);
     }
 
@@ -642,7 +643,7 @@ class ControllerIndex Extends ControllerBase {
      * Вернёт таблицу ролей пользователей
      */
     public function get_users_roles_table() {
-        $this->access = array(1, 2);
+        $this->access = [1, 2];
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
             exit();
@@ -686,7 +687,7 @@ class ControllerIndex Extends ControllerBase {
                 $html_actions = '<a href="/admin/users_role_edit/id/' . $item['role_id'] . '" class="btn btn-primary me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.edit'] . '"><i class="fas fa-edit"></i></a>
 				<a href="/admin/users_role_dell/id/' . $item['role_id'] . '" class="btn btn-danger" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.delete'] . '"><i class="fas fa-trash-alt"></i></a>';
             } else {
-                $html_actions = '<a href="/admin/users_role_edit/id/' . $item['role_id'] . '" class="btn btn-primary me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.edit'] . '"><i class="fas fa-edit"></i></a>';
+                $html_actions = $item['role_id'] == 1 ? '' : '<a href="/admin/users_role_edit/id/' . $item['role_id'] . '" class="btn btn-primary me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.edit'] . '"><i class="fas fa-edit"></i></a>';
             }
             $data_table['rows'][] = [
                 'role_id' => $item['role_id'],
@@ -708,7 +709,7 @@ class ControllerIndex Extends ControllerBase {
      * @param array $params
      */
     public function users_role_dell($params = []) {
-        $this->access = array(1, 2);
+        $this->access = [1, 2];
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
             exit();
@@ -735,7 +736,7 @@ class ControllerIndex Extends ControllerBase {
      * @param type $params
      */
     public function delete_user($params = []) {
-        $this->access = array(1, 2);
+        $this->access = [1, 2];
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
             exit();
@@ -743,18 +744,18 @@ class ControllerIndex Extends ControllerBase {
         if (in_array('id', $params)) {
             $key_id = array_search('id', $params);
             if ($key_id !== false && isset($params[$key_id + 1])) {
-                $id = filter_var($params[$key_id + 1], FILTER_VALIDATE_INT);
+                $user_id = filter_var($params[$key_id + 1], FILTER_VALIDATE_INT);
             } else {
-                $id = 0;
+                $user_id = 0;
             }
-            if (in_array($id, [1, 2])) {
+            if (in_array($user_id, [1, 2, 8])) {
                 ClassNotifications::add_notification_user($this->logged_in, ['text' => 'Невозможно удалить системные роли!', 'status' => 'danger']);
             } else {
                 $this->load_model('m_user_edit');
-                if (!$this->models['m_user_edit']->delete_user($id)) {
-                    ClassNotifications::add_notification_user($this->logged_in, ['text' => 'Ошибка удаления пользователя id=' . $id, 'status' => 'danger']);
+                if (!$this->models['m_user_edit']->delete_user($user_id)) {
+                    ClassNotifications::add_notification_user($this->logged_in, ['text' => 'Ошибка удаления пользователя id=' . $user_id, 'status' => 'danger']);
                 } else {
-                    ClassNotifications::add_notification_user($this->logged_in, ['text' => 'Помечен удалённым id=' . $id, 'status' => 'info']);
+                    ClassNotifications::add_notification_user($this->logged_in, ['text' => 'Помечен удалённым id=' . $user_id, 'status' => 'info']);
                 }
             }
         } else {
@@ -783,11 +784,17 @@ class ControllerIndex Extends ControllerBase {
      * @param array $params
      */
     public function users_role_edit($params = []) {
-        $this->access = array(1, 2);
+        $this->access = [1, 2];
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
             exit();
         }
+        $default_data = [
+            'role_id' => 0,
+            'name' => '',
+        ];
+        $this->load_model('m_user_edit');
+        $post_data = SysClass::ee_cleanArray($_POST);
         if (in_array('id', $params)) {
             $key_id = array_search('id', $params);
             if ($key_id !== false && isset($params[$key_id + 1])) {
@@ -795,8 +802,29 @@ class ControllerIndex Extends ControllerBase {
             } else {
                 $id = 0;
             }
+            if (isset($post_data['name']) && $post_data['name']) {
+                if (!$new_id = $this->models['m_user_edit']->update_users_role_data($post_data)) {
+                    ClassNotifications::add_notification_user($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
+                } else {
+                    $id = $new_id;
+                }
+            }
+            $get_users_role_data = (int)$id ? $this->models['m_user_edit']->get_users_role_data($id) : $default_data;
+            $get_users_role_data = $get_users_role_data ? $get_users_role_data : $default_data;
+        } else {
+            SysClass::return_to_main(200, ENV_URL_SITE . '/admin/users_role_edit/id/');
         }
-        // TODO
+        /* view */        
+        $this->view->set('users_role_data', $get_users_role_data);
+        $this->get_standart_view();
+        $this->view->set('body_view', $this->view->read('v_edit_users_role'));
+        $this->html = $this->view->read('v_dashboard');
+        /* layouts */
+        $this->parameters_layout["layout_content"] = $this->html;
+        $this->parameters_layout["layout"] = 'dashboard';
+        $this->parameters_layout["title"] = 'Роль пользователей';
+        $this->parameters_layout["add_script"] .= '<script src="' . $this->get_path_controller() . '/js/edit_users_role.js" type="text/javascript" /></script>';
+        $this->show_layout($this->parameters_layout);
     }
 
     /**
@@ -804,12 +832,56 @@ class ControllerIndex Extends ControllerBase {
      * @param array $params
      */
     public function deleted_users($params = []) {
-        $this->access = array(1, 2);
+        $this->access = [1, 2];
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
             exit();
         }
-        // TODO
+        /* view */
+        $this->get_standart_view();
+        $this->view->set('deleted_users_table', $this->users->get_users_data(false, false, 0, 1, true));
+        $this->view->set('body_view', $this->view->read('v_deleted_users'));
+        $this->html = $this->view->read('v_dashboard');
+        /* layouts */
+        $this->parameters_layout["layout_content"] = $this->html;
+        $this->parameters_layout["layout"] = 'dashboard';
+        $this->parameters_layout["title"] = 'Удалённые пользователи';
+        $this->show_layout($this->parameters_layout);
     }
-
+    
+    public function deleted_user_edit($params = []) {
+        $this->access = [1, 2];
+        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
+            SysClass::return_to_main();
+            exit();
+        }
+        $default_data = false;
+        $this->load_model('m_user_edit');
+        if (in_array('id', $params)) {
+            $key_id = array_search('id', $params);
+            if ($key_id !== false && isset($params[$key_id + 1])) {
+                $id = filter_var($params[$key_id + 1], FILTER_VALIDATE_INT);
+            } else {
+                $id = 0;
+            }            
+            $get_deleted_user_data = (int)$id ? $this->models['m_user_edit']->get_deleted_user_data($id) : $default_data;
+            if (!$get_deleted_user_data) {
+                SysClass::return_to_main(200, ENV_URL_SITE . '/admin/deleted_users');
+            }
+        } else {
+            SysClass::return_to_main(200, ENV_URL_SITE . '/admin/deleted_users');
+        }
+        /* view */        
+        $this->view->set('deleted_user_data', $get_deleted_user_data);
+        $this->get_standart_view();
+        $this->view->set('body_view', $this->view->read('v_edit_deleted_users'));
+        $this->html = $this->view->read('v_dashboard');
+        /* layouts */
+        $this->parameters_layout["layout_content"] = $this->html;
+        $this->parameters_layout["layout"] = 'dashboard';
+        $this->parameters_layout["title"] = 'Удалённый пользователь';
+        $this->parameters_layout["add_script"] .= '<script src="' . $this->get_path_controller() . '/js/edit_deleted_user.js" type="text/javascript" /></script>';
+        $this->show_layout($this->parameters_layout);        
+    }
+    
 }

@@ -2,6 +2,7 @@
 
 use classes\plugins\SafeMySQL;
 use classes\system\Constants;
+use classes\system\SysClass;
 
 /**
  * Модель работы со свойствами

@@ -2,6 +2,7 @@
 
 use classes\plugins\SafeMySQL;
 use classes\system\Constants;
+use classes\system\SysClass;
 
 /**
  * Модель работы с категориями
@@ -228,9 +229,9 @@ class ModelCategories {
         $category_data = array_map('trim', $category_data);
         $category_data = SysClass::ee_convertArrayValuesToNumbers($category_data);
         $category_data['parent_id'] = (int) $category_data['parent_id'] !== 0 ? (int) $category_data['parent_id'] : NULL;
-        $category_data['language_code'] = $language_code;  // Добавлено
+        $category_data['language_code'] = $language_code;
         // Если есть родитель то можно записать только такой же тип категории или дочерний
-        // НУЖНО ПЕРЕДЕЛАТЬ
+        // НУЖНО ПЕРЕДЕЛАТЬ TODO
 
         if ($category_data['parent_id']) {
             

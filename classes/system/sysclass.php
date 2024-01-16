@@ -1027,26 +1027,6 @@ class SysClass {
     }
 
     /**
-     * Вернёт по представлению его description
-     * для вывода на страницу под поисковиков
-     * настраивается опционально
-     */
-    public static function get_description_page($html_text) {
-        preg_match_all('#<div itemprop="description">(.+?)</div>#is', $html_text, $arr);
-        return strip_tags(implode('', $arr[1]));
-    }
-
-    /**
-     * Вернёт по представлению его title
-     * для вывода на страницу под поисковиков
-     * настраивается опционально
-     */
-    public static function get_title_page($html_text) {
-        preg_match_all('#<h1 itemprop="headline">(.+?)</h1>#is', $html_text, $arr);
-        return strip_tags(implode('', $arr[1]));
-    }
-
-    /**
      * Функция логирования на экран
      * @param mix $val - Значение для вывода
      * @param bool $flag - Флаг моментального вывода, если указать false то вывод произойдёт только при указании GET параметра show_pre
@@ -1107,11 +1087,14 @@ class SysClass {
             $result = var_export($result, true);
             $details = var_export($details, true);
             $path = $logsPath . ENV_DIRSEP . date("Y-m-d") . '.txt';
-            $logMessage = PHP_EOL . date("Y-m-d H:i:s");
+            $logMessage = "{START}";
+            $logMessage .= PHP_EOL . "Время события: " . date("Y-m-d H:i:s");
             $logMessage .= PHP_EOL . "Инициатор: " . $initiator;
             $logMessage .= PHP_EOL . "Результат: " . $result;
             $logMessage .= PHP_EOL . "Детали: " . $details;
-            $logMessage .= PHP_EOL . "Полный стек вызовов: " . print_r($formattedTrace, true);
+            $json = json_encode($formattedTrace, JSON_UNESCAPED_SLASHES);
+            $logMessage .= PHP_EOL . "Полный стек вызовов: " . $json;
+            $logMessage .= "{END}" . PHP_EOL;
             file_put_contents($path, $logMessage, FILE_APPEND | LOCK_EX);
         }
     }
@@ -1587,9 +1570,10 @@ class SysClass {
     }
     
     /**
-     * Выводит трассировку стека вызовов функций.
+     * Выводит трассировку стека вызовов функций
+     * Для отладки проекта
      */
-    public static function printStackTrace() {
+    public static function ee_printStackTrace() {
         $trace = debug_backtrace();
         array_shift($trace);
         echo 'Трассировка:<br/>';
@@ -1601,7 +1585,7 @@ class SysClass {
             echo "<hr/>";
         }
     }
-    
+
     /**
      * Файервол проекта :-)
      */

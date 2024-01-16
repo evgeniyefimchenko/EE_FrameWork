@@ -10,20 +10,21 @@ $menuItems = [
         'headings' => [
             'Основное' => [
                 [
-                    'title' => 'Обзор',
+                    'title' => $lang['sys.review'],
                     'link' => '/admin',
                     'icon' => 'fa-tachometer-alt',
                 ],
             ],
             'Сущности' => [
                 [
-                    'title' => 'Пользователи',
+                    'title' => $lang['sys.users'],
                     'link' => '#',
                     'icon' => 'fa-solid fa-users-gear',
                     'subItems' => [
                         ['title' => $lang['sys.list'], 'link' => '/admin/users', 'icon' => 'fa-sharp fa-solid fa-list'],
                         ['title' => $lang['sys.roles'], 'link' => '/admin/users_roles', 'icon' => 'fa-solid fa-users-between-lines'],
-                        ['title' => 'Удалённые(Архив)', 'link' => '/admin/deleted_users', 'icon' => 'fa-solid fa-trash'],
+                        ['title' => $lang['sys.deleted_users'], 'link' => '/admin/deleted_users', 'icon' => 'fa-solid fa-trash',
+                            'attributes' => 'data-bs-toggle="tooltip" data-bs-placement="top" title="Архив"'],
                     ],
                 ],
             // ... другие пункты и подпункты
@@ -47,7 +48,7 @@ $menuItems = [
                     ],
                 ],
                 [
-                    'title' => $lang['properties'] = 'Свойства',
+                    'title' => $lang['sys.properties'],
                     'link' => '#',
                     'icon' => 'fa-solid fa-gears',
                     'subItems' => [
@@ -55,12 +56,12 @@ $menuItems = [
                         ['title' => $lang['sys.types'], 'link' => '/admin/types_properties', 'icon' => 'fa-sharp fa-solid fa-marker'],
                         ['title' => $lang['sys.property_sets'], 'link' => '/admin/properties_sets', 'icon' => 'fa-sharp fa-solid fa-sliders'],
                     ],                    
-                ],
+                ],/*
                 [
                     'title' => 'Комментарии',
                     'link' => '/admin/comments',
                     'icon' => 'fa-regular fa-comment',
-                ],
+                ],*/
             ],
             'Аналитика' => [
                 [
@@ -76,25 +77,26 @@ $menuItems = [
                     'icon' => 'fa-regular fa-file',
                     'subItems' => [
                         [
-                            'title' => 'Логи',
+                            'title' => $lang['sys.logs'],
                             'link' => '/admin/logs',
                             'icon' => 'fa-solid fa-table-list',
                         ],
                         [
-                            'title' => 'Резервное копировани',
+                            'title' => $lang['sys.backup'],
                             'link' => '/admin/backup',
                             'icon' => 'fa-regular fa-copy',
                         ],
                         [
-                            'title' => 'Заполнить тестовыми данными',
+                            'title' => $lang['sys.fill_with_test_data'],
                             'link' => '/admin/create_test',
                             'icon' => 'fa-solid fa-flask-vial',
+                            'attributes' => 'onclick="return confirm(\'' . $lang['sys.fill_with_test_data'] . '?\');"',
                         ],
                         [
-                            'title' => 'Удалить данные БД',
+                            'title' => $lang['sys.delete_database_data'],
                             'link' => '/admin/kill_em_all',
                             'icon' => 'fa-solid fa-book-skull',
-                            'attributes' => 'onclick="return confirm(\'Все таблицы БД будут удалены!\');"',
+                            'attributes' => 'onclick="return confirm(\'' . $lang['sys.kill_db'] . '\');"',
                         ],
                     ],
                 ],
@@ -103,16 +105,16 @@ $menuItems = [
         ],
         'footer' => [
             [
-                'title' => 'Доработка',
+                'title' => $lang['sys.order_a_project'],
                 'link' => '/admin/upgrade',
             ],
             [
-                'title' => '<div class="small">Добро пожаловать:</div><a href="/admin/user_edit" class="nav-link">' . $name . '</a>',
+                'title' => '<div class="small">' . $lang['sys.welcome'] . ':</div><a href="/admin/user_edit" class="nav-link">' . $name . '</a>',
                 'link' => false,
             ],
         ]
     ],
-    'footerTitle' => 'Развитие проекта',
+    'footerTitle' => $lang['sys.project_development'],
 ];
 
 echo Plugins::generate_vertical_menu($menuItems);

@@ -42,11 +42,15 @@ $C['ENV_EMAIL_TEMPLATE'] = $C['ENV_SITE_PATH'] . 'assets' . $C['ENV_DIRSEP'] . '
 /* Персональные настройки сайта */
 $C['ENV_APP_DIRECTORY'] = 'app';    // Директория приложения
 $C['ENV_PATH_LANG'] = 'inc' . DIRECTORY_SEPARATOR . 'langs';    // Директория языковых файлов
-$get_lang_code = substr(Get_Client_Prefered_Language(), 0, 2);
-$C['ENV_DEF_LANG'] = $get_lang_code ? strtoupper($get_lang_code) : 'RU';    // Локализация по умолчанию,выбирает наиболее предпочитаемый язык пользователя или en
-$C['ENV_SITE_EMAIL'] = '';   // Почта сайта ОБЯЗАТЕЛЬНОЕ ЗАПОЛНЕНИЕ
-$C['ENV_ADMIN_EMAIL'] = '';  // Почта администратора сайта ОБЯЗАТЕЛЬНОЕ ЗАПОЛНЕНИЕ
-$C['ENV_SUPPORT_EMAIL'] = '';  // Почта службы поддержки сайта
+$C['ENV_PROTO_LANGUAGE'] = 'RU';
+$get_lang_code = strtoupper(substr(Get_Client_Prefered_Language(), 0, 2));
+$C['ENV_DEF_LANG'] = $get_lang_code ? $get_lang_code : $C['ENV_PROTO_LANGUAGE'];    // Локализация по умолчанию,выбирает наиболее предпочитаемый язык пользователя или RU
+if ($C['ENV_DEF_LANG'] == 'RU') {
+    date_default_timezone_set('Europe/Moscow');
+}
+$C['ENV_SITE_EMAIL'] = 'evgeniy@efimchenko.ru';   // Почта сайта ОБЯЗАТЕЛЬНОЕ ЗАПОЛНЕНИЕ
+$C['ENV_ADMIN_EMAIL'] = 'evgeniy@efimchenko.ru';  // Почта администратора сайта ОБЯЗАТЕЛЬНОЕ ЗАПОЛНЕНИЕ
+$C['ENV_SUPPORT_EMAIL'] = 'evgeniy@efimchenko.ru';  // Почта службы поддержки сайта
 $C['ENV_SMTP'] = 0;       // Метод отправки писем 0 - обычный 1 - SMTP(требуется настройка)
 
 $C['ENV_ONE_IP_ONE_USER'] = 0; // Только одна авторизация с одного IP адреса, не имеет смысла если ENV_AUTH_USER = 1
@@ -69,7 +73,14 @@ register_shutdown_function(function () {
     if (ENV_FATAL_ERROR_LOGGING) {
         $error = error_get_last();
         if ($error && (in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR]))) {
-            file_put_contents(ENV_LOGS_PATH . 'fatal_errors.txt', date('d-m-Y h:i:s') . PHP_EOL . var_export($error, true), FILE_APPEND);
+            $formattedError = sprintf(
+                "Date: %s\nMessage: %s in %s on line %s\n\n",
+                date('d-m-Y H:i:s'),
+                $error['message'],
+                $error['file'],
+                $error['line']
+            );
+            file_put_contents(ENV_LOGS_PATH . 'fatal_errors.txt', $formattedError, FILE_APPEND);
         }
     }
 });
@@ -112,5 +123,3 @@ function Get_Client_Prefered_Language($getSortedList = false, $acceptedLanguages
     });
     return $getSortedList ? $lang2pref : key($lang2pref);
 }
-
-

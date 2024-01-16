@@ -3,6 +3,11 @@
 namespace app\admin;
 
 use classes\system\SysClass;
+use classes\plugins\SafeMySQL;
+use classes\system\Constants;
+use classes\helpers\ClassNotifications;
+use classes\system\Plugins;
+use classes\system\Session;
 
 /**
  * Функции работы с логами
@@ -18,25 +23,15 @@ trait SystemsTrait {
             SysClass::return_to_main();
             exit();
         }
-        /* model */
-        $this->load_model('m_systems');
-        
-        $log_items = $this->models['m_systems']->get_general_logs();
-        $get_API_logs = $this->models['m_systems']->get_API_logs();
-        $text_logs = [];
-        krsort($text_logs);
-        foreach ($log_items as $key => $value) {
-            $log_items[$key]['who'] = $this->models['m_systems']->get_text_role($value['who']);
-        }
-
-        $files = ['test', 'test2'];
-
+        /* get data */
+        $fatal_errors_table = $this->get_php_logs_table('fatal_errors');
+        $php_logs_table = $this->get_php_logs_table('php_logs');
+        $progect_logs = $this->get_progect_logs_table();                
         /* view */
         $this->get_standart_view();
-        $this->view->set('text_logs', $text_logs);
-        $this->view->set('get_API_logs', $get_API_logs);
-        $this->view->set('log_items', $log_items);
-        $this->view->set('files', $files);
+        $this->view->set('php_logs_table', $php_logs_table);
+        $this->view->set('fatal_errors_table', $fatal_errors_table);
+        $this->view->set('progect_logs_table', $progect_logs);
         $this->view->set('body_view', $this->view->read('v_logs'));
         $this->html = $this->view->read('v_dashboard');
         /* layouts */
@@ -46,6 +41,249 @@ trait SystemsTrait {
         $this->show_layout($this->parameters_layout);
     }
 
+    /**
+     * Вернёт таблицу логирования проекта
+     */
+    public function get_progect_logs_table() {        
+        $this->access = [1];
+        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
+            SysClass::return_to_main();
+            exit();
+        }
+        /* model */
+        $this->load_model('m_systems');
+        $data_table['columns'] = [
+            [
+                'field' => 'date_time',
+                'title' => $this->lang['sys.date_create'],
+                'sorted' => true,
+                'filterable' => true,
+                'width' => 10
+            ],            
+            [
+                'field' => 'type_log',
+                'title' => 'type_log',
+                'sorted' => true,
+                'filterable' => true,
+                'width' => 10
+            ],            
+            [
+                'field' => 'initiator',
+                'title' => 'initiator',
+                'sorted' => 'ASC',
+                'filterable' => true,
+                'width' => 10
+            ],            
+            [
+                'field' => 'result',
+                'title' => 'result',
+                'sorted' => false,
+                'filterable' => false,
+                'width' => 10
+            ],            
+            [
+                'field' => 'details',
+                'title' => 'details',
+                'sorted' => false,
+                'filterable' => false,
+                'width' => 60
+            ],            
+        ];
+        $filters = [
+            'date_time' => [
+                'type' => 'date',
+                'id' => "date_time",
+                'value' => '',
+                'label' => $this->lang['sys.date_create']               
+            ],
+            'initiator' => [
+                'type' => 'text',
+                'id' => "initiator",
+                'value' => '',
+                'label' => 'initiator'
+            ],
+            'type_log' => [
+                'type' => 'text',
+                'id' => "type_log",
+                'value' => '',
+                'label' => 'type_log'
+            ]
+        ];
+        $post_data = SysClass::ee_cleanArray($_POST);
+        if ($post_data && isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') { // AJAX
+            list($params, $filters, $selected_sorting) = Plugins::ee_show_table_prepare_params($post_data, $data_table['columns']);            
+            $type = $this->get_table_name_from_post($post_data);           
+            $php_logs_array = $this->models['m_systems']->get_all_logs($params['order'], $params['where'], $params['start'], $params['limit']);
+        } else {
+            $php_logs_array = $this->models['m_systems']->get_all_logs(false, false, false, 25);
+        }
+        foreach ($php_logs_array['data'] as $key => $item) {
+            $data_table['rows'][$key] = [
+                'date_time' => $item['date_time'],
+                'type_log' => $item['type_log'],
+                'initiator' => $item['initiator'],
+                'result' => $item['result'],
+                'details' => $item['details'],
+                'nested_table' => [
+                    'columns' => [
+                        ['field' => 'stack_trace', 'title' => $this->lang['sys.stack_trace'], 'width' => 20, 'align' => 'left'],
+                    ],
+                    'rows' => [
+                        ['stack_trace' => $item['stack_trace']],
+                    ],
+                ]
+            ];
+            if (!$item['stack_trace']) {
+                unset($data_table['rows'][$key]['nested_table']);
+            }
+        }
+        $data_table['total_rows'] = $php_logs_array['total_count'];
+        // SysClass::pre($data_table);
+        if ($post_data) {
+            echo Plugins::ee_show_table('progect_logs_table_', $data_table, 'get_progect_logs_table', $filters, (int)$post_data["page"], $post_data["rows_per_page"], $selected_sorting);
+            die;
+        } else {
+            return Plugins::ee_show_table('progect_logs_table_', $data_table, 'get_progect_logs_table', $filters);
+        }        
+    }
+    
+    /**
+     * Вернёт таблицу ошибок PHP
+     */
+    public function get_php_logs_table($type = '') {
+        $this->access = [1];
+        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
+            SysClass::return_to_main();
+            exit();
+        }
+        /* model */
+        $this->load_model('m_systems');
+        $data_table['columns'] = [
+            [
+                'field' => 'error_type',
+                'title' => $this->lang['sys.error_type'],
+                'sorted' => true,
+                'filterable' => true,
+                'width' => 15
+            ],            
+            [
+                'field' => 'date_time',
+                'title' => $this->lang['sys.date_create'],
+                'sorted' => 'ASC',
+                'filterable' => true,
+                'width' => 15,
+                'align' => 'center'
+            ],            
+            [
+                'field' => 'message',
+                'title' => $this->lang['sys.message'],
+                'sorted' => false,
+                'filterable' => true,
+                'width' => 70
+            ],            
+        ];
+        $filters = [
+            'error_type' => [
+                'type' => 'text',
+                'id' => "error_type",
+                'value' => '',
+                'label' => $this->lang['sys.error_type']               
+            ],
+            'date_time' => [
+                'type' => 'date',
+                'id' => "date_time",
+                'value' => '',
+                'label' => $this->lang['sys.date_create']
+            ],
+            'message' => [
+                'type' => 'text',
+                'id' => "message",
+                'value' => '',
+                'label' => $this->lang['sys.message']
+            ],
+        ];
+        if ($type == 'fatal_errors') {
+            unset($filters['error_type']);
+            $data_table['columns'][0]['sorted'] = false;
+            $data_table['columns'][0]['filterable'] = false;
+        }
+        $post_data = SysClass::ee_cleanArray($_POST);
+        if ($post_data && isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') { // AJAX
+            list($params, $filters, $selected_sorting) = Plugins::ee_show_table_prepare_params($post_data, $data_table['columns']);            
+            $type = $this->get_table_name_from_post($post_data);           
+            $php_logs_array = $this->models['m_systems']->get_php_logs($params['order'], $params['where'], $params['start'], $params['limit'], $type);
+        } else {
+            $php_logs_array = $this->models['m_systems']->get_php_logs(false, false, false, 25, $type);
+        }
+        foreach ($php_logs_array['data'] as $key => $item) {
+            $stack_trace = false;
+            if (is_array($item['stack_trace']) && count(($item['stack_trace']))) {
+                foreach ($item['stack_trace'] as $stack) {
+                   $stack_trace .= $stack . '<br/>';
+               } 
+            }
+            if ($type == 'fatal_errors') {
+                $item['error_type'] = 'PHP Fatal error';
+            }
+            $data_table['rows'][$key] = [
+                'date_time' => $item['date_time'],
+                'error_type' => $item['error_type'] == 'PHP Fatal error' ? '<span class="text-danger">' . $item['error_type'] . '</span>' : $item['error_type'],
+                'message' => $item['message'],
+                'nested_table' => [
+                    'columns' => [
+                        ['field' => 'stack_trace', 'title' => $this->lang['sys.stack_trace'], 'width' => 20, 'align' => 'left'],
+                    ],
+                    'rows' => [
+                        ['stack_trace' => $stack_trace],
+                    ],
+                ]
+            ];
+            if (!$stack_trace) {
+                unset($data_table['rows'][$key]['nested_table']);
+            }
+        }
+        $data_table['total_rows'] = $php_logs_array['total_count'];
+        if ($post_data) {
+            echo Plugins::ee_show_table('php_logs_table_' . $type, $data_table, 'get_php_logs_table', $filters, (int)$post_data["page"], $post_data["rows_per_page"], $selected_sorting);
+            die;
+        } else {
+            return Plugins::ee_show_table('php_logs_table_' . $type, $data_table, 'get_php_logs_table', $filters);
+        }        
+    }
+    
+    /**
+    * Извлекает имя таблицы из массива POST
+    * Проходит по всем ключам массива POST и ищет ключи, соответствующие шаблону 'php_logs_table_{table_name}_table_name'
+    * Если такой ключ найден, извлекает из него часть, соответствующую {table_name} и возвращает ее
+    * Возвращает null, если соответствующий ключ не найден
+    * @param array $postData Массив POST, из которого необходимо извлечь имя таблицы
+    * @return string|null Возвращает имя таблицы или null, если оно не найдено
+    */   
+    private function get_table_name_from_post($postData) {
+        foreach ($postData as $key => $value) {
+            if (preg_match('/^php_logs_table_([a-zA-Z0-9_]+)_table_name$/', $key, $matches)) {
+                return $matches[1];
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Очистит файл php_errors.log
+     */
+    public function clear_php_logs($params = []) {
+        $this->access = array(1);
+        if (!SysClass::get_access_user($this->logged_in, $this->access) || array_filter($params)) {
+            SysClass::return_to_main();
+            exit();
+        }
+        $logFilePath = ENV_LOGS_PATH . 'php_errors.log';
+        if (file_exists($logFilePath)) {
+            file_put_contents($logFilePath, '');
+        }
+        SysClass::return_to_main(200, '/admin/logs');
+    }
+    
     /**
      * Очистить все таблицы без удаления проекта.
      * Таблицы нужно дополнять на своё усмотрение.
@@ -115,7 +353,7 @@ trait SystemsTrait {
      * @return bool Возвращает false, если тестовые данные уже были созданы.
      */
     public function create_test($params = []) {
-        $this->access = array(1, 2);
+        $this->access = [1, 2];
         if (!SysClass::get_access_user($this->logged_in, $this->access) || array_filter($params)) {
             SysClass::return_to_main();
             exit();

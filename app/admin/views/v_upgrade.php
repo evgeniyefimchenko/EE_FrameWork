@@ -13,7 +13,7 @@ $сс = rawurlencode("hedgehogelez@yandex.ru");
             <div class="col-md-12">
                 <h2 class="text-center">Это полностью бесплатное программное обеспечение.</h2>
                 Но если Вам понадобится интеграция то вы можете связаться со мной по следующим контактам:
-                <div class="card mt-3 pl-3 w-25">
+                <div class="card mt-3 pl-3 w-75">
                     <a href="tel:+79208245362" target="_BLANK">Позвонить - <span class="float-end badge bg-secondary">+7(920)824-53-62</span></a>
                     <a href="//efimchenko.ru" target="_BLANK">Мой сайт - <span class="float-end badge bg-secondary">efimchenko.com</span></a>
                     <a href='mailto:?subject=<?= $subject ?>&body=<?= $body ?>&cc=<?= $сс ?>&to=<?= $to ?>' target="_BLANK">Моя почта - <span class="float-end badge bg-secondary">evgeniy@efimchenko.ru</span></a>

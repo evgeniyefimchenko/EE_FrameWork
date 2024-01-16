@@ -146,8 +146,8 @@ class ModelEntities {
         $entity_data = SafeMySQL::gi()->filterArray($entity_data, SysClass::ee_get_fields_table(Constants::ENTITIES_TABLE));
         $entity_data = array_map('trim', $entity_data);
         $entity_data = SysClass::ee_convertArrayValuesToNumbers($entity_data);
-        $entity_data['parent_entity_id'] = (int) $entity_data['parent_entity_id'] !== 0 ? (int) $entity_data['parent_entity_id'] : NULL;
-        $entity_data['category_id'] = (int) $entity_data['parent_entity_id'] !== 0 ? (int) SafeMySQL::gi()->getOne('SELECT category_id FROM ?n WHERE entity_id=?i', Constants::ENTITIES_TABLE, $entity_data['parent_entity_id']) : (int) $entity_data['category_id'];
+        $entity_data['parent_entity_id'] = isset($entity_data['parent_entity_id']) && (int) $entity_data['parent_entity_id'] !== 0 ? (int) $entity_data['parent_entity_id'] : NULL;
+        $entity_data['category_id'] = isset($entity_data['parent_entity_id']) && (int) $entity_data['parent_entity_id'] !== 0 ? (int) SafeMySQL::gi()->getOne('SELECT category_id FROM ?n WHERE entity_id=?i', Constants::ENTITIES_TABLE, $entity_data['parent_entity_id']) : (int) $entity_data['category_id'];
         $entity_data['language_code'] = $language_code;  // добавлено
         if (empty($entity_data['title'])) {
             return false;

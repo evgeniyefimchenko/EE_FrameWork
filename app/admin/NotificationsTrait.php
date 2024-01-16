@@ -2,6 +2,9 @@
 
 namespace app\admin;
 
+use classes\system\SysClass;
+use classes\helpers\ClassNotifications;
+
 /**
  * Функции работы с оповещениями
  */
@@ -30,6 +33,9 @@ trait NotificationsTrait {
             exit();
         }        
         $post_data = SysClass::ee_cleanArray($_POST);
+        if (!is_array($post_data) || !isset($post_data['id']) || !is_numeric($post_data['id']) || !$post_data['id']) {
+            return;
+        }
         ClassNotifications::kill_notification_by_id($this->logged_in, $post_data['id']);
     }
 

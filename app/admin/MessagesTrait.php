@@ -5,6 +5,7 @@ namespace app\admin;
 use classes\system\SysClass;
 use classes\system\Plugins;
 use classes\helpers\ClassNotifications;
+use classes\system\Session;
 
 /**
  * Функции работы с сообщениями
@@ -98,9 +99,9 @@ trait MessagesTrait {
                 ],
             ]
         ];
-        $users = $this->users->get_users_data(false, 'WHERE user_id NOT IN (1,2,3)', false, 1000000);        
+        $users = $this->users->get_users_data(false, false, false, 100000000);        
         if (isset($users['data']) && count($users['data'])) {
-            foreach ($users as $item) {
+            foreach ($users['data'] as $item) {
                 $filter_authors[] = ['value' => $item['user_id'], 'label' => $item['name']];
             }
         } else {
@@ -135,23 +136,24 @@ trait MessagesTrait {
             ],
         ];
         if ($post_data && isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') { // AJAX
-            list($params, $filters, $selected_sorting) = Plugins::ee_show_table_prepare_params($post_data, $data_table['columns']);
+            list($params, $filters, $selected_sorting) = Plugins::ee_show_table_prepare_params($post_data, $data_table['columns']);            
+            $user_id = Session::get('get_messages_data_table_userID');
             $messages_array = $this->models['m_messages']->get_user_messages($user_id, $params['order'], $params['where'], $params['start'], $params['limit']);
         } else {
+            Session::set('get_messages_data_table_userID', $user_id);
             $messages_array = $this->models['m_messages']->get_user_messages($user_id, false, false, false, 25);
         }
         foreach ($messages_array['data'] as $item) {
             if ($this->logged_in == $user_id) {
                 $read_at = $item['read_at'] ? '<span class="p-3"><i class="fa-solid fa-check text-success" data-bs-toggle="tooltip" data-bs-placement="top"'
                         . 'title="' . $this->lang['sys.read'] . '"></i></span>' :
-                    '<a href="/admin/set_readed/id/' . $item['message_id'] . '"'
-                    . 'class="me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.mark_as_read'] . '">'
-                    . '<i class="fa-regular fa-eye"></i></a>';
+                        '<a href="/admin/set_readed/id/' . $item['message_id'] . '"'
+                        . 'class="btn btn-info me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.mark_as_read'] . '">'
+                        . '<i class="fa-regular fa-eye"></i></a>';
                 $actions = $read_at . '<a href="/admin/dell_message/id/' . $item['message_id'] . '" onclick="return confirm(\'' . $this->lang['sys.delete'] . '?\');" ' 
-                    . 'class="btn btn-danger me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.delete'] . '"><i class="fas fa-trash"></i></a>';
+                        . 'class="btn btn-danger me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.delete'] . '"><i class="fas fa-trash"></i></a>';
             } else { // Нельзя удалить или пометить прочитанными чужие сообщения
-                $actions = '';
-            }           
+            }
             $data_table['rows'][] = [
                 'message_id' => $item['message_id'],
                 'author_id' => $item['author_id'],
@@ -160,14 +162,14 @@ trait MessagesTrait {
                 'created_at' => date('d.m.Y h:i:s', strtotime($item['created_at'])),
                 'read_at' => $item['read_at'] ? date('d.m.Y h:i:s', strtotime($item['read_at'])) : '',
                 'actions' => $actions,
-                    'nested_table' => [
-                        'columns' => [
-                            ['field' => 'message_full_text', 'title' => $this->lang['sys.content'], 'width' => 20, 'align' => 'left'],
-                        ],
-                        'rows' => [
-                            ['message_full_text' => $item['message_text']],
-                        ],
-                    ],                
+                'nested_table' => [
+                    'columns' => [
+                        ['field' => 'message_full_text', 'title' => $this->lang['sys.content'], 'width' => 20, 'align' => 'left'],
+                    ],
+                    'rows' => [
+                        ['message_full_text' => $item['message_text']],
+                    ],
+                ]                
             ];
         }
         $data_table['total_rows'] = $messages_array['total_count'];
@@ -220,6 +222,7 @@ trait MessagesTrait {
         $message_id = filter_var($id_message, FILTER_VALIDATE_INT);
         $this->load_model('m_messages');
         $this->models['m_messages']->set_message_as_readed($message_id, $this->logged_in);
+        SysClass::return_to_main(200, '/admin/messages');
     }
 
     /**
@@ -244,6 +247,7 @@ trait MessagesTrait {
         $message_id = filter_var($params[0], FILTER_VALIDATE_INT);
         $this->load_model('m_messages');
         $this->models['m_messages']->kill_message($message_id, $this->logged_in);
+        SysClass::return_to_main(200, '/admin/messages');
     }
 
 }

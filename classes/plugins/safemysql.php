@@ -1,6 +1,7 @@
 <?php
 
 namespace classes\plugins;
+use classes\system\SysClass;
 
 abstract class Singleton {
 
@@ -267,13 +268,13 @@ class SafeMySQL extends Singleton {
      */
     public function getAll() {
         $ret = array();
-        $query = $this->prepareQuery(func_get_args());
-        if ($res = $this->rawQuery($query)) {
-            while ($row = $this->fetch($res)) {
+        $query = $this->prepareQuery(func_get_args());        
+        if ($res = $this->rawQuery($query)) {            
+            while ($row = $this->fetch($res)) {                
                 $ret[] = $row;
             }
             $this->free($res);
-        }
+        }        
         return $ret;
     }
 
@@ -429,17 +430,22 @@ class SafeMySQL extends Singleton {
         if (ENV_LOG) {
             $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
             foreach ($backtrace as $item) {
-                $arr_backtrace[] = ['function' => $item['function'], 'line' => $item['line'], 'file' => $item['file'], 
-                'class' => $item['class'], 'type' => $item['type']];
+                $arr_backtrace[] = [
+                    'function' => $item['function'] ?? '---',
+                    'line' => $item['line'] ?? '---',
+                    'file' => $item['file'] ?? '---',
+                    'class' => $item['class'] ?? '---',
+                    'type' => $item['type'] ?? '---'
+                ];
             }
         } else {
             $arr_backtrace = [];
         }
         // Получаем последний total_time из stats, если он существует
-         $lastTotalTime = 0; // значение по умолчанию
-         if (is_array($this->stats) && !empty($this->stats)) {
-             $lastTotalTime = isset(end($this->stats)['total_time']) ? end($this->stats)['total_time'] : 0;
-         }
+        $lastTotalTime = 0; // значение по умолчанию
+        if (is_array($this->stats) && !empty($this->stats)) {
+            $lastTotalTime = isset(end($this->stats)['total_time']) ? end($this->stats)['total_time'] : 0;
+        }
         // Считаем новый total_time
         $newTotalTime = $lastTotalTime + $timer;
         $this->stats[] = array(
