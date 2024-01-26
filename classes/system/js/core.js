@@ -11,7 +11,7 @@
                 },
                 error: function(error) {
                     console.error("Error loading language variables:", error);
-                    callback(); // даже в случае ошибки, мы продолжаем выполнение, чтобы не блокировать остальные скрипты
+                    callback();
                 }
             });
         } else {

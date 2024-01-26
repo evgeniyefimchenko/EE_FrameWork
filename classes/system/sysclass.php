@@ -941,6 +941,7 @@ class SysClass {
             try {
                 $db = new SafeMySQL(array($host, $user, $pass, $db_name));
                 $db->query('show tables like ?s', ENV_DB_PREF . 'users');
+                unset($db);
                 return true;
             } catch (Exception $ex) {
                 if (ENV_TEST) {

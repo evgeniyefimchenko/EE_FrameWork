@@ -359,7 +359,7 @@ trait SystemsTrait {
             exit();
         }
         // Путь к файлу-флагу
-        $flagFilePath = ENV_LOGS_PATH . '/test_data_created.txt';
+        $flagFilePath = ENV_LOGS_PATH . 'test_data_created.txt';
         // Проверяем, существует ли файл-флаг
         if (file_exists($flagFilePath)) {
             $text_sessage = 'Уже есть тестовые данные, для создания дополнительных удалите файл ' . $flagFilePath;

@@ -622,7 +622,7 @@ class Plugins {
      * @param array $fields
      * @return void Функция ничего не возвращает, выводит HTML напрямую.
      */
-    public static function renderPropertyHtmlFields(mixed $fields, array $default = [], array $lang = []) {
+    public static function renderPropertyHtmlFields(mixed $fields, mixed $default = [], array $lang = []) {
         $count = 0;
         $result = '';
         if (!is_array($fields) && is_string($fields)) {
@@ -643,6 +643,7 @@ class Plugins {
                         . 'value="' . $default[$count]['label'] . '" />&nbsp'
                         . '<span ' . (in_array($type, ["file", "image"]) ? " style=\"display: none;\"" : "") . '>' . $lang['sys.value'] . '</span>&nbsp';
             }
+            $default[$count]['default'] = isset($default[$count]['default']) ? $default[$count]['default'] : '';
             switch ($type) {
                 case 'text':
                     $result .= '<input type="text" class="form-control" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $lang['sys.default'] . '" '
@@ -1114,25 +1115,19 @@ class Plugins {
     public static function renderCategoryTree($categories, $parentId = "root") {
         $html = "<div class='accordion' id='accordionCategory{$parentId}'>";
         foreach ($categories as $category) {
-            // Пропускаем категорию с ID 0
             if ($category['category_id'] === 0) {
                 continue;
             }
-
             $childId = "category{$category['category_id']}";
             $titleWithId = "({$category['category_id']}) {$category['title']}";
-
-            // Определяем, есть ли дочерние элементы
             $hasChildren = !empty($category['children']);
             $buttonClass = $hasChildren ? 'accordion-button collapsed' : 'accordion-button collapsed no-chevron';
-
             $html .= "<div class='accordion-item'>
                         <h2 class='accordion-header' id='heading{$childId}'>
-                            <button class='{$buttonClass}' type='button' " . ($hasChildren ? "data-bs-toggle='collapse' data-bs-target='#collapse{$childId}' aria-expanded='false'" : "") . " aria-controls='collapse{$childId}'>
+                            <button class='{$buttonClass}' data-category_id='{$category['category_id']}' type='button' " . ($hasChildren ? "data-bs-toggle='collapse' data-bs-target='#collapse{$childId}' aria-expanded='false'" : "") . " aria-controls='collapse{$childId}'>
                                 {$titleWithId}
                             </button>
                         </h2>";
-
             if ($hasChildren) {
                 $html .= "<div id='collapse{$childId}' class='accordion-collapse collapse' aria-labelledby='heading{$childId}' data-bs-parent='#accordionCategory{$parentId}'>
                             <div class='accordion-body'>";
@@ -1140,11 +1135,9 @@ class Plugins {
                 $html .= "  </div>
                         </div>";
             }
-
             $html .= "</div>";
         }
         $html .= "</div>";
-
         return $html;
     }
 

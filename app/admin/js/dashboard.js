@@ -30,10 +30,10 @@ actions = {
                 } else {
                     if (data.notifications && typeof data.notifications[0] !== 'undefined') {
                         var d = new Date().getTime();                        
-                        for (key in data.notifications) {
+                        for (key in data.notifications) {                            
                             if (data.notifications[key].status === 'info' || data.notifications[key].status === 'success' || data.notifications[key].status === 'danger') {
                                 actions.showNotification(data.notifications[key].text, data.notifications[key].status);
-                                // Информационные сообщения прибиваем сразу
+                                // Информационные сообщения удаляем сразу
                                 $.post('/admin/kill_notification_by_id', {'id': data.notifications[key].id});
                             } else if (data.notifications[key].status === 'primary') {
                                 if ((parseInt(data.notifications[key].showtime) - parseInt(d)) <= 0) {
