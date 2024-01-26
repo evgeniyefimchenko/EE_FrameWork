@@ -234,11 +234,14 @@ class ModelCategories {
         // НУЖНО ПЕРЕДЕЛАТЬ TODO
 
         if ($category_data['parent_id']) {
-            
+            $category_data['type_id'] = SafeMySQL::gi()->getOne('SELECT type_id FROM ?n WHERE category_id = ?i', Constants::CATEGORIES_TABLE, $category_data['parent_id']);
+        } else if (!$category_data['type_id'] || !is_numeric($category_data['type_id'])) {
+            SysClass::pre_file('error', 'update_category_data', false, 'error type_id');
+            return false;            
         }
 
         if (empty($category_data['title'])) {
-            SysClass::pre_file('error', 'empty title');
+            SysClass::pre_file('error', 'update_category_data', false, 'empty title');
             return false;
         }
         if (!isset($category_data['description'])) {

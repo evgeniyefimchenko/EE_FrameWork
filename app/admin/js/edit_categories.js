@@ -14,11 +14,17 @@ $(document).ready(function () {
             'POST',
             'json',
             function(response) {
-                console.log(response);
                 $('#type_id-input').html(response.html);
             });
         } else {
             $('#type_id-input').html('<option value="" selected="">---</option>');
         }
+    });
+    $('.accordion-button').dblclick(function() {
+        var categoryID = $(this).data('category_id');
+        $('#parent_id-input').val(categoryID);
+        $('#parent_id-input').change();
+        $('#parents_modal').modal('hide');
+
     });
 });

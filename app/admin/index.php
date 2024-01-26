@@ -40,7 +40,7 @@ class ControllerIndex Extends ControllerBase {
          * 1-админ 2-модератор 3-продавец 4-пользователь
          * 100 - все зарегистрированные пользователи
          */
-        $this->access = array(100);
+        $this->access = [100];
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main(200, '/show_login_form?return=admin');
         }
@@ -270,7 +270,7 @@ class ControllerIndex Extends ControllerBase {
      * Коммерческое предложение
      */
     public function upgrade($params = []) {
-        $this->access = array(100);
+        $this->access = [100];
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main(200, '/show_login_form?return=admin');
         }
@@ -304,7 +304,7 @@ class ControllerIndex Extends ControllerBase {
      * @param POST $post_data - POST параметры update или get
      */
     public function ajax_admin(array $params = []) {
-        $this->access = array(100);
+        $this->access = [100];
         if (!SysClass::get_access_user($this->logged_in, $this->access) || count($params) > 0) {
             echo '{"error": "access denieded"}';
             exit();
@@ -358,9 +358,18 @@ class ControllerIndex Extends ControllerBase {
         } else {                                                                            // Не передан ключевой параметр id
             SysClass::return_to_main(200, ENV_URL_SITE . '/admin/user_edit/id/' . $this->logged_in);
         }
-
+        if (isset($get_user_context['new_user'])) {
+            $get_user_context['user_id'] = 0;
+            $get_user_context['name'] = '';
+            $get_user_context['email'] = '';
+            $get_user_context['phone'] = '';
+            $get_user_context['user_role_text'] = '';
+            $get_user_context['created_at'] = '';
+            $get_user_context['updated_at'] = '';
+            $get_user_context['last_activ'] = '';
+        }
         $this->load_model('m_user_edit');
-        /* Если не админ и модер и карточка не своя возвращаем */
+        /* Если не админ и не модератор и карточка не своя возвращаем */
         if ($this->users->data['user_role'] > 2 && $this->logged_in != $user_id) {
             SysClass::return_to_main(200, ENV_URL_SITE . '/admin/user_edit/id/' . $this->logged_in);
         }
@@ -394,7 +403,7 @@ class ControllerIndex Extends ControllerBase {
      * @return json сообщение об ошибке или no
      */
     public function ajax_user_edit($params) {
-        $this->access = array(100);
+        $this->access = [100];
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
             echo json_encode(array('error' => 'error no access'));
@@ -769,7 +778,7 @@ class ControllerIndex Extends ControllerBase {
      * @param array $params
      */
     public function send_message_admin($params = []) {
-        $this->access = array(100);
+        $this->access = [100];
         if (!SysClass::get_access_user($this->logged_in, $this->access) || count($params) > 0) {
             echo json_encode(array('error' => 'access denided'));
             exit();
@@ -839,7 +848,7 @@ class ControllerIndex Extends ControllerBase {
         }
         /* view */
         $this->get_standart_view();
-        $this->view->set('deleted_users_table', $this->users->get_users_data(false, false, 0, 1, true));
+        $this->view->set('deleted_users_table', $this->get_deleted_users_table());
         $this->view->set('body_view', $this->view->read('v_deleted_users'));
         $this->html = $this->view->read('v_dashboard');
         /* layouts */
@@ -849,6 +858,98 @@ class ControllerIndex Extends ControllerBase {
         $this->show_layout($this->parameters_layout);
     }
     
+    /**
+     * Вернёт таблицу удалённых пользователей
+     */
+    public function get_deleted_users_table() {
+        $this->access = [1, 2];
+        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
+            SysClass::return_to_main();
+            exit();
+        }
+        $post_data = SysClass::ee_cleanArray($_POST);
+        $data_table = [
+            'columns' => [
+                [
+                    'field' => 'user_id',
+                    'title' => 'ID',
+                    'sorted' => 'ASC',
+                    'filterable' => false,
+                    'width' => 10,
+                    'align' => 'center'
+                ], [
+                    'field' => 'name',
+                    'title' => $this->lang['sys.name'],
+                    'sorted' => true,
+                    'filterable' => true,
+                    'width' => 30,
+                ], [
+                    'field' => 'email',
+                    'title' => $this->lang['sys.email'],
+                    'sorted' => false,
+                    'filterable' => true,
+                    'width' => 20,
+                    'align' => 'center'
+                ], [
+                    'field' => 'user_role_text',
+                    'title' => $this->lang['sys.role'],
+                    'sorted' => true,
+                    'filterable' => false,
+                    'width' => 20,
+                    'align' => 'center'
+                ], [
+                    'field' => 'last_ip',
+                    'title' => $this->lang['sys.last_ip'],
+                    'sorted' => false,
+                    'filterable' => false,
+                    'width' => 10,
+                    'align' => 'center'
+                ], [
+                    'field' => 'actions',
+                    'title' => $this->lang['sys.action'],
+                    'sorted' => false,
+                    'filterable' => false,
+                    'width' => 10,
+                    'align' => 'center'
+                ],
+            ]
+        ];
+        $filters = [];
+        $this->load_model('m_user_edit');
+        if ($post_data && isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') { // AJAX
+            list($params, $filters, $selected_sorting) = Plugins::ee_show_table_prepare_params($post_data, $data_table['columns']);
+            $users_array = $this->users->get_users_data($params['order'], $params['where'], $params['start'], $params['limit'], true);
+        } else {
+            $users_array = $this->users->get_users_data(false, false, false, 25, true);
+        }
+        foreach ($users_array['data'] as $item) {
+            $data_table['rows'][] = [
+                'user_id' => $item['user_id'],
+                'name' => $item['name'],
+                'email' => $item['email'],
+                'user_role_text' => $item['user_role_text'],
+                'last_ip' => $item['last_ip'],
+                'actions' => '<a href="/admin/deleted_user_edit/id/' . $item['user_id'] . '" class="btn btn-primary me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.edit'] . '"><i class="fas fa-edit"></i></a>',
+            ];
+        }
+        $data_table['total_rows'] = $users_array['total_count'];
+        if ($post_data) {
+            echo Plugins::ee_show_table('deleted_users_table', $data_table, 'get_deleted_users_table', $filters, $post_data["page"], $post_data["rows_per_page"], $selected_sorting);
+            die;
+        } else {
+            return Plugins::ee_show_table('deleted_users_table', $data_table, 'get_deleted_users_table', $filters);
+        }
+    }
+    
+    /**
+    * Обрабатывает страницу редактирования удаленного пользователя
+    * Эта функция обрабатывает параметры запроса для получения данных удаленного пользователя и отображает страницу для его редактирования
+    * Доступ к этой функции имеют только пользователи с определенными правами (1 и 2)
+    * Если доступ запрещен или пользователь не найден, происходит перенаправление на главную страницу
+    * @param array $params Массив параметров из URL, например, ID пользователя
+    * Если ID пользователя не указан или не валиден, используется значение по умолчанию (false)
+    * @return void
+    */   
     public function deleted_user_edit($params = []) {
         $this->access = [1, 2];
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
@@ -860,20 +961,20 @@ class ControllerIndex Extends ControllerBase {
         if (in_array('id', $params)) {
             $key_id = array_search('id', $params);
             if ($key_id !== false && isset($params[$key_id + 1])) {
-                $id = filter_var($params[$key_id + 1], FILTER_VALIDATE_INT);
+                $user_id = filter_var($params[$key_id + 1], FILTER_VALIDATE_INT);
             } else {
-                $id = 0;
+                $user_id = 0;
             }            
-            $get_deleted_user_data = (int)$id ? $this->models['m_user_edit']->get_deleted_user_data($id) : $default_data;
+            $get_deleted_user_data = (int)$user_id ? $this->users->get_user_data($user_id) : $default_data;
             if (!$get_deleted_user_data) {
                 SysClass::return_to_main(200, ENV_URL_SITE . '/admin/deleted_users');
             }
         } else {
             SysClass::return_to_main(200, ENV_URL_SITE . '/admin/deleted_users');
         }
-        /* view */        
-        $this->view->set('deleted_user_data', $get_deleted_user_data);
+        /* view */
         $this->get_standart_view();
+        $this->view->set('deleted_user_data', $get_deleted_user_data);
         $this->view->set('body_view', $this->view->read('v_edit_deleted_users'));
         $this->html = $this->view->read('v_dashboard');
         /* layouts */

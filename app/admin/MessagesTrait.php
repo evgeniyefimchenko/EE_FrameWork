@@ -17,7 +17,7 @@ trait MessagesTrait {
      * Все сообщения текущего пользователя подгружаются в $user_data
      */
     public function messages($params = []) {
-        $this->access = array(100);
+        $this->access = [100];
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
             exit();
@@ -53,7 +53,7 @@ trait MessagesTrait {
      * Вернёт таблицу сообщений переданного пользователя
      */
     public function get_messages_data_table($user_id) {
-        $this->access = array(100);
+        $this->access = [100];
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
             exit();
@@ -185,7 +185,7 @@ trait MessagesTrait {
      * Отметить все сообщения пользователя прочитанными
      */
     public function read_all_message() {
-        $this->access = array(100);
+        $this->access = [100];
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main(401);
             exit;
@@ -199,7 +199,7 @@ trait MessagesTrait {
      * Удалить все сообщения пользователя
      */
     public function kill_all_message() {
-        $this->access = array(100);
+        $this->access = [100];
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main(401);
             exit();
@@ -214,7 +214,7 @@ trait MessagesTrait {
      * @param array $params - ID сообщения
      */
     public function set_readed($id_message = 0) {
-        $this->access = array(100);
+        $this->access = [100];
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main(401);
             exit();
@@ -239,7 +239,7 @@ trait MessagesTrait {
      * @param array $params - ID сообщения
      */
     public function dell_message($params) {
-        $this->access = array(100);
+        $this->access = [100];
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main(401);
             exit();

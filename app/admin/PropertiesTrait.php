@@ -325,7 +325,6 @@ trait PropertiesTrait {
             $all_status[$key] = $this->lang['sys.' . $value];
         }
         /* view */
-        // SysClass::pre($property_type_data);
         $this->view->set('property_type_data', $property_type_data);
         $this->view->set('all_status', $all_status);
         $this->get_standart_view();
@@ -359,20 +358,24 @@ trait PropertiesTrait {
         if (in_array('id', $params)) {
             $key_id = array_search('id', $params);
             if ($key_id !== false && isset($params[$key_id + 1])) {
-                $id = filter_var($params[$key_id + 1], FILTER_VALIDATE_INT);
+                $type_id = filter_var($params[$key_id + 1], FILTER_VALIDATE_INT);
             } else {
-               $id = 0; 
+               $type_id = 0; 
             }
-            if (isset($post_data['name']) && $post_data['name']) {
+            if (isset($post_data['name']) && $post_data['name'] && isset($post_data['property_data'])) {
                 $post_data['default_values'] = $this->prepare_default_values_property($post_data['property_data']);
                 if (!$new_id = $this->models['m_properties']->update_property_data($post_data)) {
                     ClassNotifications::add_notification_user($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
                 } else {
-                    $id = $new_id;
+                    $type_id = $new_id;
                     ClassNotifications::add_notification_user($this->logged_in, ['text' => $this->lang['sys.success'], 'status' => 'info']);
                 }
             }
-            $get_property_data = (int) $id ? $this->models['m_properties']->get_property_data($id) : $default_data;
+            if (isset($post_data['name']) && $post_data['name'] && isset($post_data['type_id']) && $post_data['type_id']) {
+                $default_data['name'] = $post_data['name'];
+                $default_data['type_id'] = $post_data['type_id'];
+            }
+            $get_property_data = (int) $type_id ? $this->models['m_properties']->get_property_data($type_id) : $default_data;
             $get_property_data = !$get_property_data ? $default_data : $get_property_data;
             $get_property_data['fields'] = isset($get_property_data['fields']) ? $get_property_data['fields'] : ['text'];
             $get_property_data['default_values'] = isset($get_property_data['default_values']) ? $get_property_data['default_values'] : [];

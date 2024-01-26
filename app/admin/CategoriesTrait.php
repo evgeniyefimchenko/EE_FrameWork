@@ -126,9 +126,8 @@ trait CategoriesTrait {
     /**
      * Получение возможного набора типов категорий
      * AJAX
-     * @param type $params
      */
-    public function get_type_category($params =[]) {
+    public function get_type_category() {
         $this->access = [1, 2];
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
@@ -143,7 +142,12 @@ trait CategoriesTrait {
         } else {
             $get_all_types = $this->models['m_categories_types']->get_all_types(false, false);
         }
-        echo json_encode(['html' => Plugins::show_type_categogy_for_select($get_all_types),
+        if (isset($get_all_types[0])) {
+            $selected_id = $get_all_types[0]['type_id'];
+        } else {
+            $selected_id = null;
+        }
+        echo json_encode(['html' => Plugins::show_type_categogy_for_select($get_all_types, $selected_id),
             'parent_type_id' => $type_id,
             'parent_id' => $post_data['parent_id'],
             'all_types' => $get_all_types]);
@@ -194,7 +198,7 @@ trait CategoriesTrait {
                 [
                     'field' => 'category_id',
                     'title' => 'ID',
-                    'sorted' => false,
+                    'sorted' => true,
                     'filterable' => false,
                     'width' => 5,
                     'align' => 'center'

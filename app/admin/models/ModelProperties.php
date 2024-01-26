@@ -113,13 +113,13 @@ class ModelProperties {
      */
     public function update_property_data($property_data = [], $language_code = ENV_DEF_LANG) {
         $property_data = SafeMySQL::gi()->filterArray($property_data, SysClass::ee_get_fields_table(Constants::PROPERTIES_TABLE));
-        if (is_array($property_data['default_values'])) {
+        if (is_array($property_data['default_values']) && count($property_data['default_values']) > 0) {
             $property_data['default_values'] = json_encode($property_data['default_values'], JSON_UNESCAPED_UNICODE);
         } elseif (!SysClass::ee_isValidJson($property_data['default_values'])) {
             $property_data['default_values'] = '[]';
         }        
         $property_data = array_map('trim', $property_data);
-        $property_data['is_multiple'] = $property_data['is_multiple'] == 'on' || $property_data['is_multiple'] == 1 ? 1 : 0;
+        $property_data['is_multiple'] = isset($property_data['is_multiple']) && ($property_data['is_multiple'] == 'on' || $property_data['is_multiple'] == 1) ? 1 : 0;
         $property_data['is_required'] = $property_data['is_required'] == 'on' || $property_data['is_required'] == 1 ? 1 : 0;
         $property_data['language_code'] = $language_code;  // добавлено
         if (empty($property_data['name']) || !isset($property_data['type_id'])) {

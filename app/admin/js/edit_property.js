@@ -100,7 +100,7 @@ $(document).ready(function () {
         } else {
             $(this).data('previous', currentSelectedValue);
             $('#fields_contents').remove();
-            $('button[type=submit]').click(); // Переписать на AJAX
+            $('button[type=submit]').click();
         }
     }).data('previous', $('#type_id-input').val());
 
