@@ -84,6 +84,12 @@ trait EntitiesTrait {
             SysClass::return_to_main(200, ENV_URL_SITE . '/admin/user_edit/id/' . $this->logged_in);
         }
         $get_all_types = $this->models['m_categories_types']->get_all_types();
+        $result = array_reduce($get_all_types, function($carry, $item) {
+          $carry[$item['type_id']] = $item;
+          return $carry;
+        }, []);
+        $get_all_types = $result;
+        unset($result);
         $get_all_categories = $this->models['m_categories']->getCategoriesTree(null, null, true);
         $get_all_entities = $this->models['m_entities']->get_all_entities($id);
         $get_all_properties = $this->models['m_properties']->get_all_properties('active', ENV_DEF_LANG, false);
@@ -101,13 +107,14 @@ trait EntitiesTrait {
         $this->view->set('body_view', $this->view->read('v_edit_entity'));
         $this->html = $this->view->read('v_dashboard');
         /* layouts */
+        $this->add_editor_to_layout();
         $this->parameters_layout["add_script"] .= '<script src="' . $this->get_path_controller() . '/js/edit_entities.js" type="text/javascript" /></script>';
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
         $this->parameters_layout["title"] = 'Редактирование Сущности';
         $this->show_layout($this->parameters_layout);
     }
- 
+    
     /**
      * Удаление сущности
      */

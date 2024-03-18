@@ -11548,10 +11548,10 @@ body {
 .expand_nested_table {
     background-color: #0dcaf0;
     margin-left: 15px;
-    padding: 2px;
+    padding: 2px 12px;
     width: 13px;
     cursor: pointer;
-    font-size: 10px;
+    font-size: 18px;
     border-radius: 5px;
 }
 
@@ -11578,4 +11578,9 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
+}
+
+.tab-pane label {
+    font-size: 22px;
+    margin-bottom: 3px;
 }

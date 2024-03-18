@@ -103,7 +103,7 @@ $(document).ready(function () {
             $('button[type=submit]').click();
         }
     }).data('previous', $('#type_id-input').val());
-
+    
 });
 
 function createModal(selectId) {

@@ -1067,7 +1067,7 @@ class SysClass {
      * @param mixed $result Результат для логирования.
      * @param mixed $details Дополнительные детали.
      */
-    public static function pre_file(string $subFolder, string $initiator, $result, $details = '') {
+    public static function pre_file(string $subFolder, string $initiator, mixed $result, mixed $details = ''): void {
         if (ENV_LOG) {
             $logsPath = ENV_LOGS_PATH . $subFolder;
             if (!file_exists($logsPath)) {
@@ -1088,6 +1088,8 @@ class SysClass {
             $result = var_export($result, true);
             $details = var_export($details, true);
             $path = $logsPath . ENV_DIRSEP . date("Y-m-d") . '.txt';
+            $result = is_array($result) ? json_encode($result, JSON_UNESCAPED_SLASHES) : $result;
+            $result = is_array($details) ? json_encode($details, JSON_UNESCAPED_SLASHES) : $details;
             $logMessage = "{START}";
             $logMessage .= PHP_EOL . "Время события: " . date("Y-m-d H:i:s");
             $logMessage .= PHP_EOL . "Инициатор: " . $initiator;
@@ -1095,7 +1097,7 @@ class SysClass {
             $logMessage .= PHP_EOL . "Детали: " . $details;
             $json = json_encode($formattedTrace, JSON_UNESCAPED_SLASHES);
             $logMessage .= PHP_EOL . "Полный стек вызовов: " . $json;
-            $logMessage .= "{END}" . PHP_EOL;
+            $logMessage .= PHP_EOL . "{END}" . PHP_EOL;
             file_put_contents($path, $logMessage, FILE_APPEND | LOCK_EX);
         }
     }
@@ -1105,8 +1107,8 @@ class SysClass {
      * @param string $string Строка для проверки.
      * @return bool Возвращает true, если строка является правильным JSON.
      */
-    public static function ee_isValidJson($string) {
-        json_decode($string);
+    public static function ee_isValidJson(mixed $string): bool {
+        $string = is_string($string) ? json_decode($string) : false;
         return json_last_error() === JSON_ERROR_NONE;
     }    
     

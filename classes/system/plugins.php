@@ -56,7 +56,14 @@ class Plugins {
      * @return string Возвращает HTML-код раздела фильтрации.
      */
     private static function generateFilterSection($id_table, $data_table, $filters) {
+        global $global_lang;
         $html = '';
+        $html .= '<button class="btn btn-primary mb-2" type="button" data-table="' . $id_table . '" data-bs-toggle="collapse" data-bs-target="#' . $id_table . '_filtersCollapse"'
+                . 'aria-expanded="false" id="' . $id_table . '_button_filtersCollapse" aria-controls="' . $id_table . '_filtersCollapse"><i class="fa-solid fa-filter"'
+                . 'data-bs-toggle="tooltip" data-bs-placement="top" id="' . $id_table . '_icon_filtersCollapse" title="' . $global_lang['sys.filtres'] . '"></i></button>';
+        // Начало блока collapse
+        $html .= '<div class="collapse" id="' . $id_table . '_filtersCollapse">';
+        $html .= '<div class="card card-body">';        
         // Раздел фильтрации
         if (!is_array($filters) || empty($filters)) {
             $filters = [];
@@ -132,7 +139,10 @@ class Plugins {
             $html .= '</div>';
         }
         $html .= '</div><div class="w-100 text-center"><button type="submit" class="btn btn-primary" form="' . $id_table . '_filters">Применить фильтры</button>
-					<button type="reset" id="' . $id_table . '_filters_reset" class="btn btn-secondary" form="' . $id_table . '_filters">Сбросить</button></div></form>';
+		<button type="reset" id="' . $id_table . '_filters_reset" class="btn btn-secondary" form="' . $id_table . '_filters">Сбросить</button></div>';
+        // Закрываем форму и блок collapse
+        $html .= '</form>';
+        $html .= '</div></div>'; // Закрываем .card-body и .collapse
         return $html;
     }
 
@@ -208,7 +218,7 @@ class Plugins {
                     $html .= $value;
                     if ($firstColumn && isset($row['nested_table'])) {
                         $html .= '<div class="expand_nested_table" data-nested_table="#' . $id_table . '_nested_table_' . $count_row . '">' .
-                                '<i class="fa fa-plus"></i></div>';  // Кнопка "плюс" в первой колонке
+                                '<i class="fa fa-plus" style="right: 8px; position: relative;"></i></div>';  // Кнопка "плюс" в первой колонке
                     }
                     $html .= '</td>';
                     $firstColumn = false;  // Сброс флага после обработки первой колонки
@@ -575,7 +585,7 @@ class Plugins {
      * @return string Сгенерированный HTML-код для верхнего navbar.
      */
     public static function generate_topbar($data) {
-        $html = '<nav class="sb-topnav navbar navbar-expand navbar-dark bg-dark">';
+        $html = '<nav class="sb-topnav navbar navbar-expand navbar-dark bg-dark" id="general_info">';
         $html .= '<a class="navbar-brand ps-3" href="' . $data['brand']['url'] . '" target="_BLANK">' . $data['brand']['name'] . '</a>';
         $html .= '<button class="btn btn-link btn-sm order-1 order-lg-0 me-4 me-lg-0" id="sidebarToggle" href="#!"><i class="fas fa-bars"></i></button>';
         $html .= '<form class="d-none d-md-inline-block form-inline ms-auto me-0 me-md-3 my-2 my-md-0"><div class="input-group"><input class="form-control" type="text" placeholder="Поиск..." aria-label="Поиск..." aria-describedby="btnNavbarSearch" /><button class="btn btn-primary" id="btnNavbarSearch" type="button"><i class="fas fa-search"></i></button></div></form>';
@@ -608,7 +618,8 @@ class Plugins {
             if ($item === 'divider') {
                 $html .= '<li><hr class="dropdown-divider" /></li>';
             } else {
-                $html .= '<li><a class="dropdown-item" href="' . $item['link'] . '">' . $item['title'] . '</a></li>';
+                $meta = isset($item['meta']) ? $item['meta'] : '';
+                $html .= '<li><a class="dropdown-item" ' . $meta . ' href="' . $item['link'] . '">' . $item['title'] . '</a></li>';
             }
         }
         $html .= '</ul></li></ul></nav>';
@@ -631,10 +642,14 @@ class Plugins {
         if (!is_array($default) && is_string($default)) {
             $default = json_decode($default, true);
         }
+        $not_default = false;
         if (!count($default)) {
-            $default[] = ['label' => '', 'default' => '', 'required' => 0, 'multiple' => 0];
+            $not_default = true;
         }
         foreach ($fields as $type) {
+            if ($not_default) {
+                $default[$count] = ['label' => '', 'default' => '', 'required' => 0, 'multiple' => 0, 'title' => ''];
+            }
             $result .= $lang['sys.type'] . ' ' . ucfirst($type) . ': ';
             $result .= '<div class="col-12 col-sm-12 mt-2 d-flex align-items-center property_content">';
             if ($type !== 'checkbox' && $type !== 'radio') {
@@ -761,13 +776,13 @@ class Plugins {
                         $count_items = $default[$count]['count'];
                     }
                     $add_html = '';
+                    $first_element = ['name' => '', 'checked' => 0];
                     if ($count_items) {
-                        $first_element = ['name' => '', 'checked' => 0];
                         $default_arr = array_flip(explode(',', $default[$count]['default']));
-                        $value_count = 0;
+                        $value_count = 0;                        
                         foreach ($default[$count]['label'] as $k => $name) {
                             if (!$value_count) {
-                                $first_element = ['name' => $name, 'checked' => $default_arr[$k]];
+                                $first_element = ['name' => $name, 'checked' => isset($default_arr[$k]) ? $default_arr[$k] : 0];
                                 $value_count++;
                                 continue;
                             }
@@ -811,19 +826,24 @@ class Plugins {
     }
 
     /**
-     * Вывод свойств для сущности !!!&&&!!
+     * Вывод свойств для сущности !!!&&&!! TODO
      * @param type $params
      */
-    public static function renderPropertyHtmlFieldsByAdmin(mixed $fields, array $default = [], array $lang = []) {
+    public static function renderPropertyHtmlFieldsByAdmin(mixed $fields, mixed $default = []) {
+        global $global_lang;
+        $lang = $global_lang;
         $count = 0;
         $result = '';
         if (!is_array($fields) && is_string($fields)) {
             $fields = json_decode($fields, true);
         }
+        if (!is_array($fields)) {
+            $fields = [];
+        }
         if (!is_array($default) && is_string($default)) {
             $default = json_decode($default, true);
         }
-        if (!count($default)) {
+        if (!is_array($default) || !count($default)) {
             $default[] = ['label' => '', 'default' => '', 'required' => 0, 'multiple' => 0];
         }
         foreach ($fields as $type) {

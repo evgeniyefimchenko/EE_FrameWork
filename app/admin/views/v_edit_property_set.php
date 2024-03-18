@@ -12,7 +12,7 @@ use classes\system\Plugins;
                class="btn btn-info mx-1 float-end<?= empty($property_set_data['set_id']) ? " d-none" : "" ?>">
                 <i class="fa fa-plus-circle"></i>&nbsp;<?= $lang['sys.add'] ?>
             </a>
-            <h1 class="mt-4"><?= !$property_set_data ? 'Добавить Набор' : 'Редактировать Набор' ?></h1>
+            <h1 class="mt-4"><?= !$property_set_data ? $lang['sys.add'] : $lang['sys.edit'] ?></h1>
             <ol class="breadcrumb mb-4">
                 <li>
                     <span id="set_id" data-id="<?= $property_set_data['set_id'] ?>">id = <?php echo !$property_set_data['set_id'] ? 'Не присвоен' : $property_set_data['set_id'] ?></span>
@@ -23,10 +23,10 @@ use classes\system\Plugins;
                 <div class="col">
                     <ul class="nav nav-tabs" id="eeTab" role="tablist">
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic-tab-pane" type="button" role="tab" aria-controls="basic-tab-pane" aria-selected="true"><?=$lang['sys.basics']?></button>
+                            <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic-tab-pane" type="button" role="tab" aria-controls="basic-tab-pane" aria-selected="true"><?= $lang['sys.basics'] ?></button>
                         </li>
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="basic-tab" data-bs-toggle="tab" data-bs-target="#properties-tab-pane" type="button" role="tab" aria-controls="properties-tab-pane" aria-selected="true"><?=$lang['sys.properties']?></button>
+                            <button class="nav-link" id="basic-tab" data-bs-toggle="tab" data-bs-target="#properties-tab-pane" type="button" role="tab" aria-controls="properties-tab-pane" aria-selected="true"><?= $lang['sys.properties'] ?></button>
                         </li>
                     </ul>
                     <div class="tab-content" id="eeTabContent">
@@ -34,25 +34,25 @@ use classes\system\Plugins;
                         <div class="tab-pane fade show active mt-3" id="basic-tab-pane" role="tabpanel" aria-labelledby="basic-tab">
                             <div class="row mb-3">
                                 <div class="col-4 col-sm-3">
-                                    <label for="name-input"><?=$lang['sys.title']?>:</label>                                    
+                                    <label for="name-input"><?= $lang['sys.title'] ?>:</label>                                    
                                     <input required type="text" id="name-input" name="name" class="form-control" placeholder="Введите название..." value="<?= $property_set_data['name'] ?>">                                    
                                 </div>
                             </div>
                             <div class="row mb-3">
                                 <div class="row mb-3">
                                     <div class="col-12 col-sm-12">
-                                        <label for="description-input"><?=$lang['sys.description']?>:</label>
+                                        <label for="description-input"><?= $lang['sys.description'] ?>:</label>
                                         <textarea id="description-input" name="description" class="form-control"><?= $property_set_data['description'] ?></textarea>
                                     </div>
                                 </div>
                             </div>
                             <div class="row mb-3">
                                 <div class="col-3">
-                                    <label for="registration-date-input"><?=$lang['sys.date_create']?>:</label>
+                                    <label for="registration-date-input"><?= $lang['sys.date_create'] ?>:</label>
                                     <input type="text" disabled  class="form-control" value="<?= $property_set_data['created_at'] ?>">
                                 </div>
                                 <div class="col-3">
-                                    <label for="update-date-input"><?=$lang['sys.date_update']?>:</label>
+                                    <label for="update-date-input"><?= $lang['sys.date_update'] ?>:</label>
                                     <input type="text" disabled class="form-control" value="<?= $property_set_data['updated_at'] ?>">
                                 </div>
                             </div>                            

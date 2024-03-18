@@ -7,5 +7,6 @@
 		<a href="/show_login_form">Авторизация</a><br/>
 	<?php } ?>
 	<a href="/about">О проекте</a><br/>
+	<a href="/docs">Документация</a><br/>
 	<a href="/contact">Контакты</a><br/>
 </div>

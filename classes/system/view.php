@@ -9,6 +9,12 @@ namespace classes\system;
 class View {
 
     private array $vars = [];
+    private $templateEngine = 'plain'; // Текущий шаблонизатор (может быть 'plain', 'smarty', 'twig')
+
+    // Установка шаблонизатора
+    public function setTemplateEngine(string $engine): void {
+        $this->templateEngine = $engine;
+    }
 
     /**
      * Устанавливает переменную представления.
@@ -55,38 +61,45 @@ class View {
         unset($this->vars[$varname]);
     }
 
-    /**
-     * Загружает представление.
-     * @param string $name Имя представления.
-     * @param string $add_path Дополнительный путь к представлению.
-     * @param bool $full_path Если true, используется полный путь.
-     * @return string Содержимое загруженного представления.
-     */
     public function read(string $name, string $add_path = '', bool $full_path = false): string {
-        $path = $full_path ? $name : dirname(ENV_CONTROLLER_PATH) . ENV_DIRSEP . 'views' . ENV_DIRSEP . $add_path . $name . '.php';
-        if (!file_exists($path)) {
-            return 'Шаблон `' . $name . '` не существует. Путь поиска: ' . $path;
-        }
-        extract($this->vars);
-        ob_start();
-        try {
-            include_once($path);
-        } catch (Throwable $e) {
-            ob_end_clean();
-            throw $e;
-        }
-        return ob_get_clean();
-    }
+        $path = $full_path ? $name : dirname(ENV_CONTROLLER_PATH) . ENV_DIRSEP . 'views' . ENV_DIRSEP . $add_path . $name;
+        $content = '';
 
-    /**
-     * Проверяет, существует ли переданное представление.
-     * @param string $view Имя представления.
-     * @return string|bool Полный путь к представлению, если оно существует, иначе FALSE.
-     */
-    public function view_exists(string $view): string|bool {
-        $view_file = $view . '.php';
-        $path = dirname(ENV_CONTROLLER_PATH) . ENV_DIRSEP . 'views';
-        return Sysclass::search_file($path, $view_file);
+        switch ($this->templateEngine) {
+            case 'smarty':
+                // Здесь должен быть код для обработки шаблона с использованием Smarty
+                // Пример:
+                // $smarty = new Smarty;
+                // $smarty->assign($this->vars);
+                // $content = $smarty->fetch($path . '.tpl');
+                break;
+
+            case 'twig':
+                // Здесь должен быть код для обработки шаблона с использованием Twig
+                // Пример:
+                // $loader = new \Twig\Loader\FilesystemLoader(dirname($path));
+                // $twig = new \Twig\Environment($loader);
+                // $content = $twig->render(basename($path) . '.twig', $this->vars);
+                break;
+
+            default:
+                // Обработка стандартного PHP-шаблона
+                if (!file_exists($path . '.php')) {
+                    return 'Шаблон `' . $name . '` не существует. Путь поиска: ' . $path;
+                }
+                extract($this->vars);
+                ob_start();
+                try {
+                    include_once($path . '.php');
+                } catch (Throwable $e) {
+                    ob_end_clean();
+                    throw $e;
+                }
+                $content = ob_get_clean();
+                break;
+        }
+
+        return $content;
     }
 
 }

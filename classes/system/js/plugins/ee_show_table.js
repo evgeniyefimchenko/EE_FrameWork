@@ -34,7 +34,7 @@ $(document).ready(function () {
             let newSort = (currentSort.toUpperCase() === "ASC") ? "DESC" : "ASC";
             // Добавляем (или изменяем) input в форме с новым значением сортировки
             let sortInput = $("#" + tableId + "_filters input[name='sort_" + field + "']");
-            $('input[name^="sort_"]').not(sortInput).each(function() {
+            $('input[name^="sort_"]').not(sortInput).each(function () {
                 var currentName = $(this).attr('name');
                 $(this).attr('name', currentName + '_disabled');
             });
@@ -45,7 +45,7 @@ $(document).ready(function () {
             }
             if (pageInput.length) {
                 pageInput.val(1); // После сортировки принудительно возвращаем на первую страницу
-            }            
+            }
             $("#" + tableId + "_filters").trigger("submit");
         });
         // Обработчик события click на кнопке сброса
@@ -85,7 +85,7 @@ $(document).ready(function () {
         // Скрытие и раскрытие дополнительной таблицы
         $(document).off("click", ".expand_nested_table").on("click", ".expand_nested_table", function () {
             var nestedTable = $($(this).attr('data-nested_table'));
-            nestedTable.slideToggle(100, function() {
+            nestedTable.slideToggle(100, function () {
                 var icon = $(this).find('i');
                 if (nestedTable.is(':visible')) {
                     icon.removeClass('fa-plus').addClass('fa-minus');
@@ -131,4 +131,33 @@ $(document).ready(function () {
         let tableId = $(this).attr('data-tableID');
         initEventHandlers(tableId);
     });
+    // Функция для переключения иконки, определенная на верхнем уровне
+    function toggleIcon(isOpen, tableId) {
+        let iconSelector = '#' + tableId + '_icon_filtersCollapse'; // Селектор иконки
+        let $icon = $(iconSelector);
+        if (isOpen === true && $icon.hasClass('fa-filter')) {
+            $icon.removeClass('fa-filter').addClass('fa-filter-circle-xmark');
+        } else {
+            $icon.removeClass('fa-filter-circle-xmark').addClass('fa-filter');
+        }
+    }
+
+    // Обработчик клика для всех кнопок, управляющих фильтрами
+    $("[data-bs-toggle='collapse']").on('click', function () {
+        let tableId = $(this).data('table'); // Получаем ID таблицы
+        let targetCollapse = '#' + tableId + '_filtersCollapse'; // Селектор целевого элемента для сворачивания/разворачивания
+        // Проверяем состояние сворачиваемого элемента перед выполнением действия
+        let isOpen = !$(targetCollapse).hasClass('show');
+        toggleIcon(isOpen, tableId);
+    });
+
+    // Обработчики событий для Bootstrap collapse
+    $('.collapse').on('shown.bs.collapse', function () {
+        let tableId = $(this).attr('id').split('_')[0]; // Получаем ID таблицы из ID элемента
+        toggleIcon(true, tableId);
+    }).on('hidden.bs.collapse', function () {
+        let tableId = $(this).attr('id').split('_')[0];
+        toggleIcon(false, tableId);
+    });
+
 });

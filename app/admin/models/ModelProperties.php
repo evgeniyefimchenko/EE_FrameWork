@@ -111,18 +111,19 @@ class ModelProperties {
      * @param string $language_code Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG.
      * @return int|bool ID обновленного свойства или false в случае неудачи.
      */
-    public function update_property_data($property_data = [], $language_code = ENV_DEF_LANG) {
+    public function update_property_data($property_data = [], $language_code = ENV_DEF_LANG) {        
         $property_data = SafeMySQL::gi()->filterArray($property_data, SysClass::ee_get_fields_table(Constants::PROPERTIES_TABLE));
-        if (is_array($property_data['default_values']) && count($property_data['default_values']) > 0) {
+        if (is_array($property_data['default_values'])) {
             $property_data['default_values'] = json_encode($property_data['default_values'], JSON_UNESCAPED_UNICODE);
         } elseif (!SysClass::ee_isValidJson($property_data['default_values'])) {
             $property_data['default_values'] = '[]';
         }        
         $property_data = array_map('trim', $property_data);
         $property_data['is_multiple'] = isset($property_data['is_multiple']) && ($property_data['is_multiple'] == 'on' || $property_data['is_multiple'] == 1) ? 1 : 0;
-        $property_data['is_required'] = $property_data['is_required'] == 'on' || $property_data['is_required'] == 1 ? 1 : 0;
+        $property_data['is_required'] = isset($property_data['is_required']) && ($property_data['is_required'] == 'on' || $property_data['is_required'] == 1) ? 1 : 0;
         $property_data['language_code'] = $language_code;  // добавлено
         if (empty($property_data['name']) || !isset($property_data['type_id'])) {
+            SysClass::pre_file('error', 'update_property_data', 'Error: property_data', $property_data);
             return false;
         }
         if (!empty($property_data['property_id']) && $property_data['property_id'] != 0) {
@@ -141,7 +142,7 @@ class ModelProperties {
                 $property_data['name'], $property_data['type_id'], $language_code
         );
         if ($existingProperty) {
-            SysClass::pre_file('error', 'update_property_data Error: existingProperty', $property_data);
+            SysClass::pre_file('error', 'update_property_data', 'Error: existingProperty', $property_data);
             return false;
         }
         $sql = "INSERT INTO ?n SET ?u";

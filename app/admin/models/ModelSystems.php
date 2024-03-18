@@ -144,22 +144,22 @@ class ModelSystems {
             } elseif (strpos($line, 'Инициатор: ') === 0) {
                 $log['initiator'] = trim(substr($line, strlen('Инициатор: ')));
             } elseif (strpos($line, 'Результат: ') === 0) {
-                $log['result'] = trim(substr($line, strlen('Результат: ')), " '");
+                $log['result'] = trim(substr($line, strlen('Результат: ')), " '");                
             } elseif (strpos($line, 'Детали: ') === 0) {
                 $log['details'] = trim(substr($line, strlen('Детали: ')));
             } elseif (strpos($line, 'Полный стек вызовов: ') === 0) {
                 $json_data = trim(substr($line, strlen('Полный стек вызовов: ')));
                 if (SysClass::ee_isValidJson($json_data)) {
                     $log['stack_trace'] = json_decode($json_data, true);                    
-                    $stack = $string = '';
+                    $stack = '';
                     $count = 0;
                     foreach ($log['stack_trace'] as $item) {
+                        $string = '';
                         foreach ($item as $key => $value) {
                             $string .= '<b>' . $key . '</b>: ' . $value . '<br/>';                            
                         }
                         $count++;
-                        $stack .= '#' . $count . ' ' . trim($string);
-                        $string = '<hr/>';
+                        $stack .= '#' . $count . '<br/>' . trim($string) . '<hr/>';
                     }                    
                     $log['stack_trace'] = $stack;                    
                 } else {

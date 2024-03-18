@@ -209,52 +209,9 @@ class ControllerIndex Extends ControllerBase {
                 ],
             // ... другие строки ...
             ],
-            'total_rows' => 1020  // Общее количество записей (используется для пагинации)
-        ];
+            'total_rows' => 1110  // Общее количество записей (используется для пагинации)
+        ];      
         $filters = [];
-        $filters = [
-            'column1' => [
-                'type' => 'text', // тип фильтра: текстовое поле
-                'id' => "name", // идентификатор фильтра должен совпадать с ['columns']['field']
-                'value' => '', // значение по умолчанию
-                'label' => 'ФИО' // метка или заголовок фильтра
-            ],
-            'column2' => [
-                'type' => 'select', // тип фильтра: выпадающий список
-                'id' => "age",
-                'value' => ['option2', 'option1'],
-                'label' => 'Возраст',
-                'options' => [// опции для выпадающего списка
-                    ['value' => 'option1', 'label' => '30+'],
-                    ['value' => 'option2', 'label' => '100-']
-                ],
-                'multiple' => true
-            ],
-            'column3' => [
-                'type' => 'checkbox', // тип фильтра: флажок
-                'id' => "address",
-                'value' => ['option1', 'option2'],
-                'label' => 'Адрес проживания',
-                'options' => [// опции для флажка
-                    ['value' => 'option1', 'label' => 'Москва', 'id' => 'option1_id'],
-                    ['value' => 'option3', 'label' => 'Не москва', 'id' => 'option3_id'],
-                    ['value' => 'option4', 'label' => 'Край света', 'id' => 'option4_id'],
-                    ['value' => 'option2', 'label' => 'Начало света', 'id' => 'option2_id']
-                ]
-            ],
-            'columnDate' => [
-                'type' => 'text',
-                'id' => "gender",
-                'value' => '',
-                'label' => 'Пол'
-            ],
-            'columnDate1' => [
-                'type' => 'date',
-                'id' => "registration_date",
-                'value' => '2023-08-10', // Пример даты по умолчанию
-                'label' => 'Дата регистрации'
-            ],
-        ];
         $post_data = SysClass::ee_cleanArray($_POST);
         if ($post_data && isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') { // AJAX						
             list($params, $filters, $selected_sorting) = Plugins::ee_show_table_prepare_params($post_data, $data_table['columns']);
@@ -295,7 +252,6 @@ class ControllerIndex Extends ControllerBase {
         $this->view->set('top_bar', $this->view->read('v_top_bar'));
         $this->view->set('main_menu', $this->view->read('v_main_menu'));
         $this->view->set('page_footer', $this->view->read('v_footer'));
-        $this->parameters_layout["add_script"] .= '<script>var tooltipTriggerList = [].slice.call(document.querySelectorAll(\'[data-bs-toggle="tooltip"]\'));var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {return new bootstrap.Tooltip(tooltipTriggerEl)});</script>';
     }
 
     /**
@@ -358,7 +314,7 @@ class ControllerIndex Extends ControllerBase {
         } else {                                                                            // Не передан ключевой параметр id
             SysClass::return_to_main(200, ENV_URL_SITE . '/admin/user_edit/id/' . $this->logged_in);
         }
-        if (isset($get_user_context['new_user'])) {
+        if (isset($get_user_context['new_user']) && $get_user_context['new_user']) {
             $get_user_context['user_id'] = 0;
             $get_user_context['name'] = '';
             $get_user_context['email'] = '';
@@ -389,6 +345,12 @@ class ControllerIndex Extends ControllerBase {
         /* layouts */
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
+	$this->parameters_layout["add_style"] .= '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@ckeditor/ckeditor5-build-classic@latest/build/ckeditor.css">';
+	$this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/elfinder/2.1.9/css/elfinder.min.css">' .
+                                                 '<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/elfinder/2.1.9/css/theme.css">';
+        $this->parameters_layout["add_script"] .= '<script src="https://cdn.jsdelivr.net/npm/@ckeditor/ckeditor5-build-classic@latest/build/ckeditor.js"></script>';
+        $this->parameters_layout["add_script"] .= '<script src="https://cdn.ckeditor.com/ckeditor5/41.1.0/classic/translations/ru.js"></script>';
+        $this->parameters_layout["add_script"] .= '<script src="https://cdnjs.cloudflare.com/ajax/libs/elfinder/2.1.9/js/elfinder.min.js"></script>';
         $this->parameters_layout["add_script"] .= '<script src="' . ENV_URL_SITE . '/assets/js/plugins/JQ_mask.js" type="text/javascript" /></script>';
         $this->parameters_layout["add_script"] .= '<script src="' . $this->get_path_controller() . '/js/edit_user.js" type="text/javascript" /></script>';
         $this->parameters_layout["title"] = $this->lang['sys.user_edit'];
@@ -426,7 +388,7 @@ class ControllerIndex Extends ControllerBase {
             unset($post_data['phone']);
         }
 
-        if ($post_data['new'] == '1') {
+        if (isset($post_data['new']) && $post_data['new'] == 1) {
             if ($this->users->registration_new_user($post_data)) {
                 $new_id = $this->users->get_user_id(trim($post_data['email']));
                 echo json_encode(array('error' => 'no', 'id' => $new_id));
@@ -436,7 +398,7 @@ class ControllerIndex Extends ControllerBase {
                 exit();
             }
         }
-        if ($post_data['subscribed']) {
+        if (isset($post_data['subscribed']) && $post_data['subscribed']) {
             $post_data['subscribed'] = 1;
         } else {
             $post_data['subscribed'] = 0;
@@ -984,5 +946,14 @@ class ControllerIndex Extends ControllerBase {
         $this->parameters_layout["add_script"] .= '<script src="' . $this->get_path_controller() . '/js/edit_deleted_user.js" type="text/javascript" /></script>';
         $this->show_layout($this->parameters_layout);        
     }
+    
+    /**
+     * Добавит необходимые стили и скрипты для подключения редактора
+     */
+    private function add_editor_to_layout() {
+    	$this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/elfinder/2.1.9/css/elfinder.min.css">' .                                                 '<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/elfinder/2.1.9/css/theme.css">';
+        $this->parameters_layout["add_script"] .= '<script src="' . ENV_URL_SITE . '/assets/editor/tinymce/tinymce.min.js"></script>';
+        $this->parameters_layout["add_script"] .= '<script src="https://cdnjs.cloudflare.com/ajax/libs/elfinder/2.1.9/js/elfinder.min.js"></script>';
+    }    
     
 }

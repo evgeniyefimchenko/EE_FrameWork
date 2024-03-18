@@ -1,4 +1,4 @@
-/*Страница админ-панели подключается в layouts Подключается на всех страницах админ-панели*/
+/* Страница админ-панели подключается в layouts Подключается на всех страницах админ-панели */
 var text_message, color;
 
 actions = {
@@ -29,8 +29,8 @@ actions = {
                     actions.showNotification(lang_var('sys.data_read_error'), 'danger');
                 } else {
                     if (data.notifications && typeof data.notifications[0] !== 'undefined') {
-                        var d = new Date().getTime();                        
-                        for (key in data.notifications) {                            
+                        var d = new Date().getTime();
+                        for (key in data.notifications) {
                             if (data.notifications[key].status === 'info' || data.notifications[key].status === 'success' || data.notifications[key].status === 'danger') {
                                 actions.showNotification(data.notifications[key].text, data.notifications[key].status);
                                 // Информационные сообщения удаляем сразу
@@ -97,35 +97,33 @@ function setActiveNavLink(path) {
 $(document).ready(function () {
     // Отметить выбранный элемент меню
     setActiveNavLink(window.location.pathname);
-    
     // Пометить все сообщения прочитанными
     $('#set_readed_all, #read_all_message').click(function () {
         let return_url = $(this).data('return');
-        $.ajax({
-            url: '/admin/set_readed_all',
-            success: function () {
-                window.location = return_url;
-            },
-            error: function (xhr, ajaxOptions, thrownError) {
-                console.log(xhr.status, xhr.responseText, thrownError, ajaxOptions);
-            }
-        });
+        sendAjaxRequest(
+                '/admin/set_readed_all', // URL
+                {}, // Data
+                'GET', // Method
+                'json', // DataType
+                function () {
+                    window.location = return_url; // SuccessCallback
+                },
+                function (xhr, textStatus, errorThrown) { // ErrorCallback
+                    console.log(xhr.status, xhr.responseText, errorThrown, textStatus);
+                }
+        );
+    });
+    // Нужно закомментировать что бы удалить эффект
+    let $sidebarToggle = $('#sidebarToggle');
+    // Сохранение состояния сайдбара в localStorage
+    if (localStorage.getItem('sb|sidebar-toggle') === 'true') {
+        $('body').addClass('sb-sidenav-toggled');
+    }
+    $sidebarToggle.click(function (e) {
+        e.preventDefault();
+        $('body').toggleClass('sb-sidenav-toggled');
+        localStorage.setItem('sb|sidebar-toggle', $('body').hasClass('sb-sidenav-toggled'));
     });
     $(".preloader").fadeOut();
 });
 
-window.addEventListener('DOMContentLoaded', event => {
-    const sidebarToggle = document.body.querySelector('#sidebarToggle');
-    if (sidebarToggle) {
-        // Раскомментируйте чтобы сохранить боковую панель при обновлении страницы
-        if (localStorage.getItem('sb|sidebar-toggle') === 'true') {
-            document.body.classList.toggle('sb-sidenav-toggled');
-        }
-        //
-        sidebarToggle.addEventListener('click', event => {
-            event.preventDefault();
-            document.body.classList.toggle('sb-sidenav-toggled');
-            localStorage.setItem('sb|sidebar-toggle', document.body.classList.contains('sb-sidenav-toggled'));
-        });
-    }
-});
