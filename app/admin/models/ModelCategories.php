@@ -236,12 +236,12 @@ class ModelCategories {
         if ($category_data['parent_id']) {
             $category_data['type_id'] = SafeMySQL::gi()->getOne('SELECT type_id FROM ?n WHERE category_id = ?i', Constants::CATEGORIES_TABLE, $category_data['parent_id']);
         } else if (!$category_data['type_id'] || !is_numeric($category_data['type_id'])) {
-            SysClass::pre_file('error', 'update_category_data', false, 'error type_id');
-            return false;            
+            SysClass::pre_file('error', 'update_category_data', 'error type_id', $category_data);
+            return false;
         }
 
         if (empty($category_data['title'])) {
-            SysClass::pre_file('error', 'update_category_data', false, 'empty title');
+            SysClass::pre_file('error', 'update_category_data', 'empty title', $category_data);
             return false;
         }
         if (!isset($category_data['description'])) {
@@ -253,7 +253,7 @@ class ModelCategories {
             $sql = "UPDATE ?n SET ?u WHERE `category_id` = ?i AND language_code = ?s";
             $result = SafeMySQL::gi()->query($sql, Constants::CATEGORIES_TABLE, $category_data, $category_id, $language_code);
             if (!$result) {
-                SysClass::pre_file('error', 'error SQL ' . SafeMySQL::gi()->parse($sql, Constants::CATEGORIES_TABLE, $category_data, $category_id, $language_code));
+                SysClass::pre_file('error', 'update_category_data', 'error SQL ' . SafeMySQL::gi()->parse($sql, Constants::CATEGORIES_TABLE, $category_data, $category_id, $language_code));
             }
             return $result ? $category_id : false;
         } else {
@@ -267,13 +267,13 @@ class ModelCategories {
         );
         if ($existingCategory) {
             ClassNotifications::add_notification_user($this->logged_in, ['text' => 'Не уникальное имя в рамках одного типа категории!', 'status' => 'danger']);
-            SysClass::pre_file('error', 'existingCategory title: ' . $category_data['title'] . ' type_id: ' . $category_data['type_id']);
+            SysClass::pre_file('error', 'update_category_data', 'existingCategory title: ' . $category_data['title'] . ' type_id: ' . $category_data['type_id']);
             return false;
         }
         $sql = "INSERT INTO ?n SET ?u";
         $result = SafeMySQL::gi()->query($sql, Constants::CATEGORIES_TABLE, $category_data);
         if (!$result) {
-            SysClass::pre_file('error', 'error SQL ' . SafeMySQL::gi()->parse($sql, Constants::CATEGORIES_TABLE, $category_data));
+            SysClass::pre_file('error', 'update_category_data', 'error SQL ' . SafeMySQL::gi()->parse($sql, Constants::CATEGORIES_TABLE, $category_data));
         }
         return $result ? SafeMySQL::gi()->insertId() : false;
     }

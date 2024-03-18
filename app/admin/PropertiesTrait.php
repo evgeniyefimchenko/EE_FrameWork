@@ -305,17 +305,16 @@ trait PropertiesTrait {
             if (isset($post_data['name']) && $post_data['name']) {
                 if (!is_array($post_data['fields']) || !count($post_data['fields'])) {
                     ClassNotifications::add_notification_user($this->logged_in, ['text' => 'Заполните хотя бы одно поле типа!', 'status' => 'danger']);
-                    goto exit_update;
-                }
-                $post_data['fields'] = json_encode($post_data['fields']);
-                if (!$new_id = $this->models['m_properties']->update_property_type_data($post_data)) {
-                    ClassNotifications::add_notification_user($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
                 } else {
-                    $id = $new_id;
+                    $post_data['fields'] = json_encode($post_data['fields']);
+                    if (!$new_id = $this->models['m_properties']->update_property_type_data($post_data)) {
+                        ClassNotifications::add_notification_user($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
+                    } else {
+                        $id = $new_id;
+                    }
                 }
             }
-            exit_update:
-            $property_type_data = (int) $id ? $this->models['m_properties']->get_type_property_data($id) : $default_data;
+            $property_type_data = (int) $id ? $this->models['m_properties']->get_type_property_data($id) : $default_data;            
             $property_type_data = !$property_type_data ? $default_data : $property_type_data;
             $property_type_data['fields'] = isset($property_type_data['fields']) ? json_decode($property_type_data['fields'], true) : [];
         } else { // Не передан ключевой параметр id
@@ -325,7 +324,8 @@ trait PropertiesTrait {
             $all_status[$key] = $this->lang['sys.' . $value];
         }
         /* view */
-        $this->view->set('property_type_data', $property_type_data);
+        $this->view->set('property_type_data', $property_type_data);        
+        $this->view->set('count_fields', count($property_type_data['fields']));        
         $this->view->set('all_status', $all_status);
         $this->get_standart_view();
         $this->view->set('body_view', $this->view->read('v_edit_type_properties'));
@@ -341,7 +341,7 @@ trait PropertiesTrait {
     /**
      * Добавить или редактировать свойство
      */
-    public function edit_property($params) {
+    public function edit_property(array $params = []): void {
         $this->access = [1, 2];
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
@@ -349,7 +349,7 @@ trait PropertiesTrait {
         }
         $default_data = [
             'property_id' => 0, 'name' => '', 'is_multiple' => 0, 'is_required' => 0, 'description' => '',
-            'status' => 0, 'type_id' => 0, 'created_at' => false, 'updated_at' => false
+            'status' => 0, 'type_id' => 0, 'created_at' => false, 'updated_at' => false, 'default_values' => []
         ];
         /* model */
         $this->load_model('m_properties');
@@ -362,8 +362,8 @@ trait PropertiesTrait {
             } else {
                $type_id = 0; 
             }
-            if (isset($post_data['name']) && $post_data['name'] && isset($post_data['property_data'])) {
-                $post_data['default_values'] = $this->prepare_default_values_property($post_data['property_data']);
+            if (isset($post_data['name']) && $post_data['name']) {
+                $post_data['default_values'] = isset($post_data['property_data']) ? $this->prepare_default_values_property($post_data['property_data']) : [];
                 if (!$new_id = $this->models['m_properties']->update_property_data($post_data)) {
                     ClassNotifications::add_notification_user($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
                 } else {
@@ -410,7 +410,7 @@ trait PropertiesTrait {
      * @param array $property_data Ассоциативный массив данных свойств.
      * @return array
      */
-    private function prepare_default_values_property($property_data = []) {
+    private function prepare_default_values_property(array $property_data = []): array {
         $prepared_data = [];
         foreach ($property_data as $key => $value) {
             // Извлекаем порядковый номер и тип из ключа

@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="ru">
     <head>
+        <title><?= $title ?></title>
         <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
         <meta http-equiv="content-language" content="ru-RU">
         <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
@@ -44,11 +45,13 @@
         <link rel="stylesheet" href="<?= ENV_URL_SITE ?>/assets/bootstrap/css/bootstrap.min.css" type="text/css">
         <!-- Font Awesome Min CSS -->
         <link rel="stylesheet" href="<?= ENV_URL_SITE ?>/assets/fontawesome/css/all.css" type="text/css"/>
+        <!-- Wizard -->
+        <link rel="stylesheet" href="<?= ENV_URL_SITE ?>/classes/system/css/ee_wizard.css" type="text/css"/>
         <!-- General Styles -->
-        <link href="<?= ENV_URL_SITE . '/' . ENV_APP_DIRECTORY ?>/admin/css/index.css" rel="stylesheet" type="text/css" />				
+        <link rel="stylesheet" href="<?= ENV_URL_SITE . '/' . ENV_APP_DIRECTORY ?>/admin/css/index.css" type="text/css" />				
+        <!-- canonical -->
         <link rel="canonical" href="<?= $canonical_href ?>" />
-        <!-- Добавленные стили из контроллера-->        
-        <title><?= $title ?></title>
+        <!-- Добавленные стили из контроллера-->                
         <?= $add_style ?>
         <!-- END -->
     </head>
@@ -65,6 +68,8 @@
         <script src="<?= ENV_URL_SITE ?>/assets/js/plugins/jquery.min.js" type="text/javascript"></script>
         <script src="<?= ENV_URL_SITE ?>/assets/bootstrap/js/bootstrap.bundle.min.js" type="text/javascript"></script>
         <script src="<?= ENV_URL_SITE ?>/assets/js/plugins/bootstrap-notify.js" type="text/javascript"></script>
+        <!-- Wizard -->
+        <script src="<?= ENV_URL_SITE ?>/classes/system/js/plugins/ee_wizard.js" type="text/javascript"></script>
         <!-- core -->
         <script src="<?= ENV_URL_SITE ?>/classes/system/js/core.js" type="text/javascript"></script>
         <script src="<?= ENV_URL_SITE ?>/app/admin/js/dashboard.js" type="text/javascript"></script>
@@ -72,5 +77,5 @@
         <!-- Добавленные скрипты из контроллера -->
         <?= $add_script ?>
         <!-- ported scripts -->
-</body>
+    </body>
 </html>

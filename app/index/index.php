@@ -38,6 +38,44 @@ class ControllerIndex Extends ControllerBase {
     }
 
     /**
+     * Документация
+     * @param NULL $params
+     */
+    public function docs($params = NULL) {
+        if ($params) {
+            SysClass::return_to_main();
+        }
+        /* view */
+        $this->get_standart_view();
+        $this->view->set('menu_docs', $this->view->read('v_menu_docs'));
+        $this->html = $this->view->read('v_docs');
+        /* layouts */
+        $this->parameters_layout["add_script"] .= '<script src="' . $this->get_path_controller() . '/js/docs.js" ></script>';
+        $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="' . $this->get_path_controller() . '/css/docs.css"/>';
+        $this->parameters_layout["title"] = ENV_SITE_NAME . ' - Documentation';
+        $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION;
+        $this->parameters_layout["keywords"] = SysClass::keywords($this->html);
+        $this->parameters_layout["layout_content"] = $this->html;
+        $this->show_layout($this->parameters_layout);        
+    }
+    
+    /**
+     * AJAX получение страниц документации
+     * @param type $params
+     */
+    public function get_doc($params = NULL) {
+        if (isset($_POST) && isset($_POST['docName'])) {
+            $file_path = ENV_SITE_PATH . 'uploads/docs/' . $_POST['docName']. '.html';
+            if (file_exists($file_path) && is_readable($file_path)) {
+                echo file_get_contents($file_path);
+            } else {
+                echo 'Ошибка чтения файла ' . $file_path;
+            }
+        }
+        die;
+    }
+    
+    /**
      * О нас
      */
     public function about($params = NULL) {
@@ -265,10 +303,22 @@ class ControllerIndex Extends ControllerBase {
         }
         $post_data = SysClass::ee_cleanArray($_POST);
         if (isset($post_data['loadAll']) && $post_data['loadAll'] == 'true') {
-            die(json_encode($this->lang));
+            die(json_encode(['langVars' => json_encode($this->lang), 'envGlobal' => json_encode($this->get_global())]));
         } else {
             die(isset($this->lang[$post_data['text']]) ? $this->lang[$post_data['text']] : 'var ' . $post_data['text'] . ' not found!');
         }
+    }
+    
+    private function get_global() {
+        return [
+            'ENV_SITE_NAME' => ENV_SITE_NAME,            
+            'ENV_DOMEN_NAME' => ENV_DOMEN_NAME,            
+            'ENV_URL_SITE' => ENV_URL_SITE,            
+            'ENV_SITE_PATH' => ENV_SITE_PATH,            
+            'ENV_LOGS_PATH' => ENV_LOGS_PATH,            
+            'ENV_DEF_LANG' => ENV_DEF_LANG,            
+            'ENV_COMPRESS_HTML' => ENV_COMPRESS_HTML
+        ];
     }
 
 }

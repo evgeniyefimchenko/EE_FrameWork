@@ -1,0 +1,33 @@
+#docs-content {
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background-color: #f8f9fa;
+}
+
+.list-group-item {
+    cursor: pointer;
+}
+
+.doc-fix-menu {
+    position: relative;
+    z-index: 100;
+    padding: 10px;
+    background: #d1d1d1;
+    border-radius: 5px;
+}
+
+.sticky-horizontal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 1000;
+    border-bottom: 1px solid #ccc;
+    box-shadow: 0px 2px 5px rgba(0,0,0,0.2);
+}
+
+.sticky-horizontal .list-group-item {
+    display: inline-block;
+    margin-right: 5px;
+}

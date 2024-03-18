@@ -36,17 +36,19 @@ use classes\system\Plugins;
                         <div class="tab-pane fade show active mt-3" id="basic-tab-pane" role="tabpanel" aria-labelledby="basic-tab">
                             <div class="row mb-3">
                                 <div class="col-6 col-sm-3">
-                                    <label for="title-input"><?=$lang['sys.title']?>:</label>                                    
+                                    <label for="title-input"><?= $lang['sys.title'] ?>:</label>                                    
                                     <input type="text" id="title-input" name="title" class="form-control" placeholder="Введите название..." value="<?= $entity_data['title'] ?>">                                    
                                 </div>
                                 <div class="col-6 col-sm-3">
-                                    <label for="category_id-input"><?=$lang['sys.category'] . ' ' . $lang['sys.parent']?>:</label>
+                                    <label for="category_id-input"><?= $lang['sys.category'] . ' ' . $lang['sys.parent'] ?>:</label>
                                     <div role="group" class="input-group">
                                         <select required <?=$entity_data['parent_entity_id'] ? "disabled " : ""?>type="text" id="category_id-input" name="category_id" class="form-control">
                                             <?php foreach ($all_categories as $item) {
-                                                $prefix = str_repeat('-', $item['level'] * 2); // Умножаем уровень на 2, чтобы создать отступ
-                                                echo '<option ' . ($entity_data['category_id'] == $item['category_id'] ? "selected " : "") . 'value="' . $item['category_id'] . '">' .
-                                                        $prefix . ' ' . htmlspecialchars($item['title']) . ' (' . ($all_type[$item['type_id']]['name'] ? $all_type[$item['type_id']]['name'] : 'Нет') . ')</option>';
+                                                $prefix = str_repeat('-', $item['level'] * 2); // Умножаем уровень на 2, чтобы создать отступ                                                
+                                                echo '<option ' . ($entity_data['category_id'] == $item['category_id'] ? "selected " : "") . 'value="' .
+                                                        $item['category_id'] . '">' .
+                                                        $prefix . ' ' . htmlspecialchars($item['title']) . ' (' . ($all_type[$item['type_id']]['name'] ? 
+                                                        $all_type[$item['type_id']]['name'] : 'Нет') . ')</option>';
                                             } ?>                                        
                                         </select>
                                         <?php if (!$entity_data['parent_entity_id']) { ?>
@@ -57,7 +59,7 @@ use classes\system\Plugins;
                                     </div>
                                 </div>
                                 <div class="col-6 col-sm-3">
-                                    <label for="parent_entity_id-input"><?=$lang['sys.entity']. ' ' . $lang['sys.parent']?>:</label>
+                                    <label for="parent_entity_id-input"><?= $lang['sys.entity'] . ' ' . $lang['sys.parent'] ?>:</label>
                                     <div role="group" class="input-group">
                                         <select type="text" id="parent_entity_id-input" name="parent_entity_id" class="form-control">
                                             <?php foreach ($all_entities as $item) {
@@ -70,7 +72,7 @@ use classes\system\Plugins;
                                     </div>
                                 </div>
                                 <div class="col-6 col-sm-3">
-                                    <label for="type_id-input"><?=$lang['sys.type']?>:</label>
+                                    <label for="type_id-input"><?= $lang['sys.type'] ?>:</label>
                                     <div role="group" class="input-group">
                                         <input type="text" disabled id="type_id-input" name="type_id" class="form-control" placeholder="Введите название..." value="<?= $entity_data['type_name'] ?>">
                                         <span role="button" class="input-group-text btn-primary" data-bs-toggle="tooltip" data-bs-placement="top" title="Определяется из категории">
@@ -90,24 +92,24 @@ use classes\system\Plugins;
                                 </div>
                                 <div class="row mb-3">
                                     <div class="col-12 col-sm-12">
-                                        <label for="short_description-input"><?=$lang['sys.short_description']?>:</label>
+                                        <label for="short_description-input"><?= $lang['sys.short_description'] ?>:</label>
                                         <textarea id="short_description-input" name="short_description" class="form-control"><?= $entity_data['short_description'] ?></textarea>
                                     </div>
                                 </div>                                
                                 <div class="row mb-3">
                                     <div class="col-12 col-sm-12">
-                                        <label for="description-input"><?=$lang['sys.description']?>:</label>
-                                        <textarea id="description-input" name="description" class="form-control"><?= $entity_data['description'] ?></textarea>
+                                        <label for="description-input"><?= $lang['sys.description'] ?>:</label>
+                                        <textarea id="description-input" name="description" class="form-control "><?= $entity_data['description'] ?></textarea>
                                     </div>
                                 </div>
                             </div>
                             <div class="row mb-3">
                                 <div class="col-2">
-                                    <label for="registration-date-input"><?=$lang['sys.date_create']?>:</label>
+                                    <label for="registration-date-input"><?= $lang['sys.date_create'] ?>:</label>
                                     <input type="text" disabled  class="form-control" value="<?= $entity_data['created_at'] ?>">
                                 </div>
                                 <div class="col-2">
-                                    <label for="update-date-input"><?=$lang['sys.date_update']?>:</label>
+                                    <label for="update-date-input"><?= $lang['sys.date_update'] ?>:</label>
                                     <input type="text" disabled class="form-control" value="<?= $entity_data['updated_at'] ?>">
                                 </div>
                             </div>
@@ -121,7 +123,8 @@ use classes\system\Plugins;
                                     $html .= '<h4>' . $property_data['name'] . '</h4>';
                                     $html .= '<div class="card"><div class="card-body">';
                                     // Опциональная функция вывода свойств/характеристаик для сущности в Админ панели
-                                    $html .= Plugins::renderPropertyHtmlFieldsByAdmin($property_data['fields'], $property_data['default_values'], $lang);
+                                    var_export($property_data);
+                                    $html .= Plugins::renderPropertyHtmlFieldsByAdmin($property_data['fields'], $property_data['default_values']);
                                     $html .= '</div></div>';
                                 }
                                 echo $html;

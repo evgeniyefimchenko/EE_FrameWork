@@ -13,7 +13,7 @@ use classes\system\Plugins;
                class="btn btn-info mx-1 float-end<?= empty($property_type_data['type_id']) ? " d-none" : "" ?>">
                 <i class="fa fa-plus-circle"></i>&nbsp;<?= $lang['sys.add'] ?>
             </a>
-            <h1 class="mt-4"><?= !$property_type_data ? 'Добавить Тип Свойств' : 'Редактировать Тип Свойств' ?></h1>
+            <h1 class="mt-4"><?= empty($property_type_data['type_id']) ? $lang['sys.add'] : $lang['sys.edit'] ?>(<?= $property_type_data['name']?>)</h1>
             <ol class="breadcrumb mb-4">
                 <li>
                     <span id="type_id" data-id="<?= $property_type_data['type_id'] ?>">id = <?php echo!$property_type_data['type_id'] ? 'Не присвоен' : $property_type_data['type_id'] ?></span>
@@ -24,10 +24,16 @@ use classes\system\Plugins;
                 <div class="col">
                     <ul class="nav nav-tabs" id="eeTab" role="tablist">
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic-tab-pane" type="button" role="tab" aria-controls="basic-tab-pane" aria-selected="true"><?= $lang['sys.basics'] ?></button>
+                            <button class="nav-link active" id="basic-tab"
+                                    data-bs-toggle="tab" data-bs-target="#basic-tab-pane"
+                                    type="button" role="tab" aria-controls="basic-tab-pane"
+                                    aria-selected="true"><?= $lang['sys.basics'] ?></button>
                         </li>
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="basic-tab" data-bs-toggle="tab" data-bs-target="#fields-tab-pane" type="button" role="tab" aria-controls="fields-tab-pane" aria-selected="true">Поля</button>
+                            <button class="nav-link" id="basic-tab"
+                                    data-bs-toggle="tab" data-bs-target="#fields-tab-pane"
+                                    type="button" role="tab" aria-controls="fields-tab-pane"
+                                    aria-selected="true"><?= $lang['sys.fields'] ?></button>
                         </li>
                     </ul>
                     <div class="tab-content" id="eeTabContent">
@@ -36,14 +42,16 @@ use classes\system\Plugins;
                             <div class="row mb-3">
                                 <div class="col-6 col-sm-3">
                                     <label for="name-input"><?= $lang['sys.title'] ?>:</label>                                    
-                                    <input type="text" id="name-input" name="name" class="form-control" placeholder="Введите название..." value="<?= $property_type_data['name'] ?>">                                    
+                                    <input type="text" id="name-input" name="name" class="form-control"
+                                           placeholder="<?= $lang['sys.enter_title'] ?>..." value="<?= $property_type_data['name'] ?>">                                    
                                 </div>
                                 <div class="col-6 col-sm-3">
                                     <label for="type_id-input"><?= $lang['sys.status'] ?>:</label>
                                     <div role="group" class="input-group">
                                         <select type="text" id="status-input" name="status" class="form-control">
                                             <?php foreach ($all_status as $key => $value) { ?>
-                                                <option <?=($property_type_data['status'] == $key ? 'selected ' : '')?>value="<?= $key ?>"><?= $value ?></option>
+                                                <option <?=($property_type_data['status'] == $key ? 'selected ' : '')?>
+                                                    value="<?= $key ?>"><?= $value ?></option>
                                             <?php } ?>
                                         </select>
                                     </div>
@@ -70,32 +78,23 @@ use classes\system\Plugins;
                         </div>
                         <!-- Поля типа свойства -->
                         <div class="tab-pane fade mt-3" id="fields-tab-pane" role="tabpanel" aria-labelledby="fields-tab-pane">
-                            <div class="row mb-3" id="fields-container">
-                                <div class="col-5 d-flex align-items-center">
-                                    <label class="w-25 form-label">Тип поля:</label>
-                                    <select required class="form-select me-2" name="fields[]">
-                                        <option disabled selected>Выберите тип поля...</option>
-                                        <?php foreach (Constants::ALL_TYPE_PROPERTY_TYPES_FIELDS as $k => $v) { ?>
-                                            <option value="<?=$k?>"><?=$v?></option>
-                                        <?php } ?>
-                                        <!-- Добавьте дополнительные типы полей по мере необходимости в класс Constants -->
-                                    </select>
-                                    <button class="btn btn-primary add-field-btn" type="button"><i class="fa fa-plus-circle"></i></button>
-                                </div>
-                            </div>
-                            <?php
-                                $property_type_data['fields'] = is_array($property_type_data['fields']) ? $property_type_data['fields'] : [];
+                            <?php  $first = true;                              
                                 foreach ($property_type_data['fields'] as $item) { ?>
                                     <div class="row mb-3" id="fields-container">
                                         <div class="col-5 d-flex align-items-center">
-                                            <label class="w-25 form-label">Тип поля:</label>
+                                            <label class="w-25 form-label"><?= $lang['sys.field_type'] ?>:</label>
                                             <select required class="form-select me-2" name="fields[]">
-                                                <option disabled>Выберите тип поля...</option>
+                                                <option disabled><?= $lang['sys.select'] . ' ' . $lang['sys.field_type'] ?></option>
                                                 <?php foreach (Constants::ALL_TYPE_PROPERTY_TYPES_FIELDS as $k => $v) { ?>
                                                     <option <?= $item == $k ? 'selected ' : ''?>value="<?=$k?>"><?=$v?></option>
                                                 <?php } ?>
                                             </select>
-                                            <button class="btn btn-danger remove-field-btn" type="button"><i class="fa fa-minus-circle"></i></button>
+                                            <?php if ($count_fields && !$first) {
+                                                echo '<button class="btn btn-danger remove-field-btn" type="button"><i class="fa fa-minus-circle"></i></button>';
+                                            } else {
+                                                $first = false;
+                                                echo '<button class="btn btn-primary add-field-btn" type="button"><i class="fa fa-plus-circle"></i></button>';
+                                            } ?>
                                         </div>
                                     </div>                                                
                             <?php } ?>

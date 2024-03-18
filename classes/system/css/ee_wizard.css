@@ -1,0 +1,164 @@
+.custom-tour-step {
+    position: absolute;
+    background-color: #d3b6b6;
+    border: 2px solid #ddd;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    padding: 20px;
+    font-size: 16px;
+    line-height: 1.5;
+    color: #333;
+    z-index: 9999;
+    border-radius: 7px;
+}
+
+.custom-tour-step .tour-header {
+    margin-bottom: 10px;
+    font-weight: bold;
+}
+
+.custom-tour-step .tour-content {
+    margin-bottom: 10px;
+}
+
+.tour-end {
+    right: 7px;
+    position: absolute;
+}
+
+.custom-tour-step .tour-navigation {
+    display: flex;    
+    align-items: center;
+    margin-top: 10px;
+}
+
+.custom-tour-step .tour-navigation button {
+    background-color: #4CAF50;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    margin: 0 5px;
+}
+
+.custom-tour-step .tour-navigation button:hover {
+    background-color: #45a049;
+}
+
+.custom-tour-step .tour-close {
+    position: absolute;
+    top: 20px;
+    right: 10px;
+    background-color: #4CAF50;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.custom-tour-step .tour-close:hover {
+    background-color: #45a049;
+}
+
+.custom-tour-highlight {
+    position: relative;
+    z-index: 1001;
+    background-color: #f7f7f7;
+    border: 1px dashed #ddd;
+    padding: 10px;
+    margin-bottom: 10px;
+}
+
+.custom-tour-highlight .tour-header {
+    margin-bottom: 10px;
+    font-weight: bold;
+}
+
+.custom-tour-highlight .tour-content {
+    margin-bottom: 10px;
+}
+
+.custom-tour-highlight .tour-navigation {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 10px;
+}
+
+.custom-tour-highlight .tour-navigation button {
+    background-color: #4CAF50;
+    color: #fff;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.custom-tour-highlight .tour-navigation button:hover {
+    background-color: #45a049;
+}
+
+.custom-tour-highlight .tour-close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: #4CAF50;
+    color: #fff;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.custom-tour-highlight .tour-close:hover {
+    background-color: #45a049;
+}
+
+.highlight {
+    background-color: yellow!important;
+    border: 2px solid red!important;
+}
+
+/* Стрелка */
+/* Общие стили для всех стрелок */
+.tour-arrow {
+    width: 0;
+    height: 0;
+    border-style: solid;
+    position: absolute;
+}
+
+/* Стрелка вверх */
+.tour-arrow-up {
+    border-width: 0 10px 10px 10px;
+    border-color: transparent transparent #d3b6b6 transparent;
+    left: 50%;
+    bottom: 100%; /* Положение стрелки непосредственно под родителем */
+    transform: translateX(-50%);
+}
+
+/* Стрелка вниз */
+.tour-arrow-down {
+    border-width: 10px 10px 0 10px;
+    border-color: #d3b6b6 transparent transparent transparent;
+    left: 50%;
+    top: 100%; /* Положение стрелки непосредственно над родителем */
+    transform: translateX(-50%);
+}
+
+/* Стрелка влево */
+.tour-arrow-left {
+    border-width: 10px 10px 10px 0;
+    border-color: transparent #d3b6b6 transparent transparent;
+    top: 50%;
+    right: 100%; /* Положение стрелки справа от родителя */
+    transform: translateY(-50%);
+}
+
+/* Стрелка вправо */
+.tour-arrow-right {
+    border-width: 10px 0 10px 10px;
+    border-color: transparent transparent transparent #d3b6b6;
+    top: 50%;
+    left: 100%; /* Положение стрелки слева от родителя */
+    transform: translateY(-50%);
+}

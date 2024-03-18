@@ -12,7 +12,7 @@ use classes\system\Plugins;
                class="btn btn-info mx-1 float-end<?= empty($property_data['property_id']) ? " d-none" : "" ?>">
                 <i class="fa fa-plus-circle"></i>&nbsp;<?= $lang['sys.add'] ?>
             </a>
-            <h1 class="mt-4"><?= !$property_data['property_id'] ? 'Добавить Свойство' : 'Редактировать Свойство' ?></h1>
+            <h1 class="mt-4"><?= !$property_data['property_id'] ? $lang['sys.add'] : $lang['sys.edit'] ?></h1>
             <ol class="breadcrumb mb-4">
                 <li>
                     <span id="property_id" data-id="<?= $property_data['property_id'] ?>">id = <?php echo !$property_data['property_id'] ? $lang['sys.not_assigned'] : $property_data['property_id'] ?></span>
@@ -23,7 +23,8 @@ use classes\system\Plugins;
                 <div class="col">
                     <ul class="nav nav-tabs" id="eeTab" role="tablist">
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic-tab-pane" type="button" role="tab" aria-controls="basic-tab-pane" aria-selected="true"><?=$lang['sys.basics']?></button>
+                            <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic-tab-pane"
+                                    type="button" role="tab" aria-controls="basic-tab-pane" aria-selected="true"><?= $lang['sys.basics'] ?></button>
                         </li>
                     </ul>
                     <div class="tab-content" id="eeTabContent">
@@ -32,14 +33,16 @@ use classes\system\Plugins;
                             <div class="row mb-3">
                                 <div class="col-4 col-sm-3">
                                     <label for="name-input"><?=$lang['sys.title']?>:</label>                                    
-                                    <input required type="text" id="name-input" name="name" class="form-control" placeholder="Введите название..." value="<?= $property_data['name'] ?>">                                    
+                                    <input required type="text" id="name-input" name="name" class="form-control" placeholder="Введите название..."
+                                           value="<?= $property_data['name'] ?>">                                    
                                 </div>
                                 <div class="col-4 col-sm-3">
                                     <label for="type_id-input"><?=$lang['sys.type'] . ' ' . $lang['sys.properties']?>:</label>
                                     <div role="group" class="input-group">
                                         <select type="text" id="type_id-input" name="type_id" class="form-control">
                                             <?php foreach ($all_property_types as $item) { ?>
-                                                <option <?=($property_data['type_id'] == $item['type_id'] ? 'selected ' : '')?>value="<?=$item['type_id']?>"><?=$item['name']?></option>
+                                                <option <?=($property_data['type_id'] == $item['type_id'] ? 'selected ' : '')?>value="<?=$item['type_id']?>">
+                                                <?=$item['name']?></option>
                                             <?php } ?>
                                         </select>
                                     </div>
@@ -91,7 +94,7 @@ use classes\system\Plugins;
                                     <input type="text" disabled class="form-control" value="<?= $property_data['updated_at'] ?>">
                                 </div>
                             </div>
-                            <button type="submit" class="btn btn-primary">Сохранить</button>
+                            <button type="submit" class="btn btn-primary"><?= $lang['sys.save'] ?></button>
                         </div>                       
                     </div>
                 </div>

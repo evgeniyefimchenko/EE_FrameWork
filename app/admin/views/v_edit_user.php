@@ -8,7 +8,7 @@ use classes\system\Plugins;
     <form id="edit_users">
         <input type="hidden" name="fake" value="1" />
         <div class="container-fluid px-4">
-            <h1 class="mt-4"><?= $user_context['new_user'] ? 'Добавить' : 'Редактировать' ?></h1>
+            <h1 class="mt-4"><?= $user_context['new_user'] ? $lang['sys.add'] : $lang['sys.edit'] ?></h1>
             <ol class="breadcrumb mb-4">
                 <li class="breadcrumb-item active">
                     <span <?= $user_role > 2 ? 'style="display:none;"' : '' ?> id="id_user" data-id="<?= $user_context['user_id'] ?>">id = <?php echo $user_context['new_user'] ? 'Не присвоен' : $user_context['user_id'] ?></span>
@@ -18,13 +18,13 @@ use classes\system\Plugins;
                 <div class="col">
                     <ul class="nav nav-tabs" id="myTab" role="tablist">
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic-tab-pane" type="button" role="tab" aria-controls="basic-tab-pane" aria-selected="true"><?=$lang['sys.basics']?></button>
+                            <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic-tab-pane" type="button" role="tab" aria-controls="basic-tab-pane" aria-selected="true"><?= $lang['sys.basics'] ?></button>
                         </li>
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="security-tab" data-bs-toggle="tab" data-bs-target="#security-tab-pane" type="button" role="tab" aria-controls="security-tab-pane" aria-selected="false"><?=$lang['sys.safety']?></button>
+                            <button class="nav-link" id="security-tab" data-bs-toggle="tab" data-bs-target="#security-tab-pane" type="button" role="tab" aria-controls="security-tab-pane" aria-selected="false"><?= $lang['sys.safety'] ?></button>
                         </li>
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="comment-tab" data-bs-toggle="tab" data-bs-target="#comment-tab-pane" type="button" role="tab" aria-controls="comment-tab-pane" aria-selected="false"><?=$lang['sys.comment']?></button>
+                            <button class="nav-link" id="comment-tab" data-bs-toggle="tab" data-bs-target="#comment-tab-pane" type="button" role="tab" aria-controls="comment-tab-pane" aria-selected="false"><?= $lang['sys.comment'] ?></button>
                         </li>
                     </ul>
                     <div class="tab-content" id="myTabContent">
@@ -32,15 +32,15 @@ use classes\system\Plugins;
                         <div class="tab-pane fade show active mt-3" id="basic-tab-pane" role="tabpanel" aria-labelledby="basic-tab">
                             <div class="row mb-3">
                                 <div class="col-md-4">
-                                    <label for="name-input"><?=$lang['sys.name']?>:</label>
+                                    <label for="name-input"><?= $lang['sys.name'] ?>:</label>
                                     <input type="text" id="name-input" name="name" class="form-control" placeholder="Введите имя..." value="<?= $user_context['name'] ?>">
                                 </div>
                                 <div class="col-md-4">
-                                    <label for="email-input"><?=$lang['sys.email']?>:</label>
+                                    <label for="email-input"><?= $lang['sys.email'] ?>:</label>
                                     <input type="email" id="email-input" name="email" class="form-control" placeholder="Введите почту..." value="<?= $user_context['email'] ?>">
                                 </div>
                                 <div class="col-md-4">
-                                    <label for="phone-input"><?=$lang['sys.phone']?>:</label>
+                                    <label for="phone-input"><?= $lang['sys.phone'] ?>:</label>
                                     <input type="tel" id="phone-input" name="phone" class="form-control" placeholder="Введите телефон..." value="<?= $user_context['phone'] ?>">
                                 </div>
                             </div>
@@ -73,15 +73,15 @@ use classes\system\Plugins;
                             </div>
                             <div class="row mb-3">
                                 <div class="col-md-4">
-                                    <label for="registration-date-input"><?=$lang['sys.date_create']?>:</label>
+                                    <label for="registration-date-input"><?= $lang['sys.date_create'] ?>:</label>
                                     <input type="text" disabled  class="form-control" value="<?= $user_context['created_at'] ?>">
                                 </div>
                                 <div class="col-md-4">
-                                    <label for="update-date-input"><?=$lang['sys.date_update']?>:</label>
+                                    <label for="update-date-input"><?= $lang['sys.date_update'] ?>:</label>
                                     <input type="text" disabled class="form-control" value="<?= $user_context['updated_at'] ?>">
                                 </div>
                                 <div class="col-md-4">
-                                    <label for="update-date-input"><?=$lang['sys.date_activity']?>:</label>
+                                    <label for="update-date-input"><?= $lang['sys.date_activity'] ?>:</label>
                                     <input type="text" disabled class="form-control" value="<?= $user_context['last_activ'] ?>">
                                 </div>
                             </div>
@@ -98,34 +98,26 @@ use classes\system\Plugins;
                         <div class="tab-pane fade mt-3" id="security-tab-pane" role="tabpanel" aria-labelledby="security-tab">
                             <div class="row mb-3">
                                 <div class="col-md-6">
-                                    <label for="new_pass">Новый пароль:</label>
-                                    <input type="password" id="new_pass" name="pwd" class="form-control" placeholder="Введите новый пароль..." autocomplete="new-password">
+                                    <label for="new_pass"><?= $lang['sys.new_password'] ?>:</label>
+                                    <input type="password" id="new_pass" name="pwd" class="form-control" autocomplete="new-password" >
                                     <small></small>
                                 </div>
                                 <div class="col-md-6">
-                                    <label for="new_pass_conf">Повторить пароль:</label>
-                                    <input type="password" id="new_pass_conf" name="new_pass_conf" class="form-control" placeholder="Повторите новый пароль...">
+                                    <label for="new_pass_conf"><?= $lang['sys.confirm_password'] ?>:</label>
+                                    <input type="password" id="new_pass_conf" name="new_pass_conf" class="form-control" >
                                     <small></small>
-                                </div>
-                            </div>
-                            <div class="mb-3">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" id="two-factor-auth-check">
-                                    <label class="form-check-label" for="two-factor-auth-check">
-                                        Двухфакторная авторизация
-                                    </label>
                                 </div>
                             </div>
                         </div>
                         <!-- Содержимое для комментария -->
                         <div class="tab-pane fade mt-3 mb-3" id="comment-tab-pane" role="tabpanel" aria-labelledby="comment-tab">
-                            <label><?=$lang['sys.comment']?>:</label>
-                            <textarea class="form-control" name="comment" placeholder="Оставьте ваш комментарий..."><?= $user_context['comment'] ?></textarea>
+                            <label><?= $lang['sys.comment'] ?>:</label>
+                            <textarea class="form-control" name="comment" id="user_comment" placeholder="Оставьте ваш комментарий..."><?= $user_context['comment'] ?></textarea>
                         </div>
                     </div>
                 </div>
             </div>
-            <button type="submit" class="btn btn-primary">Сохранить</button>
+            <button type="submit" class="btn btn-primary"><?= $lang['sys.save'] ?></button>
         </div>		
     </form>
 </main>

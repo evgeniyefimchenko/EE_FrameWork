@@ -27,4 +27,6 @@ $(document).ready(function () {
         $('#parents_modal').modal('hide');
 
     });
+    initializeTinyMCE('#short_description-input', settingsShortDescription);
+    initializeTinyMCE('#description-input', settingsLongDescription);    
 });

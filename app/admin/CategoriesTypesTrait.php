@@ -28,8 +28,8 @@ trait CategoriesTypesTrait {
         $this->html = $this->view->read('v_dashboard');
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
-        $this->parameters_layout["title"] = ENV_SITE_NAME . ' - Типы категорий';
-        $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION . ' - Типы категорий';
+        $this->parameters_layout["title"] = ENV_SITE_NAME . ' - ' . $this->lang['sys.type_categories'];
+        $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION . ' - ' . $this->lang['sys.type_categories'];
         $this->parameters_layout["canonical_href"] = ENV_URL_SITE . '/admin';
         $this->parameters_layout["keywords"] = SysClass::keywords($this->html);
         $this->show_layout($this->parameters_layout);
@@ -188,6 +188,7 @@ trait CategoriesTypesTrait {
         /* layouts */
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
+        $this->add_editor_to_layout();
         $this->parameters_layout["add_script"] .= '<script src="' . $this->get_path_controller() . '/js/edit_categories_type.js" type="text/javascript" /></script>';
         $this->parameters_layout["title"] = 'Редактирование типов категорий';
         $this->show_layout($this->parameters_layout);

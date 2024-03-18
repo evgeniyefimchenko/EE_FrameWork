@@ -91,7 +91,8 @@ abstract class ControllerBase {
      * И языковой массив
      * @param $user_data - Данные пользователя для загрузки
      */
-    private function set_user_data($user_data) {        
+    private function set_user_data($user_data) {
+        global $global_lang;
         $get_lang_code = '';
         if (!isset($user_data['new_user']) || $user_data['new_user'] != 1) {
             foreach ($user_data as $name => $val) {
@@ -129,6 +130,7 @@ abstract class ControllerBase {
         }
         Session::set('lang', $lang_code);
         $this->view->set('lang', $lang);
+        $global_lang = $lang;
         // Фильтрация массива языковых элементов, содержащих 'sys' в ключе
         $sysLang = array_filter($lang, function ($key) {
             return strpos($key, 'sys.') === 0;
@@ -243,9 +245,12 @@ abstract class ControllerBase {
         if (ENV_ONE_IP_ONE_USER && $user_data['last_ip'] !== SysClass::client_ip()) {
             return false;
         } else {
-            $sql = 'UPDATE ?n SET `last_activ` = NOW() WHERE `user_id` = ?i';
-            SafeMySQL::gi()->query($sql, ENV_DB_PREF . 'users', $user_data['user_id']);
-            return $user_data['user_id'];
+            if (isset($user_data['user_id'])) {
+                $sql = 'UPDATE ?n SET `last_activ` = NOW() WHERE `user_id` = ?i';
+                SafeMySQL::gi()->query($sql, ENV_DB_PREF . 'users', $user_data['user_id']);
+                return $user_data['user_id'];
+            }
+            return false;
         }
     }
 
