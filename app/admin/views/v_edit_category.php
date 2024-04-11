@@ -149,37 +149,59 @@ if (!count($all_type)) {
                         <div class="tab-pane fade mt-3" id="property_sets-tab-pane" role="tabpanel" aria-labelledby="property_sets-tab">
                             <div class="row">
                                 <div class="col">
-                                    <?php
-                                    $html = '';
-                                    foreach ($categories_type_sets_data as $cat_name => $cats_set) {
-                                        $html .= '<h5>' . $cat_name . '</h5>';
-                                        foreach ($cats_set as $property_set) {
-                                            $html .= '<div class="accordion my-3" id="accordion-' . $property_set['set_id'] . '">';
-                                            $html .= '<div class="card">';
-                                            $html .= '<div class="card-header" id="heading-' . $property_set['set_id'] . '">';
-                                            $html .= '<h2 class="mb-0">';
-                                            $html .= '<button class="btn btn-link" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-' . $property_set['set_id'] . '" aria-expanded="true" aria-controls="collapse-' . $property_set['set_id'] . '">';
-                                            $html .= $property_set['name'];
-                                            $html .= '</button>';
-                                            $html .= '</h2>';
-                                            $html .= '</div>';
-                                            $html .= '<div id="collapse-' . $property_set['set_id'] . '" class="collapse" aria-labelledby="heading-' . $property_set['set_id'] . '" data-bs-parent="#accordion-' . $property_set['set_id'] . '">';
-                                            $html .= '<div class="card-body">';
-                                            $html .= '<h5>' . $lang['sys.description'] . '</h5>' . '<p>' . ($property_set['description'] ? $property_set['description'] : '---') . '</p>';
-                                            $html .= '<h6>' . $lang['sys.properties'] . '</h6>';
-                                            if (!count($property_set['properties'])) {
-                                                $html .= '---';
+                                    <?php                                        
+                                        $html = '';
+                                        foreach ($categories_type_sets_data as $cat_name => $cats_set) {
+                                            $html .= '<h5>' . $cat_name . '</h5>';
+                                            foreach ($cats_set as $property_set) {
+                                                $html .= '<div class="accordion my-3" id="accordion-' . $property_set['set_id'] . '">';
+                                                $html .= '<div class="card">';
+                                                $html .= '<div class="card-header" id="heading-' . $property_set['set_id'] . '">';
+                                                $html .= '<h2 class="mb-0">';
+                                                $html .= '<button class="btn btn-link" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-' . $property_set['set_id'] . '" aria-expanded="true" aria-controls="collapse-' . $property_set['set_id'] . '">';
+                                                $html .= $property_set['name'];
+                                                $html .= '</button>';
+                                                $html .= '</h2>';
+                                                $html .= '</div>';
+                                                $html .= '<div id="collapse-' . $property_set['set_id'] . '" class="collapse" aria-labelledby="heading-' . $property_set['set_id'] . '" data-bs-parent="#accordion-' . $property_set['set_id'] . '">';
+                                                $html .= '<div class="card-body">';
+                                                $html .= '<h5>' . $lang['sys.description'] . '</h5>' . '<p>' . ($property_set['description'] ? $property_set['description'] : '---') . '</p>';
+                                                $html .= '<h6>' . $lang['sys.properties'] . '</h6>';
+                                                if (!count($property_set['properties'])) {
+                                                    $html .= '---';
+                                                }
+                                                foreach ($property_set['properties'] as $property) {
+                                                    $html .= '<div class="accordion my-3" id="accordion-' . $property['p_id'] . '">';
+                                                    $html .= '<div class="card">';
+                                                    $html .= '<div class="card-header" id="heading-' . $property['p_id'] . '">';
+                                                    $html .= '<h2 class="mb-0">';
+                                                    $html .= '<button class="btn btn-link" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-' . $property['p_id'] . '"'
+                                                            . ' aria-expanded="true" aria-controls="collapse-' . $property['p_id'] . '">';
+                                                    $html .= $property['name'] . '<br/>';
+                                                    $html .= '</button></h2></div>';
+                                                    $html .= '<div id="collapse-' . $property['p_id'] . '" class="collapse" aria-labelledby="heading-' . $property['p_id'] . '" '
+                                                            . 'data-bs-parent="#accordion-' . $property['p_id'] . '">';
+                                                    $html .= '<div class="card-body">';
+                                                    $html .= '<div><label>Is Multiple:</label>';
+                                                    $html .= '<input class="ms-1" type="checkbox" disabled ';
+                                                    $html .= ($property['is_multiple'] == 1 ? 'checked' : '') . '>';
+                                                    $html .= '&nbsp;&nbsp;<label>Is Required:</label>';
+                                                    $html .= '<input class="ms-1" type="checkbox" disabled ';
+                                                    $html .= ($property['is_required'] == 1 ? 'checked' : '') . '></div>';                                                    
+                                                        // SysClass::pre($property['properties_values']['values']);
+                                                    echo Plugins::renderPropertyHtmlFieldsByAdmin($property['properties_values']['values'],
+                                                            $category_data['category_id'], 'category', $property['properties_values']['entity_id']);
+                                                    $html .= '</div>'; // Закрытие .card-body
+                                                    $html .= '</div>'; // Закрытие #collapse-[id]
+                                                    $html .= '</div>'; // Закрытие .card
+                                                    $html .= '</div>'; // Закрытие .accordion для свойств
+                                                }
+                                                $html .= '</div>'; // Закрытие .card-body для набора свойств
+                                                $html .= '</div>'; // Закрытие .card для набора свойств
+                                                $html .= '</div>'; // Закрытие .accordion для набора свойств
                                             }
-                                            foreach ($property_set['properties'] as $property) {
-                                                $html .= $property . '<br/>';
-                                            }
-                                            $html .= '</div>';
-                                            $html .= '</div>';
-                                            $html .= '</div>';
-                                            $html .= '</div>';
                                         }
-                                    }
-                                    echo $html;
+                                        echo $html;
                                     ?>                                    
                                 </div>
                             </div>

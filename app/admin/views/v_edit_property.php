@@ -40,6 +40,7 @@ use classes\system\Plugins;
                                     <label for="type_id-input"><?=$lang['sys.type'] . ' ' . $lang['sys.properties']?>:</label>
                                     <div role="group" class="input-group">
                                         <select type="text" id="type_id-input" name="type_id" class="form-control">
+                                            <option><?=$lang['sys.empty']?></option>
                                             <?php foreach ($all_property_types as $item) { ?>
                                                 <option <?=($property_data['type_id'] == $item['type_id'] ? 'selected ' : '')?>value="<?=$item['type_id']?>">
                                                 <?=$item['name']?></option>
@@ -72,7 +73,7 @@ use classes\system\Plugins;
                                 <div class="col-8 col-sm-8 card">
                                     <div class="card-body" id="fields_contents">
                                         <h5 class="card-title"><?=$lang['sys.fields'] . '(' . $lang['sys.field'] . ')'?></h5>
-                                        <?= Plugins::renderPropertyHtmlFields($property_data['fields'], $property_data['default_values'], $lang) ?>
+                                        <?= Plugins::renderPropertyHtmlFields($property_data['fields'], $property_data['default_values']) ?>
                                     </div>
                                 </div>
                             </div>

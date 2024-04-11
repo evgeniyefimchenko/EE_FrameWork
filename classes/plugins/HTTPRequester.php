@@ -1,6 +1,6 @@
 <?php
 
-namespace classes\system;
+namespace classes\plugins;
 
 use classes\system\SysClass;
 

@@ -19,7 +19,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-// namespace PHPMailer\PHPMailer;
+namespace PHPMailer\PHPMailer;
 
 /**
  * PHPMailer POP-Before-SMTP Authentication Class.
@@ -46,7 +46,7 @@ class POP3
      *
      * @var string
      */
-    const VERSION = '6.7.1';
+    const VERSION = '6.9.1';
 
     /**
      * Default POP3 port number.

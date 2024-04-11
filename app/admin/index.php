@@ -21,16 +21,16 @@ use classes\helpers\ClassMail;
  */
 
 class ControllerIndex Extends ControllerBase {
-
     /* Подключение traits */
-    use MessagesTrait,
-        NotificationsTrait,
-        SystemsTrait,
-        EmailsTrait,
-        CategoriesTrait,
-        CategoriesTypesTrait,
-        EntitiesTrait,
-        PropertiesTrait;
+
+use MessagesTrait,
+    NotificationsTrait,
+    SystemsTrait,
+    EmailsTrait,
+    CategoriesTrait,
+    CategoriesTypesTrait,
+    EntitiesTrait,
+    PropertiesTrait;
 
     /**
      * Главная страница админ-панели
@@ -210,7 +210,7 @@ class ControllerIndex Extends ControllerBase {
             // ... другие строки ...
             ],
             'total_rows' => 1110  // Общее количество записей (используется для пагинации)
-        ];      
+        ];
         $filters = [];
         $post_data = SysClass::ee_cleanArray($_POST);
         if ($post_data && isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') { // AJAX						
@@ -345,9 +345,9 @@ class ControllerIndex Extends ControllerBase {
         /* layouts */
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
-	$this->parameters_layout["add_style"] .= '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@ckeditor/ckeditor5-build-classic@latest/build/ckeditor.css">';
-	$this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/elfinder/2.1.9/css/elfinder.min.css">' .
-                                                 '<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/elfinder/2.1.9/css/theme.css">';
+        $this->parameters_layout["add_style"] .= '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@ckeditor/ckeditor5-build-classic@latest/build/ckeditor.css">';
+        $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/elfinder/2.1.9/css/elfinder.min.css">' .
+                '<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/elfinder/2.1.9/css/theme.css">';
         $this->parameters_layout["add_script"] .= '<script src="https://cdn.jsdelivr.net/npm/@ckeditor/ckeditor5-build-classic@latest/build/ckeditor.js"></script>';
         $this->parameters_layout["add_script"] .= '<script src="https://cdn.ckeditor.com/ckeditor5/41.1.0/classic/translations/ru.js"></script>';
         $this->parameters_layout["add_script"] .= '<script src="https://cdnjs.cloudflare.com/ajax/libs/elfinder/2.1.9/js/elfinder.min.js"></script>';
@@ -405,8 +405,7 @@ class ControllerIndex Extends ControllerBase {
         }
         if ($this->users->set_user_data($user_id, $post_data)) {
             $user_role = $this->users->get_user_role($user_id);
-            if (isset($post_data['user_role']) && $post_data['user_role'] != $user_role) { // Сменилась роль пользователя, оповещаем админа и пишем лог                
-                ClassMail::send_mail($this->users->get_user_email(1), 'changed status(' . $user_role . ' to ' . $post_data['user_role'] . ') to user', 'User ' . $this->logged_in . ' changed status to user ' . $user_id);
+            if (isset($post_data['user_role']) && $post_data['user_role'] != $user_role) { // Сменилась роль пользователя, оповещаем админа и пишем лог                                
                 SysClass::pre_file('users_edit', 'ajax_user_edit', 'Изменили роль пользователю', ['id_user' => $user_id, 'old' => $this->users->data['user_role'], 'new' => $post_data['user_role']]);
             }
             echo json_encode(array('error' => 'no', 'id' => $user_id));
@@ -606,7 +605,7 @@ class ControllerIndex Extends ControllerBase {
         /* layouts */
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
-        $this->parameters_layout["title"] = 'Роли пользователей';        
+        $this->parameters_layout["title"] = 'Роли пользователей';
         $this->show_layout($this->parameters_layout);
     }
 
@@ -780,12 +779,12 @@ class ControllerIndex Extends ControllerBase {
                     $id = $new_id;
                 }
             }
-            $get_users_role_data = (int)$id ? $this->models['m_user_edit']->get_users_role_data($id) : $default_data;
+            $get_users_role_data = (int) $id ? $this->models['m_user_edit']->get_users_role_data($id) : $default_data;
             $get_users_role_data = $get_users_role_data ? $get_users_role_data : $default_data;
         } else {
             SysClass::return_to_main(200, ENV_URL_SITE . '/admin/users_role_edit/id/');
         }
-        /* view */        
+        /* view */
         $this->view->set('users_role_data', $get_users_role_data);
         $this->get_standart_view();
         $this->view->set('body_view', $this->view->read('v_edit_users_role'));
@@ -819,7 +818,7 @@ class ControllerIndex Extends ControllerBase {
         $this->parameters_layout["title"] = 'Удалённые пользователи';
         $this->show_layout($this->parameters_layout);
     }
-    
+
     /**
      * Вернёт таблицу удалённых пользователей
      */
@@ -902,16 +901,16 @@ class ControllerIndex Extends ControllerBase {
             return Plugins::ee_show_table('deleted_users_table', $data_table, 'get_deleted_users_table', $filters);
         }
     }
-    
+
     /**
-    * Обрабатывает страницу редактирования удаленного пользователя
-    * Эта функция обрабатывает параметры запроса для получения данных удаленного пользователя и отображает страницу для его редактирования
-    * Доступ к этой функции имеют только пользователи с определенными правами (1 и 2)
-    * Если доступ запрещен или пользователь не найден, происходит перенаправление на главную страницу
-    * @param array $params Массив параметров из URL, например, ID пользователя
-    * Если ID пользователя не указан или не валиден, используется значение по умолчанию (false)
-    * @return void
-    */   
+     * Обрабатывает страницу редактирования удаленного пользователя
+     * Эта функция обрабатывает параметры запроса для получения данных удаленного пользователя и отображает страницу для его редактирования
+     * Доступ к этой функции имеют только пользователи с определенными правами (1 и 2)
+     * Если доступ запрещен или пользователь не найден, происходит перенаправление на главную страницу
+     * @param array $params Массив параметров из URL, например, ID пользователя
+     * Если ID пользователя не указан или не валиден, используется значение по умолчанию (false)
+     * @return void
+     */
     public function deleted_user_edit($params = []) {
         $this->access = [1, 2];
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
@@ -926,8 +925,8 @@ class ControllerIndex Extends ControllerBase {
                 $user_id = filter_var($params[$key_id + 1], FILTER_VALIDATE_INT);
             } else {
                 $user_id = 0;
-            }            
-            $get_deleted_user_data = (int)$user_id ? $this->users->get_user_data($user_id) : $default_data;
+            }
+            $get_deleted_user_data = (int) $user_id ? $this->users->get_user_data($user_id) : $default_data;
             if (!$get_deleted_user_data) {
                 SysClass::return_to_main(200, ENV_URL_SITE . '/admin/deleted_users');
             }
@@ -944,16 +943,16 @@ class ControllerIndex Extends ControllerBase {
         $this->parameters_layout["layout"] = 'dashboard';
         $this->parameters_layout["title"] = 'Удалённый пользователь';
         $this->parameters_layout["add_script"] .= '<script src="' . $this->get_path_controller() . '/js/edit_deleted_user.js" type="text/javascript" /></script>';
-        $this->show_layout($this->parameters_layout);        
+        $this->show_layout($this->parameters_layout);
     }
-    
+
     /**
      * Добавит необходимые стили и скрипты для подключения редактора
      */
     private function add_editor_to_layout() {
-    	$this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/elfinder/2.1.9/css/elfinder.min.css">' .                                                 '<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/elfinder/2.1.9/css/theme.css">';
+        $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/elfinder/2.1.9/css/elfinder.min.css">' . '<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/elfinder/2.1.9/css/theme.css">';
         $this->parameters_layout["add_script"] .= '<script src="' . ENV_URL_SITE . '/assets/editor/tinymce/tinymce.min.js"></script>';
         $this->parameters_layout["add_script"] .= '<script src="https://cdnjs.cloudflare.com/ajax/libs/elfinder/2.1.9/js/elfinder.min.js"></script>';
-    }    
-    
+    }
+
 }

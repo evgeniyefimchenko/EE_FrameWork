@@ -122,9 +122,8 @@ use classes\system\Plugins;
                                 foreach ($all_properties as $property_data) {
                                     $html .= '<h4>' . $property_data['name'] . '</h4>';
                                     $html .= '<div class="card"><div class="card-body">';
-                                    // Опциональная функция вывода свойств/характеристаик для сущности в Админ панели
-                                    var_export($property_data);
-                                    $html .= Plugins::renderPropertyHtmlFieldsByAdmin($property_data['fields'], $property_data['default_values']);
+                                    // Опциональная функция вывода свойств/характеристаик для сущности в Админ панели TODO
+                                    //// $html .= Plugins::renderPropertyHtmlFieldsByAdmin($property_data['fields'], $property_data['default_values']);
                                     $html .= '</div></div>';
                                 }
                                 echo $html;

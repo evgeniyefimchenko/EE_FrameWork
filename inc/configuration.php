@@ -44,7 +44,7 @@ $C['ENV_APP_DIRECTORY'] = 'app';    // Директория приложения
 $C['ENV_PATH_LANG'] = 'inc' . DIRECTORY_SEPARATOR . 'langs';    // Директория языковых файлов
 $C['ENV_PROTO_LANGUAGE'] = 'RU';
 $get_lang_code = strtoupper(substr(Get_Client_Prefered_Language(), 0, 2));
-$C['ENV_DEF_LANG'] = $get_lang_code ? $get_lang_code : $C['ENV_PROTO_LANGUAGE'];    // Локализация по умолчанию,выбирает наиболее предпочитаемый язык пользователя или RU
+$C['ENV_DEF_LANG'] = $get_lang_code ? $get_lang_code : $C['ENV_PROTO_LANGUAGE'];    // Локализация по умолчанию, выбирает наиболее предпочитаемый язык пользователя или RU
 if ($C['ENV_DEF_LANG'] == 'RU') {
     date_default_timezone_set('Europe/Moscow');
 }
