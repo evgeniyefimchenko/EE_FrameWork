@@ -102,9 +102,28 @@ trait CategoriesTrait {
         $get_categories_type_sets_data = [];
         if ($get_categories_type_sets && $get_category_data) {
             foreach ($get_categories_type_sets as $set_id) {                
-                $get_categories_type_sets_data[$get_category_data['title']][] = $this->models['m_properties']->get_property_set_data($set_id);
+                $property_data = $this->models['m_properties']->get_property_set_data($set_id);
+                foreach ($property_data['properties'] as &$prop) {
+                    $prop['default_values'] = json_decode($prop['default_values'], true);
+                    $prop['properties_values'] = $this->models['m_properties']->getPropertyValuesForEntity($id, 'category');
+                    if (!count($prop['properties_values'])) {
+                        $count = 0;
+                        $prop['properties_values']['property_id'] = $prop['p_id'];
+                        $prop['properties_values']['entity_id'] = $id;
+                        $prop['properties_values']['entity_type'] = 'category';                        
+                        foreach ($prop['default_values'] as $prop_default) {
+                            $prop['properties_values']['values'][$count] = ['type' => $prop_default['type'], 
+                                'value' => isset($prop_default['default']) ? $prop_default['default'] : '',
+                                'label' => $prop_default['label'], 'multiple' => $prop_default['multiple'], 'required' => $prop_default['required']];                            
+                            $count++;
+                        }
+                        unset($prop['default_values']);                        
+                    }
+                }
+                $get_categories_type_sets_data[$get_category_data['title']][$set_id] = $property_data;
             }
         }
+        // SysClass::pre($get_categories_type_sets_data);
         /* view */        
         $this->view->set('category_data', $get_category_data);
         $this->view->set('categories_tree', $categories_tree);

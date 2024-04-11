@@ -1,7 +1,6 @@
 <?php
 
 namespace classes\plugins;
-use classes\system\SysClass;
 
 abstract class Singleton {
 

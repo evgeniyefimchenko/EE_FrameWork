@@ -332,14 +332,14 @@ class ModelProperties {
         }
         // Получаем свойства, связанные с этим набором
         $sql_properties = '
-        SELECT p.property_id as p_id, p.name 
+        SELECT p.property_id as p_id, p.name, p.default_values, p.is_multiple, p.is_required 
         FROM ?n p
         JOIN ?n ps2p ON p.property_id = ps2p.property_id
         WHERE ps2p.set_id = ?i
         ';
-        $properties = SafeMySQL::gi()->getIndCol('p_id', $sql_properties, Constants::PROPERTIES_TABLE, Constants::PROPERTY_SET_TO_PROPERTIES_TABLE, $set_id);
+        $properties = SafeMySQL::gi()->getInd('p_id', $sql_properties, Constants::PROPERTIES_TABLE, Constants::PROPERTY_SET_TO_PROPERTIES_TABLE, $set_id);
         // Добавляем свойства к данным набора
-        $set_data['properties'] = $properties;
+        $set_data['properties'] = $properties;        
         return $set_data;
     }
 
@@ -427,6 +427,62 @@ class ModelProperties {
         foreach ($selected_properties as $property_id) {
             $insert_query = "INSERT INTO ?n (set_id, property_id) VALUES (?i, ?i)";
             SafeMySQL::gi()->query($insert_query, Constants::PROPERTY_SET_TO_PROPERTIES_TABLE, $set_id, $property_id);
+        }
+    }
+
+    /**
+     * Получает значения свойств для определенной сущности
+     * @param int $entity_id Идентификатор сущности, для которой требуется получить свойства
+     * @param string $entity_type Тип сущности ('category', 'entity' и т.д.)
+     * @param string $language_code Код языка, по умолчанию 'RU'
+     * @return array Возвращает массив значений свойств для сущности или пустой массив, если свойства не найдены
+     */
+    public function getPropertyValuesForEntity(int $entity_id, string $entity_type, string $language_code = 'RU'):array {
+        $sql = "SELECT * FROM ?n WHERE `entity_id` = ?i AND `entity_type` = ?s AND `language_code` = ?s";
+        $properties = SafeMySQL::gi()->getInd('value_id', $sql, Constants::PROPERTY_VALUES_TABLE, $entity_id, $entity_type, $language_code);
+        if (!$properties) {
+            return [];
+        }
+        // Преобразование значений JSON в массивы PHP, если необходимо
+        foreach ($properties as $key => $value) {
+            if (is_string($properties[$key]['value'])) {
+                $properties[$key]['value'] = json_decode($value['value'], true);
+            }
+        }
+        return $properties;
+    }
+
+    /**
+     * Сохраняет или обновляет значение свойства
+     * @param array $property_data Данные свойства для сохранения или обновления
+     * @param string $language_code Код языка для данных свойства, по умолчанию 'RU'
+     * @return mixed Возвращает идентификатор записи в случае успеха или false в случае ошибки
+     */
+    public function updatePropertiesTypeData(array $property_data = [], string $language_code = 'RU'):mixed {
+        // Фильтрация и подготовка данных свойства
+        $property_data = SafeMySQL::gi()->filterArray($property_data, SysClass::ee_get_fields_table(Constants::PROPERTY_VALUES_TABLE_FIELDS));
+        $property_data = array_map('trim', $property_data);
+        $property_data['language_code'] = $language_code;
+        // Проверка наличия и валидность ключевых полей
+        if (empty($property_data['entity_id']) || empty($property_data['property_id']) || empty($property_data['entity_type']) || empty($property_data['value'])) {
+            return false; // Все ключевые поля обязательны
+        }
+        // Преобразование value в JSON, если это необходимо
+        if (!is_string($property_data['value'])) {
+            $property_data['value'] = json_encode($property_data['value'], JSON_UNESCAPED_UNICODE);
+        }
+        // Проверка на наличие value_id для обновления
+        if (!empty($property_data['value_id'])) {
+            $value_id = $property_data['value_id'];
+            unset($property_data['value_id']); // Удаление value_id из массива данных, чтобы избежать его включения в обновление
+            $sql = "UPDATE ?n SET ?u WHERE `value_id` = ?i";
+            $result = SafeMySQL::gi()->query($sql, Constants::PROPERTY_VALUES_TABLE, $property_data, $value_id);
+            return $result ? $value_id : false;
+        } else {
+            unset($property_data['value_id']); // Удаление value_id, если оно пустое
+            $sql = "INSERT INTO ?n SET ?u";
+            $result = SafeMySQL::gi()->query($sql, Constants::PROPERTY_VALUES_TABLE, $property_data);
+            return $result ? SafeMySQL::gi()->insertId() : false;
         }
     }
 

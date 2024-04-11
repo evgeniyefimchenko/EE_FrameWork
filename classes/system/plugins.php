@@ -633,7 +633,9 @@ class Plugins {
      * @param array $fields
      * @return void Функция ничего не возвращает, выводит HTML напрямую.
      */
-    public static function renderPropertyHtmlFields(mixed $fields, mixed $default = [], array $lang = []) {
+    public static function renderPropertyHtmlFields(mixed $fields, mixed $default = []) {
+        global $global_lang;
+        $lang = $global_lang;        
         $count = 0;
         $result = '';
         if (!is_array($fields) && is_string($fields)) {
@@ -648,6 +650,9 @@ class Plugins {
         }
         foreach ($fields as $type) {
             if ($not_default) {
+                $default[$count] = ['label' => '', 'default' => '', 'required' => 0, 'multiple' => 0, 'title' => ''];
+            }
+            if (empty($default[$count])) {
                 $default[$count] = ['label' => '', 'default' => '', 'required' => 0, 'multiple' => 0, 'title' => ''];
             }
             $result .= $lang['sys.type'] . ' ' . ucfirst($type) . ': ';
@@ -829,48 +834,36 @@ class Plugins {
      * Вывод свойств для сущности !!!&&&!! TODO
      * @param type $params
      */
-    public static function renderPropertyHtmlFieldsByAdmin(mixed $fields, mixed $default = []) {
+    public static function renderPropertyHtmlFieldsByAdmin(array $values, int $entity_id, string $entity_type, int $property_id):string {
         global $global_lang;
         $lang = $global_lang;
-        $count = 0;
         $result = '';
-        if (!is_array($fields) && is_string($fields)) {
-            $fields = json_decode($fields, true);
-        }
-        if (!is_array($fields)) {
-            $fields = [];
-        }
-        if (!is_array($default) && is_string($default)) {
-            $default = json_decode($default, true);
-        }
-        if (!is_array($default) || !count($default)) {
-            $default[] = ['label' => '', 'default' => '', 'required' => 0, 'multiple' => 0];
-        }
-        foreach ($fields as $type) {
-            $result .= '<div class="col-6 col-sm-6 mt-2 d-flex align-items-center">';
-            if ($type !== 'checkbox' && $type !== 'radio') {
-                $result .= count($fields) == 1 ? '' : '<h6><span class="px-2">' . $default[$count]['label'] . '</span></h6>';
+        foreach ($values as $key => $value) {
+            $result .= '<div class="col-6 col-sm-6 mt-2 d-flex">';
+            if ($value['type'] !== 'checkbox' && $value['type'] !== 'radio') {
+                $result .= count($value) == 1 ? '' : '<h6><span class="px-2" style="width: 150px; display: block;">' . $value['label'] . '</span></h6>';
             }
-            switch ($type) {
+            $value_id = $value['value'] . '_' . $entity_id . '_' . $entity_type . '_' . $property_id;
+            switch ($value['type']) {
                 case 'text':
                     $result .= '<input type="text" class="form-control" data-bs-toggle="tooltip" data-bs-placement="top" '
-                            . 'name="property_data[' . $type . '_' . $count . '_default]" value="' . $default[$count]['default'] . '" />';
+                            . 'name="property_data[' . $value_id . ']" value="' . $value['value'] . '" />';
                     break;
                 case 'date':
                     $result .= '<input type="date" class="form-control" data-bs-toggle="tooltip" data-bs-placement="top" '
-                            . 'name="property_data[' . $type . '_' . $count . '_default]" value="' . $default[$count]['default'] . '" />';
+                            . 'name="property_data[' . $type . '_' . $count . '_default]" value="' . $value['value'] . '" />';
                     break;
                 case 'datetime-local':
                     $result .= '<input type="datetime-local" class="form-control" data-bs-toggle="tooltip" data-bs-placement="top" '
-                            . 'name="property_data[' . $type . '_' . $count . '_default]" value="' . $default[$count]['default'] . '" />';
+                            . 'name="property_data[' . $type . '_' . $count . '_default]" value="' . $value['value'] . '" />';
                     break;
                 case 'hidden':
                     $result .= '<input type="text" class="form-control" data-bs-toggle="tooltip" data-bs-placement="top" '
-                            . 'name="property_data[' . $type . '_' . $count . '_default]" value="' . $default[$count]['default'] . '" />';
+                            . 'name="property_data[' . $type . '_' . $count . '_default]" value="' . $value['value'] . '" />';
                     break;
                 case 'password':
                     $result .= '<input type="password" class="form-control" data-bs-toggle="tooltip" data-bs-placement="top" '
-                            . 'name="property_data[' . $type . '_' . $count . '_default]" value="' . $default[$count]['default'] . '" />';
+                            . 'name="property_data[' . $type . '_' . $count . '_default]" value="' . $value['value'] . '" />';
                     break;
                 case 'file':
                     $result .= '<div style="display: none;"><input type="file" class="form-control" data-bs-toggle="tooltip" data-bs-placement="top" '
@@ -1014,7 +1007,8 @@ class Plugins {
                     $result .= '<span class="text-danger">Unsupported field type: ' . $type . '</span>';
             }
             $result .= '<span>' . $lang['sys.required'] . '</span><div class="form-check"><input disabled type="checkbox"'
-                    . 'class="form-check-input"' . ($default[$count]['required'] ? 'checked ' : '') . '/></div></div>';
+                    . 'class="form-check-input"' . ($default[$count]['required'] ? 'checked ' : '') . '/></div>'
+                    . '</div>';
             $count++;
         }
         return $result;
@@ -1074,13 +1068,13 @@ class Plugins {
     }
 
     /**
-     * Рекурсивно создает строку с опциями выпадающего списка для иерархических типов категорий.
-     * Каждый дочерний уровень типа будет иметь увеличенный отступ для визуального представления иерархии.
-     * Добавляет в начало списка пустой элемент <option>, чтобы обеспечить возможность выбора "пустоты".
-     * @param array $types Массив типов категорий, где каждый тип содержит ключи 'type_id', 'parent_type_id', 'name' и, возможно, 'children'.
-     * @param int $selected_type_id ID выбранного типа. Этот тип будет отмечен как выбранный в выпадающем списке.
-     * @param int $parent_type_id ID родительского типа для текущего уровня иерархии. По умолчанию равен 0, что соответствует корневому уровню.
-     * @param int $level Текущий уровень иерархии. Используется для добавления отступов дочерним элементам. По умолчанию равен 0 для корневого уровня.
+     * Рекурсивно создает строку с опциями выпадающего списка для иерархических типов категорий
+     * Каждый дочерний уровень типа будет иметь увеличенный отступ для визуального представления иерархии
+     * Добавляет в начало списка пустой элемент <option>, чтобы обеспечить возможность выбора "пустоты"
+     * @param array $types Массив типов категорий, где каждый тип содержит ключи 'type_id', 'parent_type_id', 'name' и, возможно, 'children'
+     * @param int $selected_type_id ID выбранного типа. Этот тип будет отмечен как выбранный в выпадающем списке
+     * @param int $parent_type_id ID родительского типа для текущего уровня иерархии. По умолчанию равен 0, что соответствует корневому уровню
+     * @param int $level Текущий уровень иерархии. Используется для добавления отступов дочерним элементам. По умолчанию равен 0 для корневого уровня
      * @return string Строка с HTML кодом опций для элемента <select>
      */
     public static function show_type_categogy_for_select($types, $selected_type_id = null, $level = 0) {
@@ -1103,13 +1097,13 @@ class Plugins {
     }
 
     /**
-     * Рекурсивно выводит опции категорий для элемента select HTML, формируя иерархическую структуру.
-     * Каждая подкатегория имеет отступ, соответствующий ее уровню вложенности.
-     * @param array $categories Массив категорий, где каждая категория содержит информацию о себе и, возможно, о своих подкатегориях ('children').
-     * @param int $selectedCategoryId ID выбранной категории. Если ID совпадает с ID категории в массиве, эта категория будет отмечена как выбранная.
-     * @param int $parentId ID родительской категории для текущего уровня иерархии. По умолчанию 0 (верхний уровень).
-     * @param int $level Текущий уровень иерархии. Используется для определения количества отступов перед названием категории.
-     * @return string Строка HTML с опциями категорий для использования в элементе select.
+     * Рекурсивно выводит опции категорий для элемента select HTML, формируя иерархическую структуру
+     * Каждая подкатегория имеет отступ, соответствующий ее уровню вложенности
+     * @param array $categories Массив категорий, где каждая категория содержит информацию о себе и, возможно, о своих подкатегориях ('children')
+     * @param int $selectedCategoryId ID выбранной категории. Если ID совпадает с ID категории в массиве, эта категория будет отмечена как выбранная
+     * @param int $parentId ID родительской категории для текущего уровня иерархии. По умолчанию 0 (верхний уровень)
+     * @param int $level Текущий уровень иерархии. Используется для определения количества отступов перед названием категории
+     * @return string Строка HTML с опциями категорий для использования в элементе select
      */
     public static function show_categogy_for_select($categories, $selectedCategoryId, $parentId = 0, $level = 0) {
         $html = '';
@@ -1162,16 +1156,16 @@ class Plugins {
     }
 
     /**
-     * Генерирует HTML код модального окна Bootstrap 5.
-     * @param string $id Идентификатор модального окна.
-     * @param string $title Заголовок окна.
-     * @param string $bodyContent Содержимое тела окна.
+     * Генерирует HTML код модального окна Bootstrap 5
+     * @param string $id Идентификатор модального окна
+     * @param string $title Заголовок окна
+     * @param string $bodyContent Содержимое тела окна
      * @param array $buttons Массив кнопок. Каждый элемент массива должен содержать текст кнопки, классы стилей и опционально тип кнопки
      * [
       ['text' => 'Закрыть', 'class' => 'btn-secondary', 'type' => 'button', 'meta' => 'data-bs-dismiss="modal"'],
       ['text' => 'Сохранить изменения', 'class' => 'btn-primary', 'type' => 'submit']
       ]
-     * @return string HTML код модального окна.
+     * @return string HTML код модального окна
      */
     public static function ee_generateModal($id, $title, $bodyContent, $buttons = [['text' => 'Закрыть', 'class' => 'btn-secondary', 'type' => 'button', 'meta' => 'data-bs-dismiss="modal"']]) {
         $html = "<div class='modal fade' id='{$id}' tabindex='-1' aria-labelledby='{$id}Label' aria-hidden='true'>

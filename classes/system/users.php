@@ -388,19 +388,9 @@ class Users {
      */
     public function send_recovery_password($email) {
         $password = $this->set_user_password(0, $email, 0);
-        $message = 'Вы запросили восстановление пароля для сайта ' . ENV_SITE_NAME . ' </br>Если это были не Вы, то просто проигнорируйте данное сообщение.';
-        $message .= '</br>Ваш новый пароль ' . $password . ' измените его в личном кабинете, при первой возможности.';
-
-        $m = new Mail('', '', true);
-        $m->From(ENV_SITE_EMAIL);
-        $m->To($email);
-        $m->ReplyTo($this->lang['sys.admin'] . ';' . ENV_ADMIN_EMAIL);
-        $m->Subject($this->lang['sys.restore_password_process'] . ' ' . ENV_SITE_NAME);
-        $m->Body($message, "html");
-        if (ENV_SMTP) {
-            $m->smtp_on(ENV_SMTP_SERVER, ENV_SMTP_LOGIN, ENV_SMTP_PASSWORD, ENV_SMTP_PORT, 15);
-        }
-        if ($m->Send()) {
+        $mailIsSuccess = ClassMail::send_mail($email, $this->lang['sys.restore_password_process'] . ' ' . ENV_SITE_NAME,
+                ['PASSWORD' => $password]);
+        if ($mailIsSuccess) {
             SysClass::pre_file('users_info', 'send_recovery_password', 'Отправлен новый пароль', ['email' => $email]);
             return true;
         } else {
@@ -415,10 +405,9 @@ class Users {
     public function send_register_code($email) {
         $acivation_code = base64_encode(password_hash($email, PASSWORD_DEFAULT));
         $activation_link = ENV_URL_SITE . '/activation/' . $acivation_code . '/' . $email;
-        $res_mail = ClassMail::send_mail($email, 'Регистрация на сайте ' . ENV_SITE_NAME, 'Вы зарегистрировались на сайте ' . ENV_SITE_NAME . ', перейдите по <a href="' . $activation_link . '" target = "_blank">ссылке</a> для активации Вашего аккаунта.</br>
-                           Если Вы не делали этого то просто проигнорируйте это сообщение.</br>Но всё же, вдруг мы сможем помочь Вам или быть интересными!
-                                   </br></br>С уважением, сайт <a href="' . ENV_URL_SITE . '">' . ENV_SITE_NAME . '</a>');
+        $res_mail = ClassMail::send_mail($email, 'Регистрация на сайте', ['activation_link' => $activation_link], 'activation_link');
         if ($res_mail !== TRUE) {
+            SysClass::pre_file('users_info', 'send_register_code', 'Ошибка отправки письма с кодом', ['email' => $email, 'acivation_code' => $acivation_code]);
             return false;
         } else {
             SysClass::pre_file('users_info', 'send_register_code', 'Письмо на с кодом отправлено', ['email' => $email, 'acivation_code' => $acivation_code]);
@@ -596,6 +585,7 @@ class Users {
 			type_id INT UNSIGNED NOT NULL,
 			name VARCHAR(255) NOT NULL,
                         status ENUM('active', 'hidden', 'disabled') NOT NULL DEFAULT 'active',
+                        sort INT UNSIGNED NOT NULL DEFAULT 0,
                         default_values JSON NOT NULL,
 			is_multiple BOOLEAN NOT NULL,
 			is_required BOOLEAN NOT NULL,

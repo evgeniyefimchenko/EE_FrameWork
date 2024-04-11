@@ -143,6 +143,7 @@ function sendAjaxRequest(
 // Константы с настройками TYNIMCE
 const settingsShortDescription = {
     language: 'ru',
+    skin: 'oxide-dark',
     language_load: false,
     deprecation_warnings: false,
     menubar: 'file edit view',

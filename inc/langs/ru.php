@@ -135,4 +135,5 @@ $lang['sys.error_type'] = 'Тип ошибки';
 $lang['sys.stack_trace'] = 'Трассировки стека';
 $lang['sys.subscribed'] = 'Подписан';
 $lang['sys.filtres'] = 'Фильтры';
+$lang['sys.database'] = 'База данных';
 return $lang;

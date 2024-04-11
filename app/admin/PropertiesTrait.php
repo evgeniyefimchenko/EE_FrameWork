@@ -313,7 +313,7 @@ trait PropertiesTrait {
                         $id = $new_id;
                     }
                 }
-            }
+            }            
             $property_type_data = (int) $id ? $this->models['m_properties']->get_type_property_data($id) : $default_data;            
             $property_type_data = !$property_type_data ? $default_data : $property_type_data;
             $property_type_data['fields'] = isset($property_type_data['fields']) ? json_decode($property_type_data['fields'], true) : [];
@@ -377,7 +377,7 @@ trait PropertiesTrait {
             }
             $get_property_data = (int) $type_id ? $this->models['m_properties']->get_property_data($type_id) : $default_data;
             $get_property_data = !$get_property_data ? $default_data : $get_property_data;
-            $get_property_data['fields'] = isset($get_property_data['fields']) ? $get_property_data['fields'] : ['text'];
+            $get_property_data['fields'] = isset($get_property_data['fields']) ? $get_property_data['fields'] : [];
             $get_property_data['default_values'] = isset($get_property_data['default_values']) ? $get_property_data['default_values'] : [];
         } else { // Не передан ключевой параметр id
             SysClass::return_to_main(200, ENV_URL_SITE . '/admin/user_edit/id/' . $this->logged_in);

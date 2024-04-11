@@ -56,8 +56,7 @@ class SysClass {
     ];
 
     /**
-     * PHP var_export() с коротким синтаксисом массива (квадратные скобки) с отступом в 2 пробела.
-     *
+     * PHP var_export() с коротким синтаксисом массива (квадратные скобки) с отступом в 2 пробела
      * Единственная проблема заключается в том, что если строковое значение имеет `=> \ n [`, оно будет преобразовано в `=> [`
      */
     public static function varexport($expression, $return = false) {
@@ -1067,7 +1066,7 @@ class SysClass {
      * @param mixed $result Результат для логирования.
      * @param mixed $details Дополнительные детали.
      */
-    public static function pre_file(string $subFolder, string $initiator, mixed $result, mixed $details = ''): void {
+    public static function pre_file(string $subFolder, string $initiator, mixed $result, mixed $details = ''): void {        
         if (ENV_LOG) {
             $logsPath = ENV_LOGS_PATH . $subFolder;
             if (!file_exists($logsPath)) {
@@ -1084,15 +1083,13 @@ class SysClass {
                     'type' => $item['type'] ?? 'N/A',
                     'object' => $item['object'] ?? 'N/A',
                 ];
-            }
-            $result = var_export($result, true);
-            $details = var_export($details, true);
+            }            
             $path = $logsPath . ENV_DIRSEP . date("Y-m-d") . '.txt';
-            $result = is_array($result) ? json_encode($result, JSON_UNESCAPED_SLASHES) : $result;
-            $result = is_array($details) ? json_encode($details, JSON_UNESCAPED_SLASHES) : $details;
+            $result = is_array($result) ? json_encode($result, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) : $result;
+            $details = is_array($details) ? json_encode($details, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) : $details;
             $logMessage = "{START}";
             $logMessage .= PHP_EOL . "Время события: " . date("Y-m-d H:i:s");
-            $logMessage .= PHP_EOL . "Инициатор: " . $initiator;
+            $logMessage .= PHP_EOL . "Инициатор: " . var_export($initiator, true);
             $logMessage .= PHP_EOL . "Результат: " . $result;
             $logMessage .= PHP_EOL . "Детали: " . $details;
             $json = json_encode($formattedTrace, JSON_UNESCAPED_SLASHES);

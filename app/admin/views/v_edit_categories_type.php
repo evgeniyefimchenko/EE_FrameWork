@@ -48,7 +48,7 @@ use classes\system\Plugins;
                                 <div class="row mb-3">
                                     <div class="col">
                                         <label for="description-input"><?=$lang['sys.description']?>:</label>
-                                        <textarea required id="description-input" name="description" class="form-control"><?= $type_data['description'] ?></textarea>
+                                        <textarea id="description-input" name="description" class="form-control"><?= $type_data['description'] ?></textarea>
                                     </div>
                                 </div>
                             </div>

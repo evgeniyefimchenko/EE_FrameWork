@@ -4,5 +4,5 @@ $(document).ready(function () {
     $('#description-input').on('focus blur', function(){
         $(this).val($.trim(this.value));
     });
-    initializeTinyMCE('#description-input', settingsLongDescription);
+    initializeTinyMCE('#description-input', settingsShortDescription);
 });

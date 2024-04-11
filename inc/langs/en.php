@@ -134,4 +134,5 @@ $lang['sys.error_type'] = 'Error type';
 $lang['sys.stack_trace'] = 'Stack trace';
 $lang['sys.subscribed'] = 'Subscribed';
 $lang['sys.filtres'] = 'Filtres';
+$lang['sys.database'] = 'DataBase';
 return $lang;

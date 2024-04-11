@@ -7,7 +7,6 @@ use classes\plugins\SafeMySQL;
 use classes\system\Constants;
 use classes\helpers\ClassNotifications;
 use classes\system\Plugins;
-use classes\system\Session;
 
 /**
  * Функции работы с логами
@@ -123,7 +122,7 @@ trait SystemsTrait {
                 'type_log' => $item['type_log'],
                 'initiator' => $item['initiator'],
                 'result' => $item['result'],
-                'details' => $item['details'],
+                'details' => $item['details'], true,
                 'nested_table' => [
                     'columns' => [
                         ['field' => 'stack_trace', 'title' => $this->lang['sys.stack_trace'], 'width' => 20, 'align' => 'left'],

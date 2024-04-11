@@ -3,6 +3,7 @@
 use classes\system\ControllerBase;
 use classes\system\SysClass;
 use classes\system\Session;
+use classes\helpers\ClassMail;
 
 /**
  * Класс контроллера главной страницы сайта
@@ -232,6 +233,7 @@ class ControllerIndex Extends ControllerBase {
             if ($active == 1) {
                 if (password_verify($params[1], base64_decode($params[0]))) {
                     if ($this->users->dell_activation_code($params[1], $params[0])) {
+                        ClassMail::send_mail($email, 'Спасибо за активацию', ['EMAIL' => $email], 'account_activated');
                         $this->users->confirm_user($params[1], '', true); /* Автологин */
                         $this->parameters_layout["layout_content"] = $this->lang['sys.successfully_activated'] . ' <meta http-equiv="refresh" content="7;URL=' . ENV_URL_SITE . '">';
                     } else {
