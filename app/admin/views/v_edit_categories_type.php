@@ -88,7 +88,7 @@ use classes\system\Plugins;
                                     $html .= '---';
                                 }
                                 foreach ($property_set['properties'] as $property) {
-                                    $html .= $property . '<br/>';
+                                    $html .= $property['name'] . '<br/>';
                                 }
                                 $html .= '</div>';
                                 $html .= '</div>';

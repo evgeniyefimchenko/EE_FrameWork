@@ -20,7 +20,7 @@ use classes\system\Plugins;
                 </li>              
             </ol>
             <div class="row">
-                <div class="col">
+                <div class="col-16">
                     <ul class="nav nav-tabs" id="eeTab" role="tablist">
                         <li class="nav-item" role="presentation">
                             <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic-tab-pane"
@@ -33,7 +33,7 @@ use classes\system\Plugins;
                             <div class="row mb-3">
                                 <div class="col-4 col-sm-3">
                                     <label for="name-input"><?=$lang['sys.title']?>:</label>                                    
-                                    <input required type="text" id="name-input" name="name" class="form-control" placeholder="Введите название..."
+                                    <input required type="text" id="name-input" name="name" class="form-control"
                                            value="<?= $property_data['name'] ?>">                                    
                                 </div>
                                 <div class="col-4 col-sm-3">
@@ -60,6 +60,18 @@ use classes\system\Plugins;
                                 </div>
                             </div>
                             <div class="row mb-3">
+                                <div class="col-1 col-sm-1">
+                                    <label><?=$lang['sys.sort']?>:</label>
+                                    <div role="group" class="input-group">
+                                        <input required type="text" name="sort" class="form-control"
+                                               value="<?= $property_data['sort'] ?>">                                     
+                                    </div>
+                                </div>
+                            </div>
+                            <?php
+                                if (1 == 2) { // Убрал для упрощения структуры
+                            ?>
+                            <div class="row mb-3">
                                 <div class="col-3 col-sm-3">
                                     <label for="is_multiple-input"><?=$lang['sys.multiple_choice']?>:</label>
                                     <input type="checkbox" id="is_multiple" name="is_multiple" <?= ($property_data['is_multiple'] ? 'checked' : '') ?>/>
@@ -69,11 +81,12 @@ use classes\system\Plugins;
                                     <input type="checkbox" id="is_required" name="is_required" <?= ($property_data['is_required'] ? 'checked' : '') ?>/>
                                 </div>
                             </div>
+                            <?php } ?>
                             <div class="row mb-3">
-                                <div class="col-8 col-sm-8 card">
-                                    <div class="card-body" id="fields_contents">
+                                <div class="col-12 col-sm-12 card">
+                                    <div class="card-body border-primary" id="fields_contents">
                                         <h5 class="card-title"><?=$lang['sys.fields'] . '(' . $lang['sys.field'] . ')'?></h5>
-                                        <?= Plugins::renderPropertyHtmlFields($property_data['fields'], $property_data['default_values']) ?>
+                                        <?php echo Plugins::renderPropertyHtmlFields($property_data['fields'], $property_data['default_values']); ?>
                                     </div>
                                 </div>
                             </div>
@@ -88,11 +101,11 @@ use classes\system\Plugins;
                             <div class="row mb-3">
                                 <div class="col-2">
                                     <label for="registration-date-input"><?=$lang['sys.date_create']?>:</label>
-                                    <input type="text" disabled  class="form-control" value="<?= $property_data['created_at'] ?>">
+                                    <input type="text" disabled id="registration-date-input" class="form-control" value="<?= $property_data['created_at'] ?>">
                                 </div>
                                 <div class="col-2">
                                     <label for="update-date-input"><?=$lang['sys.date_update']?>:</label>
-                                    <input type="text" disabled class="form-control" value="<?= $property_data['updated_at'] ?>">
+                                    <input type="text" disabled id="update-date-input" class="form-control" value="<?= $property_data['updated_at'] ?>">
                                 </div>
                             </div>
                             <button type="submit" class="btn btn-primary"><?= $lang['sys.save'] ?></button>

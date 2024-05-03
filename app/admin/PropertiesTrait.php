@@ -348,7 +348,7 @@ trait PropertiesTrait {
             exit();
         }
         $default_data = [
-            'property_id' => 0, 'name' => '', 'is_multiple' => 0, 'is_required' => 0, 'description' => '',
+            'title' => '', 'property_id' => 0, 'name' => '', 'is_multiple' => 0, 'is_required' => 0, 'description' => '',
             'status' => 0, 'type_id' => 0, 'created_at' => false, 'updated_at' => false, 'default_values' => []
         ];
         /* model */
@@ -397,6 +397,7 @@ trait PropertiesTrait {
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
         $this->parameters_layout["add_script"] .= '<script src="' . $this->get_path_controller() . '/js/edit_property.js" type="text/javascript" /></script>';
+        $this->parameters_layout["add_script"] .= '<script src="' . $this->get_path_controller() . '/js/func_properties.js" type="text/javascript" /></script>';
         $this->parameters_layout["title"] = 'Редактирование свойства';
         $this->show_layout($this->parameters_layout);
     }
