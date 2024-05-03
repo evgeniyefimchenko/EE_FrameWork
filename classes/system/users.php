@@ -585,7 +585,7 @@ class Users {
 			type_id INT UNSIGNED NOT NULL,
 			name VARCHAR(255) NOT NULL,
                         status ENUM('active', 'hidden', 'disabled') NOT NULL DEFAULT 'active',
-                        sort INT UNSIGNED NOT NULL DEFAULT 0,
+                        sort INT UNSIGNED NOT NULL DEFAULT 100,
                         default_values JSON NOT NULL,
 			is_multiple BOOLEAN NOT NULL,
 			is_required BOOLEAN NOT NULL,

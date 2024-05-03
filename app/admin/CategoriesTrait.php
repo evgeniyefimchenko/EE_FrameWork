@@ -72,12 +72,17 @@ trait CategoriesTrait {
             } else {
                 $id = 0; 
             }
+            // Сохранение основных данных
             if (isset($post_data['title']) && $post_data['title']) {                                
                 if (!$new_id = $this->models['m_categories']->update_category_data($post_data)) {
                     ClassNotifications::add_notification_user($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
                 } else {
                     $id = $new_id;
                 }
+            }
+            // Сохранение свойств для категории
+            if (isset($post_data['property_data']) && $post_data['property_data']) {
+                SysClass::pre($post_data);
             }
             $get_category_data = (int)$id ? $this->models['m_categories']->get_category_data($id) : $default_data;
             $get_category_data = $get_category_data ? $get_category_data : $default_data;
@@ -114,7 +119,10 @@ trait CategoriesTrait {
                         foreach ($prop['default_values'] as $prop_default) {
                             $prop['properties_values']['values'][$count] = ['type' => $prop_default['type'], 
                                 'value' => isset($prop_default['default']) ? $prop_default['default'] : '',
-                                'label' => $prop_default['label'], 'multiple' => $prop_default['multiple'], 'required' => $prop_default['required']];                            
+                                'label' => $prop_default['label'],
+                                'multiple' => $prop_default['multiple'],
+                                'required' => $prop_default['required'],
+                                'title' => isset($prop_default['title']) ? $prop_default['title'] : ''];                            
                             $count++;
                         }
                         unset($prop['default_values']);                        
@@ -123,7 +131,6 @@ trait CategoriesTrait {
                 $get_categories_type_sets_data[$get_category_data['title']][$set_id] = $property_data;
             }
         }
-        // SysClass::pre($get_categories_type_sets_data);
         /* view */        
         $this->view->set('category_data', $get_category_data);
         $this->view->set('categories_tree', $categories_tree);
@@ -137,7 +144,8 @@ trait CategoriesTrait {
         /* layouts */
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
-        $this->add_editor_to_layout();        
+        $this->add_editor_to_layout();
+        $this->parameters_layout["add_script"] .= '<script src="' . $this->get_path_controller() . '/js/func_properties.js" type="text/javascript" /></script>';
         $this->parameters_layout["add_script"] .= '<script src="' . $this->get_path_controller() . '/js/edit_categories.js" type="text/javascript" /></script>';
         $this->parameters_layout["title"] = 'Редактирование категорий';
         $this->show_layout($this->parameters_layout);

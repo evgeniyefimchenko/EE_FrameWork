@@ -1107,8 +1107,20 @@ class SysClass {
     public static function ee_isValidJson(mixed $string): bool {
         $string = is_string($string) ? json_decode($string) : false;
         return json_last_error() === JSON_ERROR_NONE;
-    }    
+    }
     
+    /**
+     * Проверяет, соответствует ли строка формату UUID
+     * UUID должен быть в формате 8-4-4-4-12 шестнадцатеричных символов, разделённых дефисами
+     * Функция использует регулярное выражение для проверки соответствия строки стандартному формату UUID
+     * @param string $uuid Строка, которую необходимо проверить на соответствие формату UUID
+     * @return bool Возвращает true, если строка является валидным UUID, и false в противном случае
+     */
+    function ee_isValidUuid($uuid) {
+        $regex = '/^\{?[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\}?$/';
+        return preg_match($regex, $uuid) === 1;
+    }
+
     /**
      * Копирование папки $source в $dest
      * Во всех переменны используется полный путь к категориям

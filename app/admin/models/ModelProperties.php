@@ -332,7 +332,7 @@ class ModelProperties {
         }
         // Получаем свойства, связанные с этим набором
         $sql_properties = '
-        SELECT p.property_id as p_id, p.name, p.default_values, p.is_multiple, p.is_required 
+        SELECT p.property_id as p_id, p.name, p.default_values, p.is_multiple, p.is_required, p.sort
         FROM ?n p
         JOIN ?n ps2p ON p.property_id = ps2p.property_id
         WHERE ps2p.set_id = ?i

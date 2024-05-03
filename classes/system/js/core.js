@@ -28,6 +28,7 @@ window.lang_select = $('#lang_select');
         const langVars = safeParseJSON(localStorage.getItem('langVars'));
         return langVars ? langVars[key] : '';
     };
+    
     window.env_Global = function (key) {
         const envGlobal = safeParseJSON(localStorage.getItem('envGlobal'));
         return envGlobal ? envGlobal[key] : '';
@@ -195,8 +196,27 @@ const settingsLongDescription = {
  * @param {Object} settings - Объект настроек для инициализации TinyMCE.
  */
 function initializeTinyMCE(selector, settings) {
+    if (typeof tinymce === 'undefined') {
+        console.error('TinyMCE is not loaded');
+        return;
+    }
     settings.selector = selector;
     tinymce.init(settings);
 }
 
 
+/**
+ * Возвращает случайное целое число в заданном диапазоне
+ * @param {number} [min=1] - Минимальное значение диапазона (включительно). По умолчанию 1
+ * @param {number} [max=1000000] - Максимальное значение диапазона (включительно). По умолчанию 1000000
+ * @returns {number} Случайное целое число в заданном диапазоне.
+ * @throws {Error} Если min или max не являются числами.
+ */
+function getRandomInteger(min = 1, max = 1000000) {
+  if (isNaN(min) || isNaN(max)) {
+    throw new Error("Аргументы должны быть числами.");
+  }
+  min = Math.ceil(min);
+  max = Math.floor(max);
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
