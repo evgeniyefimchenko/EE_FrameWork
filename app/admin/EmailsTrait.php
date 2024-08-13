@@ -17,9 +17,9 @@ trait EmailsTrait {
             exit();
         }
         /* model */
-        $this->load_model('m_settings');
+        $this->loadModel('m_settings');
         /* view */
-        $this->get_standart_view();        
+        $this->getStandardViews();        
         $path = ENV_EMAIL_TEMPLATE . ENV_DIRSEP . $params[0] . ENV_DIRSEP . 'body.tpl';
         $content_email = file_get_contents($path);
         $this->view->set('path_templ', $path);        
@@ -29,11 +29,11 @@ trait EmailsTrait {
         $this->html = $this->view->read('v_dashboard');
         /* layouts */       
         $this->parameters_layout["add_script"] .= '<script type="text/javascript" src="' . ENV_URL_SITE . '/assets/editor/tinymce/js/tinymce/tinymce.min.js"></script>';
-        $this->parameters_layout["add_script"] .= '<script src="' . $this->get_path_controller() . '/js/edit_emails_templates.js" type="text/javascript" /></script>';
+        $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/edit_emails_templates.js" type="text/javascript" /></script>';
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
         $this->parameters_layout["title"] = 'Emails Templates';
-        $this->show_layout($this->parameters_layout);        
+        $this->showLayout($this->parameters_layout);        
     }
     
     /**

@@ -17,11 +17,11 @@ trait EntitiesTrait {
      */
     public function entities() {
         $this->access = [1, 2];
-        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-            SysClass::return_to_main(200, '/show_login_form?return=admin');
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect(200, '/show_login_form?return=admin');
         }
         /* view */
-        $this->get_standart_view();
+        $this->getStandardViews();
         $entities_table = $this->get_entities_data_table();
         $this->view->set('entities_table', $entities_table);
         $this->view->set('body_view', $this->view->read('v_entities'));
@@ -31,8 +31,8 @@ trait EntitiesTrait {
         $this->parameters_layout["title"] = ENV_SITE_NAME . ' - ' . $this->lang['sys.entities'];
         $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION . ' - ' . $this->lang['sys.entities'];
         $this->parameters_layout["canonical_href"] = ENV_URL_SITE . '/admin';
-        $this->parameters_layout["keywords"] = SysClass::keywords($this->html);
-        $this->show_layout($this->parameters_layout);
+        $this->parameters_layout["keywords"] = SysClass::getKeywordsFromText($this->html);
+        $this->showLayout($this->parameters_layout);
     }
 
     /**
@@ -40,8 +40,8 @@ trait EntitiesTrait {
      */
     public function entity_edit($params = []) {
         $this->access = [1, 2];
-        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-            SysClass::return_to_main();
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect();
             exit();
         }
         $default_data = [
@@ -58,10 +58,10 @@ trait EntitiesTrait {
             'type_name' => '',            
         ];
         /* model */
-        $this->load_model('m_entities');
-        $this->load_model('m_categories_types');
-        $this->load_model('m_categories');
-        $this->load_model('m_properties');
+        $this->loadModel('m_entities');
+        $this->loadModel('m_categories_types');
+        $this->loadModel('m_categories');
+        $this->loadModel('m_properties');
 
         $post_data = SysClass::ee_cleanArray($_POST);
         if (in_array('id', $params)) {
@@ -73,7 +73,7 @@ trait EntitiesTrait {
             }
             if (isset($post_data['title']) && $post_data['title']) {             
                 if (!$new_id = $this->models['m_entities']->update_entity_data($post_data)) {
-                    ClassNotifications::add_notification_user($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
+                    ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
                 } else {
                     $id = $new_id;
                 }
@@ -81,9 +81,9 @@ trait EntitiesTrait {
             $get_entity_data = (int)$id ? $this->models['m_entities']->get_entity_data($id) : $default_data;
             $get_entity_data = $get_entity_data ? $get_entity_data : $default_data;
         } else { // Не передан ключевой параметр id
-            SysClass::return_to_main(200, ENV_URL_SITE . '/admin/user_edit/id/' . $this->logged_in);
+            SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/user_edit/id/' . $this->logged_in);
         }
-        $get_all_types = $this->models['m_categories_types']->get_all_types();
+        $get_all_types = $this->models['m_categories_types']->getAllTypes();
         $result = array_reduce($get_all_types, function($carry, $item) {
           $carry[$item['type_id']] = $item;
           return $carry;
@@ -92,7 +92,7 @@ trait EntitiesTrait {
         unset($result);
         $get_all_categories = $this->models['m_categories']->getCategoriesTree(null, null, true);
         $get_all_entities = $this->models['m_entities']->get_all_entities($id);
-        $get_all_properties = $this->models['m_properties']->get_all_properties('active', ENV_DEF_LANG, false);
+        $get_all_properties = $this->models['m_properties']->getAllProperties('active', ENV_DEF_LANG, false);
         foreach (Constants::ALL_STATUS as $key => $value) {
             $all_status[$key] = $this->lang['sys.' . $value];
         }        
@@ -103,16 +103,16 @@ trait EntitiesTrait {
         $this->view->set('all_entities', $get_all_entities);
         $this->view->set('all_properties', $get_all_properties);
         $this->view->set('all_status', $all_status);
-        $this->get_standart_view();
+        $this->getStandardViews();
         $this->view->set('body_view', $this->view->read('v_edit_entity'));
         $this->html = $this->view->read('v_dashboard');
         /* layouts */
         $this->add_editor_to_layout();
-        $this->parameters_layout["add_script"] .= '<script src="' . $this->get_path_controller() . '/js/edit_entities.js" type="text/javascript" /></script>';
+        $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/edit_entities.js" type="text/javascript" /></script>';
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
         $this->parameters_layout["title"] = 'Редактирование Сущности';
-        $this->show_layout($this->parameters_layout);
+        $this->showLayout($this->parameters_layout);
     }
     
     /**
@@ -120,12 +120,12 @@ trait EntitiesTrait {
      */
     public function entity_dell($params = []) {        
         $this->access = [1, 2];
-        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-            SysClass::return_to_main();
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect();
             exit();
         }
         /* model */
-        $this->load_model('m_entities');        
+        $this->loadModel('m_entities');        
 
         if (in_array('id', $params)) {
             $key_id = array_search('id', $params);
@@ -136,10 +136,10 @@ trait EntitiesTrait {
             }
             $res = $this->models['m_entities']->delete_entity($id);
             if (isset($res['error'])) {
-                ClassNotifications::add_notification_user($this->logged_in, ['text' => $res['error'], 'status' => 'danger']);                
+                ClassNotifications::addNotificationUser($this->logged_in, ['text' => $res['error'], 'status' => 'danger']);                
             }
         }
-        SysClass::return_to_main(200, ENV_URL_SITE . '/admin/entities');        
+        SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/entities');        
     }
     
     /**
@@ -147,13 +147,13 @@ trait EntitiesTrait {
      */
     public function get_entities_data_table() {
         $this->access = [1, 2];
-        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-            SysClass::return_to_main();
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect();
             exit();
         }
-        $this->load_model('m_entities');
-        $this->load_model('m_categories_types', []);
-        $all_types = $this->models['m_categories_types']->get_all_types();
+        $this->loadModel('m_entities');
+        $this->loadModel('m_categories_types', []);
+        $all_types = $this->models['m_categories_types']->getAllTypes();
         $post_data = SysClass::ee_cleanArray($_POST);
         $data_table = [
             'columns' => [

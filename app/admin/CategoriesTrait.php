@@ -16,23 +16,23 @@ trait CategoriesTrait {
      */
     public function categories() {
         $this->access = [1, 2];
-        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-            SysClass::return_to_main(200, '/show_login_form?return=admin/categories');
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect(200, '/show_login_form?return=admin/categories');
         }
         /* view */
-        $this->get_standart_view();
+        $this->getStandardViews();
         $categories_table = $this->get_categories_data_table();
         $this->view->set('categories_table', $categories_table);
         $this->view->set('body_view', $this->view->read('v_categories'));
         $this->html = $this->view->read('v_dashboard');
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
-        $this->parameters_layout["add_script"] .= '<script src="' . $this->get_path_controller() . '/js/edit_categories.js" type="text/javascript" /></script>';
+        $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/edit_categories.js" type="text/javascript" /></script>';
         $this->parameters_layout["title"] = ENV_SITE_NAME . ' - categories';
         $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION . ' - categories';
         $this->parameters_layout["canonical_href"] = ENV_URL_SITE . '/admin';
-        $this->parameters_layout["keywords"] = SysClass::keywords($this->html);
-        $this->show_layout($this->parameters_layout);
+        $this->parameters_layout["keywords"] = SysClass::getKeywordsFromText($this->html);
+        $this->showLayout($this->parameters_layout);
     }
 
     /**
@@ -40,10 +40,11 @@ trait CategoriesTrait {
      */
     public function category_edit($params) {
         $this->access = [1, 2];
-        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-            SysClass::return_to_main(200, '/show_login_form?return=admin/categories');
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect(200, '/show_login_form?return=admin/categories');
             exit();
         }
+        $new_element = false;
         $default_data = [
             'category_id' => 0,
             'type_id' => 0,
@@ -61,165 +62,259 @@ trait CategoriesTrait {
             'category_path_text' => '',
         ];
         /* model */
-        $this->load_model('m_categories');
-        $this->load_model('m_categories_types');
-        $this->load_model('m_properties');
-        $post_data = SysClass::ee_cleanArray($_POST);        
+        $this->loadModel('m_categories_types');
+        $this->loadModel('m_categories', ['m_categories_types' => $this->models['m_categories_types']]);        
+        $post_data = SysClass::ee_cleanArray($_POST);
         if (in_array('id', $params)) {
             $key_id = array_search('id', $params);
             if ($key_id !== false && isset($params[$key_id + 1])) {
                 $id = filter_var($params[$key_id + 1], FILTER_VALIDATE_INT);
             } else {
-                $id = 0; 
+                $id = 0;
             }
             // Сохранение основных данных
-            if (isset($post_data['title']) && $post_data['title']) {                                
-                if (!$new_id = $this->models['m_categories']->update_category_data($post_data)) {
-                    ClassNotifications::add_notification_user($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
+            if (isset($post_data['title']) && $post_data['title']) {
+                if (!$new_id = $this->models['m_categories']->updateCategoryData($post_data)) {
+                    ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
                 } else {
                     $id = $new_id;
                 }
             }
             // Сохранение свойств для категории
-            if (isset($post_data['property_data']) && $post_data['property_data']) {
-                SysClass::pre($post_data);
+            if (isset($post_data['property_data']) && is_array($post_data['property_data']) && isset($post_data['property_data_changed']) && $post_data['property_data_changed'] != 0) {
+                $this->processPropertyData($post_data['property_data']);
             }
-            $get_category_data = (int)$id ? $this->models['m_categories']->get_category_data($id) : $default_data;
-            $get_category_data = $get_category_data ? $get_category_data : $default_data;
+            $get_category_data = ((int) $id ? $this->models['m_categories']->getCategoryData($id) : null) ?: $default_data;
         } else { // Не передан ключевой параметр id
-            SysClass::return_to_main(200, ENV_URL_SITE . '/admin/category_edit/id/');
+            SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/category_edit/id/');
         }
         $categories_tree = $this->models['m_categories']->getCategoriesTree($id);
         $full_categories_tree = $this->models['m_categories']->getCategoriesTree();
-        $get_category_entities = $this->models['m_categories']->get_category_entities($id);
-        $get_all_types = [];
-        $get_categories_type_sets = [];
-        if (isset($get_category_data['parent_id'])) {
-            $parent_type_id = $this->models['m_categories']->get_category_type_id($get_category_data['parent_id']);
-            $get_all_types = $this->models['m_categories_types']->get_all_types(false, false, $parent_type_id);
-            $get_categories_type_sets = $this->models['m_categories_types']->get_categories_type_sets_data($get_category_data['type_id']);
-        } elseif (isset($get_category_data['type_id'])) {
-            $get_all_types = $this->models['m_categories_types']->get_all_types(false, false);
-            $get_categories_type_sets = $this->models['m_categories_types']->get_categories_type_sets_data($get_category_data['type_id']);            
+        $get_category_entities = $this->models['m_categories']->getCategoryEntities($id);
+        $get_categories_type_sets = $this->models['m_categories_types']->getCategoriesTypeSetsData($get_category_data['type_id']);
+        $getAllTypes = [];
+        if (isset($get_category_data['parent_id']) && $get_category_data['parent_id']) {
+            // Есть родитель, можно выбрать только его тип или подчинённый
+            $parent_type_id = $this->models['m_categories']->getCategoryTypeId($get_category_data['parent_id']);
+            $getAllTypes = $this->models['m_categories_types']->getAllTypes(false, false, $parent_type_id);
+        } elseif (isset($get_category_data['type_id']) && $get_category_data['type_id']) {
+            // Если нет родителя то можно выбрать любой тип категории
+            $getAllTypes = $this->models['m_categories_types']->getAllTypes(false, false);            
         } else {
-            $get_all_types = $this->models['m_categories_types']->get_all_types(false, false);
+            $getAllTypes = $this->models['m_categories_types']->getAllTypes(false, false);
         }
         $get_categories_type_sets_data = [];
-        if ($get_categories_type_sets && $get_category_data) {
-            foreach ($get_categories_type_sets as $set_id) {                
-                $property_data = $this->models['m_properties']->get_property_set_data($set_id);
-                foreach ($property_data['properties'] as &$prop) {
-                    $prop['default_values'] = json_decode($prop['default_values'], true);
-                    $prop['properties_values'] = $this->models['m_properties']->getPropertyValuesForEntity($id, 'category');
-                    if (!count($prop['properties_values'])) {
-                        $count = 0;
-                        $prop['properties_values']['property_id'] = $prop['p_id'];
-                        $prop['properties_values']['entity_id'] = $id;
-                        $prop['properties_values']['entity_type'] = 'category';                        
-                        foreach ($prop['default_values'] as $prop_default) {
-                            $prop['properties_values']['values'][$count] = ['type' => $prop_default['type'], 
-                                'value' => isset($prop_default['default']) ? $prop_default['default'] : '',
-                                'label' => $prop_default['label'],
-                                'multiple' => $prop_default['multiple'],
-                                'required' => $prop_default['required'],
-                                'title' => isset($prop_default['title']) ? $prop_default['title'] : ''];                            
-                            $count++;
-                        }
-                        unset($prop['default_values']);                        
-                    }
-                }
-                $get_categories_type_sets_data[$get_category_data['title']][$set_id] = $property_data;
-            }
+        if (count($get_categories_type_sets) && $get_category_data) {
+            $get_categories_type_sets_data = $this->processCategoryProperties($get_categories_type_sets, $id, $get_category_data['title']);
         }
-        /* view */        
+        /* view */
         $this->view->set('category_data', $get_category_data);
         $this->view->set('categories_tree', $categories_tree);
         $this->view->set('full_categories_tree', $full_categories_tree);
         $this->view->set('category_entities', $get_category_entities);
         $this->view->set('categories_type_sets_data', $get_categories_type_sets_data);
-        $this->view->set('all_type', $get_all_types);
-        $this->get_standart_view();
+        $this->view->set('all_type', $getAllTypes);
+        $this->getStandardViews();
         $this->view->set('body_view', $this->view->read('v_edit_category'));
         $this->html = $this->view->read('v_dashboard');
         /* layouts */
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
         $this->add_editor_to_layout();
-        $this->parameters_layout["add_script"] .= '<script src="' . $this->get_path_controller() . '/js/func_properties.js" type="text/javascript" /></script>';
-        $this->parameters_layout["add_script"] .= '<script src="' . $this->get_path_controller() . '/js/edit_categories.js" type="text/javascript" /></script>';
-        $this->parameters_layout["title"] = 'Редактирование категорий';
-        $this->show_layout($this->parameters_layout);
+        $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/func_properties.js" type="text/javascript" /></script>';
+        $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/edit_categories.js" type="text/javascript" /></script>';
+        $this->parameters_layout["title"] = $this->lang['sys.categories_edit'];
+        $this->showLayout($this->parameters_layout);
     }
+
+    /**
+     * Обрабатывает данные свойств для категорий
+     * @param array $get_categories_type_sets Массив идентификаторов наборов свойств
+     * @param int $category_id Идентификатор категории
+     * @param array $title_category Название категории
+     * @return array Возвращает массив обработанных данных свойств
+     */
+    public function processCategoryProperties($get_categories_type_sets, $category_id, $title_category) {
+        $this->loadModel('m_properties');
+        $get_categories_type_sets_data = [];
+        foreach ($get_categories_type_sets as $set_id) {
+            $properties_data = $this->models['m_properties']->get_property_set_data($set_id);
+            foreach ($properties_data['properties'] as $k_prop => &$prop) {
+                $prop['default_values'] = json_decode($prop['default_values'], true);
+                $prop['property_values'] = $this->models['m_properties']->getPropertyValuesForEntity($category_id, 'category', $prop['p_id'], $set_id);
+                if (!count($prop['property_values'])) {
+                    $count = 0;
+                    $prop['property_values']['property_id'] = $prop['p_id'];
+                    $prop['property_values']['entity_id'] = $category_id;
+                    $prop['property_values']['entity_type'] = 'category';
+                    $prop['property_values']['value_id'] = SysClass::ee_generate_uuid();
+                    $prop['property_values']['set_id'] = $properties_data['set_id'];
+                    if (!isset($prop['default_values']) || !count($prop['default_values'])) {
+                        SysClass::pre('Критическая ошибка: default_values пусто или не установлено! ' . var_export($prop, true));
+                    }
+                    foreach ($prop['default_values'] as $prop_default) {
+                        $prop['property_values']['property_values'][$count] = ['type' => $prop_default['type'],
+                            'value' => isset($prop_default['default']) ? $prop_default['default'] : '',
+                            'label' => $prop_default['label'],
+                            'multiple' => $prop_default['multiple'],
+                            'required' => $prop_default['required'],
+                            'title' => isset($prop_default['title']) ? $prop_default['title'] : ''];
+                        $count++;
+                    }
+                }
+                unset($prop['default_values']);
+            }
+            usort($properties_data['properties'], function ($a, $b) {
+                return $a['sort'] <=> $b['sort'];
+            });
+            $get_categories_type_sets_data[$title_category][$set_id] = $properties_data;
+        }
+        return $get_categories_type_sets_data;
+    }
+    
     
     /**
-     * Получение возможного набора типов категорий
-     * AJAX
+     * Обрабатывает массив данных свойств и обновляет их в базе данных
+     * @param array $property_data Массив данных свойств
+     * @return void
      */
-    public function get_type_category() {
-        $this->access = [1, 2];
-        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-            SysClass::return_to_main();
-            exit();
+    public function processPropertyData(array $property_data): void {
+        $arrValueProp = [];
+        $this->loadModel('m_properties');
+        foreach ($property_data as $itemPropKey => $itemPropValue) {
+            $arrPropName = explode('_', $itemPropKey);
+            $valueId = $arrPropName[0];
+            $keyProp = $arrPropName[1];
+            $typeProp = $arrPropName[2];
+            $entityIdProp = $arrPropName[3];
+            $entityTypeProp = $arrPropName[4];
+            $propertyIdProp = $arrPropName[5];
+            $setId = $arrPropName[6];
+            $addFieldProp = isset($arrPropName[7]) ? $arrPropName[7] : null;
+            $keyArr = $propertyIdProp . '_' . $setId;
+            $arrValueProp[$keyArr]['entity_id'] = $entityIdProp;
+            $arrValueProp[$keyArr]['property_id'] = $propertyIdProp;
+            $arrValueProp[$keyArr]['entity_type'] = $entityTypeProp;
+            $arrValueProp[$keyArr]['value_id'] = $valueId;
+            $arrValueProp[$keyArr]['set_id'] = $setId;
+            if ($addFieldProp) {
+                if (($addFieldProp == 'multiple' || $addFieldProp == 'required') && isset($itemPropValue)) {
+                    $itemPropValue = 1;
+                }
+                $itemPropValue = is_array($itemPropValue) && $addFieldProp == 'value' ? implode(',', $itemPropValue) : $itemPropValue;
+                $arrValueProp[$keyArr]['property_values'][$keyProp][$addFieldProp] = $itemPropValue;
+            } else {
+                ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Error, not type value!', 'status' => 'danger']);
+                SysClass::pre([$itemPropKey, $arrPropName]);
+            }
         }
-        $this->load_model('m_categories');
-        $this->load_model('m_categories_types');
-        $post_data = SysClass::ee_cleanArray($_POST);
-        if (isset($post_data['parent_id']) && $post_data['parent_id'] > 0) {
-            $type_id = $this->models['m_categories']->get_category_type_id($post_data['parent_id']);
-            $get_all_types = $this->models['m_categories_types']->get_all_types(false, false, $type_id);
-        } else {
-            $get_all_types = $this->models['m_categories_types']->get_all_types(false, false);
+        foreach ($arrValueProp as $arrValue) {
+            $res = $this->models['m_properties']->updatePropertiesTypeData($arrValue);
+            if ($res === false) {
+                ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Error, not write properties!', 'status' => 'danger']);
+            }
         }
-        if (isset($get_all_types[0])) {
-            $selected_id = $get_all_types[0]['type_id'];
-        } else {
-            $selected_id = null;
+    }
+
+    /**
+     * AJAX
+     * Получение возможного набора типов категорий
+     * для отображения в карточке категории при смене родителя     
+     */
+    public function getTypeCategory($params = []) {
+        $is_ajax = SysClass::isAjaxRequestFromSameSite();
+        if ($is_ajax) {
+            $this->access = [1, 2];
+            if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+                SysClass::handleRedirect();
+                exit();
+            }
+            $this->loadModel('m_categories');
+            $this->loadModel('m_categories_types');
+            $post_data = SysClass::ee_cleanArray($_POST);
+            if (isset($post_data['parent_id']) && $post_data['parent_id'] > 0) {
+                $type_id = $this->models['m_categories']->getCategoryTypeId($post_data['parent_id']);
+                $get_all_types = $this->models['m_categories_types']->getAllTypes(false, false, $type_id);
+            } else {
+                $get_all_types = $this->models['m_categories_types']->getAllTypes(false, false);
+                $post_data['parent_id'] = 0;
+                $type_id = 0;
+            }
+            if (isset($get_all_types[0])) {
+                $selected_id = $get_all_types[0]['type_id'];
+            } else {
+                $selected_id = null;
+            }
+            echo json_encode(['html' => Plugins::showTypeCategogyForSelect($get_all_types, $selected_id),
+                'parent_type_id' => $type_id,
+                'parent_id' => $post_data['parent_id'],
+                'all_types' => $get_all_types]);
         }
-        echo json_encode(['html' => Plugins::show_type_categogy_for_select($get_all_types, $selected_id),
-            'parent_type_id' => $type_id,
-            'parent_id' => $post_data['parent_id'],
-            'all_types' => $get_all_types]);
         die;
     }
-    
+
+    /**
+     * AJAX
+     * Получение набора свойств категории
+     * для отображения в карточке категории при смене родителя     
+     */
+    public function getCategoriesType($params = []) {
+        $is_ajax = SysClass::isAjaxRequestFromSameSite();
+        if ($is_ajax) {
+            $this->access = [1, 2];
+            if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+                SysClass::handleRedirect();
+                exit();
+            }
+            $post_data = SysClass::ee_cleanArray($_POST);
+            $this->loadModel('m_categories_types');
+            $get_categories_type_sets = $this->models['m_categories_types']->getCategoriesTypeSetsData($post_data['type_id']);
+            $category_id = $post_data['category_id'];
+            $get_categories_type_sets_data = $this->processCategoryProperties($get_categories_type_sets, $category_id, $post_data['title']);
+            echo json_encode(['html' => Plugins::renderCategorySetsAccordion($get_categories_type_sets_data, $category_id),
+                'get_categories_type_sets' => $get_categories_type_sets, 'category_id' => $category_id]);
+        }
+        die;
+    }
+
     /**
      * Удаление категории
      */
-    public function category_dell($params = []) {        
+    public function category_dell($params = []) {
         $this->access = [1, 2];
-        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-            SysClass::return_to_main();
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect();
             exit();
         }
         /* model */
-        $this->load_model('m_categories');
+        $this->loadModel('m_categories');
         if (in_array('id', $params)) {
             $key_id = array_search('id', $params);
             if ($key_id !== false && isset($params[$key_id + 1])) {
                 $id = filter_var($params[$key_id + 1], FILTER_VALIDATE_INT);
             } else {
-                $id = 0; 
+                $id = 0;
             }
-            $res = $this->models['m_categories']->delete_category($id);
-            if (isset($res['error'])) {                
-                ClassNotifications::add_notification_user($this->logged_in, ['text' => $res['error'], 'status' => 'danger']);                
+            $res = $this->models['m_categories']->deleteСategory($id);
+            if (isset($res['error'])) {
+                ClassNotifications::addNotificationUser($this->logged_in, ['text' => $res['error'], 'status' => 'danger']);
             } else {
-                ClassNotifications::add_notification_user($this->logged_in, ['text' => 'Удалено', 'status' => 'success']);
+                ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Удалено', 'status' => 'success']);
             }
         }
-        SysClass::return_to_main(200, ENV_URL_SITE . '/admin/categories');        
+        SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/categories');
     }
-    
+
     /**
      * Вернёт таблицу категоий
      */
     public function get_categories_data_table() {
         $this->access = [1, 2];
-        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-            SysClass::return_to_main();
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect();
             exit();
         }
-        $this->load_model('m_categories');
+        $this->loadModel('m_categories');
         $post_data = SysClass::ee_cleanArray($_POST);
         $data_table = [
             'columns' => [
@@ -304,9 +399,9 @@ trait CategoriesTrait {
                 'label' => $this->lang['sys.date_update']
             ],
         ];
-        $this->load_model('m_categories_types');
-        foreach ($this->models['m_categories_types']->get_all_types() as $item) {
-           $filters['type_id']['options'][] = ['value' => $item['type_id'], 'label' => $item['name']];  
+        $this->loadModel('m_categories_types');
+        foreach ($this->models['m_categories_types']->getAllTypes() as $item) {
+            $filters['type_id']['options'][] = ['value' => $item['type_id'], 'label' => $item['name']];
         }
         if ($post_data && isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') { // AJAX
             list($params, $filters, $selected_sorting) = Plugins::ee_show_table_prepare_params($post_data, $data_table['columns']);
@@ -325,7 +420,7 @@ trait CategoriesTrait {
                 'updated_at' => $item['updated_at'] ? date('d.m.Y', strtotime($item['updated_at'])) : '',
                 'actions' => '<a href="/admin/category_edit/id/' . $item['category_id'] . '"'
                 . 'class="btn btn-primary me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.edit'] . '"><i class="fas fa-edit"></i></a>'
-                . '<a href="/admin/category_dell/id/' . $item['category_id'] . '" onclick="return confirm(\'' . $this->lang['sys.delete'] . '?\');" ' 
+                . '<a href="/admin/category_dell/id/' . $item['category_id'] . '" onclick="return confirm(\'' . $this->lang['sys.delete'] . '?\');" '
                 . 'class="btn btn-danger me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.delete'] . '"><i class="fas fa-trash"></i></a>'
             ];
         }

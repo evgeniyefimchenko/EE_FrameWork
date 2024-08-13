@@ -3,11 +3,12 @@
 use classes\plugins\SafeMySQL;
 use classes\system\Constants;
 use classes\system\SysClass;
+use classes\system\ModelBase;
 
 /**
  * Модель работы с категориями
  */
-class ModelCategories {
+class ModelCategories Extends ModelBase {
 
     /**
      * Получает все категории для указанного языка.
@@ -44,7 +45,7 @@ class ModelCategories {
         $res_array = SafeMySQL::gi()->getAll($sql_categories, ...$params);
         $res = [];
         foreach ($res_array as $category) {
-            $res[] = $this->get_category_data($category['category_id']);
+            $res[] = $this->getCategoryData($category['category_id']);
         }
         $sql_count = "SELECT COUNT(*) as total_count FROM ?n WHERE $whereString";
         $total_count = SafeMySQL::gi()->getOne($sql_count, ...array_slice($params, 0, 2));  // передаем первые два параметра (имя таблицы и код языка)
@@ -60,7 +61,7 @@ class ModelCategories {
      * @param string $language_code Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG.
      * @return array|null Массив с данными категории или NULL, если категория не найдена.
      */
-    public function get_category_data($category_id, $language_code = ENV_DEF_LANG) {
+    public function getCategoryData($category_id, $language_code = ENV_DEF_LANG) {
         $sql_category = "
             SELECT 
                 c.*, 
@@ -117,7 +118,7 @@ class ModelCategories {
      * @param type $language_code
      * @return type
      */
-    public function get_category_type_id($category_id, $language_code = ENV_DEF_LANG) {
+    public function getCategoryTypeId($category_id, $language_code = ENV_DEF_LANG) {
         $sql_category = 'SELECT type_id FROM ?n WHERE category_id =?i AND language_code = ?s';
         return SafeMySQL::gi()->getOne($sql_category, Constants::CATEGORIES_TABLE, $category_id, $language_code);
     }
@@ -224,24 +225,27 @@ class ModelCategories {
      * @return mixed Возвращает ID обновленной или созданной записи в случае успеха, иначе false.
      * @throws Exception В случае ошибки в запросе к базе данных.
      */
-    public function update_category_data($category_data = [], $language_code = ENV_DEF_LANG) {
-        $category_data = SafeMySQL::gi()->filterArray($category_data, SysClass::ee_get_fields_table(Constants::CATEGORIES_TABLE));
+    public function updateCategoryData($category_data = [], $language_code = ENV_DEF_LANG) {
+        $category_data = SafeMySQL::gi()->filterArray($category_data, SysClass::ee_getFieldsTable(Constants::CATEGORIES_TABLE));
         $category_data = array_map('trim', $category_data);
         $category_data = SysClass::ee_convertArrayValuesToNumbers($category_data);
-        $category_data['parent_id'] = (int) $category_data['parent_id'] !== 0 ? (int) $category_data['parent_id'] : NULL;
-        $category_data['language_code'] = $language_code;
+        $category_data['parent_id'] = (int)$category_data['parent_id'] !== 0 ? (int) $category_data['parent_id'] : NULL;
+        $category_data['language_code'] = $language_code;        
         // Если есть родитель то можно записать только такой же тип категории или дочерний
-        // НУЖНО ПЕРЕДЕЛАТЬ TODO
-
         if ($category_data['parent_id']) {
-            $category_data['type_id'] = SafeMySQL::gi()->getOne('SELECT type_id FROM ?n WHERE category_id = ?i', Constants::CATEGORIES_TABLE, $category_data['parent_id']);
+            $parent_type_id = SafeMySQL::gi()->getOne('SELECT type_id FROM ?n WHERE category_id = ?i', Constants::CATEGORIES_TABLE, $category_data['parent_id']);
+            $allAvailableTypes = $this->getTypeIds($this->params['m_categories_types']->getAllTypes(false, false, $parent_type_id));
+            if (isset($category_data['type_id']) && !in_array($category_data['type_id'], $allAvailableTypes)) {
+                SysClass::preFile('error', 'M_update_category_data ', 'not Available type_id for parent_id', json_encode($category_data, JSON_UNESCAPED_UNICODE));
+                return false;               
+            }
         } else if (!$category_data['type_id'] || !is_numeric($category_data['type_id'])) {
-            SysClass::pre_file('error', 'M_update_category_data ', 'error type_id', json_encode($category_data, JSON_UNESCAPED_UNICODE));
+            SysClass::preFile('error', 'M_update_category_data ', 'error type_id', json_encode($category_data, JSON_UNESCAPED_UNICODE));
             return false;
         }
 
         if (empty($category_data['title'])) {
-            SysClass::pre_file('error', 'M_update_category_data ', 'empty title', $category_data);
+            SysClass::preFile('error', 'M_update_category_data ', 'empty title', $category_data);
             return false;
         }
         if (!isset($category_data['description'])) {
@@ -253,7 +257,7 @@ class ModelCategories {
             $sql = "UPDATE ?n SET ?u WHERE `category_id` = ?i AND language_code = ?s";
             $result = SafeMySQL::gi()->query($sql, Constants::CATEGORIES_TABLE, $category_data, $category_id, $language_code);
             if (!$result) {
-                SysClass::pre_file('error', 'M_update_category_data ', 'error SQL ' . SafeMySQL::gi()->parse($sql, Constants::CATEGORIES_TABLE, $category_data, $category_id, $language_code));
+                SysClass::preFile('error', 'M_update_category_data ', 'error SQL ' . SafeMySQL::gi()->parse($sql, Constants::CATEGORIES_TABLE, $category_data, $category_id, $language_code));
             }
             return $result ? $category_id : false;
         } else {
@@ -266,24 +270,24 @@ class ModelCategories {
                 $category_data['title'], $category_data['type_id'], $language_code
         );
         if ($existingCategory) {
-            ClassNotifications::add_notification_user($this->logged_in, ['text' => 'Не уникальное имя в рамках одного типа категории!', 'status' => 'danger']);
-            SysClass::pre_file('error', 'M_update_category_data ', 'existingCategory title: ' . $category_data['title'] . ' type_id: ' . $category_data['type_id']);
+            classes\helpers\ClassNotifications::addNotificationUser(SysClass::get_current_user_id(), ['text' => 'Не уникальное имя в рамках одного типа категории!', 'status' => 'danger']);
+            SysClass::preFile('error', 'M_update_category_data ', 'existingCategory title: ' . $category_data['title'] . ' type_id: ' . $category_data['type_id']);
             return false;
         }
         $sql = "INSERT INTO ?n SET ?u";
         $result = SafeMySQL::gi()->query($sql, Constants::CATEGORIES_TABLE, $category_data);
         if (!$result) {
-            SysClass::pre_file('error', 'M_update_category_data ', 'error SQL ' . SafeMySQL::gi()->parse($sql, Constants::CATEGORIES_TABLE, $category_data));
+            SysClass::preFile('error', 'M_update_category_data ', 'error SQL ' . SafeMySQL::gi()->parse($sql, Constants::CATEGORIES_TABLE, $category_data));
         }
         return $result ? SafeMySQL::gi()->insertId() : false;
     }
 
     /**
      * Удаляет категорию по указанному category_id из таблицы Constants::CATEGORIES_TABLE
-     * @param int $category_id Идентификатор сущности для удаления
+     * @param int $category_id Идентификатор категории для удаления
      * @return bool Возвращает true в случае успешного удаления, или false в случае ошибки
      */
-    public function delete_category($category_id) {
+    public function deleteСategory($category_id) {
         try {
             $sql = "DELETE FROM ?n WHERE `category_id` = ?i";
             $result = SafeMySQL::gi()->query($sql, Constants::CATEGORIES_TABLE, $category_id);
@@ -303,12 +307,10 @@ class ModelCategories {
      * @param string $language_code Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG
      * @return type
      */
-    public function get_category_entities(int $category_ids = 0, $language_code = ENV_DEF_LANG) {
+    public function getCategoryEntities(int|array $category_ids = 0, $language_code = ENV_DEF_LANG) {
         if (!is_array($category_ids)) {
             $category_ids = [$category_ids];
-        } else {
-            $category_ids = implode(',', $category_ids);
-        }
+        }        
         $sql = 'SELECT entity_id, title, status, short_description, parent_entity_id FROM ?n WHERE category_id IN (?a) AND language_code = ?s';
         return SafeMySQL::gi()->getAll($sql, Constants::ENTITIES_TABLE, $category_ids, $language_code);
     }
@@ -349,5 +351,25 @@ class ModelCategories {
             return $category_id;
         }
     }
-
+    
+    /**
+     *  Рекурсивно получает идентификаторы типов из массива.
+     *  Эта приватная функция перебирает заданный массив и собирает все идентификаторы типов, которые находит.
+     *  Если элемент в массиве имеет ключ 'children' с собственным массивом, эта функция вызовет себя рекурсивно,
+     *  чтобы собрать идентификаторы типов из дочернего массива также.
+     *  @param array $array Массив, в котором нужно искать идентификаторы типов.
+     *  @param array $typeIds Ссылка на массив, где хранятся найденные идентификаторы типов.
+     *  @return array Массив собранных идентификаторов типов.
+     */
+    private function getTypeIds($array, &$typeIds = []) {
+        foreach ($array as $item) {
+            if (isset($item['type_id'])) {
+                $typeIds[] = $item['type_id'];
+            }
+            if (isset($item['children']) && !empty($item['children'])) {
+                $this->getTypeIds($item['children'], $typeIds);
+            }
+        }
+        return $typeIds;
+    }
 }

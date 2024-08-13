@@ -5,6 +5,8 @@ use classes\system\SysClass;
 use classes\system\Constants;
 use classes\system\Plugins;
 use classes\helpers\ClassNotifications;
+use classes\system\Hook;
+use classes\system\Session;
 use app\admin\MessagesTrait;
 use app\admin\NotificationsTrait;
 use app\admin\SystemsTrait;
@@ -19,18 +21,17 @@ use classes\helpers\ClassMail;
 /*
  * Админ-панель
  */
-
 class ControllerIndex Extends ControllerBase {
     /* Подключение traits */
 
-use MessagesTrait,
-    NotificationsTrait,
-    SystemsTrait,
-    EmailsTrait,
-    CategoriesTrait,
-    CategoriesTypesTrait,
-    EntitiesTrait,
-    PropertiesTrait;
+    use MessagesTrait,
+        NotificationsTrait,
+        SystemsTrait,
+        EmailsTrait,
+        CategoriesTrait,
+        CategoriesTypesTrait,
+        EntitiesTrait,
+        PropertiesTrait;
 
     /**
      * Главная страница админ-панели
@@ -40,22 +41,23 @@ use MessagesTrait,
          * 1-админ 2-модератор 3-продавец 4-пользователь
          * 100 - все зарегистрированные пользователи
          */
+        //Session::destroy(); TODO
         $this->access = [100];
-        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-            SysClass::return_to_main(200, '/show_login_form?return=admin');
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect(200, '/show_login_form?return=admin');
         }
         /* models */
         /* get user data - все переменные пользователя доступны в представлениях */
         $user_data = $this->users->data;
         /* views */
-        $this->get_standart_view();
+        $this->getStandardViews();
         /* Отобразить контент согласно уровня доступа */
         if ($user_data['user_role'] == 1) { // Доступ для администратора
             $data_table = $this->get_admin_dashboard_data_table();
             $this->view->set('data_table', $data_table);
             $this->view->set('body_view', $this->view->read('v_dashboard_admin'));
             $this->parameters_layout["add_script"] .= '<script src="/assets/js/plugins/Chart.js" ></script>';
-            $this->parameters_layout["add_script"] .= '<script src="' . $this->get_path_controller() . '/js/dashboard_admin.js" type="text/javascript" /></script>';
+            $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/dashboard_admin.js" type="text/javascript" /></script>';
         }
         $this->html = $this->view->read('v_dashboard');
         $this->parameters_layout["layout_content"] = $this->html;
@@ -63,8 +65,8 @@ use MessagesTrait,
         $this->parameters_layout["title"] = ENV_SITE_NAME . ' - DASHBOARD';
         $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION . ' - DASHBOARD';
         $this->parameters_layout["canonical_href"] = ENV_URL_SITE . '/admin';
-        $this->parameters_layout["keywords"] = SysClass::keywords($this->html);
-        $this->show_layout($this->parameters_layout);
+        $this->parameters_layout["keywords"] = SysClass::getKeywordsFromText($this->html);
+        $this->showLayout($this->parameters_layout);
     }
 
     /**
@@ -72,8 +74,8 @@ use MessagesTrait,
      */
     public function get_admin_dashboard_data_table($params = []) {
         $this->access = array(1);
-        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-            SysClass::return_to_main(200, '/show_login_form?return=admin');
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect(200, '/show_login_form?return=admin');
         }
         /* Пример данных таблицы */
         $data_table = [
@@ -228,11 +230,11 @@ use MessagesTrait,
      */
     public function upgrade($params = []) {
         $this->access = [100];
-        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-            SysClass::return_to_main(200, '/show_login_form?return=admin');
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect(200, '/show_login_form?return=admin');
         }
         /* view */
-        $this->get_standart_view();
+        $this->getStandardViews();
         $this->view->set('body_view', $this->view->read('v_upgrade'));
         $this->html = $this->view->read('v_dashboard');
 
@@ -241,17 +243,19 @@ use MessagesTrait,
         $this->parameters_layout["title"] = ENV_SITE_NAME . ' - UPGRADE';
         $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION . ' - UPGRADE';
         $this->parameters_layout["canonical_href"] = ENV_URL_SITE . '/admin/upgrade';
-        $this->parameters_layout["keywords"] = SysClass::keywords($this->html);
-        $this->show_layout($this->parameters_layout);
+        $this->parameters_layout["keywords"] = SysClass::getKeywordsFromText($this->html);
+        $this->showLayout($this->parameters_layout);
     }
 
     /**
      * Загрузка стандартных представлений для каждой страницы
      */
-    private function get_standart_view() {
+    private function getStandardViews() {
+        Hook::run('A_beforeGetStandardViews', $this->view);
         $this->view->set('top_bar', $this->view->read('v_top_bar'));
         $this->view->set('main_menu', $this->view->read('v_main_menu'));
         $this->view->set('page_footer', $this->view->read('v_footer'));
+        Hook::run('A_afterGetStandardViews', $this->view);
     }
 
     /**
@@ -261,7 +265,7 @@ use MessagesTrait,
      */
     public function ajax_admin(array $params = []) {
         $this->access = [100];
-        if (!SysClass::get_access_user($this->logged_in, $this->access) || count($params) > 0) {
+        if (!SysClass::getAccessUser($this->logged_in, $this->access) || count($params) > 0) {
             echo '{"error": "access denieded"}';
             exit();
         }
@@ -293,8 +297,8 @@ use MessagesTrait,
      */
     public function user_edit($params) {
         $this->access = [1, 2];
-        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-            SysClass::return_to_main();
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect();
             exit();
         }
         /* get current user data */
@@ -309,10 +313,10 @@ use MessagesTrait,
             $get_user_context = is_integer($user_id) ? $this->users->get_user_data($user_id) : [];
             /* Нельзя посмотреть чужую карточку равной себе роли или выше */
             if (!$user_id || $this->users->data['user_role'] >= $get_user_context['user_role'] && $this->logged_in != $user_id) {
-                SysClass::return_to_main(200, ENV_URL_SITE . '/admin/user_edit/id/' . $this->logged_in);
+                SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/user_edit/id/' . $this->logged_in);
             }
         } else {                                                                            // Не передан ключевой параметр id
-            SysClass::return_to_main(200, ENV_URL_SITE . '/admin/user_edit/id/' . $this->logged_in);
+            SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/user_edit/id/' . $this->logged_in);
         }
         if (isset($get_user_context['new_user']) && $get_user_context['new_user']) {
             $get_user_context['user_id'] = 0;
@@ -324,10 +328,10 @@ use MessagesTrait,
             $get_user_context['updated_at'] = '';
             $get_user_context['last_activ'] = '';
         }
-        $this->load_model('m_user_edit');
+        $this->loadModel('m_user_edit');
         /* Если не админ и не модератор и карточка не своя возвращаем */
         if ($this->users->data['user_role'] > 2 && $this->logged_in != $user_id) {
-            SysClass::return_to_main(200, ENV_URL_SITE . '/admin/user_edit/id/' . $this->logged_in);
+            SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/user_edit/id/' . $this->logged_in);
         }
         /* get data */
         $get_user_context['active_text'] = $this->lang[Constants::USERS_STATUS[$get_user_context['active']]];
@@ -339,7 +343,7 @@ use MessagesTrait,
 
         /* view */
         $this->view->set('user_context', $get_user_context);
-        $this->get_standart_view();
+        $this->getStandardViews();
         $this->view->set('body_view', $this->view->read('v_edit_user'));
         $this->html = $this->view->read('v_dashboard');
         /* layouts */
@@ -352,9 +356,9 @@ use MessagesTrait,
         $this->parameters_layout["add_script"] .= '<script src="https://cdn.ckeditor.com/ckeditor5/41.1.0/classic/translations/ru.js"></script>';
         $this->parameters_layout["add_script"] .= '<script src="https://cdnjs.cloudflare.com/ajax/libs/elfinder/2.1.9/js/elfinder.min.js"></script>';
         $this->parameters_layout["add_script"] .= '<script src="' . ENV_URL_SITE . '/assets/js/plugins/JQ_mask.js" type="text/javascript" /></script>';
-        $this->parameters_layout["add_script"] .= '<script src="' . $this->get_path_controller() . '/js/edit_user.js" type="text/javascript" /></script>';
+        $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/edit_user.js" type="text/javascript" /></script>';
         $this->parameters_layout["title"] = $this->lang['sys.user_edit'];
-        $this->show_layout($this->parameters_layout);
+        $this->showLayout($this->parameters_layout);
     }
 
     /**
@@ -366,8 +370,8 @@ use MessagesTrait,
      */
     public function ajax_user_edit($params) {
         $this->access = [100];
-        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-            SysClass::return_to_main();
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect();
             echo json_encode(array('error' => 'error no access'));
             exit();
         }
@@ -406,7 +410,7 @@ use MessagesTrait,
         if ($this->users->set_user_data($user_id, $post_data)) {
             $user_role = $this->users->get_user_role($user_id);
             if (isset($post_data['user_role']) && $post_data['user_role'] != $user_role) { // Сменилась роль пользователя, оповещаем админа и пишем лог                                
-                SysClass::pre_file('users_edit', 'ajax_user_edit', 'Изменили роль пользователю', ['id_user' => $user_id, 'old' => $this->users->data['user_role'], 'new' => $post_data['user_role']]);
+                SysClass::preFile('users_edit', 'ajax_user_edit', 'Изменили роль пользователю', ['id_user' => $user_id, 'old' => $this->users->data['user_role'], 'new' => $post_data['user_role']]);
             }
             echo json_encode(array('error' => 'no', 'id' => $user_id));
             exit();
@@ -423,21 +427,21 @@ use MessagesTrait,
      */
     public function users($params = array()) {
         $this->access = [1, 2];
-        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-            SysClass::return_to_main();
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect();
             exit();
         }
         /* view */
-        $this->get_standart_view();
+        $this->getStandardViews();
         $this->view->set('users_table', $this->get_users_table());
         $this->view->set('body_view', $this->view->read('v_users'));
         $this->html = $this->view->read('v_dashboard');
         /* layouts */
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
-        $this->parameters_layout["add_script"] .= '<script src="' . $this->get_path_controller() . '/js/users.js" type="text/javascript" /></script>';
+        $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/users.js" type="text/javascript" /></script>';
         $this->parameters_layout["title"] = 'Пользователи';
-        $this->show_layout($this->parameters_layout);
+        $this->showLayout($this->parameters_layout);
     }
 
     /**
@@ -445,8 +449,8 @@ use MessagesTrait,
      */
     public function get_users_table() {
         $this->access = [1, 2];
-        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-            SysClass::return_to_main();
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect();
             exit();
         }
         $post_data = SysClass::ee_cleanArray($_POST);
@@ -541,7 +545,7 @@ use MessagesTrait,
                 'label' => 'Был активен'
             ],
         ];
-        $this->load_model('m_user_edit');
+        $this->loadModel('m_user_edit');
         $get_free_roles = $this->models['m_user_edit']->get_free_roles(0); // Получим все роли
         $filters['user_role']['options'][] = ['value' => '', 'label' => ''];
         foreach ($get_free_roles as $item) {
@@ -593,12 +597,12 @@ use MessagesTrait,
      */
     public function users_roles($params = []) {
         $this->access = [1, 2];
-        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-            SysClass::return_to_main();
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect();
             exit();
         }
         /* view */
-        $this->get_standart_view();
+        $this->getStandardViews();
         $this->view->set('users_roles_table', $this->get_users_roles_table());
         $this->view->set('body_view', $this->view->read('v_users_roles'));
         $this->html = $this->view->read('v_dashboard');
@@ -606,7 +610,7 @@ use MessagesTrait,
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
         $this->parameters_layout["title"] = 'Роли пользователей';
-        $this->show_layout($this->parameters_layout);
+        $this->showLayout($this->parameters_layout);
     }
 
     /**
@@ -614,8 +618,8 @@ use MessagesTrait,
      */
     public function get_users_roles_table() {
         $this->access = [1, 2];
-        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-            SysClass::return_to_main();
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect();
             exit();
         }
         $post_data = SysClass::ee_cleanArray($_POST);
@@ -644,7 +648,7 @@ use MessagesTrait,
             ]
         ];
         $filters = [];
-        $this->load_model('m_user_edit');
+        $this->loadModel('m_user_edit');
         if ($post_data && isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') { // AJAX
             list($params, $filters, $selected_sorting) = Plugins::ee_show_table_prepare_params($post_data, $data_table['columns']);
             $users_array = $this->models['m_user_edit']->get_users_roles_data($params['order'], $params['where'], $params['start'], $params['limit']);
@@ -680,8 +684,8 @@ use MessagesTrait,
      */
     public function users_role_dell($params = []) {
         $this->access = [1, 2];
-        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-            SysClass::return_to_main();
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect();
             exit();
         }
         if (in_array('id', $params)) {
@@ -692,13 +696,13 @@ use MessagesTrait,
                 $id = 0;
             }
             if (in_array($id, [1, 2, 3, 4, 8])) {
-                ClassNotifications::add_notification_user($this->logged_in, ['text' => 'Невозможно удалить системные роли!', 'status' => 'danger']);
+                ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Невозможно удалить системные роли!', 'status' => 'danger']);
             } else {
-                $this->load_model('m_user_edit');
+                $this->loadModel('m_user_edit');
                 $this->models['m_user_edit']->users_role_dell($id);
             }
         }
-        SysClass::return_to_main(200, '/admin/users_roles');
+        SysClass::handleRedirect(200, '/admin/users_roles');
     }
 
     /**
@@ -707,8 +711,8 @@ use MessagesTrait,
      */
     public function delete_user($params = []) {
         $this->access = [1, 2];
-        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-            SysClass::return_to_main();
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect();
             exit();
         }
         if (in_array('id', $params)) {
@@ -719,19 +723,19 @@ use MessagesTrait,
                 $user_id = 0;
             }
             if (in_array($user_id, [1, 2, 8])) {
-                ClassNotifications::add_notification_user($this->logged_in, ['text' => 'Невозможно удалить системные роли!', 'status' => 'danger']);
+                ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Невозможно удалить системные роли!', 'status' => 'danger']);
             } else {
-                $this->load_model('m_user_edit');
+                $this->loadModel('m_user_edit');
                 if (!$this->models['m_user_edit']->delete_user($user_id)) {
-                    ClassNotifications::add_notification_user($this->logged_in, ['text' => 'Ошибка удаления пользователя id=' . $user_id, 'status' => 'danger']);
+                    ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Ошибка удаления пользователя id=' . $user_id, 'status' => 'danger']);
                 } else {
-                    ClassNotifications::add_notification_user($this->logged_in, ['text' => 'Помечен удалённым id=' . $user_id, 'status' => 'info']);
+                    ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Помечен удалённым id=' . $user_id, 'status' => 'info']);
                 }
             }
         } else {
-            ClassNotifications::add_notification_user($this->logged_in, ['text' => 'Нет обязательного параметра id', 'status' => 'danger']);
+            ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Нет обязательного параметра id', 'status' => 'danger']);
         }
-        SysClass::return_to_main(200, '/admin/users');
+        SysClass::handleRedirect(200, '/admin/users');
     }
 
     /**
@@ -740,7 +744,7 @@ use MessagesTrait,
      */
     public function send_message_admin($params = []) {
         $this->access = [100];
-        if (!SysClass::get_access_user($this->logged_in, $this->access) || count($params) > 0) {
+        if (!SysClass::getAccessUser($this->logged_in, $this->access) || count($params) > 0) {
             echo json_encode(array('error' => 'access denided'));
             exit();
         }
@@ -755,15 +759,15 @@ use MessagesTrait,
      */
     public function users_role_edit($params = []) {
         $this->access = [1, 2];
-        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-            SysClass::return_to_main();
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect();
             exit();
         }
         $default_data = [
             'role_id' => 0,
             'name' => '',
         ];
-        $this->load_model('m_user_edit');
+        $this->loadModel('m_user_edit');
         $post_data = SysClass::ee_cleanArray($_POST);
         if (in_array('id', $params)) {
             $key_id = array_search('id', $params);
@@ -774,7 +778,7 @@ use MessagesTrait,
             }
             if (isset($post_data['name']) && $post_data['name']) {
                 if (!$new_id = $this->models['m_user_edit']->update_users_role_data($post_data)) {
-                    ClassNotifications::add_notification_user($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
+                    ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
                 } else {
                     $id = $new_id;
                 }
@@ -782,19 +786,19 @@ use MessagesTrait,
             $get_users_role_data = (int) $id ? $this->models['m_user_edit']->get_users_role_data($id) : $default_data;
             $get_users_role_data = $get_users_role_data ? $get_users_role_data : $default_data;
         } else {
-            SysClass::return_to_main(200, ENV_URL_SITE . '/admin/users_role_edit/id/');
+            SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/users_role_edit/id/');
         }
         /* view */
         $this->view->set('users_role_data', $get_users_role_data);
-        $this->get_standart_view();
+        $this->getStandardViews();
         $this->view->set('body_view', $this->view->read('v_edit_users_role'));
         $this->html = $this->view->read('v_dashboard');
         /* layouts */
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
         $this->parameters_layout["title"] = 'Роль пользователей';
-        $this->parameters_layout["add_script"] .= '<script src="' . $this->get_path_controller() . '/js/edit_users_role.js" type="text/javascript" /></script>';
-        $this->show_layout($this->parameters_layout);
+        $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/edit_users_role.js" type="text/javascript" /></script>';
+        $this->showLayout($this->parameters_layout);
     }
 
     /**
@@ -803,12 +807,12 @@ use MessagesTrait,
      */
     public function deleted_users($params = []) {
         $this->access = [1, 2];
-        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-            SysClass::return_to_main();
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect();
             exit();
         }
         /* view */
-        $this->get_standart_view();
+        $this->getStandardViews();
         $this->view->set('deleted_users_table', $this->get_deleted_users_table());
         $this->view->set('body_view', $this->view->read('v_deleted_users'));
         $this->html = $this->view->read('v_dashboard');
@@ -816,7 +820,7 @@ use MessagesTrait,
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
         $this->parameters_layout["title"] = 'Удалённые пользователи';
-        $this->show_layout($this->parameters_layout);
+        $this->showLayout($this->parameters_layout);
     }
 
     /**
@@ -824,8 +828,8 @@ use MessagesTrait,
      */
     public function get_deleted_users_table() {
         $this->access = [1, 2];
-        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-            SysClass::return_to_main();
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect();
             exit();
         }
         $post_data = SysClass::ee_cleanArray($_POST);
@@ -876,7 +880,7 @@ use MessagesTrait,
             ]
         ];
         $filters = [];
-        $this->load_model('m_user_edit');
+        $this->loadModel('m_user_edit');
         if ($post_data && isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') { // AJAX
             list($params, $filters, $selected_sorting) = Plugins::ee_show_table_prepare_params($post_data, $data_table['columns']);
             $users_array = $this->users->get_users_data($params['order'], $params['where'], $params['start'], $params['limit'], true);
@@ -913,12 +917,12 @@ use MessagesTrait,
      */
     public function deleted_user_edit($params = []) {
         $this->access = [1, 2];
-        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-            SysClass::return_to_main();
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect();
             exit();
         }
         $default_data = false;
-        $this->load_model('m_user_edit');
+        $this->loadModel('m_user_edit');
         if (in_array('id', $params)) {
             $key_id = array_search('id', $params);
             if ($key_id !== false && isset($params[$key_id + 1])) {
@@ -928,13 +932,13 @@ use MessagesTrait,
             }
             $get_deleted_user_data = (int) $user_id ? $this->users->get_user_data($user_id) : $default_data;
             if (!$get_deleted_user_data) {
-                SysClass::return_to_main(200, ENV_URL_SITE . '/admin/deleted_users');
+                SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/deleted_users');
             }
         } else {
-            SysClass::return_to_main(200, ENV_URL_SITE . '/admin/deleted_users');
+            SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/deleted_users');
         }
         /* view */
-        $this->get_standart_view();
+        $this->getStandardViews();
         $this->view->set('deleted_user_data', $get_deleted_user_data);
         $this->view->set('body_view', $this->view->read('v_edit_deleted_users'));
         $this->html = $this->view->read('v_dashboard');
@@ -942,8 +946,8 @@ use MessagesTrait,
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
         $this->parameters_layout["title"] = 'Удалённый пользователь';
-        $this->parameters_layout["add_script"] .= '<script src="' . $this->get_path_controller() . '/js/edit_deleted_user.js" type="text/javascript" /></script>';
-        $this->show_layout($this->parameters_layout);
+        $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/edit_deleted_user.js" type="text/javascript" /></script>';
+        $this->showLayout($this->parameters_layout);
     }
 
     /**

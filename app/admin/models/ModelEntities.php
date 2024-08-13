@@ -30,8 +30,8 @@ class ModelEntities {
         }
         if ($needsJoin) {
             // Если type_id присутствует в $where или $order, применяем JOIN
-            $order = SysClass::ee_addPrefixToFields($order, SysClass::ee_get_fields_table(Constants::ENTITIES_TABLE), 'e.');
-            $where = SysClass::ee_addPrefixToFields($where, SysClass::ee_get_fields_table(Constants::ENTITIES_TABLE), 'e.');
+            $order = SysClass::ee_addPrefixToFields($order, SysClass::ee_getFieldsTable(Constants::ENTITIES_TABLE), 'e.');
+            $where = SysClass::ee_addPrefixToFields($where, SysClass::ee_getFieldsTable(Constants::ENTITIES_TABLE), 'e.');
             $order = str_replace('type_id', 't.type_id', $order);
             $where = str_replace('type_id', 't.type_id', $where);
             $sql_entities = "
@@ -143,7 +143,7 @@ class ModelEntities {
      * @return int|bool Возвращает идентификатор обновленной сущности в случае успеха, или false в случае ошибки
      */
     public function update_entity_data($entity_data = [], $language_code = ENV_DEF_LANG) {
-        $entity_data = SafeMySQL::gi()->filterArray($entity_data, SysClass::ee_get_fields_table(Constants::ENTITIES_TABLE));
+        $entity_data = SafeMySQL::gi()->filterArray($entity_data, SysClass::ee_getFieldsTable(Constants::ENTITIES_TABLE));
         $entity_data = array_map('trim', $entity_data);
         $entity_data = SysClass::ee_convertArrayValuesToNumbers($entity_data);
         $entity_data['parent_entity_id'] = isset($entity_data['parent_entity_id']) && (int) $entity_data['parent_entity_id'] !== 0 ? (int) $entity_data['parent_entity_id'] : NULL;

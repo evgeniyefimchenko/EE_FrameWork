@@ -5,6 +5,11 @@
     background-color: #f8f9fa;
 }
 
+#docs-content pre {
+    background: #ededed;
+    border-radius: 20px;
+}
+
 .list-group-item {
     cursor: pointer;
 }

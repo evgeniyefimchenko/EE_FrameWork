@@ -3,11 +3,13 @@
 use classes\plugins\SafeMySQL;
 use classes\system\Constants;
 use classes\system\SysClass;
+use classes\system\ModelBase;
+use classes\system\Hook;
 
 /**
  * Модель работы с типами категорий
  */
-class ModelCategoriesTypes {
+class ModelCategoriesTypes Extends ModelBase {
 
     /**
      * Получает все типы категорий, с учетом определенных параметров фильтрации и структуры.
@@ -24,18 +26,18 @@ class ModelCategoriesTypes {
      * @return array Массив типов, организованный в соответствии с указанными параметрами.
      *               Может быть как плоским списком, так и иерархически структурированным деревом.
      */
-    public function get_all_types(int $exclude_typeID = null, bool $flat_array = true, int $include_typeID = null, string $language_code = ENV_DEF_LANG) {
+    public function getAllTypes(int $exclude_typeID = null, bool $flat_array = true, int $include_typeID = null, string $language_code = ENV_DEF_LANG) {
         $sql = "SELECT type_id, parent_type_id, name FROM ?n WHERE language_code = ?s";
         $types = SafeMySQL::gi()->getAll($sql, Constants::CATEGORIES_TYPES_TABLE, $language_code);
         if ($include_typeID !== null) {
             // Выводим иерархию начиная с $include_typeID типа
             $types = $this->includeTypeAndDescendants($types, $include_typeID);
-            return $flat_array ? $types : $this->build_hierarchy_type($types, $include_typeID);
+            return $flat_array ? $types : $this->buildHierarchyType($types, $include_typeID);
         } elseif ($exclude_typeID > 0) {
             // Исключаем указанный тип и его потомков
             $types = $this->excludeTypeAndDescendants($types, $exclude_typeID);
         }
-        return $flat_array ? $types : $this->build_hierarchy_type($types);
+        return $flat_array ? $types : $this->buildHierarchyType($types);
     }
 
     /**
@@ -117,7 +119,7 @@ class ModelCategoriesTypes {
      *               Если задан $rootId, возвращает дерево, начинающееся с указанного корневого типа и его потомков.
      *               В противном случае, возвращает полное дерево со всеми типами.
      */
-    private function build_hierarchy_type($types, $rootId = null) {
+    private function buildHierarchyType($types, $rootId = null) {
         if (empty($types)) {
             return [];
         }
@@ -154,6 +156,51 @@ class ModelCategoriesTypes {
     }
 
     /**
+     * Рекурсивно получает все подчинённые типы по переданному type_id
+     * @param int $type_id ID типа, для которого нужно получить подчинённые типы
+     * @return array Массив type_id всех подчинённых типов по переданному type_id
+     */
+    function getAllTypeChildrensIds($type_id) {
+        $subTypes = [];
+        $query = "SELECT type_id FROM ?n WHERE parent_type_id = ?i";
+        $result = SafeMySQL::gi()->getAll($query, Constants::CATEGORIES_TYPES_TABLE, $type_id);
+        foreach ($result as $row) {
+            $subTypes[] = $row['type_id'];
+            $subTypes = array_merge($subTypes, $this->getAllTypeChildrensIds($row['type_id']));
+        }
+        return $subTypes;
+    }
+
+    /**
+     * Получает все type_id начиная с переданного и всех вышестоящих родителей
+     * Использует рекурсивный метод на уровне PHP для нахождения всех родительских type_id
+     * @param int $type_id Начальный type_id для поиска
+     * @return array Массив всех найденных type_id включая начальный и всех родителей
+     */
+    public function getAllTypeParentsIds(int $type_id): array {
+        $result = [];
+        if (!$type_id) {
+            return $result;
+        }
+        $this->findParentsType($type_id, $result);
+        return $result;
+    }
+
+    /**
+     * Рекурсивно находит всех родителей для заданного type_id и добавляет их в массив результатов
+     * @param int $type_id Начальный type_id для поиска
+     * @param array $result Массив для сохранения найденных type_id
+     */
+    private function findParentsType(int $type_id, array &$result) {
+        $sql = 'SELECT parent_type_id FROM ?n WHERE type_id = ?i';
+        $parent_type_id = SafeMySQL::gi()->getOne($sql, Constants::CATEGORIES_TYPES_TABLE, $type_id);
+        if ($parent_type_id !== null) {
+            $result[] = (int) $parent_type_id;
+            $this->findParentsType($parent_type_id, $result);
+        }
+    }
+
+    /**
      * Получает данные о типах с учетом параметров сортировки, фильтрации, пагинации и языка.
      * @param string $order Параметр для сортировки результатов запроса (по умолчанию: 'type_id ASC').
      * @param string|null $where Условие для фильтрации результатов запроса (по умолчанию: NULL).
@@ -162,7 +209,7 @@ class ModelCategoriesTypes {
      * @param string $language_code Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG.
      * @return array Массив, содержащий данные о типах и общее количество типов.
      */
-    public function get_categories_types_data($order = 'type_id ASC', $where = NULL, $start = 0, $limit = 100, $language_code = ENV_DEF_LANG) {
+    public function getCategoriesTypesData($order = 'type_id ASC', $where = NULL, $start = 0, $limit = 100, $language_code = ENV_DEF_LANG) {
         $orderString = $order ?: 'type_id ASC';
         $whereString = $where ? $where . " AND language_code = '$language_code'" : "WHERE language_code = '$language_code'";
         $start = $start ?: 0;
@@ -170,7 +217,7 @@ class ModelCategoriesTypes {
         $res_array = SafeMySQL::gi()->getAll($sql_types, Constants::CATEGORIES_TYPES_TABLE, $start, $limit);
         $res = [];
         foreach ($res_array as $type) {
-            $res[] = $this->get_categories_type_data($type['type_id'], $language_code);
+            $res[] = $this->getCategoriesTypeData($type['type_id'], $language_code);
         }
         $sql_count = "SELECT COUNT(DISTINCT `type_id`) as total_count FROM ?n $whereString";
         $total_count = SafeMySQL::gi()->getOne($sql_count, Constants::CATEGORIES_TYPES_TABLE);
@@ -186,7 +233,7 @@ class ModelCategoriesTypes {
      * @param string $language_code Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG.
      * @return array|null Ассоциативный массив с данными типа или null, если тип не найден.
      */
-    public function get_categories_type_data($type_id, $language_code = ENV_DEF_LANG) {
+    public function getCategoriesTypeData($type_id, $language_code = ENV_DEF_LANG) {
         if (!$type_id) {
             return null;
         }
@@ -201,8 +248,8 @@ class ModelCategoriesTypes {
      * @param string $language_code Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG
      * @return int|bool ID нового или обновленного типа или false в случае ошибки.
      */
-    public function update_categories_type_data($type_data = [], $language_code = ENV_DEF_LANG) {
-        $type_data = SafeMySQL::gi()->filterArray($type_data, SysClass::ee_get_fields_table(Constants::CATEGORIES_TYPES_TABLE));
+    public function updateCategoriesTypeData($type_data = [], $language_code = ENV_DEF_LANG) {
+        $type_data = SafeMySQL::gi()->filterArray($type_data, SysClass::ee_getFieldsTable(Constants::CATEGORIES_TYPES_TABLE));
         $type_data = array_map('trim', $type_data);
         $type_data['language_code'] = $language_code;
         if (empty($type_data['name'])) {
@@ -241,11 +288,11 @@ class ModelCategoriesTypes {
      * Удалит тип категории
      * @param int $type_id
      */
-    public function delete_categories_type(int $type_id) {
+    public function deleteCategoriesType(int $type_id) {
         try {
             $sql = 'SELECT title FROM ?n WHERE type_id = ?i';
             if ($title = SafeMySQL::gi()->getOne($sql, Constants::CATEGORIES_TABLE, $type_id)) {
-                return ['error' => 'Нельзя удалить тип категории <b>' . $this->get_name_categories_type($type_id) . '</b>,'
+                return ['error' => 'Нельзя удалить тип категории <b>' . $this->getNameCategoriesType($type_id) . '</b>,'
                     . 'так как он используется категорией <strong>' . $title . '</strong>'];
             }
             $sql_delete = "DELETE FROM ?n WHERE type_id = ?i";
@@ -256,47 +303,74 @@ class ModelCategoriesTypes {
         }
     }
 
-    public function get_name_categories_type(int $type_id) {
+    public function getNameCategoriesType(int $type_id) {
         $sql = 'SELECT name FROM ?n WHERE type_id = ?i';
         return SafeMySQL::gi()->getOne($sql, Constants::CATEGORIES_TYPES_TABLE, $type_id);
     }
-    
+
     /**
      * Вернёт все наборы свойств привязанные к типу категории
-     * @param int $type_id
+     * @param int $typeIds - Типы категорий
      * @return array
      */
-    public function get_categories_type_sets_data(int $type_id = 0) {
-        $sql = 'SELECT set_id FROM ?n WHERE type_id = ?i';
-        return SafeMySQL::gi()->getCol($sql, Constants::CATEGORY_TYPE_TO_PROPERTY_SET_TABLE, $type_id);
+    public function getCategoriesTypeSetsData(mixed $typeIds): array {
+        if (!is_array($typeIds)) {
+            $typeIds = [$typeIds];
+        }
+        $sql = 'SELECT set_id FROM ?n WHERE type_id IN (?a)';
+        return SafeMySQL::gi()->getCol($sql, Constants::CATEGORY_TYPE_TO_PROPERTY_SET_TABLE, $typeIds);
     }
 
     /**
      * Обновляет связи между типами категориями и наборами свойств
-     * @param int   $type_id  Идентификатор типа категории для обновления связей
-     * @param array $set_ids  Идентификаторы наборов свойств для связывания с указанным типом категории
+     * Для переданного и всех его потомков
+     * @param int $type_id Идентификатор типа категории для обновления связей
+     * @param int|array $set_ids Идентификаторы наборов свойств для связывания с указанным типом категории
      */
-    public function update_categories_type_sets_data(int $type_id, array $set_ids) {
-        $sql = "INSERT INTO ?n SET ?u";
-        foreach ($set_ids as $set_id) {
-            $data = ['type_id' => $type_id, 'set_id' => $set_id];
-            SafeMySQL::gi()->query($sql, Constants::CATEGORY_TYPE_TO_PROPERTY_SET_TABLE, $data);
+    public function updateCategoriesTypeSetsData(int $type_id, mixed $set_ids): void {
+        if (!is_array($set_ids)) {
+            $set_ids = [$set_ids];
         }
+        $allTypeChildrenIds = $this->getAllTypeChildrensIds($type_id);
+        $allTypeChildrenIds[] = $type_id;
+        $this->deleteCategoriesTypeSetsData($allTypeChildrenIds);
+        $sql = "INSERT INTO ?n SET ?u";        
+        foreach ($allTypeChildrenIds as $item_type_id) {
+            foreach ($set_ids as $set_id) {
+                $data = ['type_id' => $item_type_id, 'set_id' => $set_id];
+                SafeMySQL::gi()->query($sql, Constants::CATEGORY_TYPE_TO_PROPERTY_SET_TABLE, $data);
+            }
+        }
+        Hook::run('A_updateCategoriesTypeSetsData', $type_id, $set_ids, $allTypeChildrenIds);
     }
 
     /**
      * Удаляет связи между типами категорий и наборами свойств для указанных идентификаторов типов категорий
      * @param int|array $type_ids Идентификаторы типов категорий для удаления связей
+     * @param int|array $set_ids Идентификаторы наборов
      * @return void
      */
-    public function delete_categories_type_sets_data($type_ids) {
+    public function deleteCategoriesTypeSetsData(mixed $type_ids, mixed $set_ids = false): bool {
+        $add_query = '';
         if (!is_array($type_ids)) {
             $type_ids = [$type_ids];
-        } else {
-            $type_ids = implode(',', $type_ids);
         }
-        $sql_delete = "DELETE FROM ?n WHERE type_id IN (?a)";
+        if ($set_ids) {
+            if (is_array($set_ids)) {
+                $set_ids = implode(',', $set_ids);
+            }
+            $add_query = ' AND set_id IN (' . $set_ids . ')';
+        }
+        $sql_delete = "DELETE FROM ?n WHERE type_id IN (?a)" . $add_query;
         return SafeMySQL::gi()->query($sql_delete, Constants::CATEGORY_TYPE_TO_PROPERTY_SET_TABLE, $type_ids);
+    }
+
+    public function getAllCategoriesByType(mixed $typeIds, $language_code = ENV_DEF_LANG): array {
+        if (!is_array($typeIds)) {
+            $typeIds = [$typeIds];
+        }
+        $sql = 'SELECT category_id FROM ?n WHERE type_id IN (?a) AND language_code = ?s';
+        return SafeMySQL::gi()->getCol($sql, Constants::CATEGORIES_TABLE, $typeIds, $language_code);
     }
 
 }

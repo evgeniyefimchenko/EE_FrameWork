@@ -70,7 +70,7 @@ if (ENV_SITE !== 1) {
         <div class="card mb-4">
             <div class="card-header" id="tour_data_table">
                 <i class="fas fa-table me-1"></i>
-                Пример таблицы данных(фильтры и сортировка не работают, данные их статического массива)
+                Пример таблицы данных(фильтры и сортировка не работают, данные из статического массива)
             </div>
             <div class="card-body">
                 <?= $data_table ?>

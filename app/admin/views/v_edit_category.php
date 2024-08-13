@@ -4,8 +4,8 @@ use classes\helpers\ClassNotifications;
 use classes\system\Plugins;
 
 if (!count($all_type)) {
-   ClassNotifications::add_notification_user($this->logged_in, ['text' => 'Необходимо создать хотя бы один тип категории!', 'status' => 'info']);
-   SysClass::return_to_main(200, '/admin/types_categories');
+   ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Необходимо создать хотя бы один тип категории!', 'status' => 'info']);
+   SysClass::handleRedirect(200, '/admin/types_categories');
 }
 ?>
 <!-- Редактирование категории -->
@@ -28,14 +28,17 @@ if (!count($all_type)) {
                 <div class="col">
                     <ul class="nav nav-tabs" id="eeTab" role="tablist">
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic-tab-pane" type="button" role="tab" aria-controls="basic-tab-pane" aria-selected="true"><?=$lang['sys.basics']?></button>
+                            <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic-tab-pane" type="button" role="tab" 
+                                    aria-controls="basic-tab-pane" aria-selected="true"><?=$lang['sys.basics']?></button>
                         </li>
                         <?php if ($category_data['category_id']) { ?>
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="entities-tab" data-bs-toggle="tab" data-bs-target="#entities-tab-pane" type="button" role="tab" aria-controls="entities-tab-pane" aria-selected="false"><?=$lang['sys.category_entities']?></button>
+                            <button class="nav-link<?=(!count($category_entities) ? ' text-danger' : '')?>" id="entities-tab" data-bs-toggle="tab" data-bs-target="#entities-tab-pane"
+                                    type="button" role="tab" aria-controls="entities-tab-pane" aria-selected="false"><?=$lang['sys.category_entities']?></button>
                         </li>
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="property_sets-tab" data-bs-toggle="tab" data-bs-target="#property_sets-tab-pane" type="button" role="tab" aria-controls="property_sets-tab-pane" aria-selected="false"><?=$lang['sys.property_sets']?></button>
+                            <button class="nav-link<?=(!count($categories_type_sets_data) ? ' text-danger' : '')?>" id="property_sets-tab" data-bs-toggle="tab" data-bs-target="#property_sets-tab-pane"
+                                    type="button" role="tab" aria-controls="property_sets-tab-pane" aria-selected="false"><?=$lang['sys.property_sets']?></button>
                         </li>
                         <?php } ?>
                     </ul>
@@ -54,9 +57,9 @@ if (!count($all_type)) {
                                 </div>
                                 <div class="col-6 col-sm-3">
                                     <label for="type_id-input">Тип:</label>
-                                    <div role="group" class="input-group">
+                                    <div role="group" class="input-group">                                      
                                         <select id="type_id-input" name="type_id" class="form-control">
-                                            <?=Plugins::show_type_categogy_for_select($all_type, $category_data['type_id']); ?>
+                                            <?=Plugins::showTypeCategogyForSelect($all_type, $category_data['type_id']); ?>
                                         </select>
                                         <?php
                                         if (isset($category_data['parent_id'])) {
@@ -74,7 +77,7 @@ if (!count($all_type)) {
                                     <label for="parent_id-input"><?=$lang['sys.parent']?>:</label>
                                     <div role="group" class="input-group">
                                         <select id="parent_id-input" name="parent_id" class="form-control">
-                                            <?php echo Plugins::show_categogy_for_select($categories_tree, $category_data['parent_id']); ?>
+                                            <?php echo Plugins::showCategogyForSelect($categories_tree, $category_data['parent_id']); ?>
                                         </select>                                        
                                         <span title="<?=$category_data['category_path_text']?>" data-bs-toggle="tooltip" data-bs-placement="top" role="button" class="input-group-text btn-primary">
                                             <i class="fas fa-tree" data-bs-toggle="modal" data-bs-target="#parents_modal"></i><!-- Иконка со знаком вопроса -->
@@ -145,71 +148,13 @@ if (!count($all_type)) {
                                 </div>
                             </div>
                         </div>
-                        <!-- Наборы свойств категории(с унаследованными) -->
+                        <!-- Наборы свойств категории -->
                         <div class="tab-pane fade mt-3" id="property_sets-tab-pane" role="tabpanel" aria-labelledby="property_sets-tab">
                             <div class="row">
                                 <div class="col">
-                                    <?php                                        
-                                        $html = '';
-                                        foreach ($categories_type_sets_data as $cat_name => $cats_set) {
-                                            $html .= '<h5>' . $cat_name . '</h5>';
-                                            foreach ($cats_set as $property_set) {
-                                                $property_set_id = hash('crc32', $property_set['set_id'] . $property_set['name'] .  $property_set['created_at']);
-                                                $html .= '<div class="accordion my-3" id="accordion-' . $property_set_id . '">';
-                                                $html .= '<div class="card">';
-                                                $html .= '<div class="card-header" id="heading-' . $property_set_id . '">';
-                                                $html .= '<h2 class="mb-0">';
-                                                $html .= '<span class="h5">' . $lang['sys.set'] . ':</span> ' . '<button class="btn btn-link" type="button" '
-                                                        . 'data-bs-toggle="collapse" data-bs-target="#collapse-' . $property_set_id . '" aria-expanded="true" '
-                                                        . 'aria-controls="collapse-' . $property_set_id . '">';
-                                                $html .= $property_set['name'] . '<input type="hidden" name="set_id" value="' . $property_set['set_id'] . '">';
-                                                $html .= '</button>';
-                                                $html .= '</h2>';
-                                                $html .= '</div>';
-                                                $html .= '<div id="collapse-' . $property_set_id . '" class="collapse" aria-labelledby="heading-' . $property_set_id . '" '
-                                                        . 'data-bs-parent="#accordion-' . $property_set['set_id'] . '">';
-                                                $html .= '<div class="card-body">';
-                                                $html .= '<h5>' . $lang['sys.description'] . '</h5>' . '<p>' . ($property_set['description'] ? 
-                                                        $property_set['description'] : '---') . '</p>';
-                                                $html .= '<h6>' . $lang['sys.properties'] . '</h6>';
-                                                if (!count($property_set['properties'])) {
-                                                    $html .= '---';
-                                                }
-                                                foreach ($property_set['properties'] as $property) {
-                                                    $html .= '<div class="accordion my-3" id="accordion-' . $property['p_id'] . '">';
-                                                    $html .= '<div class="card">';
-                                                    $html .= '<div class="card-header" id="heading-' . $property['p_id'] . '">';
-                                                    $html .= '<h2 class="mb-0">';
-                                                    $html .= $property['sort'] . ' ' . '<button class="btn btn-link" type="button" data-bs-toggle="collapse" '
-                                                            . 'data-bs-target="#collapse-' . $property['p_id'] . '"'
-                                                            . ' aria-expanded="true" aria-controls="collapse-' . $property['p_id'] . '">';
-                                                    $html .= $property['name'] . '<br/>';
-                                                    $html .= '</button></h2></div>';
-                                                    $html .= '<div id="collapse-' . $property['p_id'] . '" class="collapse" aria-labelledby="heading-'
-                                                            . $property['p_id'] . '" data-bs-parent="#accordion-' . $property['p_id'] . '">';
-                                                    $html .= '<div class="card-body">';
-                                                    /* Убрал для облегчения понимания структуры
-                                                    $html .= '<div><label>Is Multiple:</label>';                                                    
-                                                    $html .= '<input class="ms-1" type="checkbox" disabled ';
-                                                    $html .= ($property['is_multiple'] == 1 ? 'checked' : '') . '>';
-                                                    $html .= '&nbsp;&nbsp;<label>Is Required:</label>';
-                                                    $html .= '<input class="ms-1" type="checkbox" disabled ';
-                                                    $html .= ($property['is_required'] == 1 ? 'checked' : '') . '></div>';
-                                                     */
-                                                    $html .= Plugins::renderPropertyHtmlFieldsByAdmin($property['properties_values']['values'],
-                                                            $category_data['category_id'], 'category', $property['properties_values']['entity_id']);
-                                                    $html .= '</div>'; // Закрытие .card-body
-                                                    $html .= '</div>'; // Закрытие #collapse-[id]
-                                                    $html .= '</div>'; // Закрытие .card
-                                                    $html .= '</div>'; // Закрытие .accordion для свойств
-                                                }
-                                                $html .= '</div>'; // Закрытие .card-body для набора свойств
-                                                $html .= '</div>'; // Закрытие .card для набора свойств
-                                                $html .= '</div>'; // Закрытие .accordion для набора свойств
-                                            }
-                                        }
-                                        echo $html;
-                                    ?>
+                                    <div id="renderCategorySetsAccordion">
+                                        <?=Plugins::renderCategorySetsAccordion($categories_type_sets_data, $category_data['category_id']);?>
+                                    </div>
                                     <button type="submit" class="btn btn-primary my-3"><?=$lang['sys.save']?></button>
                                 </div>
                             </div>

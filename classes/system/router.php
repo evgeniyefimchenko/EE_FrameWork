@@ -20,7 +20,7 @@ class Router {
     public function setPath($path) {
         $path = trim($path, '/\\');
         $path .= ENV_DIRSEP;
-        $path = '/' . $path;
+        $path = ENV_DIRSEP . $path;
         if (is_dir($path) == false) {
             throw new Exception('Указана неверная папка для контроллеров: `' . $path . '`');
         }
@@ -36,7 +36,7 @@ class Router {
      * @return - работает с указателями на переменные
      */
 
-    private function getController(&$file, &$controller, &$action, &$args) {
+    private function getController(mixed &$file, mixed &$controller, mixed &$action, mixed &$args): void {
         if (ENV_TEST) {
             echo 'route= ' . $_GET['route'] . '<br/>';
         }
@@ -45,13 +45,13 @@ class Router {
             if (ENV_TEST) {
                 die('Ошибка проверки запроса = ' . $get_route);
             }
-            Sysclass::return_to_main(404);
+            Sysclass::handleRedirect(404);
         }
         $add_path = 0;
         if (empty($get_route)) {
             $route = 'index';
         } else {
-            $route = $this->remove_double_path($get_route);
+            $route = $this->normalizeRoute($get_route);
         }
         $parts = explode('/', $route);
         /* Поиск папки и контроллера */
@@ -75,7 +75,7 @@ class Router {
             }
         }
         if (empty($controller)) {
-            $this->path .= $add_path === 0 ? 'index/' : '';
+            $this->path .= $add_path === 0 ? 'index' . ENV_DIRSEP : '';
             $controller = 'index';
         }
         $file = $this->path . $controller . '.php';
@@ -83,7 +83,7 @@ class Router {
             if (ENV_TEST) {
                 die('not readable ' . $file);
             }
-            Sysclass::return_to_main(404);
+            Sysclass::handleRedirect(404);
             exit;
         }
         $args = $parts;
@@ -122,7 +122,7 @@ class Router {
             if (ENV_TEST) {
                 die('</br></br>is_callable class= ' . $class . ' action= ' . $action);
             }
-            Sysclass::return_to_main(404);
+            Sysclass::handleRedirect(404);
             exit;
         }
         $controller->$action($args);
@@ -132,14 +132,14 @@ class Router {
      * Удаляет все index и лишние слэши
      * вернёт текущий путь или выполнит редирект 307 на валидный
      */
-    private function remove_double_path($param) {
+    private function normalizeRoute($param) {
         $dell_index = preg_replace('/index/', '', $param);
         $dell_duble_slash = preg_replace('/(?<!:)[\/]{2,}/', '', $dell_index);
         $dell_end_slash = preg_replace('/\/{1,}$/', '', $dell_duble_slash);
         if ($dell_end_slash == $param) {
             return $dell_end_slash;
         } else {
-            Sysclass::return_to_main(307, ENV_URL_SITE . ENV_DIRSEP . $dell_end_slash);
+            Sysclass::handleRedirect(307, ENV_URL_SITE . ENV_DIRSEP . $dell_end_slash);
         }
     }
 

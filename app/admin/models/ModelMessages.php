@@ -13,8 +13,8 @@ class ModelMessages {
         $orderString = $order ?: 'created_at DESC';
         $start = $start ?: 0;
         $needsJoin = strpos($where, 'author_id') !== false || strpos($order, 'author_id') !== false;
-        $order = SysClass::ee_addPrefixToFields($order, SysClass::ee_get_fields_table(Constants::USERS_MESSAGE_TABLE), 'm.');
-        $where = SysClass::ee_addPrefixToFields($where, SysClass::ee_get_fields_table(Constants::USERS_MESSAGE_TABLE), 'm.');
+        $order = SysClass::ee_addPrefixToFields($order, SysClass::ee_getFieldsTable(Constants::USERS_MESSAGE_TABLE), 'm.');
+        $where = SysClass::ee_addPrefixToFields($where, SysClass::ee_getFieldsTable(Constants::USERS_MESSAGE_TABLE), 'm.');
         $whereString = $where ? "$where AND " : "";
         if (is_array($user_id)) {
            $whereString .= "m.user_id IN ?a"; 

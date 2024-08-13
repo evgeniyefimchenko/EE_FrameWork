@@ -1,5 +1,5 @@
 <!-- Таблица свойств -->
-<?php if (!$all_property_types) classes\system\SysClass::return_to_main(200, '/admin/types_properties');?> 
+<?php if (!$all_property_types) classes\system\SysClass::handleRedirect(200, '/admin/types_properties');?> 
 <main>
     <div class="container-fluid px-4">
         <a href="/admin/edit_property/id" data-bs-toggle="tooltip" data-bs-placement="top" title="<?= $lang['sys.add'] ?>" type="button"

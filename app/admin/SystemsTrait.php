@@ -18,16 +18,16 @@ trait SystemsTrait {
      */
     public function logs($params = array()) {
         $this->access = array(1);
-        if (!SysClass::get_access_user($this->logged_in, $this->access) || array_filter($params)) {
-            SysClass::return_to_main();
+        if (!SysClass::getAccessUser($this->logged_in, $this->access) || array_filter($params)) {
+            SysClass::handleRedirect();
             exit();
         }
         /* get data */
         $fatal_errors_table = $this->get_php_logs_table('fatal_errors');
         $php_logs_table = $this->get_php_logs_table('php_logs');
-        $progect_logs = $this->get_progect_logs_table();                
+        $progect_logs = $this->get_progect_logs_table();
         /* view */
-        $this->get_standart_view();
+        $this->getStandardViews();
         $this->view->set('php_logs_table', $php_logs_table);
         $this->view->set('fatal_errors_table', $fatal_errors_table);
         $this->view->set('progect_logs_table', $progect_logs);
@@ -37,20 +37,20 @@ trait SystemsTrait {
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
         $this->parameters_layout["title"] = 'logs';
-        $this->show_layout($this->parameters_layout);
+        $this->showLayout($this->parameters_layout);
     }
 
     /**
      * Вернёт таблицу логирования проекта
      */
-    public function get_progect_logs_table() {        
+    public function get_progect_logs_table() {
         $this->access = [1];
-        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-            SysClass::return_to_main();
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect();
             exit();
         }
         /* model */
-        $this->load_model('m_systems');
+        $this->loadModel('m_systems');
         $data_table['columns'] = [
             [
                 'field' => 'date_time',
@@ -58,42 +58,42 @@ trait SystemsTrait {
                 'sorted' => true,
                 'filterable' => true,
                 'width' => 10
-            ],            
+            ],
             [
                 'field' => 'type_log',
                 'title' => 'type_log',
                 'sorted' => true,
                 'filterable' => true,
                 'width' => 10
-            ],            
+            ],
             [
                 'field' => 'initiator',
                 'title' => 'initiator',
                 'sorted' => 'ASC',
                 'filterable' => true,
                 'width' => 10
-            ],            
+            ],
             [
                 'field' => 'result',
                 'title' => 'result',
                 'sorted' => false,
                 'filterable' => false,
                 'width' => 10
-            ],            
+            ],
             [
                 'field' => 'details',
                 'title' => 'details',
                 'sorted' => false,
                 'filterable' => false,
                 'width' => 60
-            ],            
+            ],
         ];
         $filters = [
             'date_time' => [
                 'type' => 'date',
                 'id' => "date_time",
                 'value' => '',
-                'label' => $this->lang['sys.date_create']               
+                'label' => $this->lang['sys.date_create']
             ],
             'initiator' => [
                 'type' => 'text',
@@ -110,8 +110,8 @@ trait SystemsTrait {
         ];
         $post_data = SysClass::ee_cleanArray($_POST);
         if ($post_data && isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') { // AJAX
-            list($params, $filters, $selected_sorting) = Plugins::ee_show_table_prepare_params($post_data, $data_table['columns']);            
-            $type = $this->get_table_name_from_post($post_data);           
+            list($params, $filters, $selected_sorting) = Plugins::ee_show_table_prepare_params($post_data, $data_table['columns']);
+            $type = $this->get_table_name_from_post($post_data);
             $php_logs_array = $this->models['m_systems']->get_all_logs($params['order'], $params['where'], $params['start'], $params['limit']);
         } else {
             $php_logs_array = $this->models['m_systems']->get_all_logs(false, false, false, 25);
@@ -139,24 +139,24 @@ trait SystemsTrait {
         $data_table['total_rows'] = $php_logs_array['total_count'];
         // SysClass::pre($data_table);
         if ($post_data) {
-            echo Plugins::ee_show_table('progect_logs_table_', $data_table, 'get_progect_logs_table', $filters, (int)$post_data["page"], $post_data["rows_per_page"], $selected_sorting);
+            echo Plugins::ee_show_table('progect_logs_table_', $data_table, 'get_progect_logs_table', $filters, (int) $post_data["page"], $post_data["rows_per_page"], $selected_sorting);
             die;
         } else {
             return Plugins::ee_show_table('progect_logs_table_', $data_table, 'get_progect_logs_table', $filters);
-        }        
+        }
     }
-    
+
     /**
      * Вернёт таблицу ошибок PHP
      */
     public function get_php_logs_table($type = '') {
         $this->access = [1];
-        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-            SysClass::return_to_main();
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect();
             exit();
         }
         /* model */
-        $this->load_model('m_systems');
+        $this->loadModel('m_systems');
         $data_table['columns'] = [
             [
                 'field' => 'error_type',
@@ -164,7 +164,7 @@ trait SystemsTrait {
                 'sorted' => true,
                 'filterable' => true,
                 'width' => 15
-            ],            
+            ],
             [
                 'field' => 'date_time',
                 'title' => $this->lang['sys.date_create'],
@@ -172,21 +172,21 @@ trait SystemsTrait {
                 'filterable' => true,
                 'width' => 15,
                 'align' => 'center'
-            ],            
+            ],
             [
                 'field' => 'message',
                 'title' => $this->lang['sys.message'],
                 'sorted' => false,
                 'filterable' => true,
                 'width' => 70
-            ],            
+            ],
         ];
         $filters = [
             'error_type' => [
                 'type' => 'text',
                 'id' => "error_type",
                 'value' => '',
-                'label' => $this->lang['sys.error_type']               
+                'label' => $this->lang['sys.error_type']
             ],
             'date_time' => [
                 'type' => 'date',
@@ -208,8 +208,8 @@ trait SystemsTrait {
         }
         $post_data = SysClass::ee_cleanArray($_POST);
         if ($post_data && isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') { // AJAX
-            list($params, $filters, $selected_sorting) = Plugins::ee_show_table_prepare_params($post_data, $data_table['columns']);            
-            $type = $this->get_table_name_from_post($post_data);           
+            list($params, $filters, $selected_sorting) = Plugins::ee_show_table_prepare_params($post_data, $data_table['columns']);
+            $type = $this->get_table_name_from_post($post_data);
             $php_logs_array = $this->models['m_systems']->get_php_logs($params['order'], $params['where'], $params['start'], $params['limit'], $type);
         } else {
             $php_logs_array = $this->models['m_systems']->get_php_logs(false, false, false, 25, $type);
@@ -218,8 +218,8 @@ trait SystemsTrait {
             $stack_trace = false;
             if (is_array($item['stack_trace']) && count(($item['stack_trace']))) {
                 foreach ($item['stack_trace'] as $stack) {
-                   $stack_trace .= $stack . '<br/>';
-               } 
+                    $stack_trace .= $stack . '<br/>';
+                }
             }
             if ($type == 'fatal_errors') {
                 $item['error_type'] = 'PHP Fatal error';
@@ -243,21 +243,21 @@ trait SystemsTrait {
         }
         $data_table['total_rows'] = $php_logs_array['total_count'];
         if ($post_data) {
-            echo Plugins::ee_show_table('php_logs_table_' . $type, $data_table, 'get_php_logs_table', $filters, (int)$post_data["page"], $post_data["rows_per_page"], $selected_sorting);
+            echo Plugins::ee_show_table('php_logs_table_' . $type, $data_table, 'get_php_logs_table', $filters, (int) $post_data["page"], $post_data["rows_per_page"], $selected_sorting);
             die;
         } else {
             return Plugins::ee_show_table('php_logs_table_' . $type, $data_table, 'get_php_logs_table', $filters);
-        }        
+        }
     }
-    
+
     /**
-    * Извлекает имя таблицы из массива POST
-    * Проходит по всем ключам массива POST и ищет ключи, соответствующие шаблону 'php_logs_table_{table_name}_table_name'
-    * Если такой ключ найден, извлекает из него часть, соответствующую {table_name} и возвращает ее
-    * Возвращает null, если соответствующий ключ не найден
-    * @param array $postData Массив POST, из которого необходимо извлечь имя таблицы
-    * @return string|null Возвращает имя таблицы или null, если оно не найдено
-    */   
+     * Извлекает имя таблицы из массива POST
+     * Проходит по всем ключам массива POST и ищет ключи, соответствующие шаблону 'php_logs_table_{table_name}_table_name'
+     * Если такой ключ найден, извлекает из него часть, соответствующую {table_name} и возвращает ее
+     * Возвращает null, если соответствующий ключ не найден
+     * @param array $postData Массив POST, из которого необходимо извлечь имя таблицы
+     * @return string|null Возвращает имя таблицы или null, если оно не найдено
+     */
     private function get_table_name_from_post($postData) {
         foreach ($postData as $key => $value) {
             if (preg_match('/^php_logs_table_([a-zA-Z0-9_]+)_table_name$/', $key, $matches)) {
@@ -272,17 +272,17 @@ trait SystemsTrait {
      */
     public function clear_php_logs($params = []) {
         $this->access = array(1);
-        if (!SysClass::get_access_user($this->logged_in, $this->access) || array_filter($params)) {
-            SysClass::return_to_main();
+        if (!SysClass::getAccessUser($this->logged_in, $this->access) || array_filter($params)) {
+            SysClass::handleRedirect();
             exit();
         }
         $logFilePath = ENV_LOGS_PATH . 'php_errors.log';
         if (file_exists($logFilePath)) {
             file_put_contents($logFilePath, '');
         }
-        SysClass::return_to_main(200, '/admin/logs');
+        SysClass::handleRedirect(200, '/admin/logs');
     }
-    
+
     /**
      * Очистить все таблицы без удаления проекта.
      * Таблицы нужно дополнять на своё усмотрение.
@@ -290,13 +290,13 @@ trait SystemsTrait {
      */
     public function kill_em_all($params = []) {
         $this->access = array(1);
-        if (!SysClass::get_access_user($this->logged_in, $this->access) || array_filter($params)) {
-            SysClass::return_to_main();
+        if (!SysClass::getAccessUser($this->logged_in, $this->access) || array_filter($params)) {
+            SysClass::handleRedirect();
             exit();
         }
-        $this->load_model('m_systems');
+        $this->loadModel('m_systems');
         $this->models['m_systems']->kill_db($this->logged_in);
-        SysClass::return_to_main(200, '/admin');
+        SysClass::handleRedirect(200, '/admin');
     }
 
     private function copy_all() {
@@ -353,8 +353,8 @@ trait SystemsTrait {
      */
     public function create_test($params = []) {
         $this->access = [1, 2];
-        if (!SysClass::get_access_user($this->logged_in, $this->access) || array_filter($params)) {
-            SysClass::return_to_main();
+        if (!SysClass::getAccessUser($this->logged_in, $this->access) || array_filter($params)) {
+            SysClass::handleRedirect();
             exit();
         }
         // Путь к файлу-флагу
@@ -367,10 +367,10 @@ trait SystemsTrait {
             $text_sessage = 'Тестовые данны записаны!';
             $status = 'info';
             // Создаем тестовые данные
-            $this->load_model('m_categories');
-            $this->load_model('m_categories_types');
-            $this->load_model('m_entities');
-            $this->load_model('m_properties');
+            $this->loadModel('m_categories_types');
+            $this->loadModel('m_categories', ['m_categories_types' => $this->models['m_categories_types']]);
+            $this->loadModel('m_entities');
+            $this->loadModel('m_properties');
             $users = $this->generate_test_users();
             $cats = $this->generate_test_categories();
             $ent = $this->generate_test_entities();
@@ -386,8 +386,8 @@ trait SystemsTrait {
                 file_put_contents($flagFilePath, 'Test data created on ' . date('Y-m-d H:i:s'));
             }
         }
-        ClassNotifications::add_notification_user($this->logged_in, ['text' => $text_sessage, 'status' => $status]);
-        SysClass::return_to_main(200, '/admin');
+        ClassNotifications::addNotificationUser($this->logged_in, ['text' => $text_sessage, 'status' => $status]);
+        SysClass::handleRedirect(200, '/admin');
     }
 
     /**
@@ -401,7 +401,7 @@ trait SystemsTrait {
      * в вашей системе имеется необходимая логика для связывания этих свойств с наборами, если это требуется.
      */
     private function generate_test_sets_prop($count = 10): bool {
-        $all_properties = $this->models['m_properties']->get_all_properties();
+        $all_properties = $this->models['m_properties']->getAllProperties();
         if (empty($all_properties)) {
             return false; // Нет свойств для создания наборов
         }
@@ -415,7 +415,7 @@ trait SystemsTrait {
             $set_name = 'Test Set ' . ($i + rand(1, 1000));
             $property_set_data = [
                 'name' => $set_name,
-                'description' => SysClass::generate_uuid()
+                'description' => SysClass::ee_generate_uuid()
             ];
             $set_id = $this->models['m_properties']->update_property_set_data($property_set_data);
             if (!$set_id) {
@@ -476,7 +476,7 @@ trait SystemsTrait {
             "Метод печати", // свойство принтера
             "Частота обновления", // свойство монитора или телевизора
         ];
-        $all_property_types = $this->models['m_properties']->get_all_property_types();
+        $all_property_types = $this->models['m_properties']->getAllPropertyTypes();
         // Смешаем массив типов свойств для случайного выбора
         shuffle($all_property_types);
         $types_count = count($all_property_types);
@@ -493,9 +493,9 @@ trait SystemsTrait {
                 'is_multiple' => random_int(0, 1),
                 'is_required' => random_int(0, 1)
             ];
-            $result = $this->models['m_properties']->update_property_data($property_data);
+            $result = $this->models['m_properties']->updatePropertyData($property_data);
             if (!$result) {
-                SysClass::pre_file('error', 'generate_test_properties');
+                SysClass::preFile('error', 'generate_test_properties');
                 return $result;
             }
         }
@@ -557,7 +557,7 @@ trait SystemsTrait {
             'Всегда нахожу то, что нужно.',
             'Самые лучшие цены!'
         ];
-        $this->load_model('m_systems');
+        $this->loadModel('m_systems');
         for ($i = 0; $i < $count; $i++) {
             $name = $namePrefixes[array_rand($namePrefixes)] . '_' . mt_rand(1000, 9999);
             $email = $name . '@' . ENV_DOMEN_NAME;
@@ -583,7 +583,7 @@ trait SystemsTrait {
      * @param int $parent_depth Максимальная глубина вложенности категорий.
      */
     private function generate_test_categories($count = 50, $parent_depth = 3) {
-        $types = $this->models['m_categories_types']->get_all_types();
+        $types = $this->models['m_categories_types']->getAllTypes();
         if (empty($types)) {
             SysClass::pre("No types found in the types table.");
         }
@@ -620,9 +620,9 @@ trait SystemsTrait {
             $finalName = $categoryName;
             while (true) {
                 $existingCategory = SafeMySQL::gi()->getRow(
-                    "SELECT `category_id` FROM ?n WHERE `title` = ?s AND type_id = ?i AND language_code = ?s",
-                    Constants::CATEGORIES_TABLE,
-                    $finalName, $randomTypeId, ENV_DEF_LANG
+                        "SELECT `category_id` FROM ?n WHERE `title` = ?s AND type_id = ?i AND language_code = ?s",
+                        Constants::CATEGORIES_TABLE,
+                        $finalName, $randomTypeId, ENV_DEF_LANG
                 );
                 // Дополнительная проверка в сгенерированном массиве
                 if (!$existingCategory && !in_array($finalName, $generatedTitles)) {
@@ -644,12 +644,12 @@ trait SystemsTrait {
         }
         // Вставка данных в таблицу категорий
         foreach ($categoriesData as $k => $categoryData) {
-            $res = $this->models['m_categories']->update_category_data($categoryData);
+            $res = $this->models['m_categories']->updateCategoryData($categoryData);
             $categoriesData[$k]['category_id'] = $res;
             if (!$res) {
                 SysClass::pre(['error', 'ADD test category', $categoryData, $categoriesData]);
                 return $res;
-            }            
+            }
         }
         // Обновление parent_id для половины созданных категорий
         $halfCount = intval($count / 2);
@@ -665,7 +665,7 @@ trait SystemsTrait {
             if (!$categoryId) {
                 SysClass::pre(['ERROR !$categoryId', $categoryData, $categoriesData]);
             }
-            $res = $this->models['m_categories']->update_category_data($categoryData);
+            $res = $this->models['m_categories']->updateCategoryData($categoryData);
         }
         if (!$res) {
             SysClass::pre('error', 'UPDATE test category');
@@ -682,7 +682,7 @@ trait SystemsTrait {
         // Получаем список существующих категорий
         $categories = $this->models['m_categories']->get_all_categories();
         if (empty($categories)) {
-            SysClass::pre_file('error', "No categories found in the categories table.");
+            SysClass::preFile('error', "No categories found in the categories table.");
             return false;
         }
         // Массивы с возможными словами для названий и описаний
@@ -716,5 +716,4 @@ trait SystemsTrait {
         }
         return $res;
     }
-
 }

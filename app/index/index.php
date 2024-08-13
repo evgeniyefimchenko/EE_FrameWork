@@ -13,10 +13,10 @@ class ControllerIndex Extends ControllerBase {
     /**
      * Загрузка стандартных представлений
      */
-    private function get_standart_view() {
+    private function getStandardViews() {
         $this->view->set('logged_in', $this->logged_in);
-        $this->parameters_layout["add_script"] .= '<script src="' . $this->get_path_controller() . '/js/index.js" type="text/javascript" /></script>';
-        $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="' . $this->get_path_controller() . '/css/index.css"/>';
+        $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/index.js" type="text/javascript" /></script>';
+        $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="' . $this->getPathController() . '/css/index.css"/>';
     }
 
     /**
@@ -24,18 +24,18 @@ class ControllerIndex Extends ControllerBase {
      */
     public function index($params = NULL) {
         if ($params) {
-            SysClass::return_to_main();
+            SysClass::handleRedirect();
         }
         /* view */
-        $this->get_standart_view();
+        $this->getStandardViews();
         $this->view->set('top_panel', $this->view->read('v_top_panel'));
         $this->html = $this->view->read('v_index');
         /* layouts */
         $this->parameters_layout["title"] = ENV_SITE_NAME . ' - General page';
         $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION;
-        $this->parameters_layout["keywords"] = SysClass::keywords($this->html);
+        $this->parameters_layout["keywords"] = SysClass::getKeywordsFromText($this->html);
         $this->parameters_layout["layout_content"] = $this->html;
-        $this->show_layout($this->parameters_layout);
+        $this->showLayout($this->parameters_layout);
     }
 
     /**
@@ -44,20 +44,20 @@ class ControllerIndex Extends ControllerBase {
      */
     public function docs($params = NULL) {
         if ($params) {
-            SysClass::return_to_main();
+            SysClass::handleRedirect();
         }
         /* view */
-        $this->get_standart_view();
+        $this->getStandardViews();
         $this->view->set('menu_docs', $this->view->read('v_menu_docs'));
         $this->html = $this->view->read('v_docs');
         /* layouts */
-        $this->parameters_layout["add_script"] .= '<script src="' . $this->get_path_controller() . '/js/docs.js" ></script>';
-        $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="' . $this->get_path_controller() . '/css/docs.css"/>';
+        $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/docs.js" ></script>';
+        $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="' . $this->getPathController() . '/css/docs.css"/>';
         $this->parameters_layout["title"] = ENV_SITE_NAME . ' - Documentation';
         $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION;
-        $this->parameters_layout["keywords"] = SysClass::keywords($this->html);
+        $this->parameters_layout["keywords"] = SysClass::getKeywordsFromText($this->html);
         $this->parameters_layout["layout_content"] = $this->html;
-        $this->show_layout($this->parameters_layout);        
+        $this->showLayout($this->parameters_layout);        
     }
     
     /**
@@ -81,17 +81,17 @@ class ControllerIndex Extends ControllerBase {
      */
     public function about($params = NULL) {
         if ($params) {
-            SysClass::return_to_main();
+            SysClass::handleRedirect();
         }
         /* view */
-        $this->get_standart_view();
+        $this->getStandardViews();
         $this->html = $this->view->read('v_about');
         /* layouts */
         $this->parameters_layout["title"] = ENV_SITE_NAME . ' - About Us';
         $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION;
-        $this->parameters_layout["keywords"] = SysClass::keywords($this->html);
+        $this->parameters_layout["keywords"] = SysClass::getKeywordsFromText($this->html);
         $this->parameters_layout["layout_content"] = $this->html;
-        $this->show_layout($this->parameters_layout);
+        $this->showLayout($this->parameters_layout);
     }
 
     /**
@@ -99,17 +99,17 @@ class ControllerIndex Extends ControllerBase {
      */
     public function contact($params = NULL) {
         if ($params) {
-            SysClass::return_to_main();
+            SysClass::handleRedirect();
         }
         /* view */
-        $this->get_standart_view();
+        $this->getStandardViews();
         $this->html = $this->view->read('v_contact');
         /* layouts */
         $this->parameters_layout["title"] = ENV_SITE_NAME . ' - Contact';
         $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION;
-        $this->parameters_layout["keywords"] = SysClass::keywords($this->html);
+        $this->parameters_layout["keywords"] = SysClass::getKeywordsFromText($this->html);
         $this->parameters_layout["layout_content"] = $this->html;
-        $this->show_layout($this->parameters_layout);
+        $this->showLayout($this->parameters_layout);
     }
 
     /**
@@ -120,7 +120,7 @@ class ControllerIndex Extends ControllerBase {
      */
     public function show_login_form($params = null) {
         if ($params) {
-            SysClass::return_to_main();
+            SysClass::handleRedirect();
         }
         $this->users->get_admin_profile(); // Если профиля админа не существует то он будет создан test@test.com admin
         /* view */
@@ -128,19 +128,19 @@ class ControllerIndex Extends ControllerBase {
             $this->html = $this->view->read('v_login_form');
         } else {
             /* Уже авторизован */
-            SysClass::return_to_main(200, '/admin');
+            SysClass::handleRedirect(200, '/admin');
         }
         /* layouts */
         $this->parameters_layout["add_script"] .= '<script src="' . ENV_URL_SITE . '/assets/js/plugins/validator.min.js" type="text/javascript" /></script>';
-        $this->parameters_layout["add_script"] .= '<script src="' . $this->get_path_controller() . '/js/login-register.js" type="text/javascript" /></script>';
+        $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/login-register.js" type="text/javascript" /></script>';
         $this->parameters_layout["add_script"] .= '<script>$(document).ready(function () {openLoginModal();});</script>';
-        $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="' . $this->get_path_controller() . '/css/login-register.css"/>';
+        $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="' . $this->getPathController() . '/css/login-register.css"/>';
         $this->parameters_layout["title"] = ENV_SITE_NAME;
         $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION . ' - Login/Registration Form';
-        $this->parameters_layout["keywords"] = SysClass::keywords($this->html);
+        $this->parameters_layout["keywords"] = SysClass::getKeywordsFromText($this->html);
         $this->parameters_layout["layout"] = 'login_form';
         $this->parameters_layout["layout_content"] = $this->html;
-        $this->show_layout($this->parameters_layout);
+        $this->showLayout($this->parameters_layout);
     }
 
     /**
@@ -150,7 +150,7 @@ class ControllerIndex Extends ControllerBase {
         if ($params || !isset($_SERVER['HTTP_X_REQUESTED_WITH']) || strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) != 'xmlhttprequest' || empty(ENV_SITE)) {
             die(json_encode(array('error' => 'it`s a lie')));
         }
-        if (!SysClass::connect_db_exists()) {
+        if (!SysClass::checkDatabaseConnection()) {
             $json['error'] = $this->lang['sys.no_connection_to_db'];
             die(json_encode($json, JSON_UNESCAPED_UNICODE));
         }
@@ -171,7 +171,7 @@ class ControllerIndex Extends ControllerBase {
      */
     public function exit_login($params = null) {
         Session::un_set('user_session');
-        SysClass::return_to_main(301, '/');
+        SysClass::handleRedirect(301, '/');
     }
 
     /**
@@ -183,7 +183,7 @@ class ControllerIndex Extends ControllerBase {
         }
         $json = [];
         $json['error'] = '';
-        if (!SysClass::connect_db_exists()) {
+        if (!SysClass::checkDatabaseConnection()) {
             $json['error'] = $this->lang['sys.no_connection_to_db'];
             echo json_encode($json, JSON_UNESCAPED_UNICODE);
             die();
@@ -210,7 +210,7 @@ class ControllerIndex Extends ControllerBase {
         $json['error'] = $json['error'] ? $json['error'] : '';
 
         if ($json['error'] != '') {
-            SysClass::pre_file('index_error', 'register', 'Ошибка регистрации', ['error' => $json['error'], 'email' => $email]);
+            SysClass::preFile('index_error', 'register', 'Ошибка регистрации', ['error' => $json['error'], 'email' => $email]);
         }
 
         if ($json['error'] === '') {
@@ -238,10 +238,10 @@ class ControllerIndex Extends ControllerBase {
                         $this->parameters_layout["layout_content"] = $this->lang['sys.successfully_activated'] . ' <meta http-equiv="refresh" content="7;URL=' . ENV_URL_SITE . '">';
                     } else {
                         $this->parameters_layout["layout_content"] = $this->lang['sys.activation_error'] . ' <meta http-equiv="refresh" content="7;URL=' . ENV_URL_SITE . '">';
-                        SysClass::pre_file('index_error', 'activation', 'Ошибка удаления активационного кода', ['code' => $params[0], 'email' => $params[1]]);
+                        SysClass::preFile('index_error', 'activation', 'Ошибка удаления активационного кода', ['code' => $params[0], 'email' => $params[1]]);
                     }
                 } else {
-                    SysClass::return_to_main();
+                    SysClass::handleRedirect();
                 }
             } elseif ($active == 2) {
                 $this->parameters_layout["layout_content"] = $this->lang['sys.account_is_already_active'] . ' <meta http-equiv="refresh" content="7;URL=' . ENV_URL_SITE . '">';
@@ -251,7 +251,7 @@ class ControllerIndex Extends ControllerBase {
         } else {
             $this->parameters_layout["layout_content"] = $this->lang['sys.email_not_registered'] . ' <meta http-equiv="refresh" content="7;URL=' . ENV_URL_SITE . '">';
         }
-        $this->show_layout($this->parameters_layout);
+        $this->showLayout($this->parameters_layout);
     }
 
     /**
@@ -275,14 +275,14 @@ class ControllerIndex Extends ControllerBase {
         $post_data = SysClass::ee_cleanArray($_POST);
         if ($this->logged_in) {
             $this->access = array(100);
-            if (!SysClass::get_access_user($this->logged_in, $this->access)) {
+            if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
                 die(json_encode(array('error' => 'access denieded')));
             }
             if ($params[0] == 'en' || $params[0] == 'ru') {                
                 Session::set('lang', $params[0]);
                 $post_data['localize'] = $params[0];
             }
-            $this->load_model('m_index');
+            $this->loadModel('m_index');
             $user_data = $this->users->data;
             foreach ($post_data as $key => $value) {
                 if (array_key_exists($key, $user_data['options'])) {

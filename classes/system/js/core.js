@@ -98,7 +98,9 @@ function defaultSuccessCallback(response) {
  * @param {string} errorThrown Текстовое сообщение об ошибке, выброшенное при попытке отправить запрос.
  */
 function defaultErrorCallback(jqXHR, textStatus, errorThrown) {
-    console.error('Request Failed:', textStatus, errorThrown);
+    console.error('Request Failed:', 'status: ' + jqXHR.status + ' responseText: ' + jqXHR.responseText);
+    console.log('textStatus: ' + textStatus);
+    console.log('errorThrown: ' + errorThrown);
 }
 
 /**
@@ -122,6 +124,7 @@ function sendAjaxRequest(
         errorCallback = defaultErrorCallback,
         headers = {}
 ) {
+    data.is_ajax = 1;
     $.ajax({
         url: url,
         type: method,
