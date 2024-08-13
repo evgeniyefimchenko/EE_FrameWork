@@ -41,7 +41,8 @@ use classes\system\Plugins;
                                     <label for="type_id-input"><?=$lang['sys.parent']?></label>
                                     <div role="group" class="input-group">
                                         <select id="type_id-input" name="parent_type_id" class="form-control">
-                                            <?=Plugins::show_type_categogy_for_select($all_type, $type_data['parent_type_id']); ?>
+                                            <option value="0">---</option>
+                                            <?=Plugins::showTypeCategogyForSelect($all_types, $type_data['parent_type_id']); ?>
                                         </select>                                                                              
                                     </div>
                                 </div>
@@ -65,38 +66,7 @@ use classes\system\Plugins;
                         </div>
                         <!-- Наборы свойств -->
                         <div class="tab-pane fade show mt-3" id="features-tab-pane" role="tabpanel" aria-labelledby="features-tab">
-                            <?php
-                            $html = '';
-                            foreach ($property_sets_data['data'] as $property_set) {
-                                $html .= '<div class="accordion my-3" id="accordion-' . $property_set['set_id'] . '">';
-                                $html .= '<div class="card">';
-                                $html .= '<div class="card-header" id="heading-' . $property_set['set_id'] . '">';
-                                $html .= '<h2 class="mb-0">';
-                                $html .= '<input type="checkbox" id="checkbox-' . $property_set['set_id'] . '" name="property_set[]"'
-                                        . 'value="' . $property_set['set_id'] . '" class="form-check-input me-2"'
-                                        . (in_array($property_set['set_id'], $categories_type_sets_data) ? "checked" : "") . '>';
-                                $html .= '<button class="btn btn-link" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-' . $property_set['set_id'] . '" aria-expanded="true" aria-controls="collapse-' . $property_set['set_id'] . '">';
-                                $html .= $property_set['name'];
-                                $html .= '</button>';
-                                $html .= '</h2>';
-                                $html .= '</div>';
-                                $html .= '<div id="collapse-' . $property_set['set_id'] . '" class="collapse" aria-labelledby="heading-' . $property_set['set_id'] . '" data-bs-parent="#accordion-' . $property_set['set_id'] . '">';
-                                $html .= '<div class="card-body">';
-                                $html .= '<h5>' . $lang['sys.description'] . '</h5>' . '<p>' . ($property_set['description'] ? $property_set['description'] : '---') . '</p>';
-                                $html .= '<h6>' . $lang['sys.properties'] . '</h6>';
-                                if (!count($property_set['properties'])) {
-                                    $html .= '---';
-                                }
-                                foreach ($property_set['properties'] as $property) {
-                                    $html .= $property['name'] . '<br/>';
-                                }
-                                $html .= '</div>';
-                                $html .= '</div>';
-                                $html .= '</div>';
-                                $html .= '</div>';
-                            }
-                            echo $html;
-                            ?>
+                            <?=Plugins::renderPropertySets($property_sets_data, $categories_type_sets_data)?>
                         </div>                        
                     </div>
                 </div>

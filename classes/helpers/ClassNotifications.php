@@ -72,7 +72,7 @@ class ClassNotifications {
      * @param int $user_id ID - пользователя
      * @param array $notification - Массив с текстом и классом уведомления 'primary', 'info', 'success', 'warning', 'danger'
      */
-    public static function add_notification_user($user_id, $notification = []) {
+    public static function addNotificationUser($user_id, $notification = []) {
         $notification['showtime'] = '0';
         self::set_notifications_user($user_id, $notification, true);
     }

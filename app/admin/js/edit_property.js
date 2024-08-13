@@ -1,5 +1,5 @@
 /*Редактирование типа категорий*/
-$(document).ready(function () {    
+$(document).ready(function () {
     setActiveNavLink('/admin/properties');
     $('#description-input').on('focus blur', function () {
         $(this).val($.trim(this.value));
@@ -13,13 +13,20 @@ $(document).ready(function () {
             $(this).val(previousValue);
             return false;
         }
-        var isConfirmed = confirm("Вы уверены, что хотите сменить тип свойства? Все поля будут очищены!");
+        var isConfirmed = confirm("Все поля будут очищены, продолжить?");
         if (!isConfirmed) {
             $(this).val(previousValue);
         } else {
             $(this).data('previous', currentSelectedValue);
-            $('#fields_contents').remove();
-            $('button[type=submit]').click();
+            sendAjaxRequest('/admin/get_property_data',
+                    {
+                        type_id: currentSelectedValue
+                    },
+                    'POST',
+                    'json',
+                    function (response) {
+                        $('#fields_contents').html(response.html);
+                    });
         }
-    }).data('previous', $('#type_id-input').val());    
+    }).data('previous', $('#type_id-input').val());
 });

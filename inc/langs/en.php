@@ -109,6 +109,7 @@ $lang['sys.date_update'] = 'Update date';
 $lang['sys.date_activity'] = 'Activity date';
 $lang['sys.read_at'] = 'Date read';
 $lang['sys.user_edit'] = 'Editing a user';
+$lang['sys.categories_edit'] = 'Editing categories';
 $lang['sys.comment'] = 'A comment';
 $lang['sys.safety'] = 'Safety';
 $lang['sys.basics'] = 'Basics';

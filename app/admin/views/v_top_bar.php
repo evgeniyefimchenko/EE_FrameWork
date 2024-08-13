@@ -49,7 +49,7 @@ foreach ($messages as $message) {
         }
         // Добавление уведомления в данные верхней панели
         $topbarData['notifications'][] = [
-            'text' => SysClass::truncate_string($message['message_text'], 33), // Текст уведомления с обрезкой до 33 символов
+            'text' => SysClass::truncateString($message['message_text'], 33), // Текст уведомления с обрезкой до 33 символов
             'url' => '/admin/messages', // Ссылка на страницу уведомлений
             'icon' => $icon, // Иконка уведомления
             'color' => $color // Цвет иконки

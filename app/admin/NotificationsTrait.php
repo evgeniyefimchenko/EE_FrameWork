@@ -19,8 +19,8 @@ trait NotificationsTrait {
      */
     public function set_notification_time(array $params = []) {
         $this->access = [100];
-        if (!SysClass::get_access_user($this->logged_in, $this->access) || array_filter($params)) {
-            SysClass::return_to_main(401);
+        if (!SysClass::getAccessUser($this->logged_in, $this->access) || array_filter($params)) {
+            SysClass::handleRedirect(401);
             exit();
         }
         $post_data = SysClass::ee_cleanArray($_POST);
@@ -36,8 +36,8 @@ trait NotificationsTrait {
      */
     public function kill_notification_by_id(array $params = []) {
         $this->access = [100];
-        if (!SysClass::get_access_user($this->logged_in, $this->access) || array_filter($params)) {
-            SysClass::return_to_main(401);
+        if (!SysClass::getAccessUser($this->logged_in, $this->access) || array_filter($params)) {
+            SysClass::handleRedirect(401);
             exit();
         }        
         $post_data = SysClass::ee_cleanArray($_POST);

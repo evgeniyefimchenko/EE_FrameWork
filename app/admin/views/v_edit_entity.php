@@ -3,7 +3,7 @@ use classes\system\SysClass;
 use classes\system\Plugins;
 ?>
 <!-- Редактирование сущности -->
-<?php if (!$all_type) SysClass::return_to_main(200, '/admin/type_categories');?> 
+<?php if (!$all_type) SysClass::handleRedirect(200, '/admin/type_categories');?> 
 <main>    
     <form id="edit_entity" action="/admin/entity_edit/id/<?= $entity_data['entity_id'] ?>" method="POST">
         <input type="hidden" name="fake" value="1" />

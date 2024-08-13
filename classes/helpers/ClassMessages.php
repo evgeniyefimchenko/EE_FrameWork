@@ -20,7 +20,7 @@ class ClassMessages {
     */
     public static function set_message_user($user_id, $author_id, $message, $status = 'info') {
         // notify
-        ClassNotifications::add_notification_user($user_id, array('text' => $message, 'status' => $status));        
+        ClassNotifications::addNotificationUser($user_id, array('text' => $message, 'status' => $status));        
         $sql = 'INSERT INTO ?n SET user_id = ?i, author_id = ?i, message_text = ?s, status = ?s';
         SafeMySQL::gi()->query($sql, Constants::USERS_MESSAGE_TABLE, $user_id, $author_id, $message, $status);
     }

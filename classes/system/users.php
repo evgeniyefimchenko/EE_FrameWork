@@ -111,7 +111,7 @@ class Users {
         } else { // Модераторы 
             $fields = SafeMySQL::gi()->filterArray($fields, array('name', 'email', 'phone', 'active', 'user_role', 'subscribed', 'comment', 'pwd', 'element_id', 'element_name'));
         }
-        $fields = SysClass::ee_remove_empty_values(array_map('trim', $fields));
+        $fields = SysClass::ee_removeEmptyValuesToArray(array_map('trim', $fields));
         if (!$fields)
             return 0;        
         if (isset($fields['pwd']) && strlen($fields['pwd']) >= 5) {
@@ -120,7 +120,7 @@ class Users {
         unset($fields['pwd']);
         $sql_user = "UPDATE ?n SET ?u, updated_at = now() WHERE user_id = ?i";
         SafeMySQL::gi()->query($sql_user, Constants::USERS_TABLE, $fields, $user_id);
-        SysClass::pre_file('users_info', 'set_user_data', 'Обновление данных пользователю user_id=' . $user_id, ['old' => $this->data['user_id'], 'new' => $fields]);
+        SysClass::preFile('users_info', 'set_user_data', 'Обновление данных пользователю user_id=' . $user_id, ['old' => $this->data['user_id'], 'new' => $fields]);
         return 1;
     }
 
@@ -255,7 +255,7 @@ class Users {
         SafeMySQL::gi()->query($sql, Constants::USERS_TABLE, $email, $email, $newpassword, SysClass::client_ip());
         $sql = 'SELECT MAX(user_id) FROM ?n';
         $user_id = SafeMySQL::gi()->getOne($sql, Constants::USERS_TABLE);
-        SysClass::pre_file('users_info', 'registration_users', 'Зарегистрирован новый пользователь', ['user_id' => $user_id, 'email' => $email]);
+        SysClass::preFile('users_info', 'registration_users', 'Зарегистрирован новый пользователь', ['user_id' => $user_id, 'email' => $email]);
         $this->set_user_options($user_id); // Заполнить первичные данные из базы по шаблону
         if ($system_id = $this->get_user_id_by_email('dont-answer@' . ENV_SITE_NAME)) {
             ClassMessages::set_message_user($user_id, $system_id, 'Fill in your personal information <a href="' . ENV_URL_SITE . '/admin/user_edit/id/' . $user_id . '">link</a>', 'info');   
@@ -282,7 +282,7 @@ class Users {
         $sql = 'INSERT INTO ?n SET ?u';
         SafeMySQL::gi()->query($sql, Constants::USERS_TABLE, $fields);
         $user_id = SafeMySQL::gi()->insertId();
-        SysClass::pre_file('users_info', 'registration_new_user', 'Зарегистрирован новый пользователь', ['user_id' => $user_id, 'data' => $fields]);
+        SysClass::preFile('users_info', 'registration_new_user', 'Зарегистрирован новый пользователь', ['user_id' => $user_id, 'data' => $fields]);
         $this->set_user_password($user_id, $fields['email'], $fields['pwd']);
         if ($system_id = $this->get_user_id_by_email('dont-answer@' . ENV_SITE_NAME)) {
             ClassMessages::set_message_user($user_id, $system_id, 'Заполните свой профиль <a href="' . ENV_URL_SITE . '/admin/user_edit/id/' . $user_id . '">тут</a>', 'info');
@@ -327,7 +327,7 @@ class Users {
         $newsword = password_hash($password, PASSWORD_DEFAULT);
         $sql = 'UPDATE ?n SET pwd = ?s WHERE user_id = ?i';
         SafeMySQL::gi()->query($sql, Constants::USERS_TABLE, $newsword, $user_id);
-        SysClass::pre_file('users_info', 'set_user_password', 'Пароль обновлён', ['email' => $email]);
+        SysClass::preFile('users_info', 'set_user_password', 'Пароль обновлён', ['email' => $email]);
         return $password;
     }
 
@@ -391,10 +391,10 @@ class Users {
         $mailIsSuccess = ClassMail::send_mail($email, $this->lang['sys.restore_password_process'] . ' ' . ENV_SITE_NAME,
                 ['PASSWORD' => $password]);
         if ($mailIsSuccess) {
-            SysClass::pre_file('users_info', 'send_recovery_password', 'Отправлен новый пароль', ['email' => $email]);
+            SysClass::preFile('users_info', 'send_recovery_password', 'Отправлен новый пароль', ['email' => $email]);
             return true;
         } else {
-            SysClass::pre_file('users_info_errors', 'send_recovery_password', 'Отправка пароля завершилась неудачей', ['email' => $email]);
+            SysClass::preFile('users_info_errors', 'send_recovery_password', 'Отправка пароля завершилась неудачей', ['email' => $email]);
             return false;
         }
     }
@@ -407,10 +407,10 @@ class Users {
         $activation_link = ENV_URL_SITE . '/activation/' . $acivation_code . '/' . $email;
         $res_mail = ClassMail::send_mail($email, 'Регистрация на сайте', ['activation_link' => $activation_link], 'activation_link');
         if ($res_mail !== TRUE) {
-            SysClass::pre_file('users_info', 'send_register_code', 'Ошибка отправки письма с кодом', ['email' => $email, 'acivation_code' => $acivation_code]);
+            SysClass::preFile('users_info', 'send_register_code', 'Ошибка отправки письма с кодом', ['email' => $email, 'acivation_code' => $acivation_code]);
             return false;
         } else {
-            SysClass::pre_file('users_info', 'send_register_code', 'Письмо на с кодом отправлено', ['email' => $email, 'acivation_code' => $acivation_code]);
+            SysClass::preFile('users_info', 'send_register_code', 'Письмо на с кодом отправлено', ['email' => $email, 'acivation_code' => $acivation_code]);
             $sql = 'INSERT INTO ?n SET user_id = ?i,email = ?s, code = ?s, stop_time = ?s';
             SafeMySQL::gi()->query($sql, Constants::USERS_ACTIVATION_TABLE, $this->get_user_id_by_email($email), $email, $acivation_code, date("Y-m-d H:i:s", time() + ENV_TIME_ACTIVATION));
             return true;
@@ -601,9 +601,10 @@ class Users {
             $create_property_values_table = "CREATE TABLE IF NOT EXISTS ?n (
 			value_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
 			entity_id INT UNSIGNED NOT NULL,
+			set_id INT UNSIGNED NOT NULL,
 			property_id INT UNSIGNED NOT NULL,
 			entity_type ENUM('category', 'entity') NOT NULL,
-			value JSON NOT NULL,			
+			property_values JSON NOT NULL,			
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                         language_code CHAR(2) NOT NULL DEFAULT 'RU' COMMENT 'Код языка по ISO 3166-2',
@@ -714,7 +715,7 @@ class Users {
             $echo .= "Total time: " . $item['total_time'] . PHP_EOL;
             $echo .= "Backtrace: " . var_export($item['backtrace'], true) . PHP_EOL;
         }
-        SysClass::pre_file('sql_info', 'create_tables', 'База данных успешно развёрнута', $echo);
+        SysClass::preFile('sql_info', 'create_tables', 'База данных успешно развёрнута', $echo);
     }
 
 }

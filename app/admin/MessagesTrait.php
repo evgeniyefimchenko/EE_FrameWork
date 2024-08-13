@@ -18,12 +18,12 @@ trait MessagesTrait {
      */
     public function messages($params = []) {
         $this->access = [100];
-        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-            SysClass::return_to_main();
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect();
             exit();
         }
         /* model */
-        $this->load_model('m_messages');
+        $this->loadModel('m_messages');
         /* get data */
         $user_data = $this->users->data;         
         $key_id = array_search('id', $params);
@@ -37,16 +37,16 @@ trait MessagesTrait {
         }
         $messages_table = $this->get_messages_data_table($user_id);
         /* view */
-        $this->get_standart_view();
+        $this->getStandardViews();
         $this->view->set('messages_table', $messages_table);
         $this->view->set('body_view', $this->view->read('v_messages'));
         $this->html = $this->view->read('v_dashboard');
         /* layouts */
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
-        $this->parameters_layout["add_script"] .= '<script src="' . $this->get_path_controller() . '/js/messages.js" type="text/javascript" /></script>';
+        $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/messages.js" type="text/javascript" /></script>';
         $this->parameters_layout["title"] = 'MESSAGES';
-        $this->show_layout($this->parameters_layout);
+        $this->showLayout($this->parameters_layout);
     }
 
     /**
@@ -54,11 +54,11 @@ trait MessagesTrait {
      */
     public function get_messages_data_table($user_id) {
         $this->access = [100];
-        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-            SysClass::return_to_main();
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect();
             exit();
         }
-        $this->load_model('m_messages');
+        $this->loadModel('m_messages');
         $post_data = SysClass::ee_cleanArray($_POST);
         $data_table = [
             'columns' => [
@@ -157,7 +157,7 @@ trait MessagesTrait {
             $data_table['rows'][] = [
                 'message_id' => $item['message_id'],
                 'author_id' => $item['author_id'],
-                'message_text' => SysClass::truncate_string($item['message_text'], 20),
+                'message_text' => SysClass::truncateString($item['message_text'], 20),
                 'status' => $item['status'],
                 'created_at' => date('d.m.Y h:i:s', strtotime($item['created_at'])),
                 'read_at' => $item['read_at'] ? date('d.m.Y h:i:s', strtotime($item['read_at'])) : '',
@@ -186,13 +186,13 @@ trait MessagesTrait {
      */
     public function read_all_message() {
         $this->access = [100];
-        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-            SysClass::return_to_main(401);
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect(401);
             exit;
         }
-        $this->load_model('m_messages');
+        $this->loadModel('m_messages');
         $this->models['m_messages']->read_all($this->logged_in);
-        SysClass::return_to_main(200, $_SERVER['HTTP_REFERER']);
+        SysClass::handleRedirect(200, $_SERVER['HTTP_REFERER']);
     }
 
     /**
@@ -200,13 +200,13 @@ trait MessagesTrait {
      */
     public function kill_all_message() {
         $this->access = [100];
-        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-            SysClass::return_to_main(401);
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect(401);
             exit();
         }
-        $this->load_model('m_messages');
+        $this->loadModel('m_messages');
         $this->models['m_messages']->kill_all_message($this->logged_in);
-        SysClass::return_to_main(200, '/admin/messages');
+        SysClass::handleRedirect(200, '/admin/messages');
     }
 
     /**
@@ -215,14 +215,14 @@ trait MessagesTrait {
      */
     public function set_readed($id_message = 0) {
         $this->access = [100];
-        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-            SysClass::return_to_main(401);
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect(401);
             exit();
         }
         $message_id = filter_var($id_message, FILTER_VALIDATE_INT);
-        $this->load_model('m_messages');
+        $this->loadModel('m_messages');
         $this->models['m_messages']->set_message_as_readed($message_id, $this->logged_in);
-        SysClass::return_to_main(200, '/admin/messages');
+        SysClass::handleRedirect(200, '/admin/messages');
     }
 
     /**
@@ -240,14 +240,14 @@ trait MessagesTrait {
      */
     public function dell_message($params) {
         $this->access = [100];
-        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-            SysClass::return_to_main(401);
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect(401);
             exit();
         }
         $message_id = filter_var($params[0], FILTER_VALIDATE_INT);
-        $this->load_model('m_messages');
+        $this->loadModel('m_messages');
         $this->models['m_messages']->kill_message($message_id, $this->logged_in);
-        SysClass::return_to_main(200, '/admin/messages');
+        SysClass::handleRedirect(200, '/admin/messages');
     }
 
 }

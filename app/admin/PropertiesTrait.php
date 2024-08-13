@@ -17,14 +17,14 @@ trait PropertiesTrait {
      */
     public function properties() {
         $this->access = [1, 2];
-        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-            SysClass::return_to_main(200, '/show_login_form?return=admin');
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect(200, '/show_login_form?return=admin');
         }
-        $this->load_model('m_properties');
+        $this->loadModel('m_properties');
         /* view */
-        $this->get_standart_view();
+        $this->getStandardViews();
         $properties_data = $this->get_properties_data_table();
-        $get_all_property_types = $this->models['m_properties']->get_all_property_types();
+        $get_all_property_types = $this->models['m_properties']->getAllPropertyTypes();
         $this->view->set('all_property_types', $get_all_property_types);
         $this->view->set('properties_table', $properties_data);
         $this->view->set('body_view', $this->view->read('v_properties'));
@@ -34,8 +34,8 @@ trait PropertiesTrait {
         $this->parameters_layout["title"] = ENV_SITE_NAME . ' - Свойства';
         $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION . ' - Свойства';
         $this->parameters_layout["canonical_href"] = ENV_URL_SITE . '/admin';
-        $this->parameters_layout["keywords"] = SysClass::keywords($this->html);
-        $this->show_layout($this->parameters_layout);
+        $this->parameters_layout["keywords"] = SysClass::getKeywordsFromText($this->html);
+        $this->showLayout($this->parameters_layout);
     }
 
     /**
@@ -43,11 +43,11 @@ trait PropertiesTrait {
      */
     public function types_properties() {
         $this->access = [1, 2];
-        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-            SysClass::return_to_main(200, '/show_login_form?return=admin');
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect(200, '/show_login_form?return=admin');
         }
         /* view */
-        $this->get_standart_view();
+        $this->getStandardViews();
         $types_properties_data = $this->get_types_properties_data_table();
         $this->view->set('types_properties_table', $types_properties_data);
         $this->view->set('body_view', $this->view->read('v_properties_types'));
@@ -57,17 +57,17 @@ trait PropertiesTrait {
         $this->parameters_layout["title"] = ENV_SITE_NAME . ' - Типы свойств';
         $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION . ' - Типы свойств';
         $this->parameters_layout["canonical_href"] = ENV_URL_SITE . '/admin';
-        $this->parameters_layout["keywords"] = SysClass::keywords($this->html);
-        $this->show_layout($this->parameters_layout);
+        $this->parameters_layout["keywords"] = SysClass::getKeywordsFromText($this->html);
+        $this->showLayout($this->parameters_layout);
     }
 
     public function get_types_properties_data_table() {
         $this->access = [1, 2];
-        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-            SysClass::return_to_main();
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect();
             exit();
         }
-        $this->load_model('m_properties');
+        $this->loadModel('m_properties');
         $post_data = SysClass::ee_cleanArray($_POST);
         $data_table = [
             'columns' => [
@@ -130,9 +130,9 @@ trait PropertiesTrait {
         ];
         if ($post_data && isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') { // AJAX
             list($params, $filters, $selected_sorting) = Plugins::ee_show_table_prepare_params($post_data, $data_table['columns']);
-            $features_array = $this->models['m_properties']->get_type_properties_data($params['order'], $params['where'], $params['start'], $params['limit']);
+            $features_array = $this->models['m_properties']->getTypePropertiesData($params['order'], $params['where'], $params['start'], $params['limit']);
         } else {
-            $features_array = $this->models['m_properties']->get_type_properties_data(false, false, false, 25);
+            $features_array = $this->models['m_properties']->getTypePropertiesData(false, false, false, 25);
         }
 
         foreach ($features_array['data'] as $item) {
@@ -162,11 +162,11 @@ trait PropertiesTrait {
      */
     public function get_properties_data_table() {
         $this->access = [1, 2];
-        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-            SysClass::return_to_main();
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect();
             exit();
         }
-        $this->load_model('m_properties');
+        $this->loadModel('m_properties');
         $post_data = SysClass::ee_cleanArray($_POST);
         $data_table = [
             'columns' => [
@@ -241,14 +241,14 @@ trait PropertiesTrait {
                 'label' => $this->lang['sys.date_update']
             ],
         ];
-        foreach ($this->models['m_properties']->get_all_property_types() as $item) {
+        foreach ($this->models['m_properties']->getAllPropertyTypes() as $item) {
             $filters['type_id']['options'][] = ['value' => $item['type_id'], 'label' => $item['name']];
         }
         if ($post_data && isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') { // AJAX
             list($params, $filters, $selected_sorting) = Plugins::ee_show_table_prepare_params($post_data, $data_table['columns']);
-            $features_array = $this->models['m_properties']->get_properties_data($params['order'], $params['where'], $params['start'], $params['limit']);
+            $features_array = $this->models['m_properties']->getPropertiesData($params['order'], $params['where'], $params['start'], $params['limit']);
         } else {
-            $features_array = $this->models['m_properties']->get_properties_data(false, false, false, 25);
+            $features_array = $this->models['m_properties']->getPropertiesData(false, false, false, 25);
         }
 
         foreach ($features_array['data'] as $item) {
@@ -279,8 +279,8 @@ trait PropertiesTrait {
      */
     public function type_properties_edit($params = []) {
         $this->access = [1, 2];
-        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-            SysClass::return_to_main();
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect();
             exit();
         }
         $default_data = [
@@ -293,7 +293,7 @@ trait PropertiesTrait {
             'updated_at' => false
         ];
         /* model */
-        $this->load_model('m_properties');
+        $this->loadModel('m_properties');
         $post_data = SysClass::ee_cleanArray($_POST);
         if (in_array('id', $params)) {
             $key_id = array_search('id', $params);
@@ -304,11 +304,11 @@ trait PropertiesTrait {
             }
             if (isset($post_data['name']) && $post_data['name']) {
                 if (!is_array($post_data['fields']) || !count($post_data['fields'])) {
-                    ClassNotifications::add_notification_user($this->logged_in, ['text' => 'Заполните хотя бы одно поле типа!', 'status' => 'danger']);
+                    ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Заполните хотя бы одно поле типа!', 'status' => 'danger']);
                 } else {
                     $post_data['fields'] = json_encode($post_data['fields']);
                     if (!$new_id = $this->models['m_properties']->update_property_type_data($post_data)) {
-                        ClassNotifications::add_notification_user($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
+                        ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
                     } else {
                         $id = $new_id;
                     }
@@ -318,7 +318,7 @@ trait PropertiesTrait {
             $property_type_data = !$property_type_data ? $default_data : $property_type_data;
             $property_type_data['fields'] = isset($property_type_data['fields']) ? json_decode($property_type_data['fields'], true) : [];
         } else { // Не передан ключевой параметр id
-            SysClass::return_to_main(200, ENV_URL_SITE . '/admin/type_properties_edit/id');
+            SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/type_properties_edit/id');
         }
         foreach (Constants::ALL_STATUS as $key => $value) {
             $all_status[$key] = $this->lang['sys.' . $value];
@@ -327,15 +327,15 @@ trait PropertiesTrait {
         $this->view->set('property_type_data', $property_type_data);        
         $this->view->set('count_fields', count($property_type_data['fields']));        
         $this->view->set('all_status', $all_status);
-        $this->get_standart_view();
+        $this->getStandardViews();
         $this->view->set('body_view', $this->view->read('v_edit_type_properties'));
         $this->html = $this->view->read('v_dashboard');
         /* layouts */
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
-        $this->parameters_layout["add_script"] .= '<script src="' . $this->get_path_controller() . '/js/edit_property_type.js" type="text/javascript" /></script>';
+        $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/edit_property_type.js" type="text/javascript" /></script>';
         $this->parameters_layout["title"] = 'Редактирование типа свойств';
-        $this->show_layout($this->parameters_layout);
+        $this->showLayout($this->parameters_layout);
     }
 
     /**
@@ -343,46 +343,35 @@ trait PropertiesTrait {
      */
     public function edit_property(array $params = []): void {
         $this->access = [1, 2];
-        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-            SysClass::return_to_main();
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect();
             exit();
         }
-        $default_data = [
-            'title' => '', 'property_id' => 0, 'name' => '', 'is_multiple' => 0, 'is_required' => 0, 'description' => '',
-            'status' => 0, 'type_id' => 0, 'created_at' => false, 'updated_at' => false, 'default_values' => []
-        ];
         /* model */
-        $this->load_model('m_properties');
+        $this->loadModel('m_properties');
         
         $post_data = SysClass::ee_cleanArray($_POST);
         if (in_array('id', $params)) {
             $key_id = array_search('id', $params);
             if ($key_id !== false && isset($params[$key_id + 1])) {
-                $type_id = filter_var($params[$key_id + 1], FILTER_VALIDATE_INT);
+                $property_id = filter_var($params[$key_id + 1], FILTER_VALIDATE_INT);
             } else {
-               $type_id = 0; 
+               $property_id = 0; 
             }
             if (isset($post_data['name']) && $post_data['name']) {
                 $post_data['default_values'] = isset($post_data['property_data']) ? $this->prepare_default_values_property($post_data['property_data']) : [];
-                if (!$new_id = $this->models['m_properties']->update_property_data($post_data)) {
-                    ClassNotifications::add_notification_user($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
+                if (!$new_id = $this->models['m_properties']->updatePropertyData($post_data)) {
+                    ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
                 } else {
-                    $type_id = $new_id;
-                    ClassNotifications::add_notification_user($this->logged_in, ['text' => $this->lang['sys.success'], 'status' => 'info']);
+                    $property_id = $new_id;
+                    ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.success'], 'status' => 'info']);
                 }
             }
-            if (isset($post_data['name']) && $post_data['name'] && isset($post_data['type_id']) && $post_data['type_id']) {
-                $default_data['name'] = $post_data['name'];
-                $default_data['type_id'] = $post_data['type_id'];
-            }
-            $get_property_data = (int) $type_id ? $this->models['m_properties']->get_property_data($type_id) : $default_data;
-            $get_property_data = !$get_property_data ? $default_data : $get_property_data;
-            $get_property_data['fields'] = isset($get_property_data['fields']) ? $get_property_data['fields'] : [];
-            $get_property_data['default_values'] = isset($get_property_data['default_values']) ? $get_property_data['default_values'] : [];
+            $get_property_data = $this->get_property_data($property_id);
         } else { // Не передан ключевой параметр id
-            SysClass::return_to_main(200, ENV_URL_SITE . '/admin/user_edit/id/' . $this->logged_in);
+            SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/user_edit/id/' . $this->logged_in);
         }
-        $get_all_property_types = $this->models['m_properties']->get_all_property_types();
+        $get_all_property_types = $this->models['m_properties']->getAllPropertyTypes();
         foreach (Constants::ALL_STATUS as $key => $value) {
             $all_status[$key] = $this->lang['sys.' . $value];
         }
@@ -390,18 +379,54 @@ trait PropertiesTrait {
         $this->view->set('property_data', $get_property_data);
         $this->view->set('all_property_types', $get_all_property_types);
         $this->view->set('all_status', $all_status);
-        $this->get_standart_view();
+        $this->getStandardViews();
         $this->view->set('body_view', $this->view->read('v_edit_property'));
         $this->html = $this->view->read('v_dashboard');
         /* layouts */
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
-        $this->parameters_layout["add_script"] .= '<script src="' . $this->get_path_controller() . '/js/edit_property.js" type="text/javascript" /></script>';
-        $this->parameters_layout["add_script"] .= '<script src="' . $this->get_path_controller() . '/js/func_properties.js" type="text/javascript" /></script>';
+        $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/edit_property.js" type="text/javascript" /></script>';
+        $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/func_properties.js" type="text/javascript" /></script>';
         $this->parameters_layout["title"] = 'Редактирование свойства';
-        $this->show_layout($this->parameters_layout);
+        $this->showLayout($this->parameters_layout);
     }
 
+    /**
+     * Подготовка списка полей для свойства
+     * Используется как в AJAX запросе так и напрямую в коде
+     * При AJAX вызове, роутер передаёт в $property_id массив
+     * @param type $property_id
+     */
+    public function get_property_data(mixed $property_id = 0):mixed {
+        $is_ajax = SysClass::isAjaxRequestFromSameSite();
+        if ($is_ajax) {
+            $post_data = SysClass::ee_cleanArray($_POST);
+            $this->access = [1, 2];
+            if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+                SysClass::handleRedirect();
+                exit();
+            }
+        }
+        $this->loadModel('m_properties');
+        $default_data = [
+            'title' => '', 'property_id' => 0, 'name' => '', 'is_multiple' => 0, 'is_required' => 0, 'description' => '',
+            'status' => 0, 'sort' => 100, 'type_id' => 0, 'created_at' => false, 'updated_at' => false, 'default_values' => []
+        ];
+        if ($is_ajax) {
+            $data = $this->models['m_properties']->get_type_property_data($post_data['type_id']);
+            $fields = $data['fields'];
+            $default_values = [];
+            echo json_encode(['html' => Plugins::renderPropertyHtmlFields($fields, $default_values)]);
+            die;
+        } else {
+            $get_property_data = (int) $property_id ? $this->models['m_properties']->getPropertyData($property_id) : $default_data;
+            $get_property_data = !$get_property_data ? $default_data : $get_property_data;
+            $get_property_data['fields'] = isset($get_property_data['fields']) ? $get_property_data['fields'] : [];
+            $get_property_data['default_values'] = isset($get_property_data['default_values']) ? $get_property_data['default_values'] : [];            
+            return $get_property_data;
+        }
+    }
+    
     /**
      * Подготавливает данные свойств для сохранения в формате JSON в базе данных.
      * Функция принимает ассоциативный массив данных свойств, где ключи представляют собой
@@ -444,7 +469,7 @@ trait PropertiesTrait {
             }
         }
         ksort($prepared_data);
-        return SysClass::ee_remove_empty_values($prepared_data);
+        return SysClass::ee_removeEmptyValuesToArray($prepared_data);
     }
 
     /**
@@ -453,8 +478,8 @@ trait PropertiesTrait {
      */
     public function type_properties_delete($params = []) {
         $this->access = [1, 2];
-        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-            SysClass::return_to_main();
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect();
             exit();
         }
         if (in_array('id', $params)) {
@@ -464,17 +489,17 @@ trait PropertiesTrait {
             } else {
                $id = 0; 
             }
-            $this->load_model('m_properties');
+            $this->loadModel('m_properties');
             $res = $this->models['m_properties']->type_properties_delete($id);
             if (count($res)) {
-                ClassNotifications::add_notification_user($this->logged_in, ['text' => 'Ошибка удаления типа id=' . $id . '<br/>' . $res['error'], 'status' => 'danger']);
+                ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Ошибка удаления типа id=' . $id . '<br/>' . $res['error'], 'status' => 'danger']);
             } else {
-                ClassNotifications::add_notification_user($this->logged_in, ['text' => 'Удалено!', 'status' => 'info']);
+                ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Удалено!', 'status' => 'info']);
             }
         } else {
-            ClassNotifications::add_notification_user($this->logged_in, ['text' => 'Нет обязательного параметра id', 'status' => 'danger']);
+            ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Нет обязательного параметра id', 'status' => 'danger']);
         }
-        SysClass::return_to_main(200, '/admin/types_properties');
+        SysClass::handleRedirect(200, '/admin/types_properties');
     }
 
     /**
@@ -483,8 +508,8 @@ trait PropertiesTrait {
      */
     public function property_delete($params = []) {
         $this->access = [1, 2];
-        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-            SysClass::return_to_main();
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect();
             exit();
         }
         if (in_array('id', $params)) {
@@ -494,17 +519,17 @@ trait PropertiesTrait {
             } else {
                 $property_id = 0; 
             }            
-            $this->load_model('m_properties');
+            $this->loadModel('m_properties');
             $res = $this->models['m_properties']->property_delete($property_id);
             if (count($res)) {
-                ClassNotifications::add_notification_user($this->logged_in, ['text' => 'Ошибка удаления свойства id=' . $property_id . '<br/>' . $res['error'], 'status' => 'danger']);
+                ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Ошибка удаления свойства id=' . $property_id . '<br/>' . $res['error'], 'status' => 'danger']);
             } else {
-                ClassNotifications::add_notification_user($this->logged_in, ['text' => 'Удалено!', 'status' => 'info']);
+                ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Удалено!', 'status' => 'info']);
             }
         } else {
-            ClassNotifications::add_notification_user($this->logged_in, ['text' => 'Нет обязательного параметра id', 'status' => 'danger']);
+            ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Нет обязательного параметра id', 'status' => 'danger']);
         }
-        SysClass::return_to_main(200, '/admin/properties');
+        SysClass::handleRedirect(200, '/admin/properties');
     }
 
     /**
@@ -513,13 +538,13 @@ trait PropertiesTrait {
      */
     public function properties_sets($params = []) {
         $this->access = [1, 2];
-        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-            SysClass::return_to_main();
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect();
             exit();
         }        
         $properties_property_sets_table = $this->get_properties_property_sets_table();
         /* view */
-        $this->get_standart_view();
+        $this->getStandardViews();
         $this->view->set('properties_property_sets_table', $properties_property_sets_table);
         $this->view->set('body_view', $this->view->read('v_properties_sets'));
         $this->html = $this->view->read('v_dashboard');
@@ -528,8 +553,8 @@ trait PropertiesTrait {
         $this->parameters_layout["title"] = ENV_SITE_NAME . ' - ' . $this->lang['sys.sets'];
         $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION . ' - ' . $this->lang['sys.sets'];
         $this->parameters_layout["canonical_href"] = ENV_URL_SITE . '/admin';
-        $this->parameters_layout["keywords"] = SysClass::keywords($this->html);
-        $this->show_layout($this->parameters_layout);
+        $this->parameters_layout["keywords"] = SysClass::getKeywordsFromText($this->html);
+        $this->showLayout($this->parameters_layout);
     }
 
     /**
@@ -537,11 +562,11 @@ trait PropertiesTrait {
      */
     public function get_properties_property_sets_table() {
         $this->access = [1, 2];
-        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-            SysClass::return_to_main();
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect();
             exit();
         }
-        $this->load_model('m_properties');
+        $this->loadModel('m_properties');
         $post_data = SysClass::ee_cleanArray($_POST);
         $data_table = [
             'columns' => [
@@ -629,11 +654,11 @@ trait PropertiesTrait {
      */
     public function edit_property_set($params = []) {
         $this->access = [1, 2];
-        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-            SysClass::return_to_main();
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect();
             exit();
         }
-        $this->load_model('m_properties');
+        $this->loadModel('m_properties');
         $default_data = [
             'set_id' => 0,
             'name' => '',
@@ -653,10 +678,10 @@ trait PropertiesTrait {
             // Обработка основных полей
             if (isset($post_data['name']) && $post_data['name']) {
                 if (!$new_id = $this->models['m_properties']->update_property_set_data($post_data)) {
-                    ClassNotifications::add_notification_user($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
+                    ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
                 } else {
                     $id = $new_id;
-                    ClassNotifications::add_notification_user($this->logged_in, ['text' => $this->lang['sys.success'], 'status' => 'info']);
+                    ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.success'], 'status' => 'info']);
                 }
             }
             // Обработка добавления свойств
@@ -669,22 +694,22 @@ trait PropertiesTrait {
             $property_set_data = (int) $id ? $this->models['m_properties']->get_property_set_data($id) : $default_data;
             $property_set_data = $property_set_data ? $property_set_data : $default_data;
         } else { // Не передан ключевой параметр id
-            SysClass::return_to_main(200, ENV_URL_SITE . '/admin/user_edit/id/' . $this->logged_in);
+            SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/user_edit/id/' . $this->logged_in);
         }
         /* view */
-        $this->get_standart_view();
+        $this->getStandardViews();
         $this->view->set('property_set_data', $property_set_data);
-        $this->view->set('all_properties_data', $this->models['m_properties']->get_all_properties('active'));
+        $this->view->set('all_properties_data', $this->models['m_properties']->getAllProperties('active'));
         $this->view->set('body_view', $this->view->read('v_edit_property_set'));
         $this->html = $this->view->read('v_dashboard');
-        $this->parameters_layout["add_script"] .= '<script src="' . $this->get_path_controller() . '/js/edit_property_set.js" type="text/javascript" /></script>';
+        $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/edit_property_set.js" type="text/javascript" /></script>';
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
         $this->parameters_layout["title"] = ENV_SITE_NAME . ' - ' . $this->lang['sys.sets'];
         $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION . ' - ' . $this->lang['sys.sets'];
         $this->parameters_layout["canonical_href"] = ENV_URL_SITE . '/admin';
-        $this->parameters_layout["keywords"] = SysClass::keywords($this->html);
-        $this->show_layout($this->parameters_layout);
+        $this->parameters_layout["keywords"] = SysClass::getKeywordsFromText($this->html);
+        $this->showLayout($this->parameters_layout);
     }
 
     /**
@@ -693,8 +718,8 @@ trait PropertiesTrait {
      */
     public function property_set_delete($params = []) {
         $this->access = [1, 2];
-        if (!SysClass::get_access_user($this->logged_in, $this->access)) {
-            SysClass::return_to_main();
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect();
             exit();
         }
         if (in_array('id', $params)) {
@@ -704,17 +729,17 @@ trait PropertiesTrait {
             } else {
                 $set_id = 0;
             }
-            $this->load_model('m_properties');
+            $this->loadModel('m_properties');
             $res = $this->models['m_properties']->property_set_delete($set_id);
             if (count($res)) {
-                ClassNotifications::add_notification_user($this->logged_in, ['text' => 'Ошибка удаления свойства id=' . $set_id . '<br/>' . $res['error'], 'status' => 'danger']);
+                ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Ошибка удаления свойства id=' . $set_id . '<br/>' . $res['error'], 'status' => 'danger']);
             } else {
-                ClassNotifications::add_notification_user($this->logged_in, ['text' => 'Удалено!', 'status' => 'info']);
+                ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Удалено!', 'status' => 'info']);
             }
         } else {
-            ClassNotifications::add_notification_user($this->logged_in, ['text' => 'Нет обязательного параметра id', 'status' => 'danger']);
+            ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Нет обязательного параметра id', 'status' => 'danger']);
         }
-        SysClass::return_to_main(200, '/admin/properties');
+        SysClass::handleRedirect(200, '/admin/properties');
     }
 
 }

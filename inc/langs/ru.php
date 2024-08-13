@@ -109,6 +109,7 @@ $lang['sys.date_update'] = 'Дата обновления';
 $lang['sys.date_activity'] = 'Дата активности';
 $lang['sys.read_at'] = 'Дата прочтения';
 $lang['sys.user_edit'] = 'Редактирование пользователя';
+$lang['sys.categories_edit'] = 'Редактирование категорий';
 $lang['sys.comment'] = 'Комментарий';
 $lang['sys.safety'] = 'Безопасность';
 $lang['sys.basics'] = 'Основное';

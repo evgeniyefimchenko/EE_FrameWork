@@ -75,7 +75,7 @@ abstract class ControllerBase {
             Session::destroy();
             Cookies::clear('user_session');
         }
-        SysClass::check_install();
+        SysClass::checkInstall();
         $this->users = new Users($this->logged_in);
         $user_data = $this->users->data;
         // Прогрузка пользовательских данных в представления и языковой массив        
@@ -120,7 +120,7 @@ abstract class ControllerBase {
         $lang_path = ENV_SITE_PATH . ENV_PATH_LANG . '/' . $lang_code . '.php';
         $lang = file_exists($lang_path) ? include($lang_path) : false;
         if (!is_array($lang)) {
-            SysClass::pre_file('lang_errors', 'base get_user_data ' . var_export($get_lang_code, true), var_export($lang, true), 'Языковой файл не найден(подключаем ENV_PROTO_LANGUAGE'
+            SysClass::preFile('lang_errors', 'base get_user_data ' . var_export($get_lang_code, true), var_export($lang, true), 'Языковой файл не найден(подключаем ENV_PROTO_LANGUAGE'
                     . ' ' . ENV_PROTO_LANGUAGE . '): ' . $lang_path);
             $lang_path = ENV_SITE_PATH . ENV_PATH_LANG . '/' . ENV_PROTO_LANGUAGE . '.php';
             $lang_code = ENV_PROTO_LANGUAGE;
@@ -147,17 +147,13 @@ abstract class ControllerBase {
      * @param bool $reload Определяет, нужно ли перезагружать модель, если она уже была загружена ранее
      * @throws Exception Если модель или класс модели не найдены
      */
-    protected function load_model(string $model, array $arg = [], string $path = '', bool $reload = false): void {
+    protected function loadModel(string $model, array $arg = [], string $path = '', bool $reload = false): void {
         if (count($this->access) == 0) {
             SysClass::pre('Не указаны права доступа на ' . $model, true);
         }
         // Определение пути к модели
         $parts = explode('_', substr($model, 2));
-        $transformedParts = array_map(function($part) {
-            return ucfirst($part);
-        }, $parts);
-        $className = implode('', $transformedParts);
-        $className = 'Model' . $className;
+        $className = 'Model' . implode('', array_map('ucfirst', $parts));
         $modelPath = $path ? $path : dirname(ENV_CONTROLLER_PATH) . '/models/' . $className . '.php';
         if (!file_exists($modelPath)) {
             SysClass::pre('Модель не найдена: ' . $modelPath);
@@ -167,7 +163,7 @@ abstract class ControllerBase {
             SysClass::pre('Класс модели не найден: ' . $className);
         }
         if (!isset($this->models[$model]) || $reload) {
-            $this->models[$model] = new $className(...$arg);
+            $this->models[$model] = new $className($arg);
         }
     }
 
@@ -179,7 +175,7 @@ abstract class ControllerBase {
      * Функция также поддерживает сжатие HTML если установлена соответствующая настройка
      * @param array $param Параметры для настройки макета, включая имя макета и другие значения
      */
-    protected function show_layout($param) {
+    protected function showLayout($param) {
         extract($param);
         $file = ENV_SITE_PATH . 'layouts/' . $layout . '.php';
         ob_start();
@@ -208,7 +204,7 @@ abstract class ControllerBase {
             $this->html = str_replace($nonRelocatableScriptMarker, $nonRelocatableScripts[0], $this->html);
         }
         if (ENV_COMPRESS_HTML) {
-            echo Sysclass::one_line($this->html);
+            echo Sysclass::minifyHtml($this->html);
         } else {
             echo $this->html;
         }
@@ -217,7 +213,7 @@ abstract class ControllerBase {
     /**
      * Вернёт URL путь к папке контроллера
      */
-    public function get_path_controller() {
+    public function getPathController() {
         $stack_dir = dirname(ENV_CONTROLLER_PATH);       
         return ENV_URL_SITE . substr($stack_dir, strpos($stack_dir, ENV_DIRSEP . ENV_APP_DIRECTORY));
     }
