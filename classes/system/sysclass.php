@@ -104,25 +104,30 @@ class SysClass {
     }
 
     /**
-     * Проверяет доступ пользователя к определенному ресурсу на основе его идентификатора и роли.
-     * Если пользователь не авторизован или не имеет необходимой роли доступа, он будет перенаправлен на форму входа.
-     * Параметры вызывающей функции и её имя передаются в форму входа через URL, с использованием слешей для разделения.
-     * @param int $id Идентификатор пользователя. Если не указан или равен 0, считается, что пользователь не авторизован.
-     * @param array $access Массив ролей, имеющих доступ. Если роль пользователя не входит в этот массив, доступ будет отклонен.
-     * @return bool Возвращает TRUE, если у пользователя есть доступ, иначе FALSE.
+     * Проверяет доступ пользователя к определенному ресурсу на основе его роли
+     * @param int $userId Идентификатор пользователя. Если не указан или равен 0, считается, что пользователь не авторизован
+     * @param array $access Массив ролей, имеющих доступ. Если роль пользователя не входит в этот массив, доступ будет отклонен
+     * @return bool Возвращает TRUE, если у пользователя есть доступ, иначе FALSE
      */
-    public static function getAccessUser(mixed $id = 0, array $access = []): bool {
-        if (!$id || !filter_var($id, FILTER_VALIDATE_INT)) {
-            $queryParams = 'return=' . $_SERVER['REQUEST_URI'];
-            self::handleRedirect(200, '/show_login_form?' . $queryParams);
-            return false;
+    public static function getAccessUser(mixed $userId = 0, array $access = []): bool {
+        $userData = new Users([$userId]);
+        if (in_array(Constants::ALL, $access)) {
+            return true;
+        }        
+        if (in_array(Constants::ALL_AUTH, $access) && !$userData->data['new_user']) {
+            return true;
+        }        
+        $role = strtoupper($userData->data['user_role_name']);
+        if (!is_string($role)) {
+            self::pre("Invalid role name: " . var_export($role, true));
         }
-        $user_data = new Users(array($id));
-        $add_access = array(100);
-        if (!in_array($user_data->get_user_role($id), $access) && !array_intersect($add_access, $access)) {
-            return false;
+        if (!defined("classes\system\Constants::$role")) {
+            self::pre("Constant Constants::$role is not defined");
+        }        
+        if (in_array(constant("classes\system\Constants::" . $role), $access)) {
+            return true;
         }
-        return true;
+        return false;
     }
 
     /**
@@ -159,11 +164,11 @@ class SysClass {
      */
     public static function getKeywordsFromText(string $contents, int $symbol = 3, int $words = 5, int $count = 3): string {
         $contents = mb_eregi_replace("[^а-яА-ЯёЁ ]", '', $contents);
-        $contents = filter_var($contents, FILTER_SANITIZE_STRING, FILTER_FLAG_STRIP_HIGH | FILTER_FLAG_STRIP_LOW);
+        $contents = strip_tags($contents);
         $contents = preg_replace(
-                ["'<[/!]*?[^<>]*?>'si", "'([\r\n])[s]+'si", "'&[a-z0-9]{1,6};'si", "'( +)'si"],
-                ["", " ", " ", " "],
-                strip_tags($contents)
+            ["'<[/!]*?[^<>]*?>'si", "'([\r\n])[s]+'si", "'&[a-z0-9]{1,6};'si", "'( +)'si"],
+            ["", " ", " ", " "],
+            $contents
         );
         $replaceArray = [
             "~", "!", "@", "#", "$", "%", "^", "&", "*", "(", ")", "_", "+", "`", '"', "№", ";", ":", "?", "-", "=", "|", "\"", "",
@@ -876,11 +881,15 @@ class SysClass {
         if (self::$cacheDB !== null) {
             return self::$cacheDB;
         }
+        // Проверка, загружено ли расширение MySQLi
+        if (!extension_loaded('mysqli')) {
+            self::pre('Ошибка! Расширение MySQLi не загружено. Пожалуйста, установите и активируйте расширение MySQLi');
+        }        
         if (!$host || !$user || !$pass || !$db_name) {
             return false;
         }
         try {
-            $db = new SafeMySQL(array($host, $user, $pass, $db_name));
+            $db = new SafeMySQL([$host, $user, $pass, $db_name]);
             $result = $db->getOne('SHOW TABLES LIKE ?s', ENV_DB_PREF . 'users');
             unset($db);
             self::$cacheDB = $result !== null;
@@ -1218,13 +1227,13 @@ class SysClass {
                 if (strpos($matches[1], 'blob:https://') !== false || strpos($matches[1], 'blob:https://') !== false) { // BLOB ссылки
                     self::pre(file_get_contents($matches[1]));
                 } else if (strpos($matches[1], 'https://') !== false || strpos($matches[1], 'http://') !== false) { // Ссылка на картинку
-                    $base64[] = self::convert_image_base64($matches[1]);
+                    $base64[] = self::convertImageBase64($matches[1]);
                 } else if (strpos($matches[1], 'data:image/') === false) { // файлы к какой-то дирректории
                     if ($dir) {
                         $href = self::searchImagesFile($dir, ["jpg", "jpeg", "png", "gif"], pathinfo($matches[1], PATHINFO_BASENAME));
                         $href = $href ? $href[0] : false;
                         if ($href) {
-                            $base64[] = self::convert_image_base64($href);
+                            $base64[] = self::convertImageBase64($href);
                         }
                     }
                     if (!$href) {
@@ -1239,7 +1248,7 @@ class SysClass {
         return str_replace($old_href, $base64, $content);
     }
 
-    private static function convert_image_base64($href) {
+    private static function convertImageBase64($href) {
         $type = pathinfo($href, PATHINFO_EXTENSION);
         $data = file_get_contents($href);
         return 'data:image/' . $type . ';base64,' . base64_encode($data);
@@ -1561,7 +1570,7 @@ class SysClass {
     }
 
     /**
-     * Проверяет, является ли запрос AJAX-запросом, пришедшим с того же сайта,
+     * Проверяет, является ли запрос AJAX-запросом, с сайта проекта,
      * проверяя наличие заголовка `HTTP_X_REQUESTED_WITH` и его значение,
      * сравнивая хост из заголовка `HTTP_REFERER` с текущим хостом
      * @return bool
@@ -1572,16 +1581,6 @@ class SysClass {
         $currentHost = $_SERVER['HTTP_HOST'];
         $isSameSite = $referer && $referer['host'] == $currentHost;
         return $isAjax && $isSameSite;
-    }
-
-    /**
-     * Файервол проекта :-)
-     */
-    public static function guard() {
-        if (!isset($_SERVER['HTTP_USER_AGENT']) || empty($_SERVER['HTTP_USER_AGENT'])) {
-            http_response_code(400);
-            exit('Bad Request');
-        }
     }
     
     /**
@@ -1603,4 +1602,15 @@ class SysClass {
         }
         return false;
     }
+    
+    /**
+     * Файервол проекта :-)
+     */
+    public static function guard() {
+        if (!isset($_SERVER['HTTP_USER_AGENT']) || empty($_SERVER['HTTP_USER_AGENT'])) {
+            http_response_code(400);
+            exit('Bad Request');
+        }
+    }    
+    
 }

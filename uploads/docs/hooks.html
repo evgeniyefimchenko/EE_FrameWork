@@ -1,0 +1,186 @@
+<div id="sticky-wrapper">
+    <div id="doc-menu-wrapper" class="doc-fix-menu">
+        <h2>Хуки в классе Hook</h2>
+        <div class="list-group">
+            <a href="#concept" class="list-group-item list-group-item-action" data-doc="methods">Названия</a>
+            <a href="#methods" class="list-group-item list-group-item-action" data-doc="methods">Методы класса</a>
+            <a href="#examples" class="list-group-item list-group-item-action" data-doc="examples">Примеры использования</a>
+            <a href="#conclusion" class="list-group-item list-group-item-action" data-doc="conclusion">Вывод</a>
+        </div>
+    </div>
+</div>
+
+<h4 id="concept">Названия</h4>
+<p>
+    Для удобства восприятия, названия хуков формируются по следующему принципу:
+    <br/>Пример: <strong>A_beforeGetStandardViews</strong><br/>
+    <b>A</b> - литера обозначающая часть сайта(A - административная backend, C - клиентская, frontend)<br/>
+    <b>before</b> - выполнение коллбека перед действием (before - перед, after - после, может отсутствовать в определённых случаях)<br/>
+    <b>GetStandardViews</b> - название действия, предпочтительно используются названия функции где активикуется коллбек
+</p>
+<h4 id="methods">Методы класса</h4>
+<p>Класс Hook предоставляет функциональность для управления коллбеками (хуками), которые можно привязать к различным событиям в вашем приложении. Хуки позволяют гибко расширять функциональность, выполняя дополнительные действия при наступлении определенных событий.</p>
+<ul>
+    <li><strong>add</strong>
+        <p><code>public static function add(string $key, callable|string $callback, int $priority = 10): bool</code></p>
+        <p>Регистрирует коллбек для указанного события с заданным приоритетом.</p>
+        <ul>
+            <li>Параметры:
+                <ul>
+                    <li><code>key</code> (string): Имя события, к которому привязывается коллбек.</li>
+                    <li><code>callback</code> (callable|string): Функция коллбек или имя функции.</li>
+                    <li><code>priority</code> (int, optional): Приоритет выполнения коллбека. Чем ниже число, тем выше приоритет. По умолчанию 10.</li>
+                </ul>
+            </li>
+            <li>Возвращает: <code>bool</code> - Успешность добавления коллбека.</li>
+        </ul>
+        <p>Пример:</p>
+        <pre><code>
+                Hook::add('onUserRegister', 'sendWelcomeEmail', 10);
+                Hook::add('onUserRegister', function($user) {
+                    echo "User registered: " . $user->name;
+                }, 5);
+            </code></pre>
+    </li>
+    <li><strong>remove</strong>
+        <p><code>public static function remove(string $key): bool</code></p>
+        <p>Удаляет все коллбеки для указанного события.</p>
+        <ul>
+            <li>Параметры:
+                <ul>
+                    <li><code>key</code> (string): Имя события, коллбеки которого нужно удалить.</li>
+                </ul>
+            </li>
+            <li>Возвращает: <code>bool</code> - Успешность удаления коллбеков.</li>
+        </ul>
+        <p>Пример:</p>
+        <pre><code>
+                Hook::remove('onUserRegister');
+            </code></pre>
+    </li>
+    <li><strong>exists</strong>
+        <p><code>public static function exists(string $key): bool</code></p>
+        <p>Проверяет существование коллбеков для указанного события.</p>
+        <ul>
+            <li>Параметры:
+                <ul>
+                    <li><code>key</code> (string): Имя события, для которого нужно проверить наличие коллбеков.</li>
+                </ul>
+            </li>
+            <li>Возвращает: <code>bool</code> - Наличие коллбеков для указанного события.</li>
+        </ul>
+        <p>Пример:</p>
+        <pre><code>
+                if (Hook::exists('onUserRegister')) {
+                    echo "Хук 'onUserRegister' зарегистрирован.";
+                }
+            </code></pre>
+    </li>
+    <li><strong>run</strong>
+        <p><code>public static function run(string $key, ...$args): void</code></p>
+        <p>Выполняет все коллбеки для указанного события с переданными аргументами.</p>
+        <ul>
+            <li>Параметры:
+                <ul>
+                    <li><code>key</code> (string): Имя события, для которого нужно выполнить коллбеки.</li>
+                    <li><code>...$args</code> (mixed): Аргументы, которые будут переданы коллбекам.</li>
+                </ul>
+            </li>
+            <li>Возвращает: <code>void</code></li>
+        </ul>
+        <p>Пример:</p>
+        <pre><code>
+                Hook::run('onUserRegister', $user);
+            </code></pre>
+    </li>
+    <li><strong>getAllHooks</strong>
+        <p><code>public static function getAllHooks(): array</code></p>
+        <p>Возвращает все зарегистрированные коллбеки и события, к которым они привязаны.</p>
+        <ul>
+            <li>Возвращает: <code>array</code> - Ассоциативный массив всех зарегистрированных событий и их коллбеков.</li>
+        </ul>
+        <p>Пример:</p>
+        <pre>
+            <code>
+                $allHooks = Hook::getAllHooks();
+                SysClass::pre($allHooks);
+            </code>
+        </pre>
+    </li>
+</ul>
+
+<h4 id="examples">Примеры использования</h4>
+<p><strong>Регистрация коллбеков</strong></p>
+<p>Вы можете регистрировать коллбеки как анонимные функции, так и функции, определенные в коде. Приоритет выполнения коллбеков определяет порядок их вызова.</p>
+<pre>
+    <code>
+        // Определение функции коллбека
+        function sendWelcomeEmail($user) {
+            echo "Sending welcome email to: " . $user->email . "\n";
+        }
+
+        // Регистрация коллбеков
+        Hook::add('onUserRegister', 'sendWelcomeEmail', 10);
+        Hook::add('onUserRegister', function($user) {
+            echo "User registered: " . $user->name . "\n";
+        }, 5);
+        Hook::add('onOrderPlaced', function($order) {
+            echo "Order placed: " . $order->id . "\n";
+        }, 10);
+        Hook::add('onOrderPlaced', function($order) {
+            echo "Notifying logistics for order: " . $order->id . "\n";
+        }, 1);
+    </code>
+</pre>
+
+<p><strong>Вызов коллбеков</strong></p>
+<p>Коллбеки вызываются методом <code>run</code>, который принимает имя события и аргументы для передачи коллбекам.</p>
+<pre>
+    <code>
+        // Вызов коллбеков для события onUserRegister
+        function registerUser($userData) {
+            $user = new stdClass();
+            $user->name = $userData['name'];
+            $user->email = $userData['email'];
+
+            Hook::run('onUserRegister', $user);
+        }
+
+        // Вызов коллбеков для события onOrderPlaced
+        function placeOrder($orderData) {
+            $order = new stdClass();
+            $order->id = $orderData['id'];
+
+            Hook::run('onOrderPlaced', $order);
+        }
+
+        // Пример использования функций
+        registerUser(['name' => 'John Doe', 'email' => 'john@example.com']);
+        placeOrder(['id' => 123]);
+    </code>
+</pre>
+
+<p><strong>Проверка существования и удаление коллбеков</strong></p>
+<p>Вы можете проверить, зарегистрирован ли хук, и удалить его, если он больше не нужен.</p>
+<pre>
+    <code>
+    // Проверка существования хука
+    if (Hook::exists('onUserRegister')) {
+        echo "Хук 'onUserRegister' зарегистрирован.";
+    }
+
+    // Удаление хука
+    Hook::remove('onUserRegister');
+    </code>
+</pre>
+<p><strong>Получение всех зарегистрированных хуков</strong></p>
+<p>Вы можете получить все зарегистрированные хуки для отладки или анализа.</p>
+<pre>
+    <code>
+        // Получение всех зарегистрированных хуков
+        $allHooks = Hook::getAllHooks();
+        print_r($allHooks);
+    </code>
+</pre>
+<h4 id="conclusion">Вывод</h4>
+<p>Класс Hook предоставляет мощный и гибкий механизм для управления коллбеками в вашем приложении. С помощью методов <code>add</code>, <code>remove</code>, <code>exists</code>, <code>run</code> и <code>getAllHooks</code> вы можете легко регистрировать, вызывать и управлять хуками для различных событий, обеспечивая расширяемость и модульность вашего кода.</p>

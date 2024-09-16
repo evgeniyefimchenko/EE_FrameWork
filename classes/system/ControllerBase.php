@@ -58,7 +58,7 @@ abstract class ControllerBase {
     /**
      * Содержит начальные папраметры макета(layout) определённого в контроллере
      */
-    protected $parameters_layout = ['description' => '', 'keywords' => '', 'add_script' => '', 'add_style' => '', 'canonical_href' => ENV_URL_SITE, 'layout' => 'index', 'image_twiter' => 'favicon.png', 'image_social' => 'favicon.png'];
+    protected $parameters_layout = ['description' => '', 'keywords' => '', 'add_script' => '', 'add_style' => '', 'canonical_href' => ENV_URL_SITE, 'layout' => 'index', 'imagePage' => '/favicon.png'];
 
     /**
      * Конструктор класса принимает экземпляр класса представления из /classes/system/Router.php
@@ -66,16 +66,16 @@ abstract class ControllerBase {
      * @param mixed $view Экземпляр класса представления
      */
     function __construct($view = null) {
+        SysClass::checkInstall(); // Подумать над кешированием проверки TODO
         $this->view = $view instanceof View ? $view : new View();
         $sessionKey = ENV_AUTH_USER === 2 ? 'user_session' : 'user_session';
         $session = ENV_AUTH_USER === 2 ? Cookies::get($sessionKey) : Session::get($sessionKey);
         if ($session) {
-            $this->logged_in = $this->logged_in ?? $this->get_users_session_data($session);
+            $this->logged_in = $this->logged_in ?? $this->getUsersSessionData($session);
         } else {
             Session::destroy();
             Cookies::clear('user_session');
-        }
-        SysClass::checkInstall();
+        }        
         $this->users = new Users($this->logged_in);
         $user_data = $this->users->data;
         // Прогрузка пользовательских данных в представления и языковой массив        
@@ -223,7 +223,7 @@ abstract class ControllerBase {
      * @session - сессия с сервера
      * @return id пользователя или false
      */
-    private function get_users_session_data($session) {
+    private function getUsersSessionData($session) {
         if (ENV_AUTH_USER === 0) {
             $user_id = Session::get('user_id');
             $sql = 'SELECT `user_id`, `last_ip` FROM ?n WHERE `user_id` = ?i';

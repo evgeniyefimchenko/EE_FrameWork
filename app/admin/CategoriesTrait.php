@@ -15,13 +15,13 @@ trait CategoriesTrait {
      * Список категорий
      */
     public function categories() {
-        $this->access = [1, 2];
+        $this->access = [Constants::ADMIN, Constants::MODERATOR];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect(200, '/show_login_form?return=admin/categories');
         }
         /* view */
         $this->getStandardViews();
-        $categories_table = $this->get_categories_data_table();
+        $categories_table = $this->getCategoriesDataTable();
         $this->view->set('categories_table', $categories_table);
         $this->view->set('body_view', $this->view->read('v_categories'));
         $this->html = $this->view->read('v_dashboard');
@@ -39,7 +39,7 @@ trait CategoriesTrait {
      * Добавить или редактировать категорию
      */
     public function category_edit($params) {
-        $this->access = [1, 2];
+        $this->access = [Constants::ADMIN, Constants::MODERATOR];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect(200, '/show_login_form?return=admin/categories');
             exit();
@@ -64,34 +64,34 @@ trait CategoriesTrait {
         /* model */
         $this->loadModel('m_categories_types');
         $this->loadModel('m_categories', ['m_categories_types' => $this->models['m_categories_types']]);        
-        $post_data = SysClass::ee_cleanArray($_POST);
+        $postData = SysClass::ee_cleanArray($_POST);        
         if (in_array('id', $params)) {
-            $key_id = array_search('id', $params);
-            if ($key_id !== false && isset($params[$key_id + 1])) {
-                $id = filter_var($params[$key_id + 1], FILTER_VALIDATE_INT);
+            $keyId = array_search('id', $params);
+            if ($keyId !== false && isset($params[$keyId + 1])) {
+                $id = filter_var($params[$keyId + 1], FILTER_VALIDATE_INT);
             } else {
                 $id = 0;
             }
             // Сохранение основных данных
-            if (isset($post_data['title']) && $post_data['title']) {
-                if (!$new_id = $this->models['m_categories']->updateCategoryData($post_data)) {
+            if (isset($postData['title']) && $postData['title']) {
+                if (!$new_id = $this->models['m_categories']->updateCategoryData($postData)) {
                     ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
                 } else {
                     $id = $new_id;
                 }
             }
             // Сохранение свойств для категории
-            if (isset($post_data['property_data']) && is_array($post_data['property_data']) && isset($post_data['property_data_changed']) && $post_data['property_data_changed'] != 0) {
-                $this->processPropertyData($post_data['property_data']);
+            if (isset($postData['property_data']) && is_array($postData['property_data']) && isset($postData['property_data_changed']) && $postData['property_data_changed'] != 0) {
+                $this->processPropertyData($postData['property_data']);
             }
-            $get_category_data = ((int) $id ? $this->models['m_categories']->getCategoryData($id) : null) ?: $default_data;
+            $get_category_data = ((int) $id ? $this->models['m_categories']->getCategoryData($id) : null) ?: $default_data;            
         } else { // Не передан ключевой параметр id
             SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/category_edit/id/');
-        }
+        }        
         $categories_tree = $this->models['m_categories']->getCategoriesTree($id);
         $full_categories_tree = $this->models['m_categories']->getCategoriesTree();
-        $get_category_entities = $this->models['m_categories']->getCategoryEntities($id);
-        $get_categories_type_sets = $this->models['m_categories_types']->getCategoriesTypeSetsData($get_category_data['type_id']);
+        $categoryPages = $this->models['m_categories']->getCategoryPages($id);
+        $get_categories_type_sets = $this->models['m_categories_types']->getCategoriesTypeSetsData($get_category_data['type_id']);        
         $getAllTypes = [];
         if (isset($get_category_data['parent_id']) && $get_category_data['parent_id']) {
             // Есть родитель, можно выбрать только его тип или подчинённый
@@ -107,14 +107,15 @@ trait CategoriesTrait {
         if (count($get_categories_type_sets) && $get_category_data) {
             $get_categories_type_sets_data = $this->processCategoryProperties($get_categories_type_sets, $id, $get_category_data['title']);
         }
+        
         /* view */
-        $this->view->set('category_data', $get_category_data);
+        $this->view->set('category_data', $get_category_data);        
         $this->view->set('categories_tree', $categories_tree);
         $this->view->set('full_categories_tree', $full_categories_tree);
-        $this->view->set('category_entities', $get_category_entities);
+        $this->view->set('categoryPages', $categoryPages);
         $this->view->set('categories_type_sets_data', $get_categories_type_sets_data);
-        $this->view->set('all_type', $getAllTypes);
-        $this->getStandardViews();
+        $this->view->set('all_type', $getAllTypes);        
+        $this->getStandardViews();        
         $this->view->set('body_view', $this->view->read('v_edit_category'));
         $this->html = $this->view->read('v_dashboard');
         /* layouts */
@@ -138,7 +139,7 @@ trait CategoriesTrait {
         $this->loadModel('m_properties');
         $get_categories_type_sets_data = [];
         foreach ($get_categories_type_sets as $set_id) {
-            $properties_data = $this->models['m_properties']->get_property_set_data($set_id);
+            $properties_data = $this->models['m_properties']->getPropertySetData($set_id);
             foreach ($properties_data['properties'] as $k_prop => &$prop) {
                 $prop['default_values'] = json_decode($prop['default_values'], true);
                 $prop['property_values'] = $this->models['m_properties']->getPropertyValuesForEntity($category_id, 'category', $prop['p_id'], $set_id);
@@ -209,7 +210,7 @@ trait CategoriesTrait {
             }
         }
         foreach ($arrValueProp as $arrValue) {
-            $res = $this->models['m_properties']->updatePropertiesTypeData($arrValue);
+            $res = $this->models['m_properties']->updatePropertiesValueEntities($arrValue);
             if ($res === false) {
                 ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Error, not write properties!', 'status' => 'danger']);
             }
@@ -224,20 +225,20 @@ trait CategoriesTrait {
     public function getTypeCategory($params = []) {
         $is_ajax = SysClass::isAjaxRequestFromSameSite();
         if ($is_ajax) {
-            $this->access = [1, 2];
+            $this->access = [Constants::ADMIN, Constants::MODERATOR];
             if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
                 SysClass::handleRedirect();
                 exit();
             }
             $this->loadModel('m_categories');
             $this->loadModel('m_categories_types');
-            $post_data = SysClass::ee_cleanArray($_POST);
-            if (isset($post_data['parent_id']) && $post_data['parent_id'] > 0) {
-                $type_id = $this->models['m_categories']->getCategoryTypeId($post_data['parent_id']);
+            $postData = SysClass::ee_cleanArray($_POST);
+            if (isset($postData['parent_id']) && $postData['parent_id'] > 0) {
+                $type_id = $this->models['m_categories']->getCategoryTypeId($postData['parent_id']);
                 $get_all_types = $this->models['m_categories_types']->getAllTypes(false, false, $type_id);
             } else {
                 $get_all_types = $this->models['m_categories_types']->getAllTypes(false, false);
-                $post_data['parent_id'] = 0;
+                $postData['parent_id'] = 0;
                 $type_id = 0;
             }
             if (isset($get_all_types[0])) {
@@ -247,7 +248,7 @@ trait CategoriesTrait {
             }
             echo json_encode(['html' => Plugins::showTypeCategogyForSelect($get_all_types, $selected_id),
                 'parent_type_id' => $type_id,
-                'parent_id' => $post_data['parent_id'],
+                'parent_id' => $postData['parent_id'],
                 'all_types' => $get_all_types]);
         }
         die;
@@ -261,16 +262,16 @@ trait CategoriesTrait {
     public function getCategoriesType($params = []) {
         $is_ajax = SysClass::isAjaxRequestFromSameSite();
         if ($is_ajax) {
-            $this->access = [1, 2];
+            $this->access = [Constants::ADMIN, Constants::MODERATOR];
             if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
                 SysClass::handleRedirect();
                 exit();
             }
-            $post_data = SysClass::ee_cleanArray($_POST);
+            $postData = SysClass::ee_cleanArray($_POST);
             $this->loadModel('m_categories_types');
-            $get_categories_type_sets = $this->models['m_categories_types']->getCategoriesTypeSetsData($post_data['type_id']);
-            $category_id = $post_data['category_id'];
-            $get_categories_type_sets_data = $this->processCategoryProperties($get_categories_type_sets, $category_id, $post_data['title']);
+            $get_categories_type_sets = $this->models['m_categories_types']->getCategoriesTypeSetsData($postData['type_id']);
+            $category_id = $postData['category_id'];
+            $get_categories_type_sets_data = $this->processCategoryProperties($get_categories_type_sets, $category_id, $postData['title']);
             echo json_encode(['html' => Plugins::renderCategorySetsAccordion($get_categories_type_sets_data, $category_id),
                 'get_categories_type_sets' => $get_categories_type_sets, 'category_id' => $category_id]);
         }
@@ -281,7 +282,7 @@ trait CategoriesTrait {
      * Удаление категории
      */
     public function category_dell($params = []) {
-        $this->access = [1, 2];
+        $this->access = [Constants::ADMIN, Constants::MODERATOR];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect();
             exit();
@@ -289,9 +290,9 @@ trait CategoriesTrait {
         /* model */
         $this->loadModel('m_categories');
         if (in_array('id', $params)) {
-            $key_id = array_search('id', $params);
-            if ($key_id !== false && isset($params[$key_id + 1])) {
-                $id = filter_var($params[$key_id + 1], FILTER_VALIDATE_INT);
+            $keyId = array_search('id', $params);
+            if ($keyId !== false && isset($params[$keyId + 1])) {
+                $id = filter_var($params[$keyId + 1], FILTER_VALIDATE_INT);
             } else {
                 $id = 0;
             }
@@ -308,14 +309,15 @@ trait CategoriesTrait {
     /**
      * Вернёт таблицу категоий
      */
-    public function get_categories_data_table() {
-        $this->access = [1, 2];
+    public function getCategoriesDataTable() {
+        $this->access = [Constants::ADMIN, Constants::MODERATOR];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect();
             exit();
         }
         $this->loadModel('m_categories');
-        $post_data = SysClass::ee_cleanArray($_POST);
+        $postData = SysClass::ee_cleanArray($_POST);
+        // SysClass::pre($postData);
         $data_table = [
             'columns' => [
                 [
@@ -403,11 +405,11 @@ trait CategoriesTrait {
         foreach ($this->models['m_categories_types']->getAllTypes() as $item) {
             $filters['type_id']['options'][] = ['value' => $item['type_id'], 'label' => $item['name']];
         }
-        if ($post_data && isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') { // AJAX
-            list($params, $filters, $selected_sorting) = Plugins::ee_show_table_prepare_params($post_data, $data_table['columns']);
-            $category_array = $this->models['m_categories']->get_categories_data($params['order'], $params['where'], $params['start'], $params['limit']);
+        if ($postData && SysClass::isAjaxRequestFromSameSite()) { // AJAX
+            list($params, $filters, $selected_sorting) = Plugins::ee_showTablePrepareParams($postData, $data_table['columns']);
+            $category_array = $this->models['m_categories']->getCategoriesData($params['order'], $params['where'], $params['start'], $params['limit']);
         } else {
-            $category_array = $this->models['m_categories']->get_categories_data(false, false, false, 25);
+            $category_array = $this->models['m_categories']->getCategoriesData(false, false, false, 25);
         }
         foreach ($category_array['data'] as $item) {
             $data_table['rows'][] = [
@@ -425,11 +427,11 @@ trait CategoriesTrait {
             ];
         }
         $data_table['total_rows'] = $category_array['total_count'];
-        if ($post_data) {
-            echo Plugins::ee_show_table('category_table', $data_table, 'get_categories_data_table', $filters, $post_data["page"], $post_data["rows_per_page"], $selected_sorting);
+        if ($postData) {
+            echo Plugins::ee_show_table('category_table', $data_table, 'getCategoriesDataTable', $filters, $postData["page"], $postData["rows_per_page"], $selected_sorting);
             die;
         } else {
-            return Plugins::ee_show_table('category_table', $data_table, 'get_categories_data_table', $filters);
+            return Plugins::ee_show_table('category_table', $data_table, 'getCategoriesDataTable', $filters);
         }
     }
 }

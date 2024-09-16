@@ -17,7 +17,7 @@ trait MessagesTrait {
      * Все сообщения текущего пользователя подгружаются в $user_data
      */
     public function messages($params = []) {
-        $this->access = [100];
+        $this->access = [Constants::ALL_AUTH];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect();
             exit();
@@ -26,9 +26,9 @@ trait MessagesTrait {
         $this->loadModel('m_messages');
         /* get data */
         $user_data = $this->users->data;         
-        $key_id = array_search('id', $params);
-        if ($key_id !== false && isset($params[$key_id + 1])) {
-            $user_id = filter_var($params[$key_id + 1], FILTER_VALIDATE_INT);
+        $keyId = array_search('id', $params);
+        if ($keyId !== false && isset($params[$keyId + 1])) {
+            $user_id = filter_var($params[$keyId + 1], FILTER_VALIDATE_INT);
         } else {
             $user_id = $this->logged_in; 
         }
@@ -53,13 +53,13 @@ trait MessagesTrait {
      * Вернёт таблицу сообщений переданного пользователя
      */
     public function get_messages_data_table($user_id) {
-        $this->access = [100];
+        $this->access = [Constants::ALL_AUTH];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect();
             exit();
         }
         $this->loadModel('m_messages');
-        $post_data = SysClass::ee_cleanArray($_POST);
+        $postData = SysClass::ee_cleanArray($_POST);
         $data_table = [
             'columns' => [
                 [
@@ -135,8 +135,8 @@ trait MessagesTrait {
                 'label' => $this->lang['sys.read_at']
             ],
         ];
-        if ($post_data && isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') { // AJAX
-            list($params, $filters, $selected_sorting) = Plugins::ee_show_table_prepare_params($post_data, $data_table['columns']);            
+        if ($postData && SysClass::isAjaxRequestFromSameSite()) { // AJAX
+            list($params, $filters, $selected_sorting) = Plugins::ee_showTablePrepareParams($postData, $data_table['columns']);            
             $user_id = Session::get('get_messages_data_table_userID');
             $messages_array = $this->models['m_messages']->get_user_messages($user_id, $params['order'], $params['where'], $params['start'], $params['limit']);
         } else {
@@ -173,8 +173,8 @@ trait MessagesTrait {
             ];
         }
         $data_table['total_rows'] = $messages_array['total_count'];
-        if ($post_data) {
-            echo Plugins::ee_show_table('messages_table', $data_table, 'get_messages_data_table', $filters, $post_data["page"], $post_data["rows_per_page"], $selected_sorting);
+        if ($postData) {
+            echo Plugins::ee_show_table('messages_table', $data_table, 'get_messages_data_table', $filters, $postData["page"], $postData["rows_per_page"], $selected_sorting);
             die;
         } else {
             return Plugins::ee_show_table('messages_table', $data_table, 'get_messages_data_table', $filters);
@@ -185,7 +185,7 @@ trait MessagesTrait {
      * Отметить все сообщения пользователя прочитанными
      */
     public function read_all_message() {
-        $this->access = [100];
+        $this->access = [Constants::ALL_AUTH];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect(401);
             exit;
@@ -199,7 +199,7 @@ trait MessagesTrait {
      * Удалить все сообщения пользователя
      */
     public function kill_all_message() {
-        $this->access = [100];
+        $this->access = [Constants::ALL_AUTH];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect(401);
             exit();
@@ -214,7 +214,7 @@ trait MessagesTrait {
      * @param array $params - ID сообщения
      */
     public function set_readed($id_message = 0) {
-        $this->access = [100];
+        $this->access = [Constants::ALL_AUTH];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect(401);
             exit();
@@ -239,7 +239,7 @@ trait MessagesTrait {
      * @param array $params - ID сообщения
      */
     public function dell_message($params) {
-        $this->access = [100];
+        $this->access = [Constants::ALL_AUTH];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect(401);
             exit();

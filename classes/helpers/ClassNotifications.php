@@ -83,10 +83,14 @@ class ClassNotifications {
      * @param int $user_id
      * @param array $new_notifications новые оповещения
      */
-    private static function set_notifications_user($user_id, $new_notifications = [], $add = false) {
+    private static function set_notifications_user(int $user_id, array $new_notifications = [], bool $add = false): void {
         $filtered_notifications = [];
         $class_users = new Users();
         $user_options = $class_users->get_user_options($user_id);
+        $user_options['notifications'] = $user_options['notifications'] ?? [];
+        if (!is_array($user_options['notifications'])) {
+            $user_options['notifications'] = [];
+        }
         if ($add) {
             $user_options['notifications'][] = $new_notifications;
         } else {
@@ -94,13 +98,12 @@ class ClassNotifications {
         }
         $notifi_id = 0;
         foreach ($user_options['notifications'] as $key => $notification) {
-            if (isset($notification['text']) && $notification['text'] && mb_strlen($notification['text']) >= 3) {
+            if (is_array($notification) && isset($notification['text']) && is_string($notification['text']) && mb_strlen($notification['text']) >= 3) {
                 $notification['id'] = $notifi_id;
                 $filtered_notifications[] = $notification;
                 $notifi_id++;
             }
         }
-        // Обновление notifications с отфильтрованными и переиндексированными данными
         $user_options['notifications'] = $filtered_notifications;
         $class_users->set_user_options($user_id, $user_options);
     }

@@ -18,13 +18,13 @@ trait NotificationsTrait {
      * @param array $params Параметры запроса (не используются в данной функции)
      */
     public function set_notification_time(array $params = []) {
-        $this->access = [100];
+        $this->access = [Constants::ALL_AUTH];
         if (!SysClass::getAccessUser($this->logged_in, $this->access) || array_filter($params)) {
             SysClass::handleRedirect(401);
             exit();
         }
-        $post_data = SysClass::ee_cleanArray($_POST);
-        ClassNotifications::set_reading_time($this->logged_in, $post_data['showtime'], $post_data['id']);
+        $postData = SysClass::ee_cleanArray($_POST);
+        ClassNotifications::set_reading_time($this->logged_in, $postData['showtime'], $postData['id']);
     }
 
     /**
@@ -35,16 +35,16 @@ trait NotificationsTrait {
      * @param array $params Параметры запроса (не используются в данной функции)
      */
     public function kill_notification_by_id(array $params = []) {
-        $this->access = [100];
+        $this->access = [Constants::ALL_AUTH];
         if (!SysClass::getAccessUser($this->logged_in, $this->access) || array_filter($params)) {
             SysClass::handleRedirect(401);
             exit();
         }        
-        $post_data = SysClass::ee_cleanArray($_POST);
-        if (!is_array($post_data) || !isset($post_data['id']) || !is_numeric($post_data['id']) || $post_data['id'] < 0) {
+        $postData = SysClass::ee_cleanArray($_POST);
+        if (!is_array($postData) || !isset($postData['id']) || !is_numeric($postData['id']) || $postData['id'] < 0) {
             return;
         }
-        ClassNotifications::kill_notification_by_id($this->logged_in, $post_data['id']);
+        ClassNotifications::kill_notification_by_id($this->logged_in, $postData['id']);
     }
 
 }

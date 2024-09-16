@@ -16,7 +16,7 @@ trait PropertiesTrait {
      * Список свойств
      */
     public function properties() {
-        $this->access = [1, 2];
+        $this->access = [Constants::ADMIN, Constants::MODERATOR];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect(200, '/show_login_form?return=admin');
         }
@@ -42,13 +42,13 @@ trait PropertiesTrait {
      * Список типов свойств
      */
     public function types_properties() {
-        $this->access = [1, 2];
+        $this->access = [Constants::ADMIN, Constants::MODERATOR];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect(200, '/show_login_form?return=admin');
         }
         /* view */
         $this->getStandardViews();
-        $types_properties_data = $this->get_types_properties_data_table();
+        $types_properties_data = $this->getTypesPropertiesDataTable();
         $this->view->set('types_properties_table', $types_properties_data);
         $this->view->set('body_view', $this->view->read('v_properties_types'));
         $this->html = $this->view->read('v_dashboard');
@@ -61,14 +61,14 @@ trait PropertiesTrait {
         $this->showLayout($this->parameters_layout);
     }
 
-    public function get_types_properties_data_table() {
-        $this->access = [1, 2];
+    public function getTypesPropertiesDataTable() {
+        $this->access = [Constants::ADMIN, Constants::MODERATOR];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect();
             exit();
         }
         $this->loadModel('m_properties');
-        $post_data = SysClass::ee_cleanArray($_POST);
+        $postData = SysClass::ee_cleanArray($_POST);
         $data_table = [
             'columns' => [
                 [
@@ -128,8 +128,8 @@ trait PropertiesTrait {
                 'label' => $this->lang['sys.date_update']
             ],
         ];
-        if ($post_data && isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') { // AJAX
-            list($params, $filters, $selected_sorting) = Plugins::ee_show_table_prepare_params($post_data, $data_table['columns']);
+        if ($postData && SysClass::isAjaxRequestFromSameSite()) { // AJAX
+            list($params, $filters, $selected_sorting) = Plugins::ee_showTablePrepareParams($postData, $data_table['columns']);
             $features_array = $this->models['m_properties']->getTypePropertiesData($params['order'], $params['where'], $params['start'], $params['limit']);
         } else {
             $features_array = $this->models['m_properties']->getTypePropertiesData(false, false, false, 25);
@@ -149,11 +149,11 @@ trait PropertiesTrait {
             ];
         }
         $data_table['total_rows'] = $features_array['total_count'];
-        if ($post_data) {
-            echo Plugins::ee_show_table('types_properties_table', $data_table, 'get_types_properties_data_table', $filters, $post_data["page"], $post_data["rows_per_page"], $selected_sorting);
+        if ($postData) {
+            echo Plugins::ee_show_table('types_properties_table', $data_table, 'getTypesPropertiesDataTable', $filters, $postData["page"], $postData["rows_per_page"], $selected_sorting);
             die;
         } else {
-            return Plugins::ee_show_table('types_properties_table', $data_table, 'get_types_properties_data_table', $filters);
+            return Plugins::ee_show_table('types_properties_table', $data_table, 'getTypesPropertiesDataTable', $filters);
         }
     }
 
@@ -161,13 +161,13 @@ trait PropertiesTrait {
      * Вернёт таблицу свойств
      */
     public function get_properties_data_table() {
-        $this->access = [1, 2];
+        $this->access = [Constants::ADMIN, Constants::MODERATOR];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect();
             exit();
         }
         $this->loadModel('m_properties');
-        $post_data = SysClass::ee_cleanArray($_POST);
+        $postData = SysClass::ee_cleanArray($_POST);
         $data_table = [
             'columns' => [
                 [
@@ -244,8 +244,8 @@ trait PropertiesTrait {
         foreach ($this->models['m_properties']->getAllPropertyTypes() as $item) {
             $filters['type_id']['options'][] = ['value' => $item['type_id'], 'label' => $item['name']];
         }
-        if ($post_data && isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') { // AJAX
-            list($params, $filters, $selected_sorting) = Plugins::ee_show_table_prepare_params($post_data, $data_table['columns']);
+        if ($postData && SysClass::isAjaxRequestFromSameSite()) { // AJAX
+            list($params, $filters, $selected_sorting) = Plugins::ee_showTablePrepareParams($postData, $data_table['columns']);
             $features_array = $this->models['m_properties']->getPropertiesData($params['order'], $params['where'], $params['start'], $params['limit']);
         } else {
             $features_array = $this->models['m_properties']->getPropertiesData(false, false, false, 25);
@@ -266,8 +266,8 @@ trait PropertiesTrait {
             ];
         }
         $data_table['total_rows'] = $features_array['total_count'];
-        if ($post_data) {
-            echo Plugins::ee_show_table('properties_table', $data_table, 'get_properties_data_table', $filters, $post_data["page"], $post_data["rows_per_page"], $selected_sorting);
+        if ($postData) {
+            echo Plugins::ee_show_table('properties_table', $data_table, 'get_properties_data_table', $filters, $postData["page"], $postData["rows_per_page"], $selected_sorting);
             die;
         } else {
             return Plugins::ee_show_table('properties_table', $data_table, 'get_properties_data_table', $filters);
@@ -278,7 +278,7 @@ trait PropertiesTrait {
      * Добавить или редактировать тип свойств
      */
     public function type_properties_edit($params = []) {
-        $this->access = [1, 2];
+        $this->access = [Constants::ADMIN, Constants::MODERATOR];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect();
             exit();
@@ -294,27 +294,27 @@ trait PropertiesTrait {
         ];
         /* model */
         $this->loadModel('m_properties');
-        $post_data = SysClass::ee_cleanArray($_POST);
+        $postData = SysClass::ee_cleanArray($_POST);
         if (in_array('id', $params)) {
-            $key_id = array_search('id', $params);
-            if ($key_id !== false && isset($params[$key_id + 1])) {
-                $id = filter_var($params[$key_id + 1], FILTER_VALIDATE_INT);
+            $keyId = array_search('id', $params);
+            if ($keyId !== false && isset($params[$keyId + 1])) {
+                $id = filter_var($params[$keyId + 1], FILTER_VALIDATE_INT);
             } else {
                $id = 0; 
             }
-            if (isset($post_data['name']) && $post_data['name']) {
-                if (!is_array($post_data['fields']) || !count($post_data['fields'])) {
+            if (isset($postData['name']) && $postData['name']) {
+                if (!is_array($postData['fields']) || !count($postData['fields'])) {
                     ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Заполните хотя бы одно поле типа!', 'status' => 'danger']);
                 } else {
-                    $post_data['fields'] = json_encode($post_data['fields']);
-                    if (!$new_id = $this->models['m_properties']->update_property_type_data($post_data)) {
+                    $postData['fields'] = json_encode($postData['fields']);
+                    if (!$new_id = $this->models['m_properties']->updatePropertyTypeData($postData)) {
                         ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
                     } else {
                         $id = $new_id;
                     }
                 }
             }            
-            $property_type_data = (int) $id ? $this->models['m_properties']->get_type_property_data($id) : $default_data;            
+            $property_type_data = (int) $id ? $this->models['m_properties']->getTypePropertyData($id) : $default_data;            
             $property_type_data = !$property_type_data ? $default_data : $property_type_data;
             $property_type_data['fields'] = isset($property_type_data['fields']) ? json_decode($property_type_data['fields'], true) : [];
         } else { // Не передан ключевой параметр id
@@ -342,7 +342,7 @@ trait PropertiesTrait {
      * Добавить или редактировать свойство
      */
     public function edit_property(array $params = []): void {
-        $this->access = [1, 2];
+        $this->access = [Constants::ADMIN, Constants::MODERATOR];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect();
             exit();
@@ -350,24 +350,24 @@ trait PropertiesTrait {
         /* model */
         $this->loadModel('m_properties');
         
-        $post_data = SysClass::ee_cleanArray($_POST);
+        $postData = SysClass::ee_cleanArray($_POST);
         if (in_array('id', $params)) {
-            $key_id = array_search('id', $params);
-            if ($key_id !== false && isset($params[$key_id + 1])) {
-                $property_id = filter_var($params[$key_id + 1], FILTER_VALIDATE_INT);
+            $keyId = array_search('id', $params);
+            if ($keyId !== false && isset($params[$keyId + 1])) {
+                $propertyId = filter_var($params[$keyId + 1], FILTER_VALIDATE_INT);
             } else {
-               $property_id = 0; 
+               $propertyId = 0; 
             }
-            if (isset($post_data['name']) && $post_data['name']) {
-                $post_data['default_values'] = isset($post_data['property_data']) ? $this->prepare_default_values_property($post_data['property_data']) : [];
-                if (!$new_id = $this->models['m_properties']->updatePropertyData($post_data)) {
+            if (isset($postData['name']) && $postData['name']) {
+                $postData['default_values'] = isset($postData['property_data']) ? $this->prepareDefaultValuesProperty($postData['property_data'], $propertyId) : [];
+                if (!$new_id = $this->models['m_properties']->updatePropertyData($postData)) {
                     ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
                 } else {
-                    $property_id = $new_id;
+                    $propertyId = $new_id;
                     ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.success'], 'status' => 'info']);
                 }
             }
-            $get_property_data = $this->get_property_data($property_id);
+            $getPropertyData = $this->getPropertyData($propertyId);
         } else { // Не передан ключевой параметр id
             SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/user_edit/id/' . $this->logged_in);
         }
@@ -376,7 +376,7 @@ trait PropertiesTrait {
             $all_status[$key] = $this->lang['sys.' . $value];
         }
         /* view */
-        $this->view->set('property_data', $get_property_data);
+        $this->view->set('property_data', $getPropertyData);
         $this->view->set('all_property_types', $get_all_property_types);
         $this->view->set('all_status', $all_status);
         $this->getStandardViews();
@@ -394,14 +394,14 @@ trait PropertiesTrait {
     /**
      * Подготовка списка полей для свойства
      * Используется как в AJAX запросе так и напрямую в коде
-     * При AJAX вызове, роутер передаёт в $property_id массив
-     * @param type $property_id
+     * При AJAX вызове, роутер передаёт в $propertyId массив
+     * @param type $propertyId
      */
-    public function get_property_data(mixed $property_id = 0):mixed {
+    public function getPropertyData(mixed $propertyId = 0):mixed {
         $is_ajax = SysClass::isAjaxRequestFromSameSite();
         if ($is_ajax) {
-            $post_data = SysClass::ee_cleanArray($_POST);
-            $this->access = [1, 2];
+            $postData = SysClass::ee_cleanArray($_POST);
+            $this->access = [Constants::ADMIN, Constants::MODERATOR];
             if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
                 SysClass::handleRedirect();
                 exit();
@@ -413,37 +413,44 @@ trait PropertiesTrait {
             'status' => 0, 'sort' => 100, 'type_id' => 0, 'created_at' => false, 'updated_at' => false, 'default_values' => []
         ];
         if ($is_ajax) {
-            $data = $this->models['m_properties']->get_type_property_data($post_data['type_id']);
+            $data = $this->models['m_properties']->getTypePropertyData($postData['type_id']);
             $fields = $data['fields'];
             $default_values = [];
             echo json_encode(['html' => Plugins::renderPropertyHtmlFields($fields, $default_values)]);
             die;
         } else {
-            $get_property_data = (int) $property_id ? $this->models['m_properties']->getPropertyData($property_id) : $default_data;
-            $get_property_data = !$get_property_data ? $default_data : $get_property_data;
-            $get_property_data['fields'] = isset($get_property_data['fields']) ? $get_property_data['fields'] : [];
-            $get_property_data['default_values'] = isset($get_property_data['default_values']) ? $get_property_data['default_values'] : [];            
-            return $get_property_data;
+            $getPropertyData = (int) $propertyId ? $this->models['m_properties']->getPropertyData($propertyId) : $default_data;
+            $getPropertyData = !$getPropertyData ? $default_data : $getPropertyData;
+            $getPropertyData['fields'] = isset($getPropertyData['fields']) ? $getPropertyData['fields'] : [];
+            $getPropertyData['default_values'] = isset($getPropertyData['default_values']) ? $getPropertyData['default_values'] : [];            
+            return $getPropertyData;
         }
     }
     
     /**
-     * Подготавливает данные свойств для сохранения в формате JSON в базе данных.
+     * Подготавливает данные свойств для сохранения в формате JSON в базе данных
      * Функция принимает ассоциативный массив данных свойств, где ключи представляют собой
      * строку, включающую тип свойства, порядковый номер и дополнительный ключ (если есть),
      * а значения могут быть строками или массивами. Функция возвращает массив, структурированный
-     * для последующей конвертации в JSON, который может быть сохранен в базе данных.
-     * @param array $property_data Ассоциативный массив данных свойств.
+     * для последующей конвертации в JSON, который может быть сохранен в базе данных
+     * @param array $propertyData Ассоциативный массив данных свойств
      * @return array
      */
-    private function prepare_default_values_property(array $property_data = []): array {
+    private function prepareDefaultValuesProperty(array $propertyData, int $propertyId): array {
         $prepared_data = [];
-        foreach ($property_data as $key => $value) {
+        foreach ($propertyData as $key => $value) {
             // Извлекаем порядковый номер и тип из ключа
             if (preg_match('/([a-z\-]+)_([0-9]+)_?([a-z]*)/', $key, $matches)) {
                 $type = $matches[1];
                 $index = $matches[2];
                 $additional_key = isset($matches[3]) ? $matches[3] : null;
+                // Генерация уникального кода
+                $unique_code = hash('crc32', $type . $index . $propertyId);
+                // Проверка уникальности кода
+                while ($this->models['m_properties']->findUniqueCodeInPropertiesTable($unique_code)) {
+                    // Генерация нового уникального кода, если текущий уже существует
+                    $unique_code = hash('crc32', $type . $index . $propertyId . uniqid());
+                }
                 if (!isset($prepared_data[$index])) {
                     $prepared_data[$index] = [
                         'type' => $type,
@@ -451,7 +458,8 @@ trait PropertiesTrait {
                         'title' => '',
                         'default' => '',
                         'required' => 0,
-                        'multiple' => 0
+                        'multiple' => 0,
+                        'unique_code' => $unique_code
                     ];
                 }
                 // Заполнение данных в зависимости от дополнительного ключа
@@ -477,20 +485,20 @@ trait PropertiesTrait {
      * @param array $params
      */
     public function type_properties_delete($params = []) {
-        $this->access = [1, 2];
+        $this->access = [Constants::ADMIN, Constants::MODERATOR];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect();
             exit();
         }
         if (in_array('id', $params)) {
-            $key_id = array_search('id', $params);
-            if ($key_id !== false && isset($params[$key_id + 1])) {
-                $id = filter_var($params[$key_id + 1], FILTER_VALIDATE_INT);
+            $keyId = array_search('id', $params);
+            if ($keyId !== false && isset($params[$keyId + 1])) {
+                $id = filter_var($params[$keyId + 1], FILTER_VALIDATE_INT);
             } else {
                $id = 0; 
             }
             $this->loadModel('m_properties');
-            $res = $this->models['m_properties']->type_properties_delete($id);
+            $res = $this->models['m_properties']->typePropertiesDelete($id);
             if (count($res)) {
                 ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Ошибка удаления типа id=' . $id . '<br/>' . $res['error'], 'status' => 'danger']);
             } else {
@@ -507,22 +515,22 @@ trait PropertiesTrait {
      * @param array $params
      */
     public function property_delete($params = []) {
-        $this->access = [1, 2];
+        $this->access = [Constants::ADMIN, Constants::MODERATOR];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect();
             exit();
         }
         if (in_array('id', $params)) {
-            $key_id = array_search('id', $params);
-            if ($key_id !== false && isset($params[$key_id + 1])) {
-                $property_id = filter_var($params[$key_id + 1], FILTER_VALIDATE_INT);
+            $keyId = array_search('id', $params);
+            if ($keyId !== false && isset($params[$keyId + 1])) {
+                $propertyId = filter_var($params[$keyId + 1], FILTER_VALIDATE_INT);
             } else {
-                $property_id = 0; 
+                $propertyId = 0; 
             }            
             $this->loadModel('m_properties');
-            $res = $this->models['m_properties']->property_delete($property_id);
+            $res = $this->models['m_properties']->propertyDelete($propertyId);
             if (count($res)) {
-                ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Ошибка удаления свойства id=' . $property_id . '<br/>' . $res['error'], 'status' => 'danger']);
+                ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Ошибка удаления свойства id=' . $propertyId . '<br/>' . $res['error'], 'status' => 'danger']);
             } else {
                 ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Удалено!', 'status' => 'info']);
             }
@@ -537,7 +545,7 @@ trait PropertiesTrait {
      * @param type $params
      */
     public function properties_sets($params = []) {
-        $this->access = [1, 2];
+        $this->access = [Constants::ADMIN, Constants::MODERATOR];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect();
             exit();
@@ -561,13 +569,13 @@ trait PropertiesTrait {
      * Вернёт таблицу наборов свойств
      */
     public function get_properties_property_sets_table() {
-        $this->access = [1, 2];
+        $this->access = [Constants::ADMIN, Constants::MODERATOR];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect();
             exit();
         }
         $this->loadModel('m_properties');
-        $post_data = SysClass::ee_cleanArray($_POST);
+        $postData = SysClass::ee_cleanArray($_POST);
         $data_table = [
             'columns' => [
                 [
@@ -618,11 +626,11 @@ trait PropertiesTrait {
                 'label' => $this->lang['sys.date_update']
             ],
         ];
-        if ($post_data && isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') { // AJAX
-            list($params, $filters, $selected_sorting) = Plugins::ee_show_table_prepare_params($post_data, $data_table['columns']);
-            $features_array = $this->models['m_properties']->get_property_sets_data($params['order'], $params['where'], $params['start'], $params['limit']);
+        if ($postData && SysClass::isAjaxRequestFromSameSite()) { // AJAX
+            list($params, $filters, $selected_sorting) = Plugins::ee_showTablePrepareParams($postData, $data_table['columns']);
+            $features_array = $this->models['m_properties']->getPropertySetsData($params['order'], $params['where'], $params['start'], $params['limit']);
         } else {
-            $features_array = $this->models['m_properties']->get_property_sets_data(false, false, false, 25);
+            $features_array = $this->models['m_properties']->getPropertySetsData(false, false, false, 25);
         }
 
         foreach ($features_array['data'] as $item) {
@@ -637,8 +645,8 @@ trait PropertiesTrait {
             ];
         }
         $data_table['total_rows'] = $features_array['total_count'];
-        if ($post_data) {
-            echo Plugins::ee_show_table('properties_table', $data_table, 'get_properties_property_sets_table', $filters, $post_data["page"], $post_data["rows_per_page"], $selected_sorting);
+        if ($postData) {
+            echo Plugins::ee_show_table('properties_table', $data_table, 'get_properties_property_sets_table', $filters, $postData["page"], $postData["rows_per_page"], $selected_sorting);
             die;
         } else {
             return Plugins::ee_show_table('properties_table', $data_table, 'get_properties_property_sets_table', $filters);
@@ -653,7 +661,7 @@ trait PropertiesTrait {
      * @throws Exception Если возникают проблемы с доступом, функция перенаправляет пользователя на главную страницу.
      */
     public function edit_property_set($params = []) {
-        $this->access = [1, 2];
+        $this->access = [Constants::ADMIN, Constants::MODERATOR];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect();
             exit();
@@ -667,17 +675,17 @@ trait PropertiesTrait {
             'created_at' => false,
             'updated_at' => false
         ];
-        $post_data = SysClass::ee_cleanArray($_POST);
+        $postData = SysClass::ee_cleanArray($_POST);
         if (in_array('id', $params)) {
-            $key_id = array_search('id', $params);
-            if ($key_id !== false && isset($params[$key_id + 1])) {
-                $id = filter_var($params[$key_id + 1], FILTER_VALIDATE_INT);
+            $keyId = array_search('id', $params);
+            if ($keyId !== false && isset($params[$keyId + 1])) {
+                $id = filter_var($params[$keyId + 1], FILTER_VALIDATE_INT);
             } else {
                 $id = 0; 
             }
             // Обработка основных полей
-            if (isset($post_data['name']) && $post_data['name']) {
-                if (!$new_id = $this->models['m_properties']->update_property_set_data($post_data)) {
+            if (isset($postData['name']) && $postData['name']) {                
+                if (!$new_id = $this->models['m_properties']->updatePropertySetData($postData)) {
                     ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
                 } else {
                     $id = $new_id;
@@ -685,13 +693,13 @@ trait PropertiesTrait {
                 }
             }
             // Обработка добавления свойств
-            if (isset($post_data['selected_properties']) && is_array($post_data['selected_properties'])) {
+            if (isset($postData['selected_properties']) && is_array($postData['selected_properties'])) {
                 // Удалить все предыдущие свойства для этого набора
                 $this->models['m_properties']->deletePreviousProperties($id);
                 // Добавить выбранные свойства в таблицу
-                $this->models['m_properties']->addPropertiesToSet($id, $post_data['selected_properties']);
+                $this->models['m_properties']->addPropertiesToSet($id, $postData['selected_properties']);
             }
-            $property_set_data = (int) $id ? $this->models['m_properties']->get_property_set_data($id) : $default_data;
+            $property_set_data = (int) $id ? $this->models['m_properties']->getPropertySetData($id) : $default_data;
             $property_set_data = $property_set_data ? $property_set_data : $default_data;
         } else { // Не передан ключевой параметр id
             SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/user_edit/id/' . $this->logged_in);
@@ -717,15 +725,15 @@ trait PropertiesTrait {
      * @param array $params
      */
     public function property_set_delete($params = []) {
-        $this->access = [1, 2];
+        $this->access = [Constants::ADMIN, Constants::MODERATOR];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect();
             exit();
         }
         if (in_array('id', $params)) {
-            $key_id = array_search('id', $params);
-            if ($key_id !== false && isset($params[$key_id + 1])) {
-                $set_id = filter_var($params[$key_id + 1], FILTER_VALIDATE_INT);
+            $keyId = array_search('id', $params);
+            if ($keyId !== false && isset($params[$keyId + 1])) {
+                $set_id = filter_var($params[$keyId + 1], FILTER_VALIDATE_INT);
             } else {
                 $set_id = 0;
             }

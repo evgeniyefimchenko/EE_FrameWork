@@ -1,0 +1,54 @@
+<VirtualHost *:80>
+    ServerAdmin evgeniy@efimchenko.com
+    ServerName EXAMPLE.SITE
+    ServerAlias www.EXAMPLE.SITE
+
+    DocumentRoot /var/www/html/EXAMPLE.SITE
+
+    # Логи
+    ErrorLog /var/www/html/EXAMPLE.SITE/logs/php_errors.log
+
+    # Перенаправление с HTTP на HTTPS
+    RewriteEngine On
+    RewriteCond %{SERVER_NAME} =www.EXAMPLE.SITE [OR]
+    RewriteCond %{SERVER_NAME} =EXAMPLE.SITE
+    RewriteRule ^ https://%{SERVER_NAME}%{REQUEST_URI} [END,NE,R=permanent]
+
+    # Включить наследование правил Rewrite из .htaccess
+    RewriteOptions inherit
+
+    # Разрешить использование .htaccess для этого каталога
+    <Directory /var/www/html/EXAMPLE.SITE>
+        AllowOverride All
+    </Directory>
+</VirtualHost>
+
+<VirtualHost *:443>
+    ServerAdmin evgeniy@efimchenko.com
+    ServerName EXAMPLE.SITE
+    ServerAlias www.EXAMPLE.SITE
+
+    DocumentRoot /var/www/html/EXAMPLE.SITE
+
+    # Логи
+    ErrorLog /var/www/html/EXAMPLE.SITE/logs/php_errors.log
+
+    # Настройки SSL
+    SSLEngine on
+    SSLCertificateFile /etc/letsencrypt/live/EXAMPLE.SITE/fullchain.pem
+    SSLCertificateKeyFile /etc/letsencrypt/live/EXAMPLE.SITE/privkey.pem
+    Include /etc/letsencrypt/options-ssl-apache.conf
+
+    # Включить наследование правил Rewrite из .htaccess
+    RewriteOptions inherit
+
+    <Directory /var/www/html/EXAMPLE.SITE>
+        AllowOverride All
+    </Directory>
+
+    # Дополнительные настройки безопасности
+    Header always set X-Frame-Options "DENY"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+</VirtualHost>
+

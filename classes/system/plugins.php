@@ -454,7 +454,7 @@ class Plugins {
      * - start: начальная позиция для LIMIT.
      * - limit: максимальное количество записей для LIMIT.
      */
-    public static function ee_show_table_prepare_params($post_data, $columns) {
+    public static function ee_showTablePrepareParams($post_data, $columns) {
         list($table_name, $extract_filters) = Plugins::ee_show_table_extractFilters($post_data); // $extract_filters извлекаем без префиксов что бы подставлять в запрос к БД
         $old_filters = isset($post_data[$table_name . '_old_filters']) ? json_decode(html_entity_decode($post_data[$table_name . '_old_filters'], ENT_QUOTES, 'UTF-8'), true) : null;
         $filter = Plugins::ee_show_table_buildFilters($extract_filters, $columns, $table_name, $old_filters);
@@ -509,7 +509,7 @@ class Plugins {
         ];
     }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////END Plugin TABLE
+////////END Plugin TABLE
 
     /**
      * Генерирует вертикальное меню на основе предоставленных данных.
@@ -518,7 +518,7 @@ class Plugins {
      *                   - 'footerTitle' => Заголовок для нижнего раздела меню
      * @return string Сгенерированный HTML-код для вертикального меню
      */
-    public static function generate_vertical_menu($data) {
+    public static function generateVerticalMenu($data) {
         $menuItems = $data['menuItems'];
         $footerTitle = $data['footerTitle'];
         $html = '<div id="layoutSidenav_nav"><nav class="sb-sidenav accordion sb-sidenav-dark" id="sidenavAccordion"><div class="sb-sidenav-menu"><div class="nav">';
@@ -927,6 +927,9 @@ class Plugins {
             }
             if (!isset($value['multiple'])) {
                 $value['multiple'] = 0;
+            }
+            if (!isset($value['value'])) {
+                $value['value'] = '';
             }
             $result .= '<div class="col-10 col-sm-12 mt-2 d-flex">';
             $multiple_choice = true;

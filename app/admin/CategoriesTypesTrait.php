@@ -15,7 +15,7 @@ trait CategoriesTypesTrait {
      * Список категорий
      */
     public function types_categories() {
-        $this->access = [1, 2];
+        $this->access = [Constants::ADMIN, Constants::MODERATOR];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect(200, '/show_login_form?return=admin');
         }
@@ -39,13 +39,13 @@ trait CategoriesTypesTrait {
      * Вернёт таблицу категорий
      */
     public function getCategoriesTypesDataTable() {
-        $this->access = [1, 2];
+        $this->access = [Constants::ADMIN, Constants::MODERATOR];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect();
             exit();
         }
         $this->loadModel('m_categories_types');
-        $post_data = SysClass::ee_cleanArray($_POST);
+        $postData = SysClass::ee_cleanArray($_POST);
         $data_table = [
             'columns' => [
                 [
@@ -100,8 +100,8 @@ trait CategoriesTypesTrait {
                 'label' => $this->lang['sys.date_update']
             ],
         ];
-        if ($post_data && isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') { // AJAX
-            list($params, $filters, $selected_sorting) = Plugins::ee_show_table_prepare_params($post_data, $data_table['columns']);
+        if ($postData && SysClass::isAjaxRequestFromSameSite()) { // AJAX
+            list($params, $filters, $selected_sorting) = Plugins::ee_showTablePrepareParams($postData, $data_table['columns']);
             $users_array = $this->models['m_categories_types']->getCategoriesTypesData($params['order'], $params['where'], $params['start'], $params['limit']);
         } else {
             $users_array = $this->models['m_categories_types']->getCategoriesTypesData(false, false, false, 25);
@@ -119,11 +119,11 @@ trait CategoriesTypesTrait {
             ];
         }
         $data_table['total_rows'] = $users_array['total_count'];
-        if ($post_data) {
-            echo Plugins::ee_show_table('types_table', $data_table, 'get_categories_types_data_table', $filters, $post_data["page"], $post_data["rows_per_page"], $selected_sorting);
+        if ($postData) {
+            echo Plugins::ee_show_table('typesTable', $data_table, 'getCategoriesTypesDataTable', $filters, $postData["page"], $postData["rows_per_page"], $selected_sorting);
             die;
         } else {
-            return Plugins::ee_show_table('types_table', $data_table, 'get_categories_types_data_table', $filters);
+            return Plugins::ee_show_table('typesTable', $data_table, 'getCategoriesTypesDataTable', $filters);
         }
     }
 
@@ -131,7 +131,7 @@ trait CategoriesTypesTrait {
      * Добавить или редактировать тип категории
      */
     public function categories_type_edit($params) {
-        $this->access = [1, 2];
+        $this->access = [Constants::ADMIN, Constants::MODERATOR];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect();
             exit();
@@ -148,26 +148,26 @@ trait CategoriesTypesTrait {
         $this->loadModel('m_properties');
         $this->loadModel('m_categories_types', ['m_properties' => $this->models['m_properties']]);
 
-        $post_data = SysClass::ee_cleanArray($_POST);
+        $postData = SysClass::ee_cleanArray($_POST);
         if (in_array('id', $params)) {
-            $key_id = array_search('id', $params);
-            if ($key_id !== false && isset($params[$key_id + 1])) {
-                $id = filter_var($params[$key_id + 1], FILTER_VALIDATE_INT);
+            $keyId = array_search('id', $params);
+            if ($keyId !== false && isset($params[$keyId + 1])) {
+                $id = filter_var($params[$keyId + 1], FILTER_VALIDATE_INT);
             } else {
                 $id = 0;
             }
-            if (isset($post_data['name']) && $post_data['name']) {
-                if (!$id = $this->models['m_categories_types']->updateCategoriesTypeData($post_data)) {
+            if (isset($postData['name']) && $postData['name']) {
+                if (!$id = $this->models['m_categories_types']->updateCategoriesTypeData($postData)) {
                     ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
                 }
-                if (isset($post_data['property_set']) && is_array($post_data['property_set']) && count($post_data['property_set']) &&
-                        isset($post_data['old_property_set']) && $post_data['old_property_set'] != $post_data['property_set']) {
+                if (isset($postData['property_set']) && is_array($postData['property_set']) && count($postData['property_set']) &&
+                        isset($postData['old_property_set']) && $postData['old_property_set'] != $postData['property_set']) {
                     // Изменения в наборе свойств
                     $parentsTypesIds = $this->models['m_categories_types']->getAllTypeParentsIds($id);        
-                    $realSetsIds = array_unique(array_merge($this->models['m_categories_types']->getCategoriesTypeSetsData($parentsTypesIds), $post_data['property_set']));
+                    $realSetsIds = array_unique(array_merge($this->models['m_categories_types']->getCategoriesTypeSetsData($parentsTypesIds), $postData['property_set']));
                     $this->models['m_categories_types']->updateCategoriesTypeSetsData($id, $realSetsIds);
                 }
-                if (!$post_data['type_id'])
+                if (!$postData['type_id'])
                     SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/categories_type_edit/id/' . $id);
             }
             $get_categories_types_data = (int) $id ? $this->models['m_categories_types']->getCategoriesTypeData($id) : $default_data;
@@ -184,7 +184,7 @@ trait CategoriesTypesTrait {
         /* view */
         $this->view->set('type_data', $get_categories_types_data);
         $this->view->set('all_types', $get_all_types);
-        $this->view->set('property_sets_data', $this->models['m_properties']->get_property_sets_data('set_id ASC'));
+        $this->view->set('property_sets_data', $this->models['m_properties']->getPropertySetsData('set_id ASC'));
         $this->view->set('categories_type_sets_data', $get_categories_type_sets_data);
         $this->getStandardViews();
         $this->view->set('body_view', $this->view->read('v_edit_categories_type'));
@@ -207,8 +207,8 @@ trait CategoriesTypesTrait {
     public function getParentCategoriesType(array $params = []): void {
         $is_ajax = SysClass::isAjaxRequestFromSameSite();
         if ($is_ajax) {
-            $post_data = SysClass::ee_cleanArray($_POST);
-            $this->access = [1, 2];
+            $postData = SysClass::ee_cleanArray($_POST);
+            $this->access = [Constants::ADMIN, Constants::MODERATOR];
             if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
                 SysClass::handleRedirect();
                 exit();
@@ -216,7 +216,7 @@ trait CategoriesTypesTrait {
             /* model */
             $this->loadModel('m_properties');
             $this->loadModel('m_categories_types', ['m_properties' => $this->models['m_properties']]);
-            $parents_types_ids = $this->models['m_categories_types']->getAllTypeParentsIds($post_data['type_id']) + [$post_data['type_id']];
+            $parents_types_ids = $this->models['m_categories_types']->getAllTypeParentsIds($postData['type_id']) + [$postData['type_id']];
             $all_sets_ids = [];
             foreach ($parents_types_ids as $t_id) {
                 $all_sets_ids = $all_sets_ids + $this->models['m_categories_types']->getCategoriesTypeSetsData($t_id);
@@ -235,15 +235,15 @@ trait CategoriesTypesTrait {
      * @param array $params
      */
     public function delete_categories_type($params = []) {
-        $this->access = [1, 2];
+        $this->access = [Constants::ADMIN, Constants::MODERATOR];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect();
             exit();
         }
         if (in_array('id', $params)) {
-            $key_id = array_search('id', $params);
-            if ($key_id !== false && isset($params[$key_id + 1])) {
-                $id = filter_var($params[$key_id + 1], FILTER_VALIDATE_INT);
+            $keyId = array_search('id', $params);
+            if ($keyId !== false && isset($params[$keyId + 1])) {
+                $id = filter_var($params[$keyId + 1], FILTER_VALIDATE_INT);
             } else {
                 $id = 0;
             }

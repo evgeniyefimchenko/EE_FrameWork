@@ -13,7 +13,7 @@ use classes\system\Plugins;
                class="btn btn-info mx-1 float-end<?= empty($property_type_data['type_id']) ? " d-none" : "" ?>">
                 <i class="fa fa-plus-circle"></i>&nbsp;<?= $lang['sys.add'] ?>
             </a>
-            <h1 class="mt-4"><?= empty($property_type_data['type_id']) ? $lang['sys.add'] : $lang['sys.edit'] ?>(<?= $property_type_data['name']?>)</h1>
+            <h1 class="mt-4"><?= empty($property_type_data['type_id']) ? $lang['sys.add'] : $lang['sys.edit'] . '(' . $property_type_data['name'] . ')' ?></h1>
             <ol class="breadcrumb mb-4">
                 <li>
                     <span id="type_id" data-id="<?= $property_type_data['type_id'] ?>">id = <?php echo!$property_type_data['type_id'] ? 'Не присвоен' : $property_type_data['type_id'] ?></span>

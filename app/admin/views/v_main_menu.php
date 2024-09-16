@@ -40,11 +40,11 @@ $menuItems = [
                     ],
                 ],
                 [
-                    'title' => $lang['sys.entities'],
+                    'title' => $lang['sys.pages'],
                     'link' => '#',
                     'icon' => 'fa-regular fa-file',
                     'subItems' => [
-                        ['title' => $lang['sys.list'], 'link' => '/admin/entities', 'icon' => 'fa-sharp fa-solid fa-list'],
+                        ['title' => $lang['sys.list'], 'link' => '/admin/pages', 'icon' => 'fa-sharp fa-solid fa-list'],
                     ],
                 ],
                 [
@@ -88,13 +88,13 @@ $menuItems = [
                         ],
                         [
                             'title' => $lang['sys.fill_with_test_data'],
-                            'link' => '/admin/create_test',
+                            'link' => '/admin/createTest',
                             'icon' => 'fa-solid fa-flask-vial',
                             'attributes' => 'onclick="return confirm(\'' . $lang['sys.fill_with_test_data'] . '?\');"',
                         ],
                         [
                             'title' => $lang['sys.delete_database_data'],
-                            'link' => '/admin/kill_em_all',
+                            'link' => '/admin/killEmAll',
                             'icon' => 'fa-solid fa-book-skull',
                             'attributes' => 'onclick="return confirm(\'' . $lang['sys.kill_db'] . '\');"',
                         ],
@@ -117,4 +117,4 @@ $menuItems = [
     'footerTitle' => $lang['sys.project_development'],
 ];
 
-echo Plugins::generate_vertical_menu($menuItems);
+echo Plugins::generateVerticalMenu($menuItems);

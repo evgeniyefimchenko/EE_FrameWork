@@ -22,8 +22,8 @@ class Constants {
             CATEGORIES_TABLE_FIELDS = [],
             CATEGORIES_TYPES_TABLE = ENV_DB_PREF . 'categories_types',
             CATEGORIES_TYPES_TABLE_FIELDS = [],
-            ENTITIES_TABLE = ENV_DB_PREF . 'entities',
-            ENTITIES_TABLE_FIELDS = [],
+            PAGES_TABLE = ENV_DB_PREF . 'pages',
+            PAGES_TABLE_FIELDS = [],
             PROPERTY_TYPES_TABLE = ENV_DB_PREF . 'property_types',
             PROPERTY_TYPES_TABLE_FIELDS = [],
             PROPERTIES_TABLE = ENV_DB_PREF . 'properties',
@@ -57,6 +57,15 @@ class Constants {
                 "image" => "Image",
                 "checkbox" => "Checkbox",
                 "radio" => "Radio Button"
-            ];
+            ],
+            // Роли пользователей
+            ALL = 777, // Все
+            ALL_AUTH = 100, // Все зарегистрированные пользователи
+            ADMIN = 1, // Администратор
+            MODERATOR = 2, // Модератор
+            MANAGER = 3, // Менеджер
+            USER = 4, // Пользователь
+            SYSTEM = 8 // Системный пользователь
+            ;
 
 }
