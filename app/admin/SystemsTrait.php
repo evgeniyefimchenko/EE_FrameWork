@@ -17,7 +17,7 @@ trait SystemsTrait {
      * Вывод страницы с логами
      */
     public function logs($params = array()) {
-        $this->access = array(1);
+        $this->access = [Constants::ADMIN];
         if (!SysClass::getAccessUser($this->logged_in, $this->access) || array_filter($params)) {
             SysClass::handleRedirect();
             exit();
@@ -44,7 +44,7 @@ trait SystemsTrait {
      * Вернёт таблицу логирования проекта
      */
     public function get_progect_logs_table() {
-        $this->access = [1];
+        $this->access = [Constants::ADMIN];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect();
             exit();
@@ -108,10 +108,10 @@ trait SystemsTrait {
                 'label' => 'type_log'
             ]
         ];
-        $post_data = SysClass::ee_cleanArray($_POST);
-        if ($post_data && isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') { // AJAX
-            list($params, $filters, $selected_sorting) = Plugins::ee_show_table_prepare_params($post_data, $data_table['columns']);
-            $type = $this->get_table_name_from_post($post_data);
+        $postData = SysClass::ee_cleanArray($_POST);
+        if ($postData && SysClass::isAjaxRequestFromSameSite()) { // AJAX
+            list($params, $filters, $selected_sorting) = Plugins::ee_showTablePrepareParams($postData, $data_table['columns']);
+            $type = $this->get_table_name_from_post($postData);
             $php_logs_array = $this->models['m_systems']->get_all_logs($params['order'], $params['where'], $params['start'], $params['limit']);
         } else {
             $php_logs_array = $this->models['m_systems']->get_all_logs(false, false, false, 25);
@@ -138,8 +138,8 @@ trait SystemsTrait {
         }
         $data_table['total_rows'] = $php_logs_array['total_count'];
         // SysClass::pre($data_table);
-        if ($post_data) {
-            echo Plugins::ee_show_table('progect_logs_table_', $data_table, 'get_progect_logs_table', $filters, (int) $post_data["page"], $post_data["rows_per_page"], $selected_sorting);
+        if ($postData) {
+            echo Plugins::ee_show_table('progect_logs_table_', $data_table, 'get_progect_logs_table', $filters, (int) $postData["page"], $postData["rows_per_page"], $selected_sorting);
             die;
         } else {
             return Plugins::ee_show_table('progect_logs_table_', $data_table, 'get_progect_logs_table', $filters);
@@ -150,7 +150,7 @@ trait SystemsTrait {
      * Вернёт таблицу ошибок PHP
      */
     public function get_php_logs_table($type = '') {
-        $this->access = [1];
+        $this->access = [Constants::ADMIN];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect();
             exit();
@@ -206,10 +206,10 @@ trait SystemsTrait {
             $data_table['columns'][0]['sorted'] = false;
             $data_table['columns'][0]['filterable'] = false;
         }
-        $post_data = SysClass::ee_cleanArray($_POST);
-        if ($post_data && isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') { // AJAX
-            list($params, $filters, $selected_sorting) = Plugins::ee_show_table_prepare_params($post_data, $data_table['columns']);
-            $type = $this->get_table_name_from_post($post_data);
+        $postData = SysClass::ee_cleanArray($_POST);
+        if ($postData && SysClass::isAjaxRequestFromSameSite()) { // AJAX
+            list($params, $filters, $selected_sorting) = Plugins::ee_showTablePrepareParams($postData, $data_table['columns']);
+            $type = $this->get_table_name_from_post($postData);
             $php_logs_array = $this->models['m_systems']->get_php_logs($params['order'], $params['where'], $params['start'], $params['limit'], $type);
         } else {
             $php_logs_array = $this->models['m_systems']->get_php_logs(false, false, false, 25, $type);
@@ -242,8 +242,8 @@ trait SystemsTrait {
             }
         }
         $data_table['total_rows'] = $php_logs_array['total_count'];
-        if ($post_data) {
-            echo Plugins::ee_show_table('php_logs_table_' . $type, $data_table, 'get_php_logs_table', $filters, (int) $post_data["page"], $post_data["rows_per_page"], $selected_sorting);
+        if ($postData) {
+            echo Plugins::ee_show_table('php_logs_table_' . $type, $data_table, 'get_php_logs_table', $filters, (int) $postData["page"], $postData["rows_per_page"], $selected_sorting);
             die;
         } else {
             return Plugins::ee_show_table('php_logs_table_' . $type, $data_table, 'get_php_logs_table', $filters);
@@ -271,7 +271,7 @@ trait SystemsTrait {
      * Очистит файл php_errors.log
      */
     public function clear_php_logs($params = []) {
-        $this->access = array(1);
+        $this->access = [Constants::ADMIN];
         if (!SysClass::getAccessUser($this->logged_in, $this->access) || array_filter($params)) {
             SysClass::handleRedirect();
             exit();
@@ -284,18 +284,18 @@ trait SystemsTrait {
     }
 
     /**
-     * Очистить все таблицы без удаления проекта.
-     * Таблицы нужно дополнять на своё усмотрение.
+     * Очистить все таблицы без удаления проекта
+     * Таблицы нужно дополнять на своё усмотрение
      * Оставит единственного пользователя admin с паролем admin
      */
-    public function kill_em_all($params = []) {
-        $this->access = array(1);
+    public function killEmAll($params = []) {
+        $this->access = [Constants::ADMIN];
         if (!SysClass::getAccessUser($this->logged_in, $this->access) || array_filter($params)) {
             SysClass::handleRedirect();
             exit();
         }
         $this->loadModel('m_systems');
-        $this->models['m_systems']->kill_db($this->logged_in);
+        $this->models['m_systems']->killDB($this->logged_in);
         SysClass::handleRedirect(200, '/admin');
     }
 
@@ -347,12 +347,12 @@ trait SystemsTrait {
     }
 
     /**
-     * Создает тестовые данные, если они еще не были созданы.
-     * @param array $params Параметры для создания тестовых данных.
-     * @return bool Возвращает false, если тестовые данные уже были созданы.
+     * Создает тестовые данные, если они еще не были созданы
+     * @param array $params Параметры для создания тестовых данных
+     * @return bool Возвращает false, если тестовые данные уже были созданы
      */
-    public function create_test($params = []) {
-        $this->access = [1, 2];
+    public function createTest($params = []) {
+        $this->access = [Constants::ADMIN, Constants::MODERATOR];
         if (!SysClass::getAccessUser($this->logged_in, $this->access) || array_filter($params)) {
             SysClass::handleRedirect();
             exit();
@@ -361,63 +361,72 @@ trait SystemsTrait {
         $flagFilePath = ENV_LOGS_PATH . 'test_data_created.txt';
         // Проверяем, существует ли файл-флаг
         if (file_exists($flagFilePath)) {
-            $text_sessage = 'Уже есть тестовые данные, для создания дополнительных удалите файл ' . $flagFilePath;
+            $textMessage = 'Уже есть тестовые данные, для создания дополнительных удалите файл ' . $flagFilePath;
             $status = 'danger';
         } else {
-            $text_sessage = 'Тестовые данны записаны!';
+            $textMessage = 'Тестовые данны записаны!';
             $status = 'info';
-            // Создаем тестовые данные
             $this->loadModel('m_categories_types');
             $this->loadModel('m_categories', ['m_categories_types' => $this->models['m_categories_types']]);
-            $this->loadModel('m_entities');
+            $this->loadModel('m_pages');
             $this->loadModel('m_properties');
-            $users = $this->generate_test_users();
-            $cats = $this->generate_test_categories();
-            $ent = $this->generate_test_entities();
-            $prop = $this->generate_test_properties();
-            $sets_prop = $this->generate_test_sets_prop();
-            if (!$users || !$cats || !$ent || !$prop || !$sets_prop) {
-                $text_sessage = 'Ошибка создания тестовых данных!<br/>Users: ' . var_export($users, true) . '<br/>Categories: <br/>'
+            $users = $this->generateTestUsers();            
+            // TODO сначала нужно нагенерировать свойств
+            // Добавление основных типов свойств
+            $property_types = [
+                ['name' => 'Строка', 'description' => 'Тип свойства для хранения строковых данных', 'status' => 'active', 'fields' => '["text"]'],
+                ['name' => 'Число', 'description' => 'Тип свойства для хранения числовых данных', 'status' => 'active', 'fields' => '["text"]'],
+                ['name' => 'Дата', 'description' => 'Тип свойства для хранения дат', 'status' => 'active', 'fields' => '["date"]'],
+                ['name' => 'Интервал дат', 'description' => 'Тип свойства для хранения интервалов дат', 'status' => 'active', 'fields' => '["date", "date"]'],
+                ['name' => 'Картинка', 'description' => 'Тип свойства для хранения изображений', 'status' => 'active', 'fields' => '["image"]'],
+                ['name' => 'Сложный тип', 'description' => 'Многосоставной тип данных', 'status' => 'active', 'fields' => '["image", "datetime-local", "hidden", "phone"]'],
+            ];
+            foreach ($property_types as $type) {
+                $this->models['m_properties']->updatePropertyTypeData($type);
+            }
+            $prop = $this->generateTestProperties();
+            $sets_prop = $this->generateTestSetsProp();
+            $catsType = $this->generateTestCategoriesType();
+            $cats = $this->generateTestCategories();
+            die('STOP');
+            $ent = $this->generateTestPages();
+            if (!$users || !$cats || !$ent || !$prop || !$sets_prop || !$catsType) {
+                $textMessage = 'Ошибка создания тестовых данных!<br/>Users: ' . var_export($users, true) . '<br/>Categories: <br/>'
                         . var_export($cats, true) . '<br/>Entities<br/>' . var_export($ent, true) . '<br/>Properties<br/>' . var_export($prop, true)
-                        . '<br/>Sets Properties<br/>' . var_export($sets_prop, true);
+                        . '<br/>Sets Properties<br/>' . var_export($sets_prop, true)
+                        . '<br/>generateTestCategoriesType<br/>' . var_export($catsType, true);
                 $status = 'danger';
-            } else {
-                // Создаем файл-флаг                
-                file_put_contents($flagFilePath, 'Test data created on ' . date('Y-m-d H:i:s'));
+            } else {                              
+                file_put_contents($flagFilePath, 'Test data created on ' . date('Y-m-d H:i:s')); // Создаем файл-флаг  
             }
         }
-        ClassNotifications::addNotificationUser($this->logged_in, ['text' => $text_sessage, 'status' => $status]);
+        ClassNotifications::addNotificationUser($this->logged_in, ['text' => $textMessage, 'status' => $status]);
         SysClass::handleRedirect(200, '/admin');
     }
 
     /**
-     * Генерирует тестовые наборы свойств.
-     * Для каждого набора свойств выбирает случайное подмножество свойств из всех доступных и добавляет его в базу данных.
-     *
-     * @param int $count Количество тестовых наборов свойств, которые нужно сгенерировать.
-     * @return bool Возвращает true, если все тестовые наборы свойств успешно созданы, иначе возвращает false.
-     *
+     * Генерирует тестовые наборы свойств
+     * Для каждого набора свойств выбирает случайное подмножество свойств из всех доступных и добавляет его в базу данных
+     * @param int $count Количество тестовых наборов свойств, которые нужно сгенерировать
      * Примечание: предполагается, что функция get_all_properties возвращает массив всех доступных свойств, и что 
-     * в вашей системе имеется необходимая логика для связывания этих свойств с наборами, если это требуется.
+     * в вашей системе имеется необходимая логика для связывания этих свойств с наборами, если это требуется
      */
-    private function generate_test_sets_prop($count = 10): bool {
+    private function generateTestSetsProp($count = 10): bool {
         $all_properties = $this->models['m_properties']->getAllProperties();
         if (empty($all_properties)) {
             return false; // Нет свойств для создания наборов
         }
-
         for ($i = 0; $i < $count; $i++) {
             $random_keys = array_rand($all_properties, rand(1, count($all_properties))); // Получаем случайные ключи
             $random_properties = array_map(function ($key) use ($all_properties) {
                 return $all_properties[$key]['property_id']; // Извлекаем property_id
             }, (array) $random_keys); // Приведение к массиву нужно для случая, когда выбирается только одно свойство
-
             $set_name = 'Test Set ' . ($i + rand(1, 1000));
             $property_set_data = [
                 'name' => $set_name,
                 'description' => SysClass::ee_generate_uuid()
             ];
-            $set_id = $this->models['m_properties']->update_property_set_data($property_set_data);
+            $set_id = $this->models['m_properties']->updatePropertySetData($property_set_data);
             if (!$set_id) {
                 return false;
             }
@@ -426,7 +435,7 @@ trait SystemsTrait {
         return true;
     }
 
-    private function generate_test_properties($count = 50) {
+    private function generateTestProperties($count = 50) {
         $props_name = [
             "Цвет", // свойство продукта
             "Вес", // свойство продукта
@@ -495,7 +504,7 @@ trait SystemsTrait {
             ];
             $result = $this->models['m_properties']->updatePropertyData($property_data);
             if (!$result) {
-                SysClass::preFile('error', 'generate_test_properties');
+                SysClass::preFile('genError', 'generate_test_properties ' . var_export($property_data, true));
                 return $result;
             }
         }
@@ -525,15 +534,17 @@ trait SystemsTrait {
     }
 
     /**
-     * Генерирует тестовых пользователей и добавляет их в базу данных.
-     * @param int $count Количество генерируемых пользователей. По умолчанию 50.
-     * @param int $role Роль пользователей. По умолчанию 4.
-     * @param int $active Статус активности пользователей. По умолчанию 2.
+     * Генерирует тестовых пользователей и добавляет их в базу данных
+     * @param int $count Количество генерируемых пользователей. По умолчанию 50
+     * @param int $role Роль пользователей. По умолчанию 4
+     * @param int $active Статус активности пользователей. По умолчанию 2
      */
-    private function generate_test_users($count = 50, $role = 4, $active = 2) {
+    private function generateTestUsers($count = 50, $role = 4, $active = 2) {
         $namePrefixes = [
             'Алексей', 'Наталья', 'Сергей', 'Ольга', 'Дмитрий', 'Елена', 'Иван', 'Мария', 'Павел', 'Анастасия',
-            'Андрей', 'Татьяна', 'Роман', 'Светлана', 'Евгений', 'Виктория', 'Михаил', 'Ирина', 'Владимир', 'Екатерина'
+            'Андрей', 'Татьяна', 'Роман', 'Светлана', 'Евгений', 'Виктория', 'Михаил', 'Ирина', 'Владимир', 'Екатерина',
+            'Борис', 'Ксения', 'Григорий', 'Лариса', 'Максим', 'Юлия', 'Арсений', 'Полина', 'Антон', 'Валерия',
+            'Фёдор', 'Маргарита', 'Леонид', 'Вероника', 'Олег'
         ];
         $comments = [
             'Тестовый комментарий',
@@ -571,18 +582,51 @@ trait SystemsTrait {
                 'user_role' => $role,
                 'subscribed' => '1',
                 'comment' => $comment,
-                'pwd' => $password
-                    ], true);
+                'pwd' => $password], true);
         }
         return $res;
     }
 
+    private function generateTestCategoriesType(int $count = 10): bool {
+        $testName = [
+            'Товары',
+            'Страницы',
+            'Электроника',
+            'Хоз. товары',
+            'Рулетки',
+            'Отвёртка',
+            'Тетради',
+            'Ручки',
+            'Блог',
+            'Эзотерика',
+            'Книги',
+            'Игрушки',
+            'Спорт',
+            'Одежда'
+        ];
+        $step = 0;
+        while($count !== $step) {
+            $data = [
+                'name' => $testName[rand(0, 13)],
+                'description' => 'Тестовый тип категории'
+            ];
+            if ($this->models['m_categories_types']->getIdCategoriesTypeByName($data['name'])) {
+                $data['name'] = $data['name'] . '_copy' . SysClass::ee_generate_uuid();
+            }
+            if ($this->models['m_categories_types']->updateCategoriesTypeData($data)) {
+                $step++;
+            } else {
+                return false;
+            }
+        }
+        return true;
+    }
+    
     /**
      * Генерирует тестовые категории с случайной вложенностью
-     * @param int $count Количество генерируемых категорий.
-     * @param int $parent_depth Максимальная глубина вложенности категорий.
+     * @param int $count Количество генерируемых категорий
      */
-    private function generate_test_categories($count = 50, $parent_depth = 3) {
+    private function generateTestCategories($count = 50) {
         $types = $this->models['m_categories_types']->getAllTypes();
         if (empty($types)) {
             SysClass::pre("No types found in the types table.");
@@ -657,10 +701,12 @@ trait SystemsTrait {
             $categoryId = $categoriesData[$i]['category_id'];  // предполагая, что category_id был сохранен при создании
             $parentId = $categoriesData[rand($halfCount, $count - 1)]['category_id'];  // выбор случайного parent_id из второй половины
             $categoryTitle = $categoriesData[$i]['title'];  // получение title
+            $type_id = $categoriesData[$i]['type_id'];
             $categoryData = [
                 'category_id' => $categoryId,
                 'parent_id' => $parentId,
-                'title' => $categoryTitle
+                'title' => $categoryTitle,
+                'type_id' => $type_id
             ];
             if (!$categoryId) {
                 SysClass::pre(['ERROR !$categoryId', $categoryData, $categoriesData]);
@@ -675,12 +721,12 @@ trait SystemsTrait {
     }
 
     /**
-     * Генерирует тестовые сущности для таблицы сущностей.
-     * @param int $count Количество генерируемых сущностей.
+     * Генерирует тестовые страницы
+     * @param int $count Количество генерируемых страниц
      */
-    private function generate_test_entities($count = 200) {
+    private function generateTestPages($count = 200) {
         // Получаем список существующих категорий
-        $categories = $this->models['m_categories']->get_all_categories();
+        $categories = $this->models['m_categories']->getAllCategories();
         if (empty($categories)) {
             SysClass::preFile('error', "No categories found in the categories table.");
             return false;
@@ -712,7 +758,7 @@ trait SystemsTrait {
         }
         // Вставка данных в таблицу сущностей
         foreach ($entitiesData as $entityData) {
-            $res = $this->models['m_entities']->update_entity_data($entityData);
+            $res = $this->models['m_pages']->update_entity_data($entityData);
         }
         return $res;
     }

@@ -147,7 +147,7 @@ class ControllerIndex Extends ControllerBase {
      * Авторизация пользователя AJAX
      */
     public function login($params = null) {
-        if ($params || !isset($_SERVER['HTTP_X_REQUESTED_WITH']) || strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) != 'xmlhttprequest' || empty(ENV_SITE)) {
+        if ($params || !SysClass::isAjaxRequestFromSameSite() || empty(ENV_SITE)) {
             die(json_encode(array('error' => 'it`s a lie')));
         }
         if (!SysClass::checkDatabaseConnection()) {
@@ -155,9 +155,9 @@ class ControllerIndex Extends ControllerBase {
             die(json_encode($json, JSON_UNESCAPED_UNICODE));
         }
         $json['error'] = '';
-        $post_data = SysClass::ee_cleanArray($_POST);
-        $email = trim($post_data['email']);
-        $pass = trim($post_data['password']);
+        $postData = SysClass::ee_cleanArray($_POST);
+        $email = trim($postData['email']);
+        $pass = trim($postData['password']);
         if (!SysClass::validEmail($email)) {
             $json['error'] = $this->lang['sys.invalid_mail_format'];
             die(json_encode($json, JSON_UNESCAPED_UNICODE));
@@ -178,7 +178,7 @@ class ControllerIndex Extends ControllerBase {
      * Регистрация пользователя после заполнения формы AJAX
      */
     public function register($params = null) {
-        if ($params || !isset($_SERVER['HTTP_X_REQUESTED_WITH']) || strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) != 'xmlhttprequest' || empty(ENV_SITE)) {
+        if ($params || !SysClass::isAjaxRequestFromSameSite() || empty(ENV_SITE)) {
             die(json_encode(array('error' => 'it`s a lie')));
         }
         $json = [];
@@ -188,10 +188,10 @@ class ControllerIndex Extends ControllerBase {
             echo json_encode($json, JSON_UNESCAPED_UNICODE);
             die();
         }
-        $post_data = SysClass::ee_cleanArray($_POST);
-        $email = trim($post_data['email']);
-        $pass = trim($post_data['password']);
-        $conf_pass = trim($post_data['password_confirmation']);
+        $postData = SysClass::ee_cleanArray($_POST);
+        $email = trim($postData['email']);
+        $pass = trim($postData['password']);
+        $conf_pass = trim($postData['password_confirmation']);
         if (!SysClass::validEmail($email)) {
             $json['error'] .= $this->lang['sys.invalid_mail_format'];
         }
@@ -258,7 +258,7 @@ class ControllerIndex Extends ControllerBase {
      * Восстановление пароля AJAX
      */
     public function recovery_password() {
-        if (!isset($_SERVER['HTTP_X_REQUESTED_WITH']) || strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) != 'xmlhttprequest' || empty(ENV_SITE)) {
+        if (!SysClass::isAjaxRequestFromSameSite() || empty(ENV_SITE)) {
             die(json_encode(array('error' => 'it`s a lie')));
         }
         die('in development');
@@ -269,22 +269,22 @@ class ControllerIndex Extends ControllerBase {
      * И обновление всех параметров пользователя, если есть авторизация
      */
     public function set_options($params = []) {
-        if (count($params) > 1 || count($params) == 0 || !isset($_SERVER['HTTP_X_REQUESTED_WITH']) || strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) != 'xmlhttprequest' || empty(ENV_SITE)) {
+        if (count($params) > 1 || count($params) == 0 || !SysClass::isAjaxRequestFromSameSite() || empty(ENV_SITE)) {
             die(json_encode(array('error' => 'it`s a lie')));
         }
-        $post_data = SysClass::ee_cleanArray($_POST);
+        $postData = SysClass::ee_cleanArray($_POST);
         if ($this->logged_in) {
-            $this->access = array(100);
+            $this->access = [classes\system\Constants::ALL_AUTH];
             if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
                 die(json_encode(array('error' => 'access denieded')));
             }
             if ($params[0] == 'en' || $params[0] == 'ru') {                
                 Session::set('lang', $params[0]);
-                $post_data['localize'] = $params[0];
+                $postData['localize'] = $params[0];
             }
             $this->loadModel('m_index');
             $user_data = $this->users->data;
-            foreach ($post_data as $key => $value) {
+            foreach ($postData as $key => $value) {
                 if (array_key_exists($key, $user_data['options'])) {
                     $user_data['options'][$key] = $value;
                 }
@@ -300,14 +300,14 @@ class ControllerIndex Extends ControllerBase {
      * Функция возврата языковых переменных AJAX
      */
     public function language($params = NULL) {
-        if ($params || !isset($_SERVER['HTTP_X_REQUESTED_WITH']) || strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) != 'xmlhttprequest' || empty(ENV_SITE)) {
+        if ($params || !SysClass::isAjaxRequestFromSameSite() || empty(ENV_SITE)) {
             die('it`s a lie');
         }
-        $post_data = SysClass::ee_cleanArray($_POST);
-        if (isset($post_data['loadAll']) && $post_data['loadAll'] == 'true') {
+        $postData = SysClass::ee_cleanArray($_POST);
+        if (isset($postData['loadAll']) && $postData['loadAll'] == 'true') {
             die(json_encode(['langVars' => json_encode($this->lang), 'envGlobal' => json_encode($this->get_global())]));
         } else {
-            die(isset($this->lang[$post_data['text']]) ? $this->lang[$post_data['text']] : 'var ' . $post_data['text'] . ' not found!');
+            die(isset($this->lang[$postData['text']]) ? $this->lang[$postData['text']] : 'var ' . $postData['text'] . ' not found!');
         }
     }
     

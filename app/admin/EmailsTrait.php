@@ -11,7 +11,7 @@ trait EmailsTrait {
 	* Редактирование шаблона писем
 	*/
     public function edit_emails_templates($params = []) {
-        $this->access = array(1);
+        $this->access = [classes\system\Constants::ADMIN]; 
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
             exit();
@@ -41,19 +41,19 @@ trait EmailsTrait {
      * @param array $params
      */
     public function ajax_func_save($params = []) {
-        $this->access = array(1);
+        $this->access = [classes\system\Constants::ADMIN]; 
         if (!SysClass::get_access_user($this->logged_in, $this->access)) {
             SysClass::return_to_main();
             exit();
         }
-        $post_data = $_POST;
-        $path = SysClass::search_file(ENV_EMAIL_TEMPLATE, $post_data['template'], true);
+        $postData = $_POST;
+        $path = SysClass::search_file(ENV_EMAIL_TEMPLATE, $postData['template'], true);
         if ($path) {
             $boby_file = $path . ENV_DIRSEP . 'body.tpl';
             $head_file = $path . ENV_DIRSEP . 'header.tpl';
             $footer_file = $path . ENV_DIRSEP . 'footer.tpl';
             $full_file = $path . ENV_DIRSEP . 'mail.html';
-            $body_content = SysClass::convert_img_to_base64($post_data['text_content'], $path);
+            $body_content = SysClass::convert_img_to_base64($postData['text_content'], $path);
             if (file_put_contents($boby_file, $body_content)) {
                 $head_content = file_get_contents($head_file);                
                 $footer_content = file_get_contents($footer_file);

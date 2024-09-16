@@ -41,9 +41,17 @@
         <link rel="icon" type="image/png" href="favicon.ico">
         <!-- Стандартные стили -->
         <!-- Bootstrap Min CSS -->
-        <link rel="stylesheet" href="<?= ENV_URL_SITE ?>/assets/bootstrap/css/bootstrap.min.css" type="text/css">
+        <?php if (!ENV_BOOTSTRAP533_CDN) { ?>
+            <link rel="stylesheet" href="<?= ENV_URL_SITE ?>/assets/bootstrap/css/bootstrap.min.css" type="text/css">
+        <?php } else { ?>
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" type="text/css">
+        <?php } ?>
         <!-- Font Awesome Min CSS -->
-        <link rel="stylesheet" href="<?= ENV_URL_SITE ?>/assets/fontawesome/css/all.css" type="text/css"/>
+        <?php if (!ENV_FONT_AWESOME_CDN) { ?>
+            <link rel="stylesheet" href="<?= ENV_URL_SITE ?>/assets/fontawesome/css/all.css" type="text/css"/>
+        <?php } else { ?>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" integrity="sha512-Kc323vGBEqzTmouAECnVceyQqyqdsSiqLQISBL29aUW4U/M7pSPA/gEUZQqv1cwx4OnYxTxve5UMg5GT6L4JJg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+        <?php } ?>
         <link rel="canonical" href="<?= $canonical_href ?>" />
         <!-- Добавленные стили из контроллера -->
         <?= $add_style ?>
@@ -58,9 +66,16 @@
         </div>
         <!-- Основной контент страниц -->
         <?= $layout_content ?>
-        <!-- start of non-relocatable JS scripts -->
-        <script src="<?= ENV_URL_SITE ?>/assets/js/plugins/jquery.min.js" type="text/javascript"></script>
-        <script src="<?= ENV_URL_SITE ?>/assets/bootstrap/js/bootstrap.bundle.min.js" type="text/javascript"></script>
+        <?php if (!ENV_JQUERY_CDN) { ?>
+            <script src="<?= ENV_URL_SITE ?>/assets/js/plugins/jquery.min.js" type="text/javascript"></script>
+        <?php } else { ?>
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js" integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+        <?php } ?>
+        <?php if (!ENV_BOOTSTRAP533_CDN) { ?>
+            <script src="<?= ENV_URL_SITE ?>/assets/bootstrap/js/bootstrap.bundle.min.js" type="text/javascript"></script>
+        <?php } else { ?>
+            <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" type="text/javascript"></script>
+        <?php } ?>
         <!-- core -->
         <script src="<?= ENV_URL_SITE ?>/classes/system/js/core.js" type="text/javascript"></script>
         <!-- end of non-relocatable JS scripts -->

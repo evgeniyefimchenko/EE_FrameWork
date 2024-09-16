@@ -37,7 +37,7 @@ class Router {
      */
 
     private function getController(mixed &$file, mixed &$controller, mixed &$action, mixed &$args): void {
-        if (ENV_TEST) {
+        if (ENV_TEST && isset($_GET['route'])) {
             echo 'route= ' . $_GET['route'] . '<br/>';
         }
         $get_route = (empty($_GET['route'])) ? '' : filter_var($_GET['route'], FILTER_SANITIZE_FULL_SPECIAL_CHARS);

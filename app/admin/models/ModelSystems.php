@@ -13,11 +13,11 @@ class ModelSystems {
      * Этот метод получает список всех таблиц в текущей базе данных,
      * и выполняет операцию DROP на каждой таблице для её очистки.
      * Операции выполняются в рамках одной транзакции, чтобы гарантировать,
-     * что все таблицы будут успешно очищены, или ни одна из таблиц не будет удалена в случае ошибки.
+     * что все таблицы будут успешно очищены, или ни одна из таблиц не будет удалена в случае ошибки
      * @param int $user_id Кто вызвал
-     * @throws Exception Если произошла ошибка во время очистки таблиц.
+     * @throws Exception Если произошла ошибка во время очистки таблиц
      */
-    public function kill_db($user_id) {
+    public function killDB($user_id) {
         $tables = SafeMySQL::gi()->getCol("SHOW TABLES");
         if ($tables) {
             SafeMySQL::gi()->query("START TRANSACTION");
@@ -40,8 +40,9 @@ class ModelSystems {
         // Пересоздание БД и регистрация первичных пользователей
         new Users(true);
         $flagFilePath = ENV_LOGS_PATH . 'test_data_created.txt';
-        if (file_exists($flagFilePath))
+        if (file_exists($flagFilePath)) {
             unlink($flagFilePath);
+        }
         return true;
     }
 

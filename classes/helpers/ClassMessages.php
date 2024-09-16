@@ -19,10 +19,9 @@ class ClassMessages {
     * @param str $status Статус сообщения 'primary', 'info', 'success', 'warning', 'danger'
     */
     public static function set_message_user($user_id, $author_id, $message, $status = 'info') {
-        // notify
-        ClassNotifications::addNotificationUser($user_id, array('text' => $message, 'status' => $status));        
-        $sql = 'INSERT INTO ?n SET user_id = ?i, author_id = ?i, message_text = ?s, status = ?s';
-        SafeMySQL::gi()->query($sql, Constants::USERS_MESSAGE_TABLE, $user_id, $author_id, $message, $status);
+        ClassNotifications::addNotificationUser($user_id, ['text' => $message, 'status' => $status]);        
+        $sql = 'INSERT INTO ?n SET user_id = ?i, author_id = ?i, message_text = ?s, status = ?s, chat_id = ?i';
+        SafeMySQL::gi()->query($sql, Constants::USERS_MESSAGE_TABLE, $user_id, $author_id, $message, $status, $author_id);
     }
 
     /**

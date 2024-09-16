@@ -109,8 +109,8 @@ class SafeMySQL extends Singleton {
         'exception' => 'Exception', //Exception class name
     );
 
-    const RESULT_ASSOC = MYSQLI_ASSOC;
-    const RESULT_NUM = MYSQLI_NUM;
+    const RESULT_ASSOC = \MYSQLI_ASSOC;
+    const RESULT_NUM = \MYSQLI_NUM;
 
     function __construct($opt = array()) {
         $opt = array_merge($this->defaults, $opt);
@@ -119,12 +119,17 @@ class SafeMySQL extends Singleton {
         if ($opt['pconnect']) {
             $opt['host'] = "p:" . $opt['host'];
         }
-        @$this->conn = mysqli_connect($opt['host'], $opt['user'], $opt['pass'], $opt['db'], $opt['port'], $opt['socket']);
-        if (!$this->conn) {
-            $this->error(mysqli_connect_errno() . " " . mysqli_connect_error());
+        try {
+            @$this->conn = mysqli_connect($opt['host'], $opt['user'], $opt['pass'], $opt['db'], $opt['port'], $opt['socket']);
+            if (!$this->conn) {
+                throw new \mysqli_sql_exception('Ошибка подключения: ' . mysqli_connect_error(), mysqli_connect_errno());
+            }
+            mysqli_set_charset($this->conn, $opt['charset']) or $this->error(mysqli_error($this->conn));
+        } catch (\mysqli_sql_exception $e) {
+            var_export($e->getMessage());
+            die;
         }
-        mysqli_set_charset($this->conn, $opt['charset']) or $this->error(mysqli_error($this->conn));
-        unset($opt); // I am paranoid
+        unset($opt);
     }
 
     /**

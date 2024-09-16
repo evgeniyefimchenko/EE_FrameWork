@@ -11,27 +11,27 @@ use classes\system\ModelBase;
 class ModelCategories Extends ModelBase {
 
     /**
-     * Получает все категории для указанного языка.
-     * @param string $language_code Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG.
-     * @return array Массив категорий, индексированный по идентификаторам категорий.
+     * Получает все категории
+     * @param string $languageCode Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG
+     * @return array Массив категорий, индексированный по идентификаторам категорий
      */
-    public function get_all_categories($language_code = ENV_DEF_LANG) {
-        return SafeMySQL::gi()->getInd('category_id', 'SELECT category_id FROM ?n WHERE language_code = ?s', Constants::CATEGORIES_TABLE, $language_code);
+    public function getAllCategories($languageCode = ENV_DEF_LANG) {
+        return SafeMySQL::gi()->getInd('category_id', 'SELECT category_id FROM ?n WHERE language_code = ?s', Constants::CATEGORIES_TABLE, $languageCode);
     }
 
     /**
-     * Получает данные категорий с возможностью фильтрации, сортировки и пагинации.
-     * @param string $order Строка, определяющая порядок сортировки (по умолчанию: 'category_id ASC').
-     * @param string|null $where Условие для фильтрации (по умолчанию: NULL).
-     * @param int $start Индекс начальной записи для пагинации (по умолчанию: 0).
-     * @param int $limit Количество записей для извлечения (по умолчанию: 100).
-     * @param string $language_code Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG.
-     * @return array Массив с двумя ключами: 'data' - массив с данными категорий; 'total_count' - общее количество категорий, соответствующих условию фильтрации.
+     * Получает данные категорий с возможностью фильтрации, сортировки и пагинации
+     * @param string $order Строка, определяющая порядок сортировки (по умолчанию: 'category_id ASC')
+     * @param string|null $where Условие для фильтрации (по умолчанию: NULL)
+     * @param int $start Индекс начальной записи для пагинации (по умолчанию: 0)
+     * @param int $limit Количество записей для извлечения (по умолчанию: 100)
+     * @param string $languageCode Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG
+     * @return array Массив с двумя ключами: 'data' - массив с данными категорий; 'total_count' - общее количество категорий, соответствующих условию фильтрации
      */
-    public function get_categories_data($order = 'category_id ASC', $where = NULL, $start = 0, $limit = 100, $language_code = ENV_DEF_LANG) {
+    public function getCategoriesData($order = 'category_id ASC', $where = NULL, $start = 0, $limit = 100, $languageCode = ENV_DEF_LANG) {
         $orderString = $order ? $order : 'category_id ASC';
         $start = $start ? $start : 0;
-        $params = [Constants::CATEGORIES_TABLE, $language_code, $start, $limit];
+        $params = [Constants::CATEGORIES_TABLE, $languageCode, $start, $limit];
         if ($where) {
             $whereString = "$where AND language_code = ?s";
         } else {
@@ -56,12 +56,12 @@ class ModelCategories Extends ModelBase {
     }
 
     /**
-     * Получает все данные категории по её ID вместе с названием родительской категории, если она существует.
-     * @param int $category_id ID категории, для которой нужно получить данные.
-     * @param string $language_code Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG.
-     * @return array|null Массив с данными категории или NULL, если категория не найдена.
+     * Получает все данные категории по её ID вместе с названием родительской категории, если она существует
+     * @param int $category_id ID категории, для которой нужно получить данные
+     * @param string $languageCode Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG
+     * @return array|null Массив с данными категории или NULL, если категория не найдена
      */
-    public function getCategoryData($category_id, $language_code = ENV_DEF_LANG) {
+    public function getCategoryData($category_id, $languageCode = ENV_DEF_LANG) {
         $sql_category = "
             SELECT 
                 c.*, 
@@ -74,23 +74,23 @@ class ModelCategories Extends ModelBase {
             WHERE c.category_id = ?i AND c.language_code = ?s";
         $category_data = SafeMySQL::gi()->getRow(
                 $sql_category,
-                Constants::ENTITIES_TABLE,
+                Constants::PAGES_TABLE,
                 $category_id,
                 Constants::CATEGORIES_TABLE,
                 Constants::CATEGORIES_TABLE,
                 Constants::CATEGORIES_TYPES_TABLE,
                 $category_id,
-                $language_code
+                $languageCode
         );
         if (!$category_data) {
             return null;
         }
-        $category_data['category_path'] = $this->get_patch_category($category_data['category_id']);
+        $category_data['category_path'] = $this->getPatchCategory($category_data['category_id']);
         $cat_paths = explode('/', $category_data['category_path']);
         $category_data['category_path_text'] = '';
         if (count($cat_paths) > 1) {
             foreach ($cat_paths as $category_id) {
-                $category_data['category_path_text'] .= $this->get_category_name($category_id, $language_code) . '/';
+                $category_data['category_path_text'] .= $this->getCategoryName($category_id, $languageCode) . '/';
             }
             $category_data['category_path_text'] = substr($category_data['category_path_text'], 0, -1);
         } else {
@@ -103,39 +103,38 @@ class ModelCategories Extends ModelBase {
      * Получает название категории по её идентификатору и коду языка.
      * Возвращает название категории как строку.
      * @param int $category_id Идентификатор категории, для которой требуется получить название.
-     * @param string $language_code Код языка по стандарту ISO 3166-2, для которого нужно получить название категории.
+     * @param string $languageCode Код языка по стандарту ISO 3166-2, для которого нужно получить название категории.
      *                              По умолчанию используется значение из константы ENV_DEF_LANG.
      * @return string|null Возвращает название категории или null, если категория с таким идентификатором не найдена.
      */
-    public function get_category_name($category_id, $language_code = ENV_DEF_LANG) {
+    public function getCategoryName($category_id, $languageCode = ENV_DEF_LANG) {
         $sql_category = 'SELECT title FROM ?n WHERE category_id =?i AND language_code = ?s';
-        return SafeMySQL::gi()->getOne($sql_category, Constants::CATEGORIES_TABLE, $category_id, $language_code);
+        return SafeMySQL::gi()->getOne($sql_category, Constants::CATEGORIES_TABLE, $category_id, $languageCode);
     }
     
     /**
      * Вернёт type_id категории по её id
      * @param type $category_id
-     * @param type $language_code
+     * @param type $languageCode
      * @return type
      */
-    public function getCategoryTypeId($category_id, $language_code = ENV_DEF_LANG) {
+    public function getCategoryTypeId(int $category_id, string $languageCode = ENV_DEF_LANG) {
         $sql_category = 'SELECT type_id FROM ?n WHERE category_id =?i AND language_code = ?s';
-        return SafeMySQL::gi()->getOne($sql_category, Constants::CATEGORIES_TABLE, $category_id, $language_code);
+        return SafeMySQL::gi()->getOne($sql_category, Constants::CATEGORIES_TABLE, $category_id, $languageCode);
     }
 
     /**
-     * Функция для получения всех категорий в виде многомерного массива (дерева).
-     * Исключает определенную категорию и всех ее потомков, а также категории с определенными статусами.
-     *
-     * @param int|null $excludeCategoryID ID категории, которую нужно исключить вместе с ее потомками (по умолчанию null).
-     * @param array|null $excludeStatuses Массив статусов, которые нужно исключить (по умолчанию null).
-     * @param bool $exclude_null Флаг исключения категории "Без категории".
-     * @param string $language_code Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG.
-     * @return array Массив, представляющий дерево категорий.
+     * Функция для получения всех категорий в виде многомерного массива (дерева)
+     * Исключает определенную категорию и всех ее потомков, а также категории с определенными статусами
+     * @param int|null $excludeCategoryID ID категории, которую нужно исключить вместе с ее потомками (по умолчанию null)
+     * @param array|null $excludeStatuses Массив статусов, которые нужно исключить (по умолчанию null)
+     * @param bool $exclude_null Флаг исключения категории "Без категории"
+     * @param string $languageCode Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG
+     * @return array Массив, представляющий дерево категорий
      */
-    public function getCategoriesTree($excludeCategoryID = null, $excludeStatuses = null, $exclude_null = null, $language_code = ENV_DEF_LANG) {
+    public function getCategoriesTree($excludeCategoryID = null, $excludeStatuses = null, $exclude_null = null, $languageCode = ENV_DEF_LANG) {
         $query = "SELECT * FROM ?n WHERE language_code = ?s";
-        $params = [Constants::CATEGORIES_TABLE, $language_code];
+        $params = [Constants::CATEGORIES_TABLE, $languageCode];
         $categories = SafeMySQL::gi()->getAll($query, ...$params);
         // Исключаем потомков выбранной категории
         if ($excludeCategoryID) {
@@ -170,12 +169,12 @@ class ModelCategories Extends ModelBase {
     }
 
     /**
-     * Вспомогательная функция для получения всех потомков указанной категории.
-     * @param array $categories Массив всех категорий.
-     * @param int $parentId ID родительской категории.
-     * @return array Массив ID всех потомков.
+     * Вспомогательная функция для получения всех потомков указанной категории
+     * @param array $categories Массив всех категорий
+     * @param int $parentId ID родительской категории
+     * @return array Массив ID всех потомков
      */
-    private function getDescendantCategoryIds($categories, $parentId) {
+    private function getDescendantCategoryIds(array $categories, int $parentId) {
         $descendants = [];
         foreach ($categories as $category) {
             if ($category['parent_id'] == $parentId) {
@@ -185,13 +184,45 @@ class ModelCategories Extends ModelBase {
         }
         return $descendants;
     }
+    
+    /**
+     * Получает всех потомков категории по её идентификатору и коду языка, включая саму категорию
+     * @param int $categoryId Идентификатор родительской категории
+     * @param string $languageCode Код языка по ISO 3166-2
+     * @return array Массив с потомками категории, включая вложенные категории и саму категорию
+     */
+    public function getCategoryDescendantsShort(int $categoryId, string $languageCode = ENV_DEF_LANG): array {
+        $descendants = [];
+        // Добавляем саму передаваемую категорию
+        $sql = "SELECT category_id, type_id, parent_id 
+                FROM ?n 
+                WHERE category_id = ?i AND language_code = ?s";
+        $category = SafeMySQL::gi()->getRow($sql, Constants::CATEGORIES_TABLE, $categoryId, $languageCode);
+        if ($category) {
+            $descendants[] = $category;
+        }
+        // Начинаем поиск потомков
+        $stack = [$categoryId];
+        while (!empty($stack)) {
+            $currentId = array_pop($stack);
+            $sql = "SELECT category_id, type_id, parent_id 
+                    FROM ?n 
+                    WHERE parent_id = ?i AND language_code = ?s";
+            $children = SafeMySQL::gi()->getAll($sql, Constants::CATEGORIES_TABLE, $currentId, $languageCode);
+            foreach ($children as $child) {
+                $descendants[] = $child;
+                $stack[] = $child['category_id'];
+            }
+        }
+        return $descendants;
+    }
 
     /**
-     * Рекурсивная функция для построения дерева категорий с учетом уровня вложенности.
-     * @param array $categories Массив категорий.
-     * @param int $parentId ID родительской категории, по умолчанию 0.
-     * @param int $level Текущий уровень вложенности, по умолчанию 0.
-     * @return array Дерево категорий с уровнями вложенности.
+     * Рекурсивная функция для построения дерева категорий с учетом уровня вложенности
+     * @param array $categories Массив категорий
+     * @param int $parentId ID родительской категории, по умолчанию 0
+     * @param int $level Текущий уровень вложенности, по умолчанию 0
+     * @return array Дерево категорий с уровнями вложенности
      */
     private function buildTree(array $categories, int $parentId = 0, int $level = 0): array {
         $tree = [];
@@ -214,25 +245,25 @@ class ModelCategories Extends ModelBase {
     /**
      * Обновляет существующую запись категории или создает новую в базе данных
      * @param array $category_data Ассоциативный массив с данными категории. Может включать следующие ключи:
-     *                             - 'category_id' (int, optional) - ID категории для обновления. Если не указан, будет создана новая запись.
-     *                             - 'type_id' (int) - ID типа, к которому относится категория.
-     *                             - 'title' (string) - Заголовок категории.
-     *                             - 'description' (string, optional) - Полное описание категории. Если не указан, используется значение 'title'.
+     *                             - 'category_id' (int, optional) - ID категории для обновления. Если не указан, будет создана новая запись
+     *                             - 'type_id' (int) - ID типа, к которому относится категория
+     *                             - 'title' (string) - Заголовок категории
+     *                             - 'description' (string, optional) - Полное описание категории. Если не указан, используется значение 'title'
      *                             - 'short_description' (string, optional) - Краткое описание категории.
      *                             - 'parent_id' (int, optional) - ID родительской категории.
-     *                             - 'status' (string) - Статус категории ('active', 'hidden', 'disabled').
-     * @param string $language_code Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG.
-     * @return mixed Возвращает ID обновленной или созданной записи в случае успеха, иначе false.
-     * @throws Exception В случае ошибки в запросе к базе данных.
+     *                             - 'status' (string) - Статус категории ('active', 'hidden', 'disabled')
+     * @param string $languageCode Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG
+     * @return mixed Возвращает ID обновленной или созданной записи в случае успеха, иначе false
+     * @throws Exception В случае ошибки в запросе к базе данных
      */
-    public function updateCategoryData($category_data = [], $language_code = ENV_DEF_LANG) {
+    public function updateCategoryData($category_data = [], $languageCode = ENV_DEF_LANG) {
         $category_data = SafeMySQL::gi()->filterArray($category_data, SysClass::ee_getFieldsTable(Constants::CATEGORIES_TABLE));
         $category_data = array_map('trim', $category_data);
         $category_data = SysClass::ee_convertArrayValuesToNumbers($category_data);
         $category_data['parent_id'] = (int)$category_data['parent_id'] !== 0 ? (int) $category_data['parent_id'] : NULL;
-        $category_data['language_code'] = $language_code;        
+        $category_data['language_code'] = $languageCode;        
         // Если есть родитель то можно записать только такой же тип категории или дочерний
-        if ($category_data['parent_id']) {
+        if (!empty($category_data['parent_id'])) {
             $parent_type_id = SafeMySQL::gi()->getOne('SELECT type_id FROM ?n WHERE category_id = ?i', Constants::CATEGORIES_TABLE, $category_data['parent_id']);
             $allAvailableTypes = $this->getTypeIds($this->params['m_categories_types']->getAllTypes(false, false, $parent_type_id));
             if (isset($category_data['type_id']) && !in_array($category_data['type_id'], $allAvailableTypes)) {
@@ -243,7 +274,6 @@ class ModelCategories Extends ModelBase {
             SysClass::preFile('error', 'M_update_category_data ', 'error type_id', json_encode($category_data, JSON_UNESCAPED_UNICODE));
             return false;
         }
-
         if (empty($category_data['title'])) {
             SysClass::preFile('error', 'M_update_category_data ', 'empty title', $category_data);
             return false;
@@ -255,9 +285,9 @@ class ModelCategories Extends ModelBase {
             $category_id = $category_data['category_id'];
             unset($category_data['category_id']); // Удаляем category_id из массива данных, чтобы избежать его обновление
             $sql = "UPDATE ?n SET ?u WHERE `category_id` = ?i AND language_code = ?s";
-            $result = SafeMySQL::gi()->query($sql, Constants::CATEGORIES_TABLE, $category_data, $category_id, $language_code);
+            $result = SafeMySQL::gi()->query($sql, Constants::CATEGORIES_TABLE, $category_data, $category_id, $languageCode);
             if (!$result) {
-                SysClass::preFile('error', 'M_update_category_data ', 'error SQL ' . SafeMySQL::gi()->parse($sql, Constants::CATEGORIES_TABLE, $category_data, $category_id, $language_code));
+                SysClass::preFile('error', 'M_update_category_data ', 'error SQL ' . SafeMySQL::gi()->parse($sql, Constants::CATEGORIES_TABLE, $category_data, $category_id, $languageCode));
             }
             return $result ? $category_id : false;
         } else {
@@ -267,7 +297,7 @@ class ModelCategories Extends ModelBase {
         $existingCategory = SafeMySQL::gi()->getRow(
                 "SELECT `category_id` FROM ?n WHERE `title` = ?s AND type_id = ?i AND language_code = ?s",
                 Constants::CATEGORIES_TABLE,
-                $category_data['title'], $category_data['type_id'], $language_code
+                $category_data['title'], $category_data['type_id'], $languageCode
         );
         if ($existingCategory) {
             classes\helpers\ClassNotifications::addNotificationUser(SysClass::get_current_user_id(), ['text' => 'Не уникальное имя в рамках одного типа категории!', 'status' => 'danger']);
@@ -304,15 +334,15 @@ class ModelCategories Extends ModelBase {
     /**
      * Вернёт все сущности категории или множества категорий
      * @param int|array $category_ids ID категории
-     * @param string $language_code Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG
+     * @param string $languageCode Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG
      * @return type
      */
-    public function getCategoryEntities(int|array $category_ids = 0, $language_code = ENV_DEF_LANG) {
+    public function getCategoryPages(int|array $category_ids = 0, $languageCode = ENV_DEF_LANG) {
         if (!is_array($category_ids)) {
             $category_ids = [$category_ids];
         }        
-        $sql = 'SELECT entity_id, title, status, short_description, parent_entity_id FROM ?n WHERE category_id IN (?a) AND language_code = ?s';
-        return SafeMySQL::gi()->getAll($sql, Constants::ENTITIES_TABLE, $category_ids, $language_code);
+        $sql = 'SELECT page_id, title, status, short_description, parent_page_id FROM ?n WHERE category_id IN (?a) AND language_code = ?s';
+        return SafeMySQL::gi()->getAll($sql, Constants::PAGES_TABLE, $category_ids, $languageCode);
     }
 
     /**
@@ -321,13 +351,13 @@ class ModelCategories Extends ModelBase {
      * @param array $categories   Массив категорий для поиска внутри
      * @return array Иерархический массив родительских категорий
      */
-    private function get_parent_categories_hierarchy(int $category_id, array $categories): array {
+    private function getParentCategoriesHierarchy(int $category_id, array $categories): array {
         $parentIds = [];
         foreach ($categories as $category) {
             if ($category['category_id'] == $category_id) {
                 if ($category['parent_id']) {
                     $parentIds[] = (int) $category['parent_id'];
-                    $parentIds = array_merge($parentIds, $this->get_parent_categories_hierarchy($category['parent_id'], $categories));
+                    $parentIds = array_merge($parentIds, $this->getParentCategoriesHierarchy($category['parent_id'], $categories));
                 }
                 break;
             }
@@ -341,10 +371,10 @@ class ModelCategories Extends ModelBase {
      * @return string Строка, представляющая путь категории в виде "parent/child/grandchild/category_id"
      * Или массив при  $string = false
      */
-    public function get_patch_category(int $category_id, $string = true) {
+    public function getPatchCategory(int $category_id, $string = true) {
         $query = "SELECT category_id, parent_id FROM ?n";
         $categories = SafeMySQL::gi()->getAll($query, Constants::CATEGORIES_TABLE);
-        $res = $this->get_parent_categories_hierarchy($category_id, $categories);
+        $res = $this->getParentCategoriesHierarchy($category_id, $categories);
         if (count($res)) {
             return $string ? implode('/', $res) . '/' . $category_id : array_merge($res, [$category_id]);
         } else {
@@ -353,13 +383,13 @@ class ModelCategories Extends ModelBase {
     }
     
     /**
-     *  Рекурсивно получает идентификаторы типов из массива.
-     *  Эта приватная функция перебирает заданный массив и собирает все идентификаторы типов, которые находит.
+     *  Рекурсивно получает идентификаторы типов из массива
+     *  функция перебирает заданный массив и собирает все идентификаторы типов, которые находит
      *  Если элемент в массиве имеет ключ 'children' с собственным массивом, эта функция вызовет себя рекурсивно,
-     *  чтобы собрать идентификаторы типов из дочернего массива также.
-     *  @param array $array Массив, в котором нужно искать идентификаторы типов.
-     *  @param array $typeIds Ссылка на массив, где хранятся найденные идентификаторы типов.
-     *  @return array Массив собранных идентификаторов типов.
+     *  чтобы собрать идентификаторы типов из дочернего массива также
+     *  @param array $array Массив, в котором нужно искать идентификаторы типов
+     *  @param array $typeIds Ссылка на массив, где хранятся найденные идентификаторы типов
+     *  @return array Массив собранных идентификаторов типов
      */
     private function getTypeIds($array, &$typeIds = []) {
         foreach ($array as $item) {

@@ -17,7 +17,7 @@ if (!count($all_type)) {
                class="btn btn-info mx-1 float-end<?= empty($category_data['category_id']) ? " d-none" : "" ?>">
                 <i class="fa fa-plus-circle"></i>&nbsp;<?= $lang['sys.add'] ?>
             </a>
-            <h1 class="mt-4"><?= !$category_data ? 'Добавить категорию' : 'Редактировать категорию' ?></h1>
+            <h1 class="mt-4"><?= !$category_data ? $lang['sys.add'] : $lang['sys.edit'] ?></h1>
             <ol class="breadcrumb mb-4">
                 <li>
                     <span id="category_id" data-id="<?= $category_data['category_id'] ?>">id = <?php echo !$category_data['category_id'] ? $lang['sys.not_assigned'] : $category_data['category_id'] ?></span>
@@ -33,8 +33,8 @@ if (!count($all_type)) {
                         </li>
                         <?php if ($category_data['category_id']) { ?>
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link<?=(!count($category_entities) ? ' text-danger' : '')?>" id="entities-tab" data-bs-toggle="tab" data-bs-target="#entities-tab-pane"
-                                    type="button" role="tab" aria-controls="entities-tab-pane" aria-selected="false"><?=$lang['sys.category_entities']?></button>
+                            <button class="nav-link<?=(!count($categoryPages) ? ' text-danger' : '')?>" id="pages-tab" data-bs-toggle="tab" data-bs-target="#pages-tab-pane"
+                                    type="button" role="tab" aria-controls="pages-tab-pane" aria-selected="false"><?=$lang['sys.category_pages']?></button>
                         </li>
                         <li class="nav-item" role="presentation">
                             <button class="nav-link<?=(!count($categories_type_sets_data) ? ' text-danger' : '')?>" id="property_sets-tab" data-bs-toggle="tab" data-bs-target="#property_sets-tab-pane"
@@ -79,9 +79,10 @@ if (!count($all_type)) {
                                         <select id="parent_id-input" name="parent_id" class="form-control">
                                             <?php echo Plugins::showCategogyForSelect($categories_tree, $category_data['parent_id']); ?>
                                         </select>                                        
-                                        <span title="<?=$category_data['category_path_text']?>" data-bs-toggle="tooltip" data-bs-placement="top" role="button" class="input-group-text btn-primary">
+                                        <span title="<?=$category_data['category_path_text']?>" data-bs-toggle="tooltip" data-bs-placement="top" role="button"
+                                              class="input-group-text btn-primary">
                                             <i class="fas fa-tree" data-bs-toggle="modal" data-bs-target="#parents_modal"></i><!-- Иконка со знаком вопроса -->
-                                        </span>                                        
+                                        </span>
                                     </div>
                                     <?= Plugins::ee_generateModal('parents_modal', $lang['sys.categories'], Plugins::renderCategoryTree($full_categories_tree))?>
                                 </div>
@@ -122,24 +123,24 @@ if (!count($all_type)) {
                             <button type="submit" class="btn btn-primary"><?=$lang['sys.save']?></button>
                         </div>
                         <!-- Содержимое для присоединённых сущностей -->
-                        <div class="tab-pane fade mt-3" id="entities-tab-pane" role="tabpanel" aria-labelledby="entities-tab">
+                        <div class="tab-pane fade mt-3" id="pages-tab-pane" role="tabpanel" aria-labelledby="pages-tab">
                             <div class="row">
                                 <div class="col">
                                     <?php
                                         $html = '';
-                                        foreach ($category_entities as $entity) {
+                                        foreach ($categoryPages as $page) {
                                             $html .= '<div class="card">';
                                             $color_status = 'text-success';
-                                            if ($entity['status'] != 'active') {
+                                            if ($page['status'] != 'active') {
                                                 $color_status = 'text-danger';
                                             }
                                             $html .= '<div class="row align-items-center">';
-                                            $html .= '<div class="col-auto">№ ' . $entity['entity_id'] . '</div>';
-                                            $html .= '<div class="col"><a href="/admin/entity_edit/id/' . $entity['entity_id'] . '" target="_BLANK">' . $entity['title'] . '</a></div>';
+                                            $html .= '<div class="col-auto">№ ' . $page['page_id'] . '</div>';
+                                            $html .= '<div class="col"><a href="/admin/pageEdit/id/' . $page['page_id'] . '" target="_BLANK">' . $page['title'] . '</a></div>';
                                             $html .= '</div>';
                                             $html .= '<div class="row align-items-center">';
                                             $html .= '<div class="col-auto">' . $lang['sys.status'] . ': <span class="' . $color_status . '">'
-                                                    . $lang['sys.' . $entity['status']] . '</span></div>';
+                                                    . $lang['sys.' . $page['status']] . '</span></div>';
                                             $html .= '</div>';
                                             $html .= '</div>';
                                         }

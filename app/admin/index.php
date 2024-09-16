@@ -13,7 +13,7 @@ use app\admin\SystemsTrait;
 use app\admin\EmailsTrait;
 use app\admin\CategoriesTrait;
 use app\admin\CategoriesTypesTrait;
-use app\admin\EntitiesTrait;
+use app\admin\PagesTrait;
 use app\admin\PropertiesTrait;
 use classes\helpers\ClassMessages;
 use classes\helpers\ClassMail;
@@ -30,19 +30,14 @@ class ControllerIndex Extends ControllerBase {
         EmailsTrait,
         CategoriesTrait,
         CategoriesTypesTrait,
-        EntitiesTrait,
+        PagesTrait,
         PropertiesTrait;
 
     /**
      * Главная страница админ-панели
      */
     public function index($params = []) {
-        /* $this->access Массив с перечнем ролей пользователей которым разрешён доступ к странице
-         * 1-админ 2-модератор 3-продавец 4-пользователь
-         * 100 - все зарегистрированные пользователи
-         */
-        //Session::destroy(); TODO
-        $this->access = [100];
+        $this->access = [Constants::ALL_AUTH];        
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect(200, '/show_login_form?return=admin');
         }
@@ -73,7 +68,7 @@ class ControllerIndex Extends ControllerBase {
      * Формируем данные для таблицы дашборда администратора
      */
     public function get_admin_dashboard_data_table($params = []) {
-        $this->access = array(1);
+        $this->access = [Constants::ADMIN]; 
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect(200, '/show_login_form?return=admin');
         }
@@ -214,10 +209,10 @@ class ControllerIndex Extends ControllerBase {
             'total_rows' => 1110  // Общее количество записей (используется для пагинации)
         ];
         $filters = [];
-        $post_data = SysClass::ee_cleanArray($_POST);
-        if ($post_data && isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') { // AJAX						
-            list($params, $filters, $selected_sorting) = Plugins::ee_show_table_prepare_params($post_data, $data_table['columns']);
-            echo Plugins::ee_show_table('example_table', $data_table, 'get_admin_dashboard_data_table', $filters, $post_data["page"], $post_data["rows_per_page"], $selected_sorting);
+        $postData = SysClass::ee_cleanArray($_POST);
+        if ($postData && SysClass::isAjaxRequestFromSameSite()) { // AJAX						
+            list($params, $filters, $selected_sorting) = Plugins::ee_showTablePrepareParams($postData, $data_table['columns']);
+            echo Plugins::ee_show_table('example_table', $data_table, 'get_admin_dashboard_data_table', $filters, $postData["page"], $postData["rows_per_page"], $selected_sorting);
             die;
         } else {
             $html = Plugins::ee_show_table('example_table', $data_table, 'get_admin_dashboard_data_table', $filters);
@@ -229,7 +224,7 @@ class ControllerIndex Extends ControllerBase {
      * Коммерческое предложение
      */
     public function upgrade($params = []) {
-        $this->access = [100];
+        $this->access = [Constants::ALL_AUTH];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect(200, '/show_login_form?return=admin');
         }
@@ -261,10 +256,10 @@ class ControllerIndex Extends ControllerBase {
     /**
      * Обработка AJAX запросов админ-панели
      * @param array $params - дополнительные параметры запрещены
-     * @param POST $post_data - POST параметры update или get
+     * @param POST $postData - POST параметры update или get
      */
     public function ajax_admin(array $params = []) {
-        $this->access = [100];
+        $this->access = [Constants::ALL_AUTH];
         if (!SysClass::getAccessUser($this->logged_in, $this->access) || count($params) > 0) {
             echo '{"error": "access denieded"}';
             exit();
@@ -272,17 +267,17 @@ class ControllerIndex Extends ControllerBase {
         /* get data */
         $user_data = $this->users->data;
         /* Read POST data */
-        $post_data = SysClass::ee_cleanArray($_POST);
+        $postData = SysClass::ee_cleanArray($_POST);
         switch (true) {
-            case isset($post_data['update']):
-                foreach ($post_data as $key => $value) {
+            case isset($postData['update']):
+                foreach ($postData as $key => $value) {
                     if (array_key_exists($key, $user_data['options'])) {
                         $user_data['options'][$key] = $value;
                     }
                 }
                 echo $this->users->set_user_options($this->logged_in, $user_data['options']);
                 exit();
-            case isset($post_data['get']):
+            case isset($postData['get']):
                 echo json_encode($user_data['options']);
                 exit();
             default:
@@ -296,7 +291,7 @@ class ControllerIndex Extends ControllerBase {
      * @param type $params
      */
     public function user_edit($params) {
-        $this->access = [1, 2];
+        $this->access = [Constants::ADMIN, Constants::MODERATOR];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect();
             exit();
@@ -304,9 +299,9 @@ class ControllerIndex Extends ControllerBase {
         /* get current user data */
         $user_data = $this->users->data;
         if (in_array('id', $params)) {
-            $key_id = array_search('id', $params);
-            if ($key_id !== false && isset($params[$key_id + 1])) {
-                $user_id = filter_var($params[$key_id + 1], FILTER_VALIDATE_INT);
+            $keyId = array_search('id', $params);
+            if ($keyId !== false && isset($params[$keyId + 1])) {
+                $user_id = filter_var($params[$keyId + 1], FILTER_VALIDATE_INT);
             } else {
                 $user_id = 0;
             }
@@ -369,16 +364,16 @@ class ControllerIndex Extends ControllerBase {
      * @return json сообщение об ошибке или no
      */
     public function ajax_user_edit($params) {
-        $this->access = [100];
+        $this->access = [Constants::ALL_AUTH];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect();
             echo json_encode(array('error' => 'error no access'));
             exit();
         }
-        $post_data = SysClass::ee_cleanArray($_POST);
-        $key_id = array_search('id', $params);
-        if ($key_id !== false && isset($params[$key_id + 1])) {
-            $user_id = filter_var($params[$key_id + 1], FILTER_VALIDATE_INT);
+        $postData = SysClass::ee_cleanArray($_POST);
+        $keyId = array_search('id', $params);
+        if ($keyId !== false && isset($params[$keyId + 1])) {
+            $user_id = filter_var($params[$keyId + 1], FILTER_VALIDATE_INT);
         } else {
             $user_id = 0;
         }
@@ -387,14 +382,14 @@ class ControllerIndex Extends ControllerBase {
             exit();
         }
         /* set data user */
-        $post_data['phone'] = isset($post_data['phone']) ? preg_replace('/[^0-9+]/', '', $post_data['phone']) : null;
+        $postData['phone'] = isset($postData['phone']) ? preg_replace('/[^0-9+]/', '', $postData['phone']) : null;
         if ($this->users->data['phone'] && $this->users->data['user_role'] > 2) {
-            unset($post_data['phone']);
+            unset($postData['phone']);
         }
 
-        if (isset($post_data['new']) && $post_data['new'] == 1) {
-            if ($this->users->registration_new_user($post_data)) {
-                $new_id = $this->users->get_user_id(trim($post_data['email']));
+        if (isset($postData['new']) && $postData['new'] == 1) {
+            if ($this->users->registration_new_user($postData)) {
+                $new_id = $this->users->get_user_id(trim($postData['email']));
                 echo json_encode(array('error' => 'no', 'id' => $new_id));
                 exit();
             } else {
@@ -402,15 +397,15 @@ class ControllerIndex Extends ControllerBase {
                 exit();
             }
         }
-        if (isset($post_data['subscribed']) && $post_data['subscribed']) {
-            $post_data['subscribed'] = 1;
+        if (isset($postData['subscribed']) && $postData['subscribed']) {
+            $postData['subscribed'] = 1;
         } else {
-            $post_data['subscribed'] = 0;
+            $postData['subscribed'] = 0;
         }
-        if ($this->users->set_user_data($user_id, $post_data)) {
-            $user_role = $this->users->get_user_role($user_id);
-            if (isset($post_data['user_role']) && $post_data['user_role'] != $user_role) { // Сменилась роль пользователя, оповещаем админа и пишем лог                                
-                SysClass::preFile('users_edit', 'ajax_user_edit', 'Изменили роль пользователю', ['id_user' => $user_id, 'old' => $this->users->data['user_role'], 'new' => $post_data['user_role']]);
+        if ($this->users->set_user_data($user_id, $postData)) {
+            $user_role = $this->users->getUserRole($user_id);
+            if (isset($postData['user_role']) && $postData['user_role'] != $user_role) { // Сменилась роль пользователя, оповещаем админа и пишем лог                                
+                SysClass::preFile('users_edit', 'ajax_user_edit', 'Изменили роль пользователю', ['id_user' => $user_id, 'old' => $this->users->data['user_role'], 'new' => $postData['user_role']]);
             }
             echo json_encode(array('error' => 'no', 'id' => $user_id));
             exit();
@@ -426,7 +421,7 @@ class ControllerIndex Extends ControllerBase {
      * @param arg - массив аргументов для поиска
      */
     public function users($params = array()) {
-        $this->access = [1, 2];
+        $this->access = [Constants::ADMIN, Constants::MODERATOR];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect();
             exit();
@@ -448,12 +443,12 @@ class ControllerIndex Extends ControllerBase {
      * Вернёт таблицу пользователей
      */
     public function get_users_table() {
-        $this->access = [1, 2];
+        $this->access = [Constants::ADMIN, Constants::MODERATOR];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect();
             exit();
         }
-        $post_data = SysClass::ee_cleanArray($_POST);
+        $postData = SysClass::ee_cleanArray($_POST);
         $data_table = [
             'columns' => [
                 [
@@ -556,8 +551,8 @@ class ControllerIndex Extends ControllerBase {
             $filters['active']['options'][] = ['value' => $k, 'label' => $this->lang[$v]];
         }
 
-        if ($post_data && isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') { // AJAX
-            list($params, $filters, $selected_sorting) = Plugins::ee_show_table_prepare_params($post_data, $data_table['columns']);
+        if ($postData && SysClass::isAjaxRequestFromSameSite()) { // AJAX
+            list($params, $filters, $selected_sorting) = Plugins::ee_showTablePrepareParams($postData, $data_table['columns']);
             $users_array = $this->users->get_users_data($params['order'], $params['where'], $params['start'], $params['limit']);
         } else {
             $users_array = $this->users->get_users_data(false, false, false, 25);
@@ -583,8 +578,8 @@ class ControllerIndex Extends ControllerBase {
             ];
         }
         $data_table['total_rows'] = $users_array['total_count'];
-        if ($post_data) {
-            echo Plugins::ee_show_table('users_table', $data_table, 'get_users_table', $filters, $post_data["page"], $post_data["rows_per_page"], $selected_sorting);
+        if ($postData) {
+            echo Plugins::ee_show_table('users_table', $data_table, 'get_users_table', $filters, $postData["page"], $postData["rows_per_page"], $selected_sorting);
             die;
         } else {
             return Plugins::ee_show_table('users_table', $data_table, 'get_users_table', $filters);
@@ -596,7 +591,7 @@ class ControllerIndex Extends ControllerBase {
      * @param type $params
      */
     public function users_roles($params = []) {
-        $this->access = [1, 2];
+        $this->access = [Constants::ADMIN, Constants::MODERATOR];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect();
             exit();
@@ -617,12 +612,12 @@ class ControllerIndex Extends ControllerBase {
      * Вернёт таблицу ролей пользователей
      */
     public function get_users_roles_table() {
-        $this->access = [1, 2];
+        $this->access = [Constants::ADMIN, Constants::MODERATOR];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect();
             exit();
         }
-        $post_data = SysClass::ee_cleanArray($_POST);
+        $postData = SysClass::ee_cleanArray($_POST);
         $data_table = [
             'columns' => [
                 [
@@ -649,8 +644,8 @@ class ControllerIndex Extends ControllerBase {
         ];
         $filters = [];
         $this->loadModel('m_user_edit');
-        if ($post_data && isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') { // AJAX
-            list($params, $filters, $selected_sorting) = Plugins::ee_show_table_prepare_params($post_data, $data_table['columns']);
+        if ($postData && SysClass::isAjaxRequestFromSameSite()) { // AJAX
+            list($params, $filters, $selected_sorting) = Plugins::ee_showTablePrepareParams($postData, $data_table['columns']);
             $users_array = $this->models['m_user_edit']->get_users_roles_data($params['order'], $params['where'], $params['start'], $params['limit']);
         } else {
             $users_array = $this->models['m_user_edit']->get_users_roles_data(false, false, false, 25);
@@ -670,8 +665,8 @@ class ControllerIndex Extends ControllerBase {
             ];
         }
         $data_table['total_rows'] = $users_array['total_count'];
-        if ($post_data) {
-            echo Plugins::ee_show_table('users_roles_table', $data_table, 'get_users_roles_table', $filters, $post_data["page"], $post_data["rows_per_page"], $selected_sorting);
+        if ($postData) {
+            echo Plugins::ee_show_table('users_roles_table', $data_table, 'get_users_roles_table', $filters, $postData["page"], $postData["rows_per_page"], $selected_sorting);
             die;
         } else {
             return Plugins::ee_show_table('users_roles_table', $data_table, 'get_users_roles_table', $filters);
@@ -683,15 +678,15 @@ class ControllerIndex Extends ControllerBase {
      * @param array $params
      */
     public function users_role_dell($params = []) {
-        $this->access = [1, 2];
+        $this->access = [Constants::ADMIN, Constants::MODERATOR];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect();
             exit();
         }
         if (in_array('id', $params)) {
-            $key_id = array_search('id', $params);
-            if ($key_id !== false && isset($params[$key_id + 1])) {
-                $id = filter_var($params[$key_id + 1], FILTER_VALIDATE_INT);
+            $keyId = array_search('id', $params);
+            if ($keyId !== false && isset($params[$keyId + 1])) {
+                $id = filter_var($params[$keyId + 1], FILTER_VALIDATE_INT);
             } else {
                 $id = 0;
             }
@@ -710,15 +705,15 @@ class ControllerIndex Extends ControllerBase {
      * @param type $params
      */
     public function delete_user($params = []) {
-        $this->access = [1, 2];
+        $this->access = [Constants::ADMIN, Constants::MODERATOR];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect();
             exit();
         }
         if (in_array('id', $params)) {
-            $key_id = array_search('id', $params);
-            if ($key_id !== false && isset($params[$key_id + 1])) {
-                $user_id = filter_var($params[$key_id + 1], FILTER_VALIDATE_INT);
+            $keyId = array_search('id', $params);
+            if ($keyId !== false && isset($params[$keyId + 1])) {
+                $user_id = filter_var($params[$keyId + 1], FILTER_VALIDATE_INT);
             } else {
                 $user_id = 0;
             }
@@ -743,7 +738,7 @@ class ControllerIndex Extends ControllerBase {
      * @param array $params
      */
     public function send_message_admin($params = []) {
-        $this->access = [100];
+        $this->access = [Constants::ALL_AUTH];
         if (!SysClass::getAccessUser($this->logged_in, $this->access) || count($params) > 0) {
             echo json_encode(array('error' => 'access denided'));
             exit();
@@ -758,7 +753,7 @@ class ControllerIndex Extends ControllerBase {
      * @param array $params
      */
     public function users_role_edit($params = []) {
-        $this->access = [1, 2];
+        $this->access = [Constants::ADMIN, Constants::MODERATOR];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect();
             exit();
@@ -768,16 +763,16 @@ class ControllerIndex Extends ControllerBase {
             'name' => '',
         ];
         $this->loadModel('m_user_edit');
-        $post_data = SysClass::ee_cleanArray($_POST);
+        $postData = SysClass::ee_cleanArray($_POST);
         if (in_array('id', $params)) {
-            $key_id = array_search('id', $params);
-            if ($key_id !== false && isset($params[$key_id + 1])) {
-                $id = filter_var($params[$key_id + 1], FILTER_VALIDATE_INT);
+            $keyId = array_search('id', $params);
+            if ($keyId !== false && isset($params[$keyId + 1])) {
+                $id = filter_var($params[$keyId + 1], FILTER_VALIDATE_INT);
             } else {
                 $id = 0;
             }
-            if (isset($post_data['name']) && $post_data['name']) {
-                if (!$new_id = $this->models['m_user_edit']->update_users_role_data($post_data)) {
+            if (isset($postData['name']) && $postData['name']) {
+                if (!$new_id = $this->models['m_user_edit']->update_users_role_data($postData)) {
                     ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
                 } else {
                     $id = $new_id;
@@ -806,7 +801,7 @@ class ControllerIndex Extends ControllerBase {
      * @param array $params
      */
     public function deleted_users($params = []) {
-        $this->access = [1, 2];
+        $this->access = [Constants::ADMIN, Constants::MODERATOR];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect();
             exit();
@@ -827,12 +822,12 @@ class ControllerIndex Extends ControllerBase {
      * Вернёт таблицу удалённых пользователей
      */
     public function get_deleted_users_table() {
-        $this->access = [1, 2];
+        $this->access = [Constants::ADMIN, Constants::MODERATOR];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect();
             exit();
         }
-        $post_data = SysClass::ee_cleanArray($_POST);
+        $postData = SysClass::ee_cleanArray($_POST);
         $data_table = [
             'columns' => [
                 [
@@ -881,8 +876,8 @@ class ControllerIndex Extends ControllerBase {
         ];
         $filters = [];
         $this->loadModel('m_user_edit');
-        if ($post_data && isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') { // AJAX
-            list($params, $filters, $selected_sorting) = Plugins::ee_show_table_prepare_params($post_data, $data_table['columns']);
+        if ($postData && SysClass::isAjaxRequestFromSameSite()) { // AJAX
+            list($params, $filters, $selected_sorting) = Plugins::ee_showTablePrepareParams($postData, $data_table['columns']);
             $users_array = $this->users->get_users_data($params['order'], $params['where'], $params['start'], $params['limit'], true);
         } else {
             $users_array = $this->users->get_users_data(false, false, false, 25, true);
@@ -898,8 +893,8 @@ class ControllerIndex Extends ControllerBase {
             ];
         }
         $data_table['total_rows'] = $users_array['total_count'];
-        if ($post_data) {
-            echo Plugins::ee_show_table('deleted_users_table', $data_table, 'get_deleted_users_table', $filters, $post_data["page"], $post_data["rows_per_page"], $selected_sorting);
+        if ($postData) {
+            echo Plugins::ee_show_table('deleted_users_table', $data_table, 'get_deleted_users_table', $filters, $postData["page"], $postData["rows_per_page"], $selected_sorting);
             die;
         } else {
             return Plugins::ee_show_table('deleted_users_table', $data_table, 'get_deleted_users_table', $filters);
@@ -916,7 +911,7 @@ class ControllerIndex Extends ControllerBase {
      * @return void
      */
     public function deleted_user_edit($params = []) {
-        $this->access = [1, 2];
+        $this->access = [Constants::ADMIN, Constants::MODERATOR];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect();
             exit();
@@ -924,9 +919,9 @@ class ControllerIndex Extends ControllerBase {
         $default_data = false;
         $this->loadModel('m_user_edit');
         if (in_array('id', $params)) {
-            $key_id = array_search('id', $params);
-            if ($key_id !== false && isset($params[$key_id + 1])) {
-                $user_id = filter_var($params[$key_id + 1], FILTER_VALIDATE_INT);
+            $keyId = array_search('id', $params);
+            if ($keyId !== false && isset($params[$keyId + 1])) {
+                $user_id = filter_var($params[$keyId + 1], FILTER_VALIDATE_INT);
             } else {
                 $user_id = 0;
             }
