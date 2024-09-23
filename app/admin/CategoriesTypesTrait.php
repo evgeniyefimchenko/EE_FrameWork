@@ -4,6 +4,7 @@ namespace app\admin;
 
 use classes\system\SysClass;
 use classes\system\Plugins;
+use classes\system\Constants;
 use classes\helpers\ClassNotifications;
 
 /**
@@ -180,12 +181,12 @@ trait CategoriesTypesTrait {
         } else {
             $get_all_types = $this->models['m_categories_types']->getAllTypes(false, false);
         }
-        $get_categories_type_sets_data = $this->models['m_categories_types']->getCategoriesTypeSetsData($id);
+        $getCategoriesTypeSetsData = $this->models['m_categories_types']->getCategoriesTypeSetsData($id);
         /* view */
         $this->view->set('type_data', $get_categories_types_data);
         $this->view->set('all_types', $get_all_types);
-        $this->view->set('property_sets_data', $this->models['m_properties']->getPropertySetsData('set_id ASC'));
-        $this->view->set('categories_type_sets_data', $get_categories_type_sets_data);
+        $this->view->set('propertySetsData', $this->models['m_properties']->getPropertySetsData('set_id ASC', false, 0, (10 * 10)));
+        $this->view->set('categoriesTypeSetsData', $getCategoriesTypeSetsData);
         $this->getStandardViews();
         $this->view->set('body_view', $this->view->read('v_edit_categories_type'));
         $this->html = $this->view->read('v_dashboard');
@@ -217,12 +218,12 @@ trait CategoriesTypesTrait {
             $this->loadModel('m_properties');
             $this->loadModel('m_categories_types', ['m_properties' => $this->models['m_properties']]);
             $parents_types_ids = $this->models['m_categories_types']->getAllTypeParentsIds($postData['type_id']) + [$postData['type_id']];
-            $all_sets_ids = [];
+            $allSetsIds = [];
             foreach ($parents_types_ids as $t_id) {
-                $all_sets_ids = $all_sets_ids + $this->models['m_categories_types']->getCategoriesTypeSetsData($t_id);
+                $allSetsIds = $allSetsIds + $this->models['m_categories_types']->getCategoriesTypeSetsData($t_id);
             }
-            $all_sets_ids = count($all_sets_ids) ? $all_sets_ids : false;
-            echo json_encode(['all_sets_ids' => $all_sets_ids]);
+            $allSetsIds = count($allSetsIds) ? $allSetsIds : false;
+            echo json_encode(['all_sets_ids' => $allSetsIds]);
             die;
         } else {
             SysClass::handleRedirect();

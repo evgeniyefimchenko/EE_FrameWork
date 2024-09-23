@@ -243,10 +243,10 @@ class ModelCategoriesTypes Extends ModelBase {
     }
 
     /**
-     * Обновляет существующий тип или создает новый с учетом языка.
-     * @param array $typeData Ассоциативный массив с данными типа. Должен содержать ключи 'name' и 'description', и опционально 'type_id'.
+     * Обновляет существующий тип или создает новый с учетом языка
+     * @param array $typeData Ассоциативный массив с данными типа. Должен содержать ключи 'name' и 'description', и опционально 'type_id'
      * @param string $languageCode Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG
-     * @return int|bool ID нового или обновленного типа или false в случае ошибки.
+     * @return int|bool ID нового или обновленного типа или false в случае ошибки
      */
     public function updateCategoriesTypeData(array $typeData = [], string $languageCode = ENV_DEF_LANG):bool|int {
         $typeData = SafeMySQL::gi()->filterArray($typeData, SysClass::ee_getFieldsTable(Constants::CATEGORIES_TYPES_TABLE));
@@ -400,7 +400,7 @@ class ModelCategoriesTypes Extends ModelBase {
     public function getCategorySetPageData(array $setIds, string $languageCode = ENV_DEF_LANG): array {
         $sql = 'SELECT c.category_id, cts.set_id, e.page_id FROM ?n c INNER JOIN ?n cts ON c.type_id = cts.type_id LEFT JOIN ?n e ON c.category_id = e.category_id WHERE 
                 cts.set_id IN (?a) AND c.language_code = ?s ORDER BY c.category_id, cts.set_id, e.page_id';
-        $result = SafeMySQL::gi()->getAll($sql, Constants::CATEGORIES_TABLE, Constants::CATEGORY_TYPE_TO_PROPERTY_SET_TABLE, Constants::ENTITIES_TABLE, $setIds, $languageCode);
+        $result = SafeMySQL::gi()->getAll($sql, Constants::CATEGORIES_TABLE, Constants::CATEGORY_TYPE_TO_PROPERTY_SET_TABLE, Constants::PAGES_TABLE, $setIds, $languageCode);
         return $result;
     }
 

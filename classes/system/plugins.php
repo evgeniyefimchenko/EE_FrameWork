@@ -438,21 +438,21 @@ class Plugins {
 
     /**
      * Подготавливает и возвращает параметры для SQL-запроса на основе предоставленных LIMIT, Filter и sort
-     * @param array $LIMIT Массив с данными для ограничения количества записей. 
+     * @param array $LIMIT Массив с данными для ограничения количества записей
      * Пример: ['page' => 1, 'rows_per_page' => 25]
-     * @param array $Filter Массив фильтров для применения к запросу.
+     * @param array $Filter Массив фильтров для применения к запросу
      * Пример: 
      * [
      *   'name' => ['type' => 'text', 'value' => 'Иван'],
      *   'user_role_text' => ['type' => 'select', 'value' => [1]],
      * ]
-     * @param array $sort Массив для сортировки результатов запроса.
+     * @param array $sort Массив для сортировки результатов запроса
      * Пример: ['id' => 'ASC', 'name' => 'DESC']
      * @return array Возвращает массив с подготовленными параметрами для SQL-запроса:
-     * - whereString: строка условий для WHERE.
-     * - orderString: строка для сортировки.
-     * - start: начальная позиция для LIMIT.
-     * - limit: максимальное количество записей для LIMIT.
+     * - whereString: строка условий для WHERE
+     * - orderString: строка для сортировки
+     * - start: начальная позиция для LIMIT
+     * - limit: максимальное количество записей для LIMIT
      */
     public static function ee_showTablePrepareParams($post_data, $columns) {
         list($table_name, $extract_filters) = Plugins::ee_show_table_extractFilters($post_data); // $extract_filters извлекаем без префиксов что бы подставлять в запрос к БД
@@ -843,39 +843,40 @@ class Plugins {
 
     /**
      * Функция для генерации HTML-кода аккордеона для наборов категорий и их свойств
-     * @param array $categories_type_sets_data Данные о наборах категорий и их свойствах
-     * @param array $category_id ID категории
+     * @param array $categoriesTypeSetsData Данные о наборах категорий и их свойствах
+     * @param array $categoryId ID категории или страницы
+     * @param string $typeEntity Тип сущности
      * @return string HTML-код аккордеона
      */
-    public static function renderCategorySetsAccordion($categories_type_sets_data, $category_id) {
+    public static function renderCategorySetsAccordion($categoriesTypeSetsData, $categoryId, $typeEntity = 'category') {
         global $global_lang;
         $lang = $global_lang;        
         $html = '';
-        foreach ($categories_type_sets_data as $cat_name => $cats_set) {
-            foreach ($cats_set as $property_set) {                
-                $property_set_id = hash('crc32', $property_set['set_id'] . $property_set['name'] . $property_set['created_at']);
-                $html .= '<div class="accordion my-3" id="accordion-' . $property_set_id . '">';
+        foreach ($categoriesTypeSetsData as $cat_name => $cats_set) {
+            foreach ($cats_set as $propertySet) {                
+                $propertySet_id = hash('crc32', $propertySet['set_id'] . $propertySet['name'] . $propertySet['created_at']);
+                $html .= '<div class="accordion my-3" id="accordion-' . $propertySet_id . '">';
                 $html .= '<div class="card">';
-                $html .= '<div class="card-header" id="heading-' . $property_set_id . '">';
+                $html .= '<div class="card-header" id="heading-' . $propertySet_id . '">';
                 $html .= '<h2 class="mb-0">';
                 $html .= '<span class="h5">' . $lang['sys.set'] . ':</span> ' . '<button class="btn btn-link" type="button" '
-                        . 'data-bs-toggle="collapse" data-bs-target="#collapse-' . $property_set_id . '" aria-expanded="true" '
-                        . 'aria-controls="collapse-' . $property_set_id . '">';
-                $html .= $property_set['name'] . '<input type="hidden" name="set_id" value="' . $property_set['set_id'] . '">';
+                        . 'data-bs-toggle="collapse" data-bs-target="#collapse-' . $propertySet_id . '" aria-expanded="true" '
+                        . 'aria-controls="collapse-' . $propertySet_id . '">';
+                $html .= $propertySet['name'] . '<input type="hidden" name="set_id" value="' . $propertySet['set_id'] . '">';
                 $html .= '</button>';
                 $html .= '</h2>';
                 $html .= '</div>';
-                $html .= '<div id="collapse-' . $property_set_id . '" class="collapse" aria-labelledby="heading-' . $property_set_id . '" '
-                        . 'data-bs-parent="#accordion-' . $property_set['set_id'] . '">';
+                $html .= '<div id="collapse-' . $propertySet_id . '" class="collapse" aria-labelledby="heading-' . $propertySet_id . '" '
+                        . 'data-bs-parent="#accordion-' . $propertySet['set_id'] . '">';
                 $html .= '<div class="card-body">';
-                $html .= '<h5>' . $lang['sys.description'] . '</h5>' . '<p>' . ($property_set['description'] ?
-                        $property_set['description'] : '---') . '</p>';
+                $html .= '<h5>' . $lang['sys.description'] . '</h5>' . '<p>' . ($propertySet['description'] ?
+                        $propertySet['description'] : '---') . '</p>';
                 $html .= '<h6>' . $lang['sys.properties'] . '</h6>';
-                if (!count($property_set['properties'])) {
+                if (!count($propertySet['properties'])) {
                     $html .= '---';
                 }
-                foreach ($property_set['properties'] as $property) {                    
-                    $property_id = hash('crc32', $property_set['set_id'] . $property['p_id'] . $property['property_values']['value_id']);
+                foreach ($propertySet['properties'] as $property) {                    
+                    $property_id = hash('crc32', $propertySet['set_id'] . $property['p_id'] . $property['property_values']['value_id']);
                     $html .= '<div class="accordion my-3" id="accordion-' . $property_id . '">';
                     $html .= '<div class="card">';
                     $html .= '<div class="card-header" id="heading-' . $property_id . '">';
@@ -897,7 +898,7 @@ class Plugins {
                     $html .= ($property['is_required'] == 1 ? 'checked' : '') . '></div>';
                      */
                     // SysClass::pre($property['property_values']);
-                    $html .= self::renderPropertyHtmlFieldsByAdmin($property['property_values'], $category_id, 'category');
+                    $html .= self::renderPropertyHtmlFieldsByAdmin($property['property_values'], $categoryId, $typeEntity);
                     $html .= '</div>'; // Закрытие .card-body
                     $html .= '</div>'; // Закрытие #collapse-[id]
                     $html .= '</div>'; // Закрытие .card
@@ -915,7 +916,7 @@ class Plugins {
      * Вывод свойств для сущности !!!&&&!! TODO
      * @param type $params
      */
-    public static function renderPropertyHtmlFieldsByAdmin(array $values, int $entity_id, string $entity_type): string {
+    public static function renderPropertyHtmlFieldsByAdmin(array $values, int $entityId, string $entity_type): string {
         global $global_lang;
         $lang = $global_lang;
         $result = '';
@@ -933,7 +934,7 @@ class Plugins {
             }
             $result .= '<div class="col-10 col-sm-12 mt-2 d-flex">';
             $multiple_choice = true;
-            $value_name = $value_id . '_' . $key . '_' . $value['type'] . '_' . $entity_id . '_' . $entity_type . '_' . $property_id . '_' . $values['set_id'];
+            $value_name = $value_id . '_' . $key . '_' . $value['type'] . '_' . $entityId . '_' . $entity_type . '_' . $property_id . '_' . $values['set_id'];
             $result .= '<input type="hidden" name="property_data_changed" value="0" />';
             $result .= '<input type="hidden" name="property_data[' . $value_name . '_type]" value="' . $value['type'] . '"/>';
             if ($value['type'] !== 'checkbox' && $value['type'] !== 'radio') {
@@ -1202,40 +1203,40 @@ class Plugins {
 
     /**
      * Генерация HTML кода для наборов свойств
-     * @param array $property_sets_data Данные для наборов свойств
-     * @param array $categories_type_sets_data Данные для типов наборов категорий
+     * @param array $propertySetsDataДанные для наборов свойств
+     * @param array $categoriesTypeSetsData Данные для типов наборов категорий
      * @return string Сгенерированный HTML код
      */
-    public static function renderPropertySets($property_sets_data, $categories_type_sets_data) {
+    public static function renderPropertySets($propertySetsData, $categoriesTypeSetsData) {
         global $global_lang;
         $lang = $global_lang;
         $html = '';
-        foreach ($categories_type_sets_data as $item_ctsd) {
+        foreach ($categoriesTypeSetsData as $item_ctsd) {
             $html .= '<input type="hidden" name="old_property_set[]" value="' . $item_ctsd  . '" />';
         }        
-        foreach ($property_sets_data['data'] as $property_set) {            
-            $html .= '<div class="accordion my-1" id="accordion-' . $property_set['set_id'] . '">';
+        foreach ($propertySetsData['data'] as $propertySet) {            
+            $html .= '<div class="accordion my-1" id="accordion-' . $propertySet['set_id'] . '">';
             $html .= '<div class="card">';
-            $html .= '<div class="card-header" id="heading-' . $property_set['set_id'] . '">';
+            $html .= '<div class="card-header" id="heading-' . $propertySet['set_id'] . '">';
             $html .= '<h2 class="mb-0">';
-            $html .= '<input type="checkbox" id="checkbox-' . $property_set['set_id'] . '" name="property_set[]"'
-                    . 'value="' . $property_set['set_id'] . '" class="form-check-input me-2"'
-                    . (in_array($property_set['set_id'], $categories_type_sets_data) ? "checked" : "") . '>';
-            $html .= '<button class="btn btn-link" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-' . $property_set['set_id'] . 
-                    '" aria-expanded="true" aria-controls="collapse-' . $property_set['set_id'] . '">';
-            $html .= $property_set['name'];
+            $html .= '<input type="checkbox" id="checkbox-' . $propertySet['set_id'] . '" name="property_set[]"'
+                    . 'value="' . $propertySet['set_id'] . '" class="form-check-input me-2"'
+                    . (in_array($propertySet['set_id'], $categoriesTypeSetsData) ? "checked" : "") . '>';
+            $html .= '<button class="btn btn-link" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-' . $propertySet['set_id'] . 
+                    '" aria-expanded="true" aria-controls="collapse-' . $propertySet['set_id'] . '">';
+            $html .= $propertySet['name'];
             $html .= '</button>';
             $html .= '</h2>';
             $html .= '</div>';
-            $html .= '<div id="collapse-' . $property_set['set_id'] . '" class="collapse" aria-labelledby="heading-' . $property_set['set_id'] . 
-                    '" data-bs-parent="#accordion-' . $property_set['set_id'] . '">';
+            $html .= '<div id="collapse-' . $propertySet['set_id'] . '" class="collapse" aria-labelledby="heading-' . $propertySet['set_id'] . 
+                    '" data-bs-parent="#accordion-' . $propertySet['set_id'] . '">';
             $html .= '<div class="card-body">';
-            $html .= '<h5>' . $lang['sys.description'] . '</h5>' . '<p>' . ($property_set['description'] ? $property_set['description'] : '---') . '</p>';
+            $html .= '<h5>' . $lang['sys.description'] . '</h5>' . '<p>' . ($propertySet['description'] ? $propertySet['description'] : '---') . '</p>';
             $html .= '<h6>' . $lang['sys.properties'] . '</h6>';
-            if (!count($property_set['properties'])) {
+            if (!count($propertySet['properties'])) {
                 $html .= '---';
             }
-            foreach ($property_set['properties'] as $property) {
+            foreach ($propertySet['properties'] as $property) {
                 $html .= $property['name'] . '<br/>';
             }
             $html .= '</div>';

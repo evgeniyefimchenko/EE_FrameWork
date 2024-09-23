@@ -6,7 +6,7 @@ namespace classes\system;
  * При инициализации устанавливает время жизни сессии
  * из конфигурационного файла.
  * 
- * @author Evgeniy Efimchenko efimchenko.ru
+ * @author Evgeniy Efimchenko efimchenko.com
  */
 class Session {
 
@@ -18,7 +18,7 @@ class Session {
     private static function init(): void {
         if (session_status() === PHP_SESSION_NONE) {
             if (!headers_sent()) {
-                ini_set('session.gc_maxlifetime', (string) (defined('ENV_TIME_SESSION') ? ENV_TIME_SESSION : 1440));
+                ini_set('session.gc_maxlifetime', (string) (defined('ENV_TIME_AUTH_SESSION') ? ENV_TIME_AUTH_SESSION : 1440));
                 session_start();
             }
         }

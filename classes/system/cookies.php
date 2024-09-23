@@ -2,49 +2,26 @@
 
 namespace classes\system;
 
-/** Класс cookie Сохранение, чтение, обновление и удаление данных cookie. Префикс можно установить. Обязательный тайм-аут.
- * Данные могут быть строками, массивами, объектами и т. Д.
- * public set Set cookie
- * public get Get update Read cookie
- * public Exp ire Prefix set public set clear cookie
- * Public set clear
- * Prefix Срок действия
- * частное шифрование / дешифрование кода авторизации
- * данные пакета частного пакета
- * данные распаковки закрытого типа
- * частное имя getName получить имя файла cookie, добавить обработку префикса
+/**
+ * Класс Cookies для работы с cookie: сохранение, чтение, обновление и удаление данных cookie
+ * Поддерживается установка префикса и срока действия
+ * @package classes\system
  */
 class Cookies {
 
-    static $_prefix = 'ee';
-    static $_securekey = 'efimchenko.ru';   // encrypt key
-    static $_expire = 3600;
+    private static string $_prefix = 'ee_';         // Префикс для всех cookie
+    private static string $_securekey = 'efimchenko.com';  // Ключ шифрования cookie
+    private static int $_expire = 2592000;             // Время жизни cookie по умолчанию 30 суток (в секундах)
 
-    /** Инициализация
-     * @param String $prefix cookie prefix     
-     * @param int $expire Срок действия
-     * @param str $securekey  cookie secure key
+    /**
+     * Устанавливает cookie с шифрованием
+     * @param string $name Имя cookie
+     * @param mixed $value Значение cookie (может быть строкой, массивом и т.д.)
+     * @param int $expire Время жизни cookie (в секундах)
      */
-    public function __construct($prefix = '', $expire = 0, $securekey = '') {
-        if (is_string($prefix) && $prefix != '') {
-            self::$_prefix = $prefix;
-        }
-        if (is_numeric($expire) && $expire > 0) {
-            self::$_expire = $expire;
-        }
-        if (is_string($securekey) && $securekey != '') {
-            self::$_securekey = $securekey;
-        }
-    }
-
-    /** Установить cookie
-     * @param str $name cookie name
-     * @param Значение cookie со смешанным значением $ может быть строкой, массивом, объектом и т. д.
-     * @param int $expire Срок действия
-     */
-    public static function set($name, $value, $expire = 0) {
+    public static function set(string $name, mixed $value, int $expire = 0): void {
         $cookie_name = self::getName($name);
-        $cookie_expire = time() + ($expire ? $expire : self::$_expire);
+        $cookie_expire = time() + ($expire ?: self::$_expire);
         $cookie_value = self::pack($value, $cookie_expire);
         $cookie_value = self::authcode($cookie_value, 'ENCODE');
         if ($cookie_name && $cookie_value && $cookie_expire) {
@@ -53,32 +30,33 @@ class Cookies {
         $_COOKIE[$cookie_name] = $cookie_value;
     }
 
-    /** Читать cookie
-     * @param str $name cookie name
-     * @return mixed
+    /**
+     * Получает значение cookie и расшифровывает его.
+     * @param string $name Имя cookie
+     * @return mixed Возвращает значение cookie или null, если cookie не найдено.
      */
-    public static function get($name) {
+    public static function get(string $name): mixed {
         $cookie_name = self::getName($name);
         if (isset($_COOKIE[$cookie_name])) {
             $cookie_value = self::authcode($_COOKIE[$cookie_name], 'DECODE');
             $cookie_value = self::unpack($cookie_value);
-            return isset($cookie_value[0]) ? $cookie_value[0] : null;
-        } else {
-            return null;
+            return $cookie_value[0] ?? null;
         }
+        return null;
     }
 
-    /** Обновите cookie, обновите только содержимое, если нужно обновить срок действия метод setExpire
-     * @param str $name cookie name
-     * @param mixed $value cookie value
-     * @return boolean
+    /**
+     * Обновляет значение существующего cookie
+     * @param string $name Имя cookie
+     * @param mixed $value Новое значение для обновления
+     * @return bool Возвращает true, если обновление прошло успешно, иначе false
      */
-    public static function update($name, $value) {
+    public static function update(string $name, mixed $value): bool {
         $cookie_name = self::getName($name);
         if (isset($_COOKIE[$cookie_name])) {
             $old_cookie_value = self::authcode($_COOKIE[$cookie_name], 'DECODE');
             $old_cookie_value = self::unpack($old_cookie_value);
-            if (isset($old_cookie_value[1]) && $old_cookie_value[1] > 0) { // Получить предыдущее время истечения
+            if (isset($old_cookie_value[1]) && $old_cookie_value[1] > 0) {
                 $cookie_expire = $old_cookie_value[1];
                 $cookie_value = self::pack($value, $cookie_expire);
                 $cookie_value = self::authcode($cookie_value, 'ENCODE');
@@ -91,79 +69,77 @@ class Cookies {
         return false;
     }
 
-    /** Очистить cookie
-     * @param str $name cookie name
+    /**
+     * Очищает (удаляет) cookie
+     * @param string $name Имя cookie для удаления
      */
-    public static function clear($name) {
+    public static function clear(string $name): void {
         $cookie_name = self::getName($name);
-        setcookie($cookie_name);
+        setcookie($cookie_name, '', time() - self::$_expire);
+        if (isset($_COOKIE[$cookie_name])) unset($_COOKIE[$cookie_name]);
     }
 
-    /** Установить префикс
-     * @param str $prefix cookie prefix
+    /**
+     * Устанавливает префикс для имен cookie.
+     * @param string $prefix Префикс для имен cookie
      */
-    public static function setPrefix($prefix) {
-        if (is_string($prefix) && $prefix != '') {
+    public static function setPrefix(string $prefix): void {
+        if ($prefix !== '') {
             self::$_prefix = $prefix;
         }
     }
 
-    /** Установить срок действия
-     * @param int $expire cookie expire
+    /**
+     * Устанавливает срок действия cookie.
+     * @param int $expire Время жизни cookie (в секундах)
      */
-    public static function setExpire($expire) {
-        if (is_numeric($expire) && $expire > 0) {
+    public static function setExpire(int $expire): void {
+        if ($expire > 0) {
             self::$_expire = $expire;
         }
     }
 
-    /** Получить имя файла cookie
-     * @param  str $name
-     * @return str
+    /**
+     * Возвращает полное имя cookie с префиксом
+     * @param string $name Имя cookie
+     * @return string Полное имя cookie
      */
-    private static function getName($name) {
-        return self::$_prefix ? self::$_prefix . '_' . $name : $name;
+    private static function getName(string $name): string {
+        return self::$_prefix . '_' . $name;
     }
 
-    /** pack
-     * @param var $data
-     * @param int $expire Срок действия Используется для оценки
-     * @return
+    /**
+     * Упаковывает значение и срок действия в JSON
+     * @param mixed $data Данные для сохранения
+     * @param int $expire Время жизни cookie
+     * @return string JSON строка с данными и временем жизни
      */
-    private static function pack($data, $expire) {
-        if ($data === '') {
-            return '';
-        }
-        $cookie_data = array();
-        $cookie_data['value'] = $data;
-        $cookie_data['expire'] = $expire;
-        return json_encode($cookie_data);
+    private static function pack(mixed $data, int $expire): string {
+        return json_encode(['value' => $data, 'expire' => $expire]);
     }
 
-    /** unpack
-     * @param var данные $ data
-     * @return array (данные, срок действия)
+    /**
+     * Распаковывает значение из JSON и проверяет срок действия
+     * @param string $data JSON строка
+     * @return array Распакованные данные [значение, срок действия]
      */
-    private static function unpack($data) {
-        if ($data === '') {
-            return array('', 0);
-        }
+    private static function unpack(string $data): array {
         $cookie_data = json_decode($data, true);
         if (isset($cookie_data['value']) && isset($cookie_data['expire'])) {
-            if (time() < $cookie_data['expire']) { // не истек
-                return array($cookie_data['value'], $cookie_data['expire']);
+            if (time() < $cookie_data['expire']) {
+                return [$cookie_data['value'], $cookie_data['expire']];
             }
         }
-
-        return array('', 0);
+        return ['', 0];
     }
 
-    /** Зашифровать / расшифровать данные
-     * @paramСтрока $ str Оригинальный или зашифрованный текст
-     * @param str $operation ENCODE or DECODE
-     * @return str Возвращает чистый текст или зашифрованный текст в соответствии с настройками
+    /**
+     * Шифрует или расшифровывает строку с использованием ключа
+     * @param string $string Строка для шифрования/дешифрования
+     * @param string $operation ENCODE или DECODE
+     * @return string Результат шифрования/дешифрования
      */
-    private static function authcode($string, $operation = 'DECODE') {
+    private static function authcode(string $string, string $operation = 'DECODE'): string {
         $ckey_length = 7;   // Случайная длина ключа, значение 0-32;
         $key = self::$_securekey;
         $key = md5($key);
@@ -204,5 +180,4 @@ class Cookies {
             return $keyc . str_replace('=', '', base64_encode($result));
         }
     }
-
 }

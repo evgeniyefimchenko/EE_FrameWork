@@ -5,6 +5,7 @@ namespace app\admin;
 use classes\system\SysClass;
 use classes\system\Plugins;
 use classes\helpers\ClassNotifications;
+use classes\system\Constants;
 
 /**
  * Функции работы с категориями
@@ -67,54 +68,54 @@ trait CategoriesTrait {
         $postData = SysClass::ee_cleanArray($_POST);        
         if (in_array('id', $params)) {
             $keyId = array_search('id', $params);
-            if ($keyId !== false && isset($params[$keyId + 1])) {
-                $id = filter_var($params[$keyId + 1], FILTER_VALIDATE_INT);
+            if ($keyId !== false && isset($params[$keyId + 1])) {                
+                $categoryId = filter_var($params[$keyId + 1], FILTER_VALIDATE_INT);
             } else {
-                $id = 0;
+                $categoryId = 0;
             }
             // Сохранение основных данных
             if (isset($postData['title']) && $postData['title']) {
                 if (!$new_id = $this->models['m_categories']->updateCategoryData($postData)) {
                     ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
                 } else {
-                    $id = $new_id;
+                    $categoryId = $new_id;
                 }
             }
             // Сохранение свойств для категории
             if (isset($postData['property_data']) && is_array($postData['property_data']) && isset($postData['property_data_changed']) && $postData['property_data_changed'] != 0) {
                 $this->processPropertyData($postData['property_data']);
             }
-            $get_category_data = ((int) $id ? $this->models['m_categories']->getCategoryData($id) : null) ?: $default_data;            
+            $getCategoryData = ((int) $categoryId ? $this->models['m_categories']->getCategoryData($categoryId) : null) ?: $default_data;            
         } else { // Не передан ключевой параметр id
             SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/category_edit/id/');
         }        
-        $categories_tree = $this->models['m_categories']->getCategoriesTree($id);
-        $full_categories_tree = $this->models['m_categories']->getCategoriesTree();
-        $categoryPages = $this->models['m_categories']->getCategoryPages($id);
-        $get_categories_type_sets = $this->models['m_categories_types']->getCategoriesTypeSetsData($get_category_data['type_id']);        
+        $categories_tree = $this->models['m_categories']->getCategoriesTree($categoryId);
+        $fullCategoriesTree = $this->models['m_categories']->getCategoriesTree();
+        $categoryPages = $this->models['m_categories']->getCategoryPages($categoryId);
+        $getCategoriesTypeSets = $this->models['m_categories_types']->getCategoriesTypeSetsData($getCategoryData['type_id']);        
         $getAllTypes = [];
-        if (isset($get_category_data['parent_id']) && $get_category_data['parent_id']) {
+        if (isset($getCategoryData['parent_id']) && $getCategoryData['parent_id']) {
             // Есть родитель, можно выбрать только его тип или подчинённый
-            $parent_type_id = $this->models['m_categories']->getCategoryTypeId($get_category_data['parent_id']);
+            $parent_type_id = $this->models['m_categories']->getCategoryTypeId($getCategoryData['parent_id']);
             $getAllTypes = $this->models['m_categories_types']->getAllTypes(false, false, $parent_type_id);
-        } elseif (isset($get_category_data['type_id']) && $get_category_data['type_id']) {
+        } elseif (isset($getCategoryData['type_id']) && $getCategoryData['type_id']) {
             // Если нет родителя то можно выбрать любой тип категории
             $getAllTypes = $this->models['m_categories_types']->getAllTypes(false, false);            
         } else {
             $getAllTypes = $this->models['m_categories_types']->getAllTypes(false, false);
         }
-        $get_categories_type_sets_data = [];
-        if (count($get_categories_type_sets) && $get_category_data) {
-            $get_categories_type_sets_data = $this->processCategoryProperties($get_categories_type_sets, $id, $get_category_data['title']);
+        $getCategoriesTypeSetsData = [];
+        if (count($getCategoriesTypeSets) && $getCategoryData) {
+            $getCategoriesTypeSetsData = $this->processCategoryProperties($getCategoriesTypeSets, $categoryId, $getCategoryData['title']);
         }
         
         /* view */
-        $this->view->set('category_data', $get_category_data);        
+        $this->view->set('categoryData', $getCategoryData);        
         $this->view->set('categories_tree', $categories_tree);
-        $this->view->set('full_categories_tree', $full_categories_tree);
+        $this->view->set('fullCategoriesTree', $fullCategoriesTree);
         $this->view->set('categoryPages', $categoryPages);
-        $this->view->set('categories_type_sets_data', $get_categories_type_sets_data);
-        $this->view->set('all_type', $getAllTypes);        
+        $this->view->set('categoriesTypeSetsData', $getCategoriesTypeSetsData);
+        $this->view->set('allType', $getAllTypes);        
         $this->getStandardViews();        
         $this->view->set('body_view', $this->view->read('v_edit_category'));
         $this->html = $this->view->read('v_dashboard');
@@ -130,23 +131,23 @@ trait CategoriesTrait {
 
     /**
      * Обрабатывает данные свойств для категорий
-     * @param array $get_categories_type_sets Массив идентификаторов наборов свойств
-     * @param int $category_id Идентификатор категории
-     * @param array $title_category Название категории
+     * @param array $getCategoriesTypeSets Массив идентификаторов наборов свойств
+     * @param int $categoryId Идентификатор категории
+     * @param array $titleCategory Название категории
      * @return array Возвращает массив обработанных данных свойств
      */
-    public function processCategoryProperties($get_categories_type_sets, $category_id, $title_category) {
+    public function processCategoryProperties($getCategoriesTypeSets, $categoryId, $titleCategory) {
         $this->loadModel('m_properties');
-        $get_categories_type_sets_data = [];
-        foreach ($get_categories_type_sets as $set_id) {
-            $properties_data = $this->models['m_properties']->getPropertySetData($set_id);
+        $getCategoriesTypeSetsData = [];
+        foreach ($getCategoriesTypeSets as $setId) {
+            $properties_data = $this->models['m_properties']->getPropertySetData($setId);
             foreach ($properties_data['properties'] as $k_prop => &$prop) {
                 $prop['default_values'] = json_decode($prop['default_values'], true);
-                $prop['property_values'] = $this->models['m_properties']->getPropertyValuesForEntity($category_id, 'category', $prop['p_id'], $set_id);
+                $prop['property_values'] = $this->models['m_properties']->getPropertyValuesForEntity($categoryId, 'category', $prop['p_id'], $setId);
                 if (!count($prop['property_values'])) {
                     $count = 0;
                     $prop['property_values']['property_id'] = $prop['p_id'];
-                    $prop['property_values']['entity_id'] = $category_id;
+                    $prop['property_values']['entity_id'] = $categoryId;
                     $prop['property_values']['entity_type'] = 'category';
                     $prop['property_values']['value_id'] = SysClass::ee_generate_uuid();
                     $prop['property_values']['set_id'] = $properties_data['set_id'];
@@ -168,21 +169,21 @@ trait CategoriesTrait {
             usort($properties_data['properties'], function ($a, $b) {
                 return $a['sort'] <=> $b['sort'];
             });
-            $get_categories_type_sets_data[$title_category][$set_id] = $properties_data;
+            $getCategoriesTypeSetsData[$titleCategory][$setId] = $properties_data;
         }
-        return $get_categories_type_sets_data;
+        return $getCategoriesTypeSetsData;
     }
     
     
     /**
      * Обрабатывает массив данных свойств и обновляет их в базе данных
-     * @param array $property_data Массив данных свойств
+     * @param array $propertyData Массив данных свойств
      * @return void
      */
-    public function processPropertyData(array $property_data): void {
+    public function processPropertyData(array $propertyData): void {
         $arrValueProp = [];
         $this->loadModel('m_properties');
-        foreach ($property_data as $itemPropKey => $itemPropValue) {
+        foreach ($propertyData as $itemPropKey => $itemPropValue) {
             $arrPropName = explode('_', $itemPropKey);
             $valueId = $arrPropName[0];
             $keyProp = $arrPropName[1];
@@ -269,11 +270,11 @@ trait CategoriesTrait {
             }
             $postData = SysClass::ee_cleanArray($_POST);
             $this->loadModel('m_categories_types');
-            $get_categories_type_sets = $this->models['m_categories_types']->getCategoriesTypeSetsData($postData['type_id']);
-            $category_id = $postData['category_id'];
-            $get_categories_type_sets_data = $this->processCategoryProperties($get_categories_type_sets, $category_id, $postData['title']);
-            echo json_encode(['html' => Plugins::renderCategorySetsAccordion($get_categories_type_sets_data, $category_id),
-                'get_categories_type_sets' => $get_categories_type_sets, 'category_id' => $category_id]);
+            $getCategoriesTypeSets = $this->models['m_categories_types']->getCategoriesTypeSetsData($postData['type_id']);
+            $categoryId = $postData['category_id'];
+            $getCategoriesTypeSetsData = $this->processCategoryProperties($getCategoriesTypeSets, $categoryId, $postData['title']);
+            echo json_encode(['html' => Plugins::renderCategorySetsAccordion($getCategoriesTypeSetsData, $categoryId),
+                'get_categories_type_sets' => $getCategoriesTypeSets, 'category_id' => $categoryId]);
         }
         die;
     }
@@ -344,7 +345,7 @@ trait CategoriesTrait {
                     'filterable' => true
                 ], [
                     'field' => 'children',
-                    'title' => $this->lang['sys.entities'],
+                    'title' => $this->lang['sys.pages'],
                     'sorted' => false,
                     'filterable' => false
                 ], [

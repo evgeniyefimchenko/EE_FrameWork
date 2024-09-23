@@ -28,10 +28,23 @@ window.lang_select = $('#lang_select');
         const langVars = safeParseJSON(localStorage.getItem('langVars'));
         return langVars ? langVars[key] : '';
     };
-    
+
     window.env_Global = function (key) {
         const envGlobal = safeParseJSON(localStorage.getItem('envGlobal'));
         return envGlobal ? envGlobal[key] : '';
+    };
+
+    /**
+     * Сбрасывает переменные langVars и envGlobal из localStorage и загружает их заново.
+     * @param {Function} [callback] Опциональная функция обратного вызова, которая будет вызвана после перезаписи данных.
+     */
+    window.resetLanguageVars = function () {
+        localStorage.removeItem('langVars');
+        localStorage.removeItem('envGlobal');
+        loadLanguageVars(function () {
+            console.log("Языковые переменные были успешно сброшены и перезагружены.");
+            window.location.reload(); // Перезагрузка страницы после загрузки языковых переменных
+        });
     };
 
     $(document).ready(function () {
@@ -42,20 +55,20 @@ window.lang_select = $('#lang_select');
             window.preloader.fadeOut(500);
             window.lang_select.click(function () {
                 sendAjaxRequest(
-                    '/set_options/' + $(this).attr('data-langcode'),
-                    {},
-                    'POST',
-                    'json',
-                    function (data) {
-                        if (data.error !== 'no') {
-                            console.error("Error setting language:", data);
-                        } else {
-                            window.location.reload();
+                        '/set_options/' + $(this).attr('data-langcode'),
+                        {},
+                        'POST',
+                        'json',
+                        function (data) {
+                            if (data.error !== 'no') {
+                                console.error("Error setting language:", data);
+                            } else {
+                                resetLanguageVars();
+                            }
+                        },
+                        function (jqXHR, textStatus, errorThrown) {
+                            console.error("Error during language selection:", textStatus, errorThrown);
                         }
-                    },
-                    function (jqXHR, textStatus, errorThrown) {
-                        console.error("Error during language selection:", textStatus, errorThrown);
-                    }
                 );
             });
         });
@@ -176,21 +189,21 @@ const settingsLongDescription = {
     noneditable_class: 'mceNonEditable',
     toolbar_mode: 'sliding',
     contextmenu: 'link image table',
-    setup: function(editor) {
+    setup: function (editor) {
         // Добавление кнопки, которая открывает elFinder
         editor.ui.registry.addButton('elfinder', {
             text: 'Выбрать файл',
-            onAction: function() {
+            onAction: function () {
                 // Открывает elFinder в модальном окне или в новом окне
                 let win = window.open('/assets/editor/elFinder/elfinder.html', 'elfinder', 'width=900,height=600');
-                window.processFile = function(fileUrl) {
+                window.processFile = function (fileUrl) {
                     // Функция обратного вызова для вставки URL в контент TinyMCE
                     editor.insertContent('<a href="' + fileUrl + '">' + fileUrl + '</a>');
                     win.close(); // Закрываем окно elFinder после выбора файла
                 };
             }
         });
-    }    
+    }
 };
 
 /**
@@ -216,10 +229,10 @@ function initializeTinyMCE(selector, settings) {
  * @throws {Error} Если min или max не являются числами.
  */
 function getRandomInteger(min = 1, max = 1000000) {
-  if (isNaN(min) || isNaN(max)) {
-    throw new Error("Аргументы должны быть числами.");
-  }
-  min = Math.ceil(min);
-  max = Math.floor(max);
-  return Math.floor(Math.random() * (max - min + 1)) + min;
+    if (isNaN(min) || isNaN(max)) {
+        throw new Error("Аргументы должны быть числами.");
+    }
+    min = Math.ceil(min);
+    max = Math.floor(max);
+    return Math.floor(Math.random() * (max - min + 1)) + min;
 }

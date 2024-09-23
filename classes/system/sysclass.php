@@ -3,7 +3,7 @@
 namespace classes\system;
 
 use classes\plugins\SafeMySQL;
-use classes\system\Constants;
+// use classes\system\Constants;
 
 /**
  * Системный класc для использования во всём проекте
@@ -113,18 +113,21 @@ class SysClass {
         $userData = new Users([$userId]);
         if (in_array(Constants::ALL, $access)) {
             return true;
-        }        
-        if (in_array(Constants::ALL_AUTH, $access) && !$userData->data['new_user']) {
+        }
+        if ($userData->data['new_user']) {
+            return false;
+        }
+        if (in_array(Constants::ALL_AUTH, $access)) {
             return true;
-        }        
+        }
         $role = strtoupper($userData->data['user_role_name']);
         if (!is_string($role)) {
             self::pre("Invalid role name: " . var_export($role, true));
         }
         if (!defined("classes\system\Constants::$role")) {
             self::pre("Constant Constants::$role is not defined");
-        }        
-        if (in_array(constant("classes\system\Constants::" . $role), $access)) {
+        }
+        if (in_array(constant("classes\system\Constants::" . $role), $access)) {            
             return true;
         }
         return false;
@@ -166,9 +169,9 @@ class SysClass {
         $contents = mb_eregi_replace("[^а-яА-ЯёЁ ]", '', $contents);
         $contents = strip_tags($contents);
         $contents = preg_replace(
-            ["'<[/!]*?[^<>]*?>'si", "'([\r\n])[s]+'si", "'&[a-z0-9]{1,6};'si", "'( +)'si"],
-            ["", " ", " ", " "],
-            $contents
+                ["'<[/!]*?[^<>]*?>'si", "'([\r\n])[s]+'si", "'&[a-z0-9]{1,6};'si", "'( +)'si"],
+                ["", " ", " ", " "],
+                $contents
         );
         $replaceArray = [
             "~", "!", "@", "#", "$", "%", "^", "&", "*", "(", ")", "_", "+", "`", '"', "№", ";", ":", "?", "-", "=", "|", "\"", "",
@@ -884,7 +887,7 @@ class SysClass {
         // Проверка, загружено ли расширение MySQLi
         if (!extension_loaded('mysqli')) {
             self::pre('Ошибка! Расширение MySQLi не загружено. Пожалуйста, установите и активируйте расширение MySQLi');
-        }        
+        }
         if (!$host || !$user || !$pass || !$db_name) {
             return false;
         }
@@ -1471,7 +1474,7 @@ class SysClass {
      * @throws ReflectionException Если класс Constants не найден
      * @throws RuntimeException Если не удалось обновить файл constants.php
      */
-    public static function ee_getFieldsTable($tableName) {
+    public static function ee_getFieldsTable(string $tableName) {
         try {
             $reflection = new \ReflectionClass('classes\system\Constants');
         } catch (\ReflectionException $e) {
@@ -1479,7 +1482,8 @@ class SysClass {
             self::preFile('sysclass', 'ee_getFieldsTable', 'throw new \ReflectionException', $message);
             throw new \ReflectionException($message);
         }
-        $fieldsKey = strtoupper($tableName) . '_FIELDS';
+        $constantTableName = str_replace(ENV_DB_PREF, '', $tableName) . '_table';
+        $fieldsKey = strtoupper($constantTableName) . '_FIELDS';
         $fields = $reflection->getConstant($fieldsKey);
         if (!empty($fields) && is_array($fields)) {
             return $fields;
@@ -1498,11 +1502,9 @@ class SysClass {
             self::preFile('sysclass', 'ee_getFieldsTable', 'throw new \ReflectionException', $message);
             throw new \RuntimeException($message);
         }
-        $newContent = preg_replace(
-                "/const {$fieldsKey} = \[\];/",
-                "const {$fieldsKey} = " . var_export($fieldNames, true) . ";",
-                $fileContent
-        );
+        $newContent = str_replace($fieldsKey . ' = []', $fieldsKey . ' = [' . implode(',', array_map(function ($value) {
+                            return "'" . addslashes($value) . "'";
+                        }, $fieldNames)) . ']', $fileContent);
         if (file_put_contents($constantsFile, $newContent) === false) {
             $message = "Не удалось обновить файл constants.php.";
             self::preFile('sysclass', 'ee_getFieldsTable', 'throw new \ReflectionException', $message);
@@ -1582,13 +1584,13 @@ class SysClass {
         $isSameSite = $referer && $referer['host'] == $currentHost;
         return $isAjax && $isSameSite;
     }
-    
+
     /**
      * Получает объект модели на основе переданных области и имени модели
      * @param string $area Название области, где находится модель
      * @param string $modelName Имя модели в формате "Модель_Название"
      * @return object|false Возвращает объект модели, если он существует, или false, если модель не найдена
-     */    
+     */
     public static function getModelObject(string $area, string $modelName): object|false {
         $parts = explode('_', substr($modelName, 2));
         $className = 'Model' . implode('', array_map('ucfirst', $parts));
@@ -1602,7 +1604,7 @@ class SysClass {
         }
         return false;
     }
-    
+
     /**
      * Файервол проекта :-)
      */
@@ -1611,6 +1613,5 @@ class SysClass {
             http_response_code(400);
             exit('Bad Request');
         }
-    }    
-    
+    }
 }

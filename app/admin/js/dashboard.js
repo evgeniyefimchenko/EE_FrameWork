@@ -26,7 +26,7 @@ actions = {
             success: function (data) {
                 if (typeof data.error !== 'undefined') {
                     console.log('error', data);
-                    actions.showNotification(lang_var('sys.data_read_error'), 'danger');
+                    actions.showNotification(lang_var('sys.data_read_error') + ' ' + data.error, 'danger');
                 } else {
                     if (data.notifications && typeof data.notifications[0] !== 'undefined') {
                         var d = new Date().getTime();
@@ -34,16 +34,16 @@ actions = {
                             if (data.notifications[key].status === 'info' || data.notifications[key].status === 'success' || data.notifications[key].status === 'danger') {
                                 actions.showNotification(data.notifications[key].text, data.notifications[key].status);
                                 // Информационные сообщения удаляем сразу
-                                $.post('/admin/kill_notification_by_id', {'id': data.notifications[key].id});
+                                $.post('/admin/killNotificationById', {'id': data.notifications[key].id});
                             } else if (data.notifications[key].status === 'primary') {
                                 if ((parseInt(data.notifications[key].showtime) - parseInt(d)) <= 0) {
                                     actions.showNotification(data.notifications[key].text, data.notifications[key].status);
                                     // Отложить показ уведомлений на 5-ть минут 
-                                    $.post('/admin/set_notification_time', {'showtime': d + 300000, 'id': data.notifications[key].id});
+                                    $.post('/admin/setNotificationTime', {'showtime': d + 300000, 'id': data.notifications[key].id});
                                 }
                             } else { // Показывать все остальные сообщения постоянно до удаления в контроллере                           
                                 actions.showNotification(data.notifications[key].text, data.notifications[key].status);
-                                $.post('/admin/set_notification_time', {'showtime': d, 'id': data.notifications[key].id});
+                                $.post('/admin/setNotificationTime', {'showtime': d, 'id': data.notifications[key].id});
                             }
                         }
                         ;

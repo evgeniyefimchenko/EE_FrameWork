@@ -3,7 +3,6 @@
 namespace classes\helpers;
 
 use classes\system\Users;
-
 /*
  * Класс для работы с уведомлениями
  * подключается в необходимых моделях
@@ -31,7 +30,7 @@ class ClassNotifications {
      * @param int $user_id - id пользователя
      * @param int $id - id оповещения
      */
-    public static function kill_notification_by_id($user_id, $id) {
+    public static function killNotificationById($user_id, $id) {
         $notifications = self::get_notifications_user($user_id);
         foreach ($notifications as $key => $notification) {
             if ($notification['id'] == $id) {

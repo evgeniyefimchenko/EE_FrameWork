@@ -24,24 +24,16 @@ function getUrlVars() {
  */
 function shakeOrFadeModal(message, isSuccess = false) {
     return new Promise((resolve) => {
-        // Определяем класс для отображения сообщения
         const alertClass = isSuccess ? 'alert alert-success' : 'alert alert-danger';
-
-        // Устанавливаем текст сообщения и класс
         $('.error').removeClass('alert alert-danger alert-success').addClass(alertClass).html(message);
-
         if (isSuccess) {
-            // Плавное исчезновение для сообщений об успехе
-           $('#loginModal').fadeTo(500, 0.5, resolve); // Завершаем Promise после исчезновения
+           $('#loginModal').fadeTo(500, 0.5, resolve);
         } else {
-            // Добавляем класс для анимации "встряхивания" для сообщений об ошибке
             $('#loginModal .modal-dialog').addClass('shake');
-
-            // Удаляем класс анимации "встряхивания" после задержки и завершаем Promise
             setTimeout(() => {
                 $('#loginModal .modal-dialog').removeClass('shake');
                 resolve();
-            }, 500); // Задержка в миллисекундах
+            }, 500);
         }
     });
 }

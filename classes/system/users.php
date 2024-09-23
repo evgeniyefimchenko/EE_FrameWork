@@ -207,7 +207,7 @@ class Users {
      * @force_login - флаг авторизации без проверки аргументов, используется для автологина
      * @return string 
      */
-    public function confirm_user($email, $psw, $force_login = false) {
+    public function confirmUser($email, $psw, $force_login = false) {
         $res = '';
         $user_row = SafeMySQL::gi()->getRow('SELECT user_id, active, pwd FROM ?n WHERE email = ?s', Constants::USERS_TABLE, $email);
         if ($user_row['active'] == 2 || $force_login) {
@@ -223,13 +223,11 @@ class Users {
                 $hash_login = $user_row['user_id'];
                 $session = password_hash($hash_login, PASSWORD_DEFAULT);
                 if (ENV_AUTH_USER == 0) {
-                    Session::set('user_id', $user_row['user_id']);
+                    Session::set('user_session', $session);
                 }
                 if (ENV_AUTH_USER === 2) {
-                    Cookies::set('user_id', $user_row['user_id']);
-                    Cookies::set('user_session', $session);
+                    Cookies::set('user_session', $session, ENV_TIME_AUTH_SESSION);
                 }
-                Session::set('user_session', $session);
                 SafeMySQL::gi()->query($sql, Constants::USERS_TABLE, $ip, $last_date, $session, $user_row['user_id']);
             } else {
                 $res = $this->lang['sys.the_password_was_not_verified'];
@@ -479,7 +477,7 @@ class Users {
                     language_code CHAR(2) NOT NULL DEFAULT 'RU' COMMENT 'Код языка по ISO 3166-2',
                     PRIMARY KEY (role_id),
                     UNIQUE KEY (role_key, language_code)
-                    ) ENGINE=innodb DEFAULT CHARSET=utf8;";
+                    ) ENGINE=innodb DEFAULT CHARSET=utf8 COMMENT='Роли пользователей';";
             SafeMySQL::gi()->query($createUsersRolesTable, Constants::USERS_ROLES_TABLE);
             /* Добавим стандартные роли на русском и английском языках */
             $insertData = "INSERT INTO ?n (role_key, name, language_code) VALUES
@@ -503,7 +501,7 @@ class Users {
                 options text NOT NULL COMMENT 'Настройки интерфейса пользователя',
                 PRIMARY KEY (data_id),
                 FOREIGN KEY (user_id) REFERENCES ?n(user_id) ON DELETE CASCADE
-            ) ENGINE=innodb DEFAULT CHARSET=utf8;";
+            ) ENGINE=innodb DEFAULT CHARSET=utf8 COMMENT='Системные данные пользователей';";
             SafeMySQL::gi()->query($createUsersDataTable, Constants::USERS_DATA_TABLE, Constants::USERS_TABLE);
             /* Сообщения пользователя */
             $createUsersMessageTable = "CREATE TABLE IF NOT EXISTS ?n (
@@ -623,17 +621,19 @@ class Users {
 			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                         language_code CHAR(2) NOT NULL DEFAULT 'RU' COMMENT 'Код языка по ISO 3166-2',
 			FOREIGN KEY (property_id) REFERENCES ?n(property_id),
+			FOREIGN KEY (set_id) REFERENCES ?n(set_id),
 			INDEX (property_id),
 			INDEX (entity_id)
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения значений свойств в формате JSON';";
-            SafeMySQL::gi()->query($createPropertyValuesTable, Constants::PROPERTY_VALUES_TABLE, Constants::PROPERTIES_TABLE);                        
+            SafeMySQL::gi()->query($createPropertyValuesTable, Constants::PROPERTY_VALUES_TABLE, Constants::PROPERTIES_TABLE, Constants::PROPERTY_SETS_TABLE);                        
             // Таблица для хранения общей информации о наборе свойств.
             $createPropertySetsTable = "CREATE TABLE IF NOT EXISTS ?n (
                         set_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                         name VARCHAR(255) NOT NULL,
                         description MEDIUMTEXT,
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        language_code CHAR(2) NOT NULL DEFAULT 'RU' COMMENT 'Код языка по ISO 3166-2'
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения наборов свойств';";
             SafeMySQL::gi()->query($createPropertySetsTable, Constants::PROPERTY_SETS_TABLE);
             // Таблица для представления отношения многие ко многим между типами категорий и наборами свойств.

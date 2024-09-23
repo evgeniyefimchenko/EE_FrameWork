@@ -37,7 +37,7 @@ class ControllerIndex Extends ControllerBase {
      * Главная страница админ-панели
      */
     public function index($params = []) {
-        $this->access = [Constants::ALL_AUTH];        
+        $this->access = [Constants::ALL_AUTH];    
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect(200, '/show_login_form?return=admin');
         }
@@ -261,7 +261,7 @@ class ControllerIndex Extends ControllerBase {
     public function ajax_admin(array $params = []) {
         $this->access = [Constants::ALL_AUTH];
         if (!SysClass::getAccessUser($this->logged_in, $this->access) || count($params) > 0) {
-            echo '{"error": "access denieded"}';
+            echo '{"error": "access denieded ' . var_export([$this->logged_in, $this->access], true) . '"}';
             exit();
         }
         /* get data */
