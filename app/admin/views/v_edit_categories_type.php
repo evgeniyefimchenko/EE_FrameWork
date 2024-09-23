@@ -66,7 +66,7 @@ use classes\system\Plugins;
                         </div>
                         <!-- Наборы свойств -->
                         <div class="tab-pane fade show mt-3" id="features-tab-pane" role="tabpanel" aria-labelledby="features-tab">
-                            <?=Plugins::renderPropertySets($property_sets_data, $categories_type_sets_data)?>
+                            <?=Plugins::renderPropertySets($propertySetsData, $categoriesTypeSetsData)?>
                         </div>                        
                     </div>
                 </div>

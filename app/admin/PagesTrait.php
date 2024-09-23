@@ -67,42 +67,46 @@ trait PagesTrait {
         if (in_array('id', $params)) {
             $keyId = array_search('id', $params);
             if ($keyId !== false && isset($params[$keyId + 1])) {
-                $id = filter_var($params[$keyId + 1], FILTER_VALIDATE_INT);
+                $pageId = filter_var($params[$keyId + 1], FILTER_VALIDATE_INT);
             } else {
-                $id = 0; 
+                $pageId = 0; 
             }
             if (isset($postData['title']) && $postData['title']) {             
                 if (!$new_id = $this->models['m_pages']->updatePageData($postData)) {
                     ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
                 } else {
-                    $id = $new_id;
+                    $pageId = $new_id;
                 }
             }
-            $getPageData = (int)$id ? $this->models['m_pages']->getPageData($id) : $default_data;
+            // Сохранение свойств для страницы
+            if (isset($postData['property_data']) && is_array($postData['property_data']) && isset($postData['property_data_changed']) && $postData['property_data_changed'] != 0) {
+                $this->processPropertyData($postData['property_data']);
+            }            
+            $getPageData = (int)$pageId ? $this->models['m_pages']->getPageData($pageId) : $default_data;
             $getPageData = $getPageData ? $getPageData : $default_data;
         } else { // Не передан ключевой параметр id
             SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/user_edit/id/' . $this->logged_in);
         }
-        $get_all_types = $this->models['m_categories_types']->getAllTypes();
-        $result = array_reduce($get_all_types, function($carry, $item) {
+        $getAllTypes = $this->models['m_categories_types']->getAllTypes();
+        $result = array_reduce($getAllTypes, function($carry, $item) {
           $carry[$item['type_id']] = $item;
           return $carry;
         }, []);
-        $get_all_types = $result;
+        $getAllTypes = $result;
         unset($result);
-        $get_all_categories = $this->models['m_categories']->getCategoriesTree(null, null, true);
-        $getAllPages = $this->models['m_pages']->getAllPages($id);
-        $get_all_properties = $this->models['m_properties']->getAllProperties('active', ENV_DEF_LANG, false);
+        $getAllCategories = $this->models['m_categories']->getCategoriesTree(null, null, true);
+        $getAllPages = $this->models['m_pages']->getAllPages($pageId);
+        $getAllProperties = $this->getPropertiesByCategoryId($getPageData['category_id'], $pageId);
         foreach (Constants::ALL_STATUS as $key => $value) {
-            $all_status[$key] = $this->lang['sys.' . $value];
+            $allStatus[$key] = $this->lang['sys.' . $value];
         }        
         /* view */
         $this->view->set('pageData', $getPageData);
-        $this->view->set('all_type', $get_all_types);
-        $this->view->set('all_categories', $get_all_categories);
+        $this->view->set('allType', $getAllTypes);
+        $this->view->set('allCategories', $getAllCategories);
         $this->view->set('allPages', $getAllPages);
-        $this->view->set('all_properties', $get_all_properties);
-        $this->view->set('all_status', $all_status);
+        $this->view->set('allProperties', $getAllProperties);
+        $this->view->set('allStatus', $allStatus);
         $this->getStandardViews();
         $this->view->set('body_view', $this->view->read('v_edit_page'));
         $this->html = $this->view->read('v_dashboard');
@@ -115,6 +119,51 @@ trait PagesTrait {
         $this->showLayout($this->parameters_layout);
     }
     
+    private function getPropertiesByCategoryId(int $categoryId, int $pageId): array {
+        $categoryTypeId = $this->models['m_categories']->getCategoryTypeId($categoryId);
+        $getCategoriesTypeSets = $this->models['m_categories_types']->getCategoriesTypeSetsData($categoryTypeId);
+        $getCategoriesTypeSetsData = $this->processPageProperties($getCategoriesTypeSets, $pageId);
+        return $getCategoriesTypeSetsData;
+    }
+ 
+    public function processPageProperties($getCategoriesTypeSets, $pageId) {
+        $this->loadModel('m_properties');
+        $getCategoriesTypeSetsData = [];
+        foreach ($getCategoriesTypeSets as $setId) {
+            $properties_data = $this->models['m_properties']->getPropertySetData($setId);
+            foreach ($properties_data['properties'] as $k_prop => &$prop) {
+                $prop['default_values'] = json_decode($prop['default_values'], true);
+                $prop['property_values'] = $this->models['m_properties']->getPropertyValuesForEntity($pageId, 'page', $prop['p_id'], $setId);
+                if (!count($prop['property_values'])) {
+                    $count = 0;
+                    $prop['property_values']['property_id'] = $prop['p_id'];
+                    $prop['property_values']['entity_id'] = $pageId;
+                    $prop['property_values']['entity_type'] = 'page';
+                    $prop['property_values']['value_id'] = SysClass::ee_generate_uuid();
+                    $prop['property_values']['set_id'] = $properties_data['set_id'];
+                    if (!isset($prop['default_values']) || !count($prop['default_values'])) {
+                        SysClass::pre('Критическая ошибка: default_values пусто или не установлено! ' . var_export($prop, true));
+                    }
+                    foreach ($prop['default_values'] as $propDefault) {
+                        $prop['property_values']['property_values'][$count] = ['type' => $propDefault['type'],
+                            'value' => isset($propDefault['default']) ? $propDefault['default'] : '',
+                            'label' => $propDefault['label'],
+                            'multiple' => $propDefault['multiple'],
+                            'required' => $propDefault['required'],
+                            'title' => isset($propDefault['title']) ? $propDefault['title'] : ''];
+                        $count++;
+                    }
+                }
+                unset($prop['default_values']);
+            }
+            usort($properties_data['properties'], function ($a, $b) {
+                return $a['sort'] <=> $b['sort'];
+            });
+            $getCategoriesTypeSetsData['page'][$setId] = $properties_data;
+        }
+        return $getCategoriesTypeSetsData;
+    }    
+    
     /**
      * Удаление сущности
      */
@@ -125,8 +174,7 @@ trait PagesTrait {
             exit();
         }
         /* model */
-        $this->loadModel('m_pages');        
-
+        $this->loadModel('m_pages');
         if (in_array('id', $params)) {
             $keyId = array_search('id', $params);
             if ($keyId !== false && isset($params[$keyId + 1])) {

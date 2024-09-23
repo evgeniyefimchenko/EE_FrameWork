@@ -162,7 +162,7 @@ class ControllerIndex Extends ControllerBase {
             $json['error'] = $this->lang['sys.invalid_mail_format'];
             die(json_encode($json, JSON_UNESCAPED_UNICODE));
         }
-        $json['error'] = $this->users->confirm_user($email, $pass);
+        $json['error'] = $this->users->confirmUser($email, $pass);
         die(json_encode($json, JSON_UNESCAPED_UNICODE));
     }
 
@@ -170,7 +170,12 @@ class ControllerIndex Extends ControllerBase {
      * Выход пользователя
      */
     public function exit_login($params = null) {
-        Session::un_set('user_session');
+        if (ENV_AUTH_USER == 0) {
+            Session::un_set('user_session');
+        }
+        if (ENV_AUTH_USER === 2) {
+            Cookies::clear('user_session');
+        }
         SysClass::handleRedirect(301, '/');
     }
 
@@ -217,7 +222,7 @@ class ControllerIndex Extends ControllerBase {
             if (ENV_CONFIRM_EMAIL == 1) {
                 $json['error'] = $this->users->send_register_code($email) ? '' : $this->lang['sys.email_sending_error'];
             } else {
-                $this->users->confirm_user($email, '', true); /* Автологин */
+                $this->users->confirmUser($email, '', true); /* Автологин */
             }
         }
         echo json_encode($json);
@@ -234,7 +239,7 @@ class ControllerIndex Extends ControllerBase {
                 if (password_verify($params[1], base64_decode($params[0]))) {
                     if ($this->users->dell_activation_code($params[1], $params[0])) {
                         ClassMail::send_mail($email, 'Спасибо за активацию', ['EMAIL' => $email], 'account_activated');
-                        $this->users->confirm_user($params[1], '', true); /* Автологин */
+                        $this->users->confirmUser($params[1], '', true); /* Автологин */
                         $this->parameters_layout["layout_content"] = $this->lang['sys.successfully_activated'] . ' <meta http-equiv="refresh" content="7;URL=' . ENV_URL_SITE . '">';
                     } else {
                         $this->parameters_layout["layout_content"] = $this->lang['sys.activation_error'] . ' <meta http-equiv="refresh" content="7;URL=' . ENV_URL_SITE . '">';

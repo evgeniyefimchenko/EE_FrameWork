@@ -7,6 +7,9 @@
  */
 class AutoloadManager {
 
+    
+    private static $initialized = false;
+    
     /**
      * @var array Карта классов для автозагрузки.
      */
@@ -25,7 +28,7 @@ class AutoloadManager {
         self::addClassMap('classes\plugins\HTTPRequester', ENV_SITE_PATH . 'classes' . ENV_DIRSEP . 'plugins' . ENV_DIRSEP . 'HTTPRequester.php');
         self::addClassMap('classes\plugins\SafeMySQL', ENV_SITE_PATH . 'classes' . ENV_DIRSEP . 'plugins' . ENV_DIRSEP . 'SafeMySQL.php');
         self::addNamespace('classes\helpers', ENV_SITE_PATH . 'classes' . ENV_DIRSEP . 'helpers' . ENV_DIRSEP);
-        self::addNamespace('app\admin', ENV_SITE_PATH . ENV_APP_DIRECTORY . ENV_DIRSEP . 'admin' . ENV_DIRSEP, true, 
+        self::addNamespace('app\admin', ENV_SITE_PATH . ENV_APP_DIRECTORY . ENV_DIRSEP . 'admin' . ENV_DIRSEP, true,
                 [ENV_SITE_PATH . ENV_APP_DIRECTORY . ENV_DIRSEP . 'admin' . ENV_DIRSEP . 'views']);
     }
 
@@ -33,11 +36,15 @@ class AutoloadManager {
      * Инициализирует автозагрузчик
      */
     public static function init() {
+        if (self::$initialized) {
+            return; // Если автозагрузчик уже инициализирован, выходим
+        }        
         // Все дополнительные классы плагинов и расширений должны быть подключены тут
         AutoloadManager::addPluginFromComposerJson(ENV_SITE_PATH . 'classes' . ENV_DIRSEP . 'plugins' . ENV_DIRSEP . 'PHPMailer');
         // Далее подключаются системные классы
         self::setDefaultNamespaces();
         spl_autoload_register([self::class, 'loadClass']);
+        self::$initialized = true;
     }
 
     /**
@@ -172,5 +179,4 @@ class AutoloadManager {
         echo '</pre>';
         die;
     }
-    
 }

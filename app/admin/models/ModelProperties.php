@@ -10,12 +10,12 @@ use classes\system\SysClass;
 class ModelProperties {
 
     /**
-     * Получает все свойства на основе статуса и языкового кода.     
+     * Получает все свойства на основе статуса и языкового кода     
      * @param string $status Статус типа свойства Constants::ALL_STATUS
-     * @param string $language_code Языковой код для фильтрации. По умолчанию используется константа ENV_DEF_LANG.
-     * @return array Возвращает массив всех свойств, соответствующих заданным критериям.
+     * @param string $languageCode Языковой код для фильтрации. По умолчанию используется константа ENV_DEF_LANG
+     * @return array Возвращает массив всех свойств, соответствующих заданным критериям
      */
-    public function getAllProperties($status = Constants::ALL_STATUS, $language_code = ENV_DEF_LANG, $short = true) {
+    public function getAllProperties($status = Constants::ALL_STATUS, $languageCode = ENV_DEF_LANG, $short = true) {
         if (is_string($status)) {
             $status = [$status];
         } else if (!is_array($status)) {
@@ -23,14 +23,14 @@ class ModelProperties {
         }
         if ($short) {
             $sql_properties = "SELECT * FROM ?n WHERE status IN (?a) AND language_code = ?s";
-            $res = SafeMySQL::gi()->getAll($sql_properties, Constants::PROPERTIES_TABLE, $status, $language_code);
+            $res = SafeMySQL::gi()->getAll($sql_properties, Constants::PROPERTIES_TABLE, $status, $languageCode);
             return $res;
         } else {
             $return = [];
             $sql_properties = "SELECT property_id FROM ?n WHERE status IN (?a) AND language_code = ?s";
-            $res = SafeMySQL::gi()->getAll($sql_properties, Constants::PROPERTIES_TABLE, $status, $language_code);
+            $res = SafeMySQL::gi()->getAll($sql_properties, Constants::PROPERTIES_TABLE, $status, $languageCode);
             foreach ($res as $item) {
-                $data_prop = $this->getPropertyData($item['property_id'], $language_code, $status);
+                $data_prop = $this->getPropertyData($item['property_id'], $languageCode, $status);
                 if (!$data_prop)
                     continue;
                 $return[] = $data_prop;
@@ -41,33 +41,33 @@ class ModelProperties {
     }
 
     /**
-     * Получает данные свойств с учетом параметров сортировки, фильтрации и пагинации.
-     * @param string $order Параметр для сортировки результатов (по умолчанию 'property_id ASC').
-     * @param string|null $where Условие для фильтрации результатов (по умолчанию NULL).
-     * @param int $start Начальный индекс для пагинации результатов (по умолчанию 0).
-     * @param int $limit Максимальное количество результатов для возврата (по умолчанию 100).
-     * @param string $language_code Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG.
-     * @return array Массив, содержащий данные свойств и общее количество свойств.
+     * Получает данные свойств с учетом параметров сортировки, фильтрации и пагинации
+     * @param string $order Параметр для сортировки результатов (по умолчанию 'property_id ASC')
+     * @param string|null $where Условие для фильтрации результатов (по умолчанию NULL)
+     * @param int $start Начальный индекс для пагинации результатов (по умолчанию 0)
+     * @param int $limit Максимальное количество результатов для возврата (по умолчанию 100)
+     * @param string $languageCode Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG
+     * @return array Массив, содержащий данные свойств и общее количество свойств
      */
-    public function getPropertiesData($order = 'property_id ASC', $where = null, $start = 0, $limit = 100, $language_code = ENV_DEF_LANG) {
+    public function getPropertiesData($order = 'property_id ASC', $where = null, $start = 0, $limit = 100, $languageCode = ENV_DEF_LANG) {
         $orderString = $order ? $order : 'property_id ASC';
-        $whereString = $where ? $where . ' AND language_code = ?s' : 'WHERE language_code = ?s';
+        $whereString = $where ? $where . ' AND language_code = ?s' : 'language_code = ?s';
         $start = $start ? $start : 0;
         if ($orderString) {
-            $sql_properties = "SELECT property_id FROM ?n $whereString ORDER BY $orderString LIMIT ?i, ?i";
+            $sql_properties = "SELECT property_id FROM ?n WHERE $whereString ORDER BY $orderString LIMIT ?i, ?i";
         } else {
-            $sql_properties = "SELECT property_id FROM ?n $whereString LIMIT ?i, ?i";
-        }
-        $res_array = SafeMySQL::gi()->getAll($sql_properties, Constants::PROPERTIES_TABLE, $language_code, $start, $limit);
+            $sql_properties = "SELECT property_id FROM ?n WHERE $whereString LIMIT ?i, ?i";
+        }        
+        $res_array = SafeMySQL::gi()->getAll($sql_properties, Constants::PROPERTIES_TABLE, $languageCode, $start, $limit);
         $res = [];
         foreach ($res_array as $property) {
-            $data_prop = $this->getPropertyData($property['property_id'], $language_code);
+            $data_prop = $this->getPropertyData($property['property_id'], $languageCode);
             if (!$data_prop)
                 continue;
             $res[] = $data_prop;
         }
-        $sql_count = "SELECT COUNT(*) as total_count FROM ?n $whereString";
-        $total_count = SafeMySQL::gi()->getOne($sql_count, Constants::PROPERTIES_TABLE, $language_code);
+        $sql_count = "SELECT COUNT(*) as total_count FROM ?n WHERE $whereString";
+        $total_count = SafeMySQL::gi()->getOne($sql_count, Constants::PROPERTIES_TABLE, $languageCode);
         return [
             'data' => $res,
             'total_count' => $total_count
@@ -77,11 +77,11 @@ class ModelProperties {
     /**
      * Получает данные одного свойства по его ID
      * @param int $property_id ID свойства, для которого нужно получить данные
-     * @param string $language_code Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG
+     * @param string $languageCode Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG
      * @param string $status Статус типа свойства Constants::ALL_STATUS
      * @return array|null Массив с данными свойства или NULL, если свойство не найдено
      */
-    public function getPropertyData($property_id, $language_code = ENV_DEF_LANG, $status = Constants::ALL_STATUS) {
+    public function getPropertyData($property_id, $languageCode = ENV_DEF_LANG, $status = Constants::ALL_STATUS) {
         if (is_string($status)) {
             $status = [$status];
         } else if (!is_array($status)) {
@@ -97,7 +97,7 @@ class ModelProperties {
                 Constants::PROPERTY_TYPES_TABLE,
                 $status,
                 $property_id,
-                $language_code
+                $languageCode
         );
         if (!$propertyData) {
             return null;
@@ -108,20 +108,20 @@ class ModelProperties {
     /**
      * Обновляет данные свойства в таблице свойств
      * @param array $propertyData Ассоциативный массив с данными свойства для обновления
-     * @param string $language_code Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG
+     * @param string $languageCode Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG
      * @return int|bool ID обновленного свойства или false в случае неудачи
      */
-    public function updatePropertyData($propertyData = [], $language_code = ENV_DEF_LANG) {        
+    public function updatePropertyData($propertyData = [], $languageCode = ENV_DEF_LANG) {
         $propertyData = SafeMySQL::gi()->filterArray($propertyData, SysClass::ee_getFieldsTable(Constants::PROPERTIES_TABLE));
         if (is_array($propertyData['default_values'])) {
             $propertyData['default_values'] = json_encode($propertyData['default_values'], JSON_UNESCAPED_UNICODE);
         } elseif (!SysClass::ee_isValidJson($propertyData['default_values'])) {
             $propertyData['default_values'] = '[]';
-        }        
+        }
         $propertyData = array_map('trim', $propertyData);
         $propertyData['is_multiple'] = isset($propertyData['is_multiple']) && ($propertyData['is_multiple'] == 'on' || $propertyData['is_multiple'] == 1) ? 1 : 0;
         $propertyData['is_required'] = isset($propertyData['is_required']) && ($propertyData['is_required'] == 'on' || $propertyData['is_required'] == 1) ? 1 : 0;
-        $propertyData['language_code'] = $language_code;  // добавлено
+        $propertyData['language_code'] = $languageCode;  // добавлено
         if (empty($propertyData['name']) || !isset($propertyData['type_id'])) {
             SysClass::preFile('error', 'update_property_data', 'Error: property_data', $propertyData);
             return false;
@@ -139,7 +139,7 @@ class ModelProperties {
         $existingProperty = SafeMySQL::gi()->getRow(
                 "SELECT property_id FROM ?n WHERE name = ?s AND type_id = ?i AND language_code = ?s",
                 Constants::PROPERTIES_TABLE,
-                $propertyData['name'], $propertyData['type_id'], $language_code
+                $propertyData['name'], $propertyData['type_id'], $languageCode
         );
         if ($existingProperty) {
             SysClass::preFile('error', 'update_property_data', 'Error: existingProperty', $propertyData);
@@ -153,17 +153,17 @@ class ModelProperties {
     /**
      * Получает все типы свойств из таблицы типов свойств
      * @param string $status Статус типа свойства Constants::ALL_STATUS
-     * @param string $language_code Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG
+     * @param string $languageCode Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG
      * @return array Массив, содержащий все типы свойств, каждый из которых представлен ассоциативным массивом с данными типа свойства
      */
-    public function getAllPropertyTypes($status = Constants::ALL_STATUS, $language_code = ENV_DEF_LANG) {
+    public function getAllPropertyTypes($status = Constants::ALL_STATUS, $languageCode = ENV_DEF_LANG) {
         if (is_string($status)) {
             $status = [$status];
         } else if (!is_array($status)) {
             $status = Constants::ALL_STATUS;
         }
         $sql = "SELECT * FROM ?n WHERE status IN (?a) AND language_code = ?s";
-        $property_types = SafeMySQL::gi()->getAll($sql, Constants::PROPERTY_TYPES_TABLE, $status, $language_code);
+        $property_types = SafeMySQL::gi()->getAll($sql, Constants::PROPERTY_TYPES_TABLE, $status, $languageCode);
         return $property_types;
     }
 
@@ -173,10 +173,10 @@ class ModelProperties {
      * @param string|null $where Условие для фильтрации результатов (по умолчанию NULL)
      * @param int $start Начальный индекс для пагинации результатов (по умолчанию 0)
      * @param int $limit Максимальное количество результатов для возврата (по умолчанию 100)
-     * @param string $language_code Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG
+     * @param string $languageCode Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG
      * @return array Массив, содержащий данные типов свойств и общее количество типов свойств
      */
-    public function getTypePropertiesData($order = 'type_id ASC', $where = null, $start = 0, $limit = 100, $language_code = ENV_DEF_LANG) {
+    public function getTypePropertiesData($order = 'type_id ASC', $where = null, $start = 0, $limit = 100, $languageCode = ENV_DEF_LANG) {
         $orderString = $order ? $order : 'type_id ASC';
         $whereString = $where ? $where . ' AND language_code = ?s' : 'WHERE language_code = ?s';
         $start = $start ? $start : 0;
@@ -185,13 +185,13 @@ class ModelProperties {
         } else {
             $sql_types = "SELECT type_id FROM ?n $whereString LIMIT ?i, ?i";
         }
-        $res_array = SafeMySQL::gi()->getAll($sql_types, Constants::PROPERTY_TYPES_TABLE, $language_code, $start, $limit);
+        $res_array = SafeMySQL::gi()->getAll($sql_types, Constants::PROPERTY_TYPES_TABLE, $languageCode, $start, $limit);
         $res = [];
         foreach ($res_array as $type) {
-            $res[] = $this->getTypePropertyData($type['type_id'], $language_code);
+            $res[] = $this->getTypePropertyData($type['type_id'], $languageCode);
         }
         $sql_count = "SELECT COUNT(*) as total_count FROM ?n $whereString";
-        $total_count = SafeMySQL::gi()->getOne($sql_count, Constants::PROPERTY_TYPES_TABLE, $language_code);
+        $total_count = SafeMySQL::gi()->getOne($sql_count, Constants::PROPERTY_TYPES_TABLE, $languageCode);
         return [
             'data' => $res,
             'total_count' => $total_count
@@ -201,12 +201,12 @@ class ModelProperties {
     /**
      * Получает данные одного типа свойства по его ID
      * @param int $type_id ID типа свойства, для которого нужно получить данные
-     * @param string $language_code Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG
+     * @param string $languageCode Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG
      * @return array|null Массив с данными типа свойства или NULL, если тип свойства не найден
      */
-    public function getTypePropertyData($type_id, $language_code = ENV_DEF_LANG) {
+    public function getTypePropertyData($type_id, $languageCode = ENV_DEF_LANG) {
         $sql_type = "SELECT * FROM ?n WHERE type_id = ?i AND language_code = ?s";
-        $type_data = SafeMySQL::gi()->getRow($sql_type, Constants::PROPERTY_TYPES_TABLE, $type_id, $language_code);
+        $type_data = SafeMySQL::gi()->getRow($sql_type, Constants::PROPERTY_TYPES_TABLE, $type_id, $languageCode);
         if (!$type_data) {
             return null;
         }
@@ -215,14 +215,14 @@ class ModelProperties {
 
     /**
      * Обновляет данные типа свойства в таблице типов свойств
-     * @param array $property_type_data Ассоциативный массив с данными типа свойства для обновления.
-     * @param string $language_code Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG.
-     * @return int|bool ID обновленного типа свойства или false в случае неудачи.
+     * @param array $property_type_data Ассоциативный массив с данными типа свойства для обновления
+     * @param string $languageCode Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG
+     * @return int|bool ID обновленного типа свойства или false в случае неудачи
      */
-    public function updatePropertyTypeData($property_type_data = [], $language_code = ENV_DEF_LANG) {
+    public function updatePropertyTypeData($property_type_data = [], $languageCode = ENV_DEF_LANG) {
         $property_type_data = SafeMySQL::gi()->filterArray($property_type_data, SysClass::ee_getFieldsTable(Constants::PROPERTY_TYPES_TABLE));
         $property_type_data = array_map('trim', $property_type_data);
-        $property_type_data['language_code'] = $language_code;  // добавлено
+        $property_type_data['language_code'] = $languageCode;  // добавлено
         if (empty($property_type_data['name'])) {
             return false;
         }
@@ -239,7 +239,7 @@ class ModelProperties {
         $existingType = SafeMySQL::gi()->getRow(
                 "SELECT type_id FROM ?n WHERE name = ?s AND language_code = ?s",
                 Constants::PROPERTY_TYPES_TABLE,
-                $property_type_data['name'], $language_code
+                $property_type_data['name'], $languageCode
         );
         if ($existingType) {
             return false;
@@ -285,30 +285,49 @@ class ModelProperties {
         }
     }
 
+    public function getAllPropertySetsData($short = true, array $select = [], string $languageCode = ENV_DEF_LANG): array|bool {
+        if ($short) {
+            return SafeMySQL::gi()->getInd('set_id', 'SELECT set_id FROM ?n WHERE language_code = ?s', Constants::PROPERTY_SETS_TABLE, $languageCode);
+        } else {
+            if (!count($select)) {
+                $select = ['*'];
+            }
+            return SafeMySQL::gi()->getInd('set_id', 'SELECT ' . implode(',', $select) . ' FROM ?n WHERE language_code = ?s', Constants::PROPERTY_SETS_TABLE, $languageCode);
+        }
+    }
+
     /**
      * Получает данные наборов свойств с учетом параметров сортировки, фильтрации и пагинации
      * @param string $order Параметр для сортировки результатов (по умолчанию 'set_id ASC')
      * @param string|null $where Условие для фильтрации результатов (по умолчанию NULL)
      * @param int $start Начальный индекс для пагинации результатов (по умолчанию 0)
      * @param int $limit Максимальное количество результатов для возврата (по умолчанию 100)
+     * @param string $languageCode Код языка в формате ISO 3166-2. По умолчанию используется значение ENV_DEF_LANG
      * @return array Массив, содержащий данные наборов свойств и общее количество наборов свойств
      */
-    public function getPropertySetsData(bool|string $order = 'set_id ASC', bool|string $where = false, int $start = 0, int $limit = 100): array {
+    public function getPropertySetsData(bool|string $order = 'set_id ASC', bool|string $where = false, int $start = 0, int $limit = 100, string $languageCode = ENV_DEF_LANG): array {
         $orderString = $order ? $order : 'set_id ASC';
-        $whereString = $where ? "WHERE " . $where : '';
+        $whereString = $where ? "WHERE " . $where . " AND language_code = ?s" : "WHERE language_code = ?s";
         $start = $start ? $start : 0;
+
+        // Запрос для получения идентификаторов наборов свойств
         $sql_sets = "SELECT set_id FROM ?n $whereString ORDER BY $orderString LIMIT ?i, ?i";
-        $res_array = SafeMySQL::gi()->getAll($sql_sets, Constants::PROPERTY_SETS_TABLE, $start, $limit);
+        $res_array = SafeMySQL::gi()->getAll($sql_sets, Constants::PROPERTY_SETS_TABLE, $languageCode, $start, $limit);
         $res = [];
+
+        // Получаем данные каждого набора свойств
         foreach ($res_array as $set) {
-            $data_set = $this->getPropertySetData($set['set_id']);
+            $data_set = $this->getPropertySetData($set['set_id'], $languageCode);
             if (!$data_set) {
                 continue;
             }
             $res[$set['set_id']] = $data_set;
         }
+
+        // Запрос для получения общего количества наборов свойств
         $sql_count = "SELECT COUNT(*) as total_count FROM ?n $whereString";
-        $total_count = SafeMySQL::gi()->getOne($sql_count, Constants::PROPERTY_SETS_TABLE);
+        $total_count = SafeMySQL::gi()->getOne($sql_count, Constants::PROPERTY_SETS_TABLE, $languageCode);
+
         return [
             'data' => $res,
             'total_count' => $total_count
@@ -336,40 +355,55 @@ class ModelProperties {
         ';
         $properties = SafeMySQL::gi()->getInd('p_id', $sql_properties, Constants::PROPERTIES_TABLE, Constants::PROPERTY_SET_TO_PROPERTIES_TABLE, $set_id);
         // Добавляем свойства к данным набора
-        $set_data['properties'] = $properties;        
+        $set_data['properties'] = $properties;
         return $set_data;
     }
 
     /**
      * Обновляет данные набора свойств в таблице наборов свойств
-     * @param array $property_set_data Ассоциативный массив с данными набора свойств для обновления.
-     * @return int|bool ID обновленного набора свойств или false в случае неудачи.
+     * @param array $property_set_data Ассоциативный массив с данными набора свойств для обновления
+     * @param string $languageCode Код языка в формате ISO 3166-2. По умолчанию используется значение ENV_DEF_LANG
+     * @return int|bool ID обновленного набора свойств или false в случае неудачи
      */
-    public function updatePropertySetData($property_set_data = []) {
+    public function updatePropertySetData(array $property_set_data = [], string $languageCode = ENV_DEF_LANG): int|bool {
+        // Фильтруем данные по полям таблицы набора свойств
         $property_set_data = SafeMySQL::gi()->filterArray($property_set_data, SysClass::ee_getFieldsTable(Constants::PROPERTY_SETS_TABLE));
         $property_set_data = array_map('trim', $property_set_data);
+
+        // Проверка обязательного поля 'name'
         if (empty($property_set_data['name'])) {
             return false;
         }
+
+        // Добавляем язык в массив данных
+        $property_set_data['language_code'] = $languageCode;
+
+        // Если есть set_id, обновляем существующую запись
         if (!empty($property_set_data['set_id']) && $property_set_data['set_id'] != 0) {
             $set_id = $property_set_data['set_id'];
-            unset($property_set_data['set_id']); // Удаляем set_id из массива данных, чтобы избежать его обновление
+            unset($property_set_data['set_id']); // Удаляем set_id, чтобы избежать его обновления
 
-            $sql = "UPDATE ?n SET ?u WHERE set_id = ?i";
-            $result = SafeMySQL::gi()->query($sql, Constants::PROPERTY_SETS_TABLE, $property_set_data, $set_id);
+            $sql = "UPDATE ?n SET ?u WHERE set_id = ?i AND language_code = ?s";
+            $result = SafeMySQL::gi()->query($sql, Constants::PROPERTY_SETS_TABLE, $property_set_data, $set_id, $languageCode);
             return $result ? $set_id : false;
         } else {
             unset($property_set_data['set_id']);
         }
-        // Проверяем уникальность имени набора свойств
+
+        // Проверяем уникальность имени набора свойств для указанного языка
         $existingSet = SafeMySQL::gi()->getRow(
-                "SELECT set_id FROM ?n WHERE name = ?s",
+                "SELECT set_id FROM ?n WHERE name = ?s AND language_code = ?s",
                 Constants::PROPERTY_SETS_TABLE,
-                $property_set_data['name']
+                $property_set_data['name'],
+                $languageCode
         );
+
+        // Если такой набор уже существует, возвращаем false
         if ($existingSet) {
             return false;
         }
+
+        // Вставляем новую запись
         $sql = "INSERT INTO ?n SET ?u";
         $result = SafeMySQL::gi()->query($sql, Constants::PROPERTY_SETS_TABLE, $property_set_data);
         return $result ? SafeMySQL::gi()->insertId() : false;
@@ -426,7 +460,7 @@ class ModelProperties {
         $sql = 'DELETE FROM ?n WHERE value_id IN (?a)';
         SafeMySQL::gi()->query($sql, Constants::PROPERTY_VALUES_TABLE, $value_id);
     }
-    
+
     /**
      * Добавить выбранные свойства в таблицу связей наборов свойств и свойств
      * @param int   $set_id ID набора свойств
@@ -445,12 +479,12 @@ class ModelProperties {
      * @param string $entity_type Тип сущности ('category', 'entity' и т.д.)
      * @param int $property_id ID свойства
      * @param int $set_id ID набора свойств
-     * @param string $language_code Код языка, по умолчанию 'RU'
+     * @param string $languageCode Код языка, по умолчанию 'RU'
      * @return array Возвращает массив значений свойств для сущности или пустой массив, если свойства не найдены
      */
-    public function getPropertyValuesForEntity(int $entity_id, string $entity_type, int $property_id, int $set_id, string $language_code = ENV_DEF_LANG):array {
+    public function getPropertyValuesForEntity(int $entity_id, string $entity_type, int $property_id, int $set_id, string $languageCode = ENV_DEF_LANG): array {
         $sql = 'SELECT * FROM ?n WHERE entity_id = ?i AND entity_type = ?s AND property_id = ?i AND set_id = ?i AND language_code = ?s';
-        $property = SafeMySQL::gi()->getRow($sql, Constants::PROPERTY_VALUES_TABLE, $entity_id, $entity_type, $property_id, $set_id, $language_code);
+        $property = SafeMySQL::gi()->getRow($sql, Constants::PROPERTY_VALUES_TABLE, $entity_id, $entity_type, $property_id, $set_id, $languageCode);
         if (!$property || !$property['property_values'] || $property['property_values'] == 'null') {
             return [];
         }
@@ -464,31 +498,31 @@ class ModelProperties {
     /**
      * Вернёт массив всех значений свойств сущности
      * @param int $entity_ids Идентификатор сущности, для которой требуется получить свойства
-     * @param string $entity_type Тип сущности ('category', 'entity' и т.д.)
-     * @param string $language_code Код языка, по умолчанию 'RU'
+     * @param string $entity_type Тип сущности ('category', 'page' и т.д.)
+     * @param string $languageCode Код языка, по умолчанию 'RU'
      * @return array Возвращает массив значений свойств для сущности или пустой массив, если свойства не найдены
      */
-    public function getPropertiesValuesForEntity(int|array $entity_ids, string $entity_type, string $language_code = ENV_DEF_LANG): array {
+    public function getPropertiesValuesForEntity(int|array $entity_ids, string $entity_type, string $languageCode = ENV_DEF_LANG): array {
         if (!is_array($entity_ids)) {
             $entity_ids = [$entity_ids];
         }
         $sql = 'SELECT * FROM ?n WHERE entity_id IN (?a) AND entity_type = ?s AND language_code = ?s';
-        return SafeMySQL::gi()->getAll($sql, Constants::PROPERTY_VALUES_TABLE, $entity_ids, $entity_type, $language_code);
+        return SafeMySQL::gi()->getAll($sql, Constants::PROPERTY_VALUES_TABLE, $entity_ids, $entity_type, $languageCode);
     }
 
     /**
      * Удалит все значения свойств сущности
      * @param int $entity_ids Идентификатор сущности, для которой требуется получить свойства
      * @param string $entity_type Тип сущности ('category', 'entity' и т.д.)
-     * @param string $language_code Код языка, по умолчанию 'RU'
+     * @param string $languageCode Код языка, по умолчанию 'RU'
      * @return array Возвращает массив значений свойств для сущности или пустой массив, если свойства не найдены
-     */    
-    public function deleteAllpropertiesValuesEntity(int|array $entity_ids, string $entity_type, string $language_code = ENV_DEF_LANG): void {
+     */
+    public function deleteAllpropertiesValuesEntity(int|array $entity_ids, string $entity_type, string $languageCode = ENV_DEF_LANG): void {
         if (!is_array($entity_ids)) {
             $entity_ids = [$entity_ids];
         }
         $sql = 'DELETE FROM ?n WHERE entity_id IN (?a) AND entity_type = ?s AND language_code = ?s';
-        SafeMySQL::gi()->query($sql, Constants::PROPERTY_VALUES_TABLE, $entity_ids, $entity_type, $language_code);
+        SafeMySQL::gi()->query($sql, Constants::PROPERTY_VALUES_TABLE, $entity_ids, $entity_type, $languageCode);
     }
 
     /**
@@ -510,16 +544,15 @@ class ModelProperties {
     /**
      * Сохраняет или обновляет значение свойства для сущностей
      * @param mixed $propertyData Данные свойства для сохранения или обновления
-     * @param string $language_code Код языка для данных свойства, по умолчанию 'RU'
+     * @param string $languageCode Код языка для данных свойства, по умолчанию 'RU'
      * @return mixed Возвращает идентификатор записи в случае успеха или false в случае ошибки
      */
-    public function updatePropertiesValueEntities(array $propertyData = [], string $language_code = ENV_DEF_LANG): bool|int {
+    public function updatePropertiesValueEntities(array $propertyData = [], string $languageCode = ENV_DEF_LANG): bool|int {
         $propertyData = SafeMySQL::gi()->filterArray($propertyData, SysClass::ee_getFieldsTable(Constants::PROPERTY_VALUES_TABLE));
         $propertyData = SysClass::ee_trimArrayValues($propertyData);
-        $propertyData['language_code'] = $language_code;
+        $propertyData['language_code'] = $languageCode;
         // Проверка наличия и валидность ключевых полей
-        if (empty($propertyData['entity_id']) || empty($propertyData['property_id']) || empty($propertyData['entity_type'])
-                || empty($propertyData['property_values']) || empty($propertyData['set_id'])) {
+        if (empty($propertyData['entity_id']) || empty($propertyData['property_id']) || empty($propertyData['entity_type']) || empty($propertyData['property_values']) || empty($propertyData['set_id'])) {
             return false; // Все ключевые поля обязательны
         }
         // Преобразование values в JSON, если это необходимо

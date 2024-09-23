@@ -370,8 +370,7 @@ trait SystemsTrait {
             $this->loadModel('m_categories', ['m_categories_types' => $this->models['m_categories_types']]);
             $this->loadModel('m_pages');
             $this->loadModel('m_properties');
-            $users = $this->generateTestUsers();            
-            // TODO сначала нужно нагенерировать свойств
+            $users = $this->generateTestUsers();
             // Добавление основных типов свойств
             $property_types = [
                 ['name' => 'Строка', 'description' => 'Тип свойства для хранения строковых данных', 'status' => 'active', 'fields' => '["text"]'],
@@ -387,14 +386,15 @@ trait SystemsTrait {
             $prop = $this->generateTestProperties();
             $sets_prop = $this->generateTestSetsProp();
             $catsType = $this->generateTestCategoriesType();
-            $cats = $this->generateTestCategories();
-            die('STOP');
+            $cats = $this->generateTestCategories();            
             $ent = $this->generateTestPages();
+            $setLinksTypeToCats = $this->setLinksTypeToCats();
             if (!$users || !$cats || !$ent || !$prop || !$sets_prop || !$catsType) {
                 $textMessage = 'Ошибка создания тестовых данных!<br/>Users: ' . var_export($users, true) . '<br/>Categories: <br/>'
                         . var_export($cats, true) . '<br/>Entities<br/>' . var_export($ent, true) . '<br/>Properties<br/>' . var_export($prop, true)
                         . '<br/>Sets Properties<br/>' . var_export($sets_prop, true)
-                        . '<br/>generateTestCategoriesType<br/>' . var_export($catsType, true);
+                        . '<br/>generateTestCategoriesType<br/>' . var_export($catsType, true)
+                        . '<br/>generateTestProperties<br/>' . var_export($prop, true);
                 $status = 'danger';
             } else {                              
                 file_put_contents($flagFilePath, 'Test data created on ' . date('Y-m-d H:i:s')); // Создаем файл-флаг  
@@ -520,7 +520,7 @@ trait SystemsTrait {
      */
     private function create_default_values(string $params, array $props_name) {
         $max_prop_name_count = count($props_name) - 1;
-        foreach (json_decode($params, true) as $field_type => $val) {
+        foreach (json_decode($params, true) as $field_type) {
             $value = [
                 "type" => $field_type,
                 "label" => $props_name[random_int(0, $max_prop_name_count)] . '_' . random_int(333, 777),
@@ -688,7 +688,11 @@ trait SystemsTrait {
         }
         // Вставка данных в таблицу категорий
         foreach ($categoriesData as $k => $categoryData) {
-            $res = $this->models['m_categories']->updateCategoryData($categoryData);
+            if ($categoryData) {
+                $res = $this->models['m_categories']->updateCategoryData($categoryData);
+            } else {
+                $res = false;
+            }
             $categoriesData[$k]['category_id'] = $res;
             if (!$res) {
                 SysClass::pre(['error', 'ADD test category', $categoryData, $categoriesData]);
@@ -699,9 +703,10 @@ trait SystemsTrait {
         $halfCount = intval($count / 2);
         for ($i = 0; $i < $halfCount; $i++) {
             $categoryId = $categoriesData[$i]['category_id'];  // предполагая, что category_id был сохранен при создании
-            $parentId = $categoriesData[rand($halfCount, $count - 1)]['category_id'];  // выбор случайного parent_id из второй половины
+            $parentIndex = rand($halfCount, $count - 1);
+            $parentId = $categoriesData[$parentIndex]['category_id'];  // выбор случайного parent_id из второй половины
             $categoryTitle = $categoriesData[$i]['title'];  // получение title
-            $type_id = $categoriesData[$i]['type_id'];
+            $type_id = $categoriesData[$parentIndex]['type_id'];
             $categoryData = [
                 'category_id' => $categoryId,
                 'parent_id' => $parentId,
@@ -711,10 +716,14 @@ trait SystemsTrait {
             if (!$categoryId) {
                 SysClass::pre(['ERROR !$categoryId', $categoryData, $categoriesData]);
             }
-            $res = $this->models['m_categories']->updateCategoryData($categoryData);
+            if ($categoryData) {
+                $res = $this->models['m_categories']->updateCategoryData($categoryData);
+            } else {
+                $res = false;
+            }
         }
         if (!$res) {
-            SysClass::pre('error', 'UPDATE test category');
+            SysClass::pre(['error', 'UPDATE test children category']);
             return $res;
         }
         return true;
@@ -758,8 +767,36 @@ trait SystemsTrait {
         }
         // Вставка данных в таблицу сущностей
         foreach ($entitiesData as $entityData) {
-            $res = $this->models['m_pages']->update_entity_data($entityData);
+            $res = $this->models['m_pages']->updatePageData($entityData);
         }
         return $res;
+    }
+    
+    /**
+     * Присваиваем типам категорий наборы свойств
+     * @return bool
+     */
+    private function setLinksTypeToCats() {
+        $types = $this->models['m_categories_types']->getAllTypes();        
+        $propertySetsData = array_keys($this->models['m_properties']->getAllPropertySetsData());
+        foreach ($types as $arrType) {
+            $typeId = $arrType['type_id'];
+            $randomCount = rand(1, count($propertySetsData)); 
+            $randomKeys = array_rand($propertySetsData, $randomCount);
+            if (!is_array($randomKeys)) {
+                $randomKeys = [$randomKeys];
+            } else {
+                if (count($randomKeys) > 4) {
+                    $randomKeys = array_slice($randomKeys, 0, rand(1, 3));
+                }
+            }
+            foreach ($randomKeys as $key) {
+                $propertySet[] = $propertySetsData[$key];
+            }
+            $parentsTypesIds = $this->models['m_categories_types']->getAllTypeParentsIds($typeId);
+            $realSetsIds = array_unique(array_merge($this->models['m_categories_types']->getCategoriesTypeSetsData($parentsTypesIds), $propertySet));            
+            $this->models['m_categories_types']->updateCategoriesTypeSetsData($typeId, $realSetsIds);
+        }
+        return true;
     }
 }

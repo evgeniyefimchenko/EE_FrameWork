@@ -3,7 +3,7 @@ use classes\system\SysClass;
 use classes\system\Plugins;
 ?>
 <!-- Редактирование сущности -->
-<?php if (!$all_type) SysClass::handleRedirect(200, '/admin/type_categories');?> 
+<?php if (!$allType) SysClass::handleRedirect(200, '/admin/type_categories');?> 
 <main>    
     <form id="edit_page" action="/admin/pageEdit/id/<?= $pageData['page_id'] ?>" method="POST">
         <input type="hidden" name="fake" value="1" />
@@ -48,7 +48,7 @@ use classes\system\Plugins;
                                     <div role="group" class="input-group">
                                         <select required <?=$pageData['parent_page_id'] ? "readonly " : ""?>type="text" id="category_id-input"
                                                 name="category_id" class="form-control">
-                                            <?php echo !$pageData['parent_page_id'] ? Plugins::showCategogyForSelect($all_categories, $pageData['category_id']) :
+                                            <?php echo !$pageData['parent_page_id'] ? Plugins::showCategogyForSelect($allCategories, $pageData['category_id']) :
                                                 '<option value="' . $pageData['category_id'] . '">' . $pageData['category_title'] . '</option>'?>
                                         </select>
                                         <?php if (!$pageData['parent_page_id']) { ?>
@@ -56,7 +56,7 @@ use classes\system\Plugins;
                                               data-bs-placement="top" role="button" class="input-group-text btn-primary">
                                             <i class="fas fa-tree" data-bs-toggle="modal" data-bs-target="#categories_modal"></i><!-- Иконка со знаком вопроса -->
                                         </span>
-                                            <?= Plugins::ee_generateModal('categories_modal', $lang['sys.categories'], Plugins::renderCategoryTree($all_categories))?>
+                                            <?= Plugins::ee_generateModal('categories_modal', $lang['sys.categories'], Plugins::renderCategoryTree($allCategories))?>
                                         <?php } ?>
                                     </div>
                                 </div>
@@ -65,7 +65,7 @@ use classes\system\Plugins;
                                     <div role="group" class="input-group">
                                         <select type="text" id="parent_page_id-input" name="parent_page_id" class="form-control">
                                             <option value="0"><?=$lang['sys.no']?></option>
-                                            <?php foreach ($all_pages as $item) {
+                                            <?php foreach ($allPages as $item) {
                                                 echo '<option ' . ($pageData['parent_page_id'] == $item['page_id'] ? "selected " : "") . 'value="' . $item['page_id'] . '">' . $item['title'] . '</option>';
                                             } ?>
                                         </select>
@@ -87,7 +87,7 @@ use classes\system\Plugins;
                                     <div class="col-6 col-sm-3">
                                         <label for="status-input">Статус:</label>                                            
                                         <select required id="status-input" name="status" class="form-control">
-                                            <?php foreach ($all_status as $key => $value) { ?>
+                                            <?php foreach ($allStatus as $key => $value) { ?>
                                                 <option <?=($pageData['status'] == $key ? 'selected ' : '')?>value="<?= $key ?>"><?= $value ?></option>
                                             <?php } ?>
                                         </select>
@@ -108,11 +108,11 @@ use classes\system\Plugins;
                             </div>
                             <div class="row mb-3">
                                 <div class="col-2">
-                                    <label for="registration-date-input"><?= $lang['sys.date_create'] ?>:</label>
+                                    <label><?= $lang['sys.date_create'] ?>:</label>
                                     <input type="text" disabled  class="form-control" value="<?= $pageData['created_at'] ?>">
                                 </div>
                                 <div class="col-2">
-                                    <label for="update-date-input"><?= $lang['sys.date_update'] ?>:</label>
+                                    <label><?= $lang['sys.date_update'] ?>:</label>
                                     <input type="text" disabled class="form-control" value="<?= $pageData['updated_at'] ?>">
                                 </div>
                             </div>
@@ -120,17 +120,14 @@ use classes\system\Plugins;
                         </div>
                         <!-- Свойства -->
                         <div class="tab-pane fade show mt-3" id="features-tab-pane" role="tabpanel" aria-labelledby="features-tab">
-                            <?php
-                                $html = '';
-                                foreach ($all_properties as $property_data) {
-                                    $html .= '<h4>' . $property_data['name'] . '</h4>';
-                                    $html .= '<div class="card"><div class="card-body">';
-                                    // Опциональная функция вывода свойств/характеристаик для сущности в Админ панели TODO
-                                    //// $html .= Plugins::renderPropertyHtmlFieldsByAdmin($property_data['fields'], $property_data['default_values']);
-                                    $html .= '</div></div>';
-                                }
-                                echo $html;
-                            ?>
+                            <div class="row">
+                                <div class="col">
+                                    <div id="renderCategorySetsAccordion">
+                                        <?=Plugins::renderCategorySetsAccordion($allProperties, $pageData['page_id'], 'page');?>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary my-3"><?=$lang['sys.save']?></button>
+                                </div>
+                            </div>
                         </div>                        
                     </div>
                 </div>
