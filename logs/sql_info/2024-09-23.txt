@@ -1,0 +1,1682 @@
+{START}
+Время события: 2024-09-23 19:33:45
+Инициатор: 'create_tables'
+Результат: База данных успешно развёрнута
+Детали: QUERY: COMMIT
+Timer: 0.00010299682617188
+Total time: 1.4078586101532
+Backtrace: array (
+  0 => 
+  array (
+    'function' => 'delegate',
+    'line' => 44,
+    'file' => '/home3/whrgijws/public_html/skku.shop/index.php',
+    'class' => 'classes\\system\\Router',
+    'type' => '->',
+  ),
+  1 => 
+  array (
+    'function' => '__construct',
+    'line' => 120,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Router.php',
+    'class' => 'classes\\system\\ControllerBase',
+    'type' => '->',
+  ),
+  2 => 
+  array (
+    'function' => 'checkInstall',
+    'line' => 69,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/ControllerBase.php',
+    'class' => 'classes\\system\\SysClass',
+    'type' => '::',
+  ),
+  3 => 
+  array (
+    'function' => '__construct',
+    'line' => 870,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/SysClass.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  4 => 
+  array (
+    'function' => 'get_user_data',
+    'line' => 32,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  5 => 
+  array (
+    'function' => 'create_tables',
+    'line' => 75,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  6 => 
+  array (
+    'function' => 'query',
+    'line' => 705,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\plugins\\SafeMySQL',
+    'type' => '->',
+  ),
+  7 => 
+  array (
+    'function' => 'rawQuery',
+    'line' => 146,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/plugins/SafeMySQL.php',
+    'class' => 'classes\\plugins\\SafeMySQL',
+    'type' => '->',
+  ),
+)
+QUERY: CREATE TABLE IF NOT EXISTS `ee_files_table` (
+                                    file_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                                    name VARCHAR(255) NOT NULL,
+                                    original_name VARCHAR(255) NOT NULL,
+                                    file_path VARCHAR(255) NOT NULL,
+                                    file_url VARCHAR(255) NULL,
+                                    mime_type VARCHAR(50) NOT NULL,
+                                    size BIGINT UNSIGNED NOT NULL,
+                                    uploaded_at DATETIME NOT NULL,
+                                    user_id INT UNSIGNED NULL,
+                                    FOREIGN KEY (user_id) REFERENCES `ee_users`(user_id)
+                                ) ENGINE=InnoDB DEFAULT CHARSET=utf8
+                                 COMMENT='Таблица для сохранения информации о файлах';
+Timer: 0.059165000915527
+Total time: 1.407755613327
+Backtrace: array (
+  0 => 
+  array (
+    'function' => 'delegate',
+    'line' => 44,
+    'file' => '/home3/whrgijws/public_html/skku.shop/index.php',
+    'class' => 'classes\\system\\Router',
+    'type' => '->',
+  ),
+  1 => 
+  array (
+    'function' => '__construct',
+    'line' => 120,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Router.php',
+    'class' => 'classes\\system\\ControllerBase',
+    'type' => '->',
+  ),
+  2 => 
+  array (
+    'function' => 'checkInstall',
+    'line' => 69,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/ControllerBase.php',
+    'class' => 'classes\\system\\SysClass',
+    'type' => '::',
+  ),
+  3 => 
+  array (
+    'function' => '__construct',
+    'line' => 870,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/SysClass.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  4 => 
+  array (
+    'function' => 'get_user_data',
+    'line' => 32,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  5 => 
+  array (
+    'function' => 'create_tables',
+    'line' => 75,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  6 => 
+  array (
+    'function' => 'query',
+    'line' => 686,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\plugins\\SafeMySQL',
+    'type' => '->',
+  ),
+  7 => 
+  array (
+    'function' => 'rawQuery',
+    'line' => 146,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/plugins/SafeMySQL.php',
+    'class' => 'classes\\plugins\\SafeMySQL',
+    'type' => '->',
+  ),
+)
+QUERY: CREATE TABLE IF NOT EXISTS `ee_search_contents` (
+                        search_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                        entity_id INT UNSIGNED NOT NULL,
+                        entity_type_table VARCHAR(255) NOT NULL,
+                        area CHAR(1) NOT NULL DEFAULT 'A' COMMENT 'Локация поиска A-админпанель, C-клиетская часть',
+                        full_search_content TEXT NOT NULL,
+                        short_search_content TEXT NOT NULL,
+                        language_code CHAR(2) NOT NULL DEFAULT 'RU' COMMENT 'Код языка по ISO 3166-2',
+                        relevance_score TINYINT UNSIGNED DEFAULT 0,
+                        last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        FULLTEXT(full_search_content, short_search_content),
+                        INDEX (entity_id, entity_type_table, area, language_code)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для глобального поиска по сайту';
+Timer: 0.40107417106628
+Total time: 1.3485906124115
+Backtrace: array (
+  0 => 
+  array (
+    'function' => 'delegate',
+    'line' => 44,
+    'file' => '/home3/whrgijws/public_html/skku.shop/index.php',
+    'class' => 'classes\\system\\Router',
+    'type' => '->',
+  ),
+  1 => 
+  array (
+    'function' => '__construct',
+    'line' => 120,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Router.php',
+    'class' => 'classes\\system\\ControllerBase',
+    'type' => '->',
+  ),
+  2 => 
+  array (
+    'function' => 'checkInstall',
+    'line' => 69,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/ControllerBase.php',
+    'class' => 'classes\\system\\SysClass',
+    'type' => '::',
+  ),
+  3 => 
+  array (
+    'function' => '__construct',
+    'line' => 870,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/SysClass.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  4 => 
+  array (
+    'function' => 'get_user_data',
+    'line' => 32,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  5 => 
+  array (
+    'function' => 'create_tables',
+    'line' => 75,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  6 => 
+  array (
+    'function' => 'query',
+    'line' => 671,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\plugins\\SafeMySQL',
+    'type' => '->',
+  ),
+  7 => 
+  array (
+    'function' => 'rawQuery',
+    'line' => 146,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/plugins/SafeMySQL.php',
+    'class' => 'classes\\plugins\\SafeMySQL',
+    'type' => '->',
+  ),
+)
+QUERY: CREATE TABLE IF NOT EXISTS `ee_property_set_to_properties` (
+                        set_id INT UNSIGNED NOT NULL,
+                        property_id INT UNSIGNED NOT NULL,
+                        PRIMARY KEY (set_id, property_id),
+                        FOREIGN KEY (set_id) REFERENCES `ee_property_sets`(set_id),
+                        FOREIGN KEY (property_id) REFERENCES `ee_properties`(property_id)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для связи наборов свойств и свойств';
+Timer: 0.052654027938843
+Total time: 0.94751644134521
+Backtrace: array (
+  0 => 
+  array (
+    'function' => 'delegate',
+    'line' => 44,
+    'file' => '/home3/whrgijws/public_html/skku.shop/index.php',
+    'class' => 'classes\\system\\Router',
+    'type' => '->',
+  ),
+  1 => 
+  array (
+    'function' => '__construct',
+    'line' => 120,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Router.php',
+    'class' => 'classes\\system\\ControllerBase',
+    'type' => '->',
+  ),
+  2 => 
+  array (
+    'function' => 'checkInstall',
+    'line' => 69,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/ControllerBase.php',
+    'class' => 'classes\\system\\SysClass',
+    'type' => '::',
+  ),
+  3 => 
+  array (
+    'function' => '__construct',
+    'line' => 870,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/SysClass.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  4 => 
+  array (
+    'function' => 'get_user_data',
+    'line' => 32,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  5 => 
+  array (
+    'function' => 'create_tables',
+    'line' => 75,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  6 => 
+  array (
+    'function' => 'query',
+    'line' => 656,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\plugins\\SafeMySQL',
+    'type' => '->',
+  ),
+  7 => 
+  array (
+    'function' => 'rawQuery',
+    'line' => 146,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/plugins/SafeMySQL.php',
+    'class' => 'classes\\plugins\\SafeMySQL',
+    'type' => '->',
+  ),
+)
+QUERY: CREATE TABLE IF NOT EXISTS `ee_category_type_to_property_set` (
+                        type_id INT UNSIGNED NOT NULL,
+                        set_id INT UNSIGNED NOT NULL,
+                        PRIMARY KEY (type_id, set_id),
+                        FOREIGN KEY (type_id) REFERENCES `ee_categories_types`(type_id),
+                        FOREIGN KEY (set_id) REFERENCES `ee_property_sets`(set_id)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для связи типов категорий и наборов свойств';
+Timer: 0.054002046585083
+Total time: 0.89486241340637
+Backtrace: array (
+  0 => 
+  array (
+    'function' => 'delegate',
+    'line' => 44,
+    'file' => '/home3/whrgijws/public_html/skku.shop/index.php',
+    'class' => 'classes\\system\\Router',
+    'type' => '->',
+  ),
+  1 => 
+  array (
+    'function' => '__construct',
+    'line' => 120,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Router.php',
+    'class' => 'classes\\system\\ControllerBase',
+    'type' => '->',
+  ),
+  2 => 
+  array (
+    'function' => 'checkInstall',
+    'line' => 69,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/ControllerBase.php',
+    'class' => 'classes\\system\\SysClass',
+    'type' => '::',
+  ),
+  3 => 
+  array (
+    'function' => '__construct',
+    'line' => 870,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/SysClass.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  4 => 
+  array (
+    'function' => 'get_user_data',
+    'line' => 32,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  5 => 
+  array (
+    'function' => 'create_tables',
+    'line' => 75,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  6 => 
+  array (
+    'function' => 'query',
+    'line' => 647,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\plugins\\SafeMySQL',
+    'type' => '->',
+  ),
+  7 => 
+  array (
+    'function' => 'rawQuery',
+    'line' => 146,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/plugins/SafeMySQL.php',
+    'class' => 'classes\\plugins\\SafeMySQL',
+    'type' => '->',
+  ),
+)
+QUERY: CREATE TABLE IF NOT EXISTS `ee_property_values` (
+			value_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+			entity_id INT UNSIGNED NOT NULL,
+			set_id INT UNSIGNED NOT NULL,
+			property_id INT UNSIGNED NOT NULL,
+			entity_type ENUM('category', 'page') NOT NULL,
+			property_values JSON NOT NULL,			
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        language_code CHAR(2) NOT NULL DEFAULT 'RU' COMMENT 'Код языка по ISO 3166-2',
+			FOREIGN KEY (property_id) REFERENCES `ee_properties`(property_id),
+			FOREIGN KEY (set_id) REFERENCES `ee_property_sets`(set_id),
+			INDEX (property_id),
+			INDEX (entity_id)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения значений свойств в формате JSON';
+Timer: 0.065793037414551
+Total time: 0.84086036682129
+Backtrace: array (
+  0 => 
+  array (
+    'function' => 'delegate',
+    'line' => 44,
+    'file' => '/home3/whrgijws/public_html/skku.shop/index.php',
+    'class' => 'classes\\system\\Router',
+    'type' => '->',
+  ),
+  1 => 
+  array (
+    'function' => '__construct',
+    'line' => 120,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Router.php',
+    'class' => 'classes\\system\\ControllerBase',
+    'type' => '->',
+  ),
+  2 => 
+  array (
+    'function' => 'checkInstall',
+    'line' => 69,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/ControllerBase.php',
+    'class' => 'classes\\system\\SysClass',
+    'type' => '::',
+  ),
+  3 => 
+  array (
+    'function' => '__construct',
+    'line' => 870,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/SysClass.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  4 => 
+  array (
+    'function' => 'get_user_data',
+    'line' => 32,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  5 => 
+  array (
+    'function' => 'create_tables',
+    'line' => 75,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  6 => 
+  array (
+    'function' => 'query',
+    'line' => 638,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\plugins\\SafeMySQL',
+    'type' => '->',
+  ),
+  7 => 
+  array (
+    'function' => 'rawQuery',
+    'line' => 146,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/plugins/SafeMySQL.php',
+    'class' => 'classes\\plugins\\SafeMySQL',
+    'type' => '->',
+  ),
+)
+QUERY: CREATE TABLE IF NOT EXISTS `ee_property_sets` (
+                        set_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                        name VARCHAR(255) NOT NULL,
+                        description MEDIUMTEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        language_code CHAR(2) NOT NULL DEFAULT 'RU' COMMENT 'Код языка по ISO 3166-2'
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения наборов свойств';
+Timer: 0.076540946960449
+Total time: 0.77506732940674
+Backtrace: array (
+  0 => 
+  array (
+    'function' => 'delegate',
+    'line' => 44,
+    'file' => '/home3/whrgijws/public_html/skku.shop/index.php',
+    'class' => 'classes\\system\\Router',
+    'type' => '->',
+  ),
+  1 => 
+  array (
+    'function' => '__construct',
+    'line' => 120,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Router.php',
+    'class' => 'classes\\system\\ControllerBase',
+    'type' => '->',
+  ),
+  2 => 
+  array (
+    'function' => 'checkInstall',
+    'line' => 69,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/ControllerBase.php',
+    'class' => 'classes\\system\\SysClass',
+    'type' => '::',
+  ),
+  3 => 
+  array (
+    'function' => '__construct',
+    'line' => 870,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/SysClass.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  4 => 
+  array (
+    'function' => 'get_user_data',
+    'line' => 32,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  5 => 
+  array (
+    'function' => 'create_tables',
+    'line' => 75,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  6 => 
+  array (
+    'function' => 'query',
+    'line' => 621,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\plugins\\SafeMySQL',
+    'type' => '->',
+  ),
+  7 => 
+  array (
+    'function' => 'rawQuery',
+    'line' => 146,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/plugins/SafeMySQL.php',
+    'class' => 'classes\\plugins\\SafeMySQL',
+    'type' => '->',
+  ),
+)
+QUERY: CREATE TABLE IF NOT EXISTS `ee_properties` (
+			property_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+			type_id INT UNSIGNED NOT NULL,
+			name VARCHAR(255) NOT NULL,
+                        status ENUM('active', 'hidden', 'disabled') NOT NULL DEFAULT 'active',
+                        sort INT UNSIGNED NOT NULL DEFAULT 100,
+                        default_values JSON NOT NULL,
+			is_multiple BOOLEAN NOT NULL,
+			is_required BOOLEAN NOT NULL,
+			description VARCHAR(255),
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        language_code CHAR(2) NOT NULL DEFAULT 'RU' COMMENT 'Код языка по ISO 3166-2',
+			FOREIGN KEY (type_id) REFERENCES `ee_property_types`(type_id),
+			INDEX (type_id)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения свойств';
+Timer: 0.053555011749268
+Total time: 0.69852638244629
+Backtrace: array (
+  0 => 
+  array (
+    'function' => 'delegate',
+    'line' => 44,
+    'file' => '/home3/whrgijws/public_html/skku.shop/index.php',
+    'class' => 'classes\\system\\Router',
+    'type' => '->',
+  ),
+  1 => 
+  array (
+    'function' => '__construct',
+    'line' => 120,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Router.php',
+    'class' => 'classes\\system\\ControllerBase',
+    'type' => '->',
+  ),
+  2 => 
+  array (
+    'function' => 'checkInstall',
+    'line' => 69,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/ControllerBase.php',
+    'class' => 'classes\\system\\SysClass',
+    'type' => '::',
+  ),
+  3 => 
+  array (
+    'function' => '__construct',
+    'line' => 870,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/SysClass.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  4 => 
+  array (
+    'function' => 'get_user_data',
+    'line' => 32,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  5 => 
+  array (
+    'function' => 'create_tables',
+    'line' => 75,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  6 => 
+  array (
+    'function' => 'query',
+    'line' => 611,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\plugins\\SafeMySQL',
+    'type' => '->',
+  ),
+  7 => 
+  array (
+    'function' => 'rawQuery',
+    'line' => 146,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/plugins/SafeMySQL.php',
+    'class' => 'classes\\plugins\\SafeMySQL',
+    'type' => '->',
+  ),
+)
+QUERY: CREATE TABLE IF NOT EXISTS `ee_property_types` (
+			type_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+			name VARCHAR(255) NOT NULL,
+			status ENUM('active', 'hidden', 'disabled') NOT NULL DEFAULT 'active',
+                        fields JSON NOT NULL,
+			description VARCHAR(255),
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        language_code CHAR(2) NOT NULL DEFAULT 'RU' COMMENT 'Код языка по ISO 3166-2'
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения типов свойств';
+Timer: 0.052727222442627
+Total time: 0.64497137069702
+Backtrace: array (
+  0 => 
+  array (
+    'function' => 'delegate',
+    'line' => 44,
+    'file' => '/home3/whrgijws/public_html/skku.shop/index.php',
+    'class' => 'classes\\system\\Router',
+    'type' => '->',
+  ),
+  1 => 
+  array (
+    'function' => '__construct',
+    'line' => 120,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Router.php',
+    'class' => 'classes\\system\\ControllerBase',
+    'type' => '->',
+  ),
+  2 => 
+  array (
+    'function' => 'checkInstall',
+    'line' => 69,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/ControllerBase.php',
+    'class' => 'classes\\system\\SysClass',
+    'type' => '::',
+  ),
+  3 => 
+  array (
+    'function' => '__construct',
+    'line' => 870,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/SysClass.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  4 => 
+  array (
+    'function' => 'get_user_data',
+    'line' => 32,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  5 => 
+  array (
+    'function' => 'create_tables',
+    'line' => 75,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  6 => 
+  array (
+    'function' => 'query',
+    'line' => 593,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\plugins\\SafeMySQL',
+    'type' => '->',
+  ),
+  7 => 
+  array (
+    'function' => 'rawQuery',
+    'line' => 146,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/plugins/SafeMySQL.php',
+    'class' => 'classes\\plugins\\SafeMySQL',
+    'type' => '->',
+  ),
+)
+QUERY: CREATE TABLE IF NOT EXISTS `ee_pages` (
+			page_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+			parent_page_id INT UNSIGNED NULL,
+			category_id INT UNSIGNED,
+                        status ENUM('active', 'hidden', 'disabled') NOT NULL DEFAULT 'active',
+			title VARCHAR(255) NOT NULL,
+			short_description VARCHAR(255),
+			description mediumtext,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        language_code CHAR(2) NOT NULL DEFAULT 'RU' COMMENT 'Код языка по ISO 3166-2',
+			FOREIGN KEY (category_id) REFERENCES `ee_categories`(category_id),
+			INDEX (category_id)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения страниц';
+Timer: 0.058965921401978
+Total time: 0.59224414825439
+Backtrace: array (
+  0 => 
+  array (
+    'function' => 'delegate',
+    'line' => 44,
+    'file' => '/home3/whrgijws/public_html/skku.shop/index.php',
+    'class' => 'classes\\system\\Router',
+    'type' => '->',
+  ),
+  1 => 
+  array (
+    'function' => '__construct',
+    'line' => 120,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Router.php',
+    'class' => 'classes\\system\\ControllerBase',
+    'type' => '->',
+  ),
+  2 => 
+  array (
+    'function' => 'checkInstall',
+    'line' => 69,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/ControllerBase.php',
+    'class' => 'classes\\system\\SysClass',
+    'type' => '::',
+  ),
+  3 => 
+  array (
+    'function' => '__construct',
+    'line' => 870,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/SysClass.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  4 => 
+  array (
+    'function' => 'get_user_data',
+    'line' => 32,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  5 => 
+  array (
+    'function' => 'create_tables',
+    'line' => 75,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  6 => 
+  array (
+    'function' => 'query',
+    'line' => 581,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\plugins\\SafeMySQL',
+    'type' => '->',
+  ),
+  7 => 
+  array (
+    'function' => 'rawQuery',
+    'line' => 146,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/plugins/SafeMySQL.php',
+    'class' => 'classes\\plugins\\SafeMySQL',
+    'type' => '->',
+  ),
+)
+QUERY: ALTER TABLE `ee_categories` 
+                        ADD FOREIGN KEY (type_id) REFERENCES `ee_categories_types`(type_id),
+                        ADD FOREIGN KEY (parent_id) REFERENCES `ee_categories`(category_id);
+Timer: 0.10112595558167
+Total time: 0.53327822685242
+Backtrace: array (
+  0 => 
+  array (
+    'function' => 'delegate',
+    'line' => 44,
+    'file' => '/home3/whrgijws/public_html/skku.shop/index.php',
+    'class' => 'classes\\system\\Router',
+    'type' => '->',
+  ),
+  1 => 
+  array (
+    'function' => '__construct',
+    'line' => 120,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Router.php',
+    'class' => 'classes\\system\\ControllerBase',
+    'type' => '->',
+  ),
+  2 => 
+  array (
+    'function' => 'checkInstall',
+    'line' => 69,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/ControllerBase.php',
+    'class' => 'classes\\system\\SysClass',
+    'type' => '::',
+  ),
+  3 => 
+  array (
+    'function' => '__construct',
+    'line' => 870,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/SysClass.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  4 => 
+  array (
+    'function' => 'get_user_data',
+    'line' => 32,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  5 => 
+  array (
+    'function' => 'create_tables',
+    'line' => 75,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  6 => 
+  array (
+    'function' => 'query',
+    'line' => 565,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\plugins\\SafeMySQL',
+    'type' => '->',
+  ),
+  7 => 
+  array (
+    'function' => 'rawQuery',
+    'line' => 146,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/plugins/SafeMySQL.php',
+    'class' => 'classes\\plugins\\SafeMySQL',
+    'type' => '->',
+  ),
+)
+QUERY: CREATE TABLE IF NOT EXISTS `ee_categories` (
+                        category_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                        type_id INT UNSIGNED NOT NULL,
+                        title VARCHAR(255) NOT NULL,
+                        description mediumtext,
+                        short_description VARCHAR(255),
+                        parent_id INT UNSIGNED,
+                        status ENUM('active', 'hidden', 'disabled') NOT NULL DEFAULT 'active',
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        language_code CHAR(2) NOT NULL DEFAULT 'RU' COMMENT 'Код языка по ISO 3166-2',
+                        INDEX (type_id),
+                        INDEX (parent_id)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения категорий сущностей';
+Timer: 0.077756881713867
+Total time: 0.43215227127075
+Backtrace: array (
+  0 => 
+  array (
+    'function' => 'delegate',
+    'line' => 44,
+    'file' => '/home3/whrgijws/public_html/skku.shop/index.php',
+    'class' => 'classes\\system\\Router',
+    'type' => '->',
+  ),
+  1 => 
+  array (
+    'function' => '__construct',
+    'line' => 120,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Router.php',
+    'class' => 'classes\\system\\ControllerBase',
+    'type' => '->',
+  ),
+  2 => 
+  array (
+    'function' => 'checkInstall',
+    'line' => 69,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/ControllerBase.php',
+    'class' => 'classes\\system\\SysClass',
+    'type' => '::',
+  ),
+  3 => 
+  array (
+    'function' => '__construct',
+    'line' => 870,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/SysClass.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  4 => 
+  array (
+    'function' => 'get_user_data',
+    'line' => 32,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  5 => 
+  array (
+    'function' => 'create_tables',
+    'line' => 75,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  6 => 
+  array (
+    'function' => 'query',
+    'line' => 560,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\plugins\\SafeMySQL',
+    'type' => '->',
+  ),
+  7 => 
+  array (
+    'function' => 'rawQuery',
+    'line' => 146,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/plugins/SafeMySQL.php',
+    'class' => 'classes\\plugins\\SafeMySQL',
+    'type' => '->',
+  ),
+)
+QUERY: CREATE TABLE IF NOT EXISTS `ee_categories_types` (
+                        type_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                        parent_type_id INT UNSIGNED NULL,
+                        name VARCHAR(255) NOT NULL UNIQUE,
+                        description VARCHAR(255),
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        language_code CHAR(2) NOT NULL DEFAULT 'RU' COMMENT 'Код языка по ISO 3166-2',
+                        FOREIGN KEY (parent_type_id) REFERENCES `ee_categories_types`(type_id)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения типов сущностей и категорий';
+Timer: 0.070669174194336
+Total time: 0.35439538955688
+Backtrace: array (
+  0 => 
+  array (
+    'function' => 'delegate',
+    'line' => 44,
+    'file' => '/home3/whrgijws/public_html/skku.shop/index.php',
+    'class' => 'classes\\system\\Router',
+    'type' => '->',
+  ),
+  1 => 
+  array (
+    'function' => '__construct',
+    'line' => 120,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Router.php',
+    'class' => 'classes\\system\\ControllerBase',
+    'type' => '->',
+  ),
+  2 => 
+  array (
+    'function' => 'checkInstall',
+    'line' => 69,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/ControllerBase.php',
+    'class' => 'classes\\system\\SysClass',
+    'type' => '::',
+  ),
+  3 => 
+  array (
+    'function' => '__construct',
+    'line' => 870,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/SysClass.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  4 => 
+  array (
+    'function' => 'get_user_data',
+    'line' => 32,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  5 => 
+  array (
+    'function' => 'create_tables',
+    'line' => 75,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  6 => 
+  array (
+    'function' => 'query',
+    'line' => 543,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\plugins\\SafeMySQL',
+    'type' => '->',
+  ),
+  7 => 
+  array (
+    'function' => 'rawQuery',
+    'line' => 146,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/plugins/SafeMySQL.php',
+    'class' => 'classes\\plugins\\SafeMySQL',
+    'type' => '->',
+  ),
+)
+QUERY: CREATE TABLE IF NOT EXISTS `ee_users_activation` (
+                id int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+                user_id int(11) NOT NULL,
+                email varchar(255) NOT NULL,
+                code varchar(255) NOT NULL,
+                created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                stop_time datetime NOT NULL,
+                PRIMARY KEY (id)
+            ) ENGINE=innodb DEFAULT CHARSET=utf8 COMMENT='Коды активации для зарегистрировавшихся пользователей';
+Timer: 0.050693035125732
+Total time: 0.28372621536255
+Backtrace: array (
+  0 => 
+  array (
+    'function' => 'delegate',
+    'line' => 44,
+    'file' => '/home3/whrgijws/public_html/skku.shop/index.php',
+    'class' => 'classes\\system\\Router',
+    'type' => '->',
+  ),
+  1 => 
+  array (
+    'function' => '__construct',
+    'line' => 120,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Router.php',
+    'class' => 'classes\\system\\ControllerBase',
+    'type' => '->',
+  ),
+  2 => 
+  array (
+    'function' => 'checkInstall',
+    'line' => 69,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/ControllerBase.php',
+    'class' => 'classes\\system\\SysClass',
+    'type' => '::',
+  ),
+  3 => 
+  array (
+    'function' => '__construct',
+    'line' => 870,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/SysClass.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  4 => 
+  array (
+    'function' => 'get_user_data',
+    'line' => 32,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  5 => 
+  array (
+    'function' => 'create_tables',
+    'line' => 75,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  6 => 
+  array (
+    'function' => 'query',
+    'line' => 531,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\plugins\\SafeMySQL',
+    'type' => '->',
+  ),
+  7 => 
+  array (
+    'function' => 'rawQuery',
+    'line' => 146,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/plugins/SafeMySQL.php',
+    'class' => 'classes\\plugins\\SafeMySQL',
+    'type' => '->',
+  ),
+)
+QUERY: CREATE TABLE IF NOT EXISTS `ee_users_message` (
+                message_id int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+                user_id int(11) UNSIGNED NOT NULL,
+                author_id int(11) UNSIGNED NOT NULL,
+                chat_id int(11) UNSIGNED NULL COMMENT 'Зарезервирован для груповых чатов',
+                message_text varchar(1000) NOT NULL,
+                created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                read_at datetime DEFAULT NULL,
+                status varchar(10) NOT NULL DEFAULT 'info',
+                PRIMARY KEY (message_id),
+                FOREIGN KEY (user_id) REFERENCES `ee_users`(user_id) ON DELETE CASCADE,
+                FOREIGN KEY (author_id) REFERENCES `ee_users`(user_id) ON DELETE CASCADE
+            ) ENGINE=innodb DEFAULT CHARSET=utf8;
+Timer: 0.067248106002808
+Total time: 0.23303318023682
+Backtrace: array (
+  0 => 
+  array (
+    'function' => 'delegate',
+    'line' => 44,
+    'file' => '/home3/whrgijws/public_html/skku.shop/index.php',
+    'class' => 'classes\\system\\Router',
+    'type' => '->',
+  ),
+  1 => 
+  array (
+    'function' => '__construct',
+    'line' => 120,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Router.php',
+    'class' => 'classes\\system\\ControllerBase',
+    'type' => '->',
+  ),
+  2 => 
+  array (
+    'function' => 'checkInstall',
+    'line' => 69,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/ControllerBase.php',
+    'class' => 'classes\\system\\SysClass',
+    'type' => '::',
+  ),
+  3 => 
+  array (
+    'function' => '__construct',
+    'line' => 870,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/SysClass.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  4 => 
+  array (
+    'function' => 'get_user_data',
+    'line' => 32,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  5 => 
+  array (
+    'function' => 'create_tables',
+    'line' => 75,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  6 => 
+  array (
+    'function' => 'query',
+    'line' => 520,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\plugins\\SafeMySQL',
+    'type' => '->',
+  ),
+  7 => 
+  array (
+    'function' => 'rawQuery',
+    'line' => 146,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/plugins/SafeMySQL.php',
+    'class' => 'classes\\plugins\\SafeMySQL',
+    'type' => '->',
+  ),
+)
+QUERY: CREATE TABLE IF NOT EXISTS `ee_users_data` (
+                data_id int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+                user_id int(11) UNSIGNED NOT NULL,
+                updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Время любого изменения данных',
+                options text NOT NULL COMMENT 'Настройки интерфейса пользователя',
+                PRIMARY KEY (data_id),
+                FOREIGN KEY (user_id) REFERENCES `ee_users`(user_id) ON DELETE CASCADE
+            ) ENGINE=innodb DEFAULT CHARSET=utf8 COMMENT='Системные данные пользователей';
+Timer: 0.047243118286133
+Total time: 0.16578507423401
+Backtrace: array (
+  0 => 
+  array (
+    'function' => 'delegate',
+    'line' => 44,
+    'file' => '/home3/whrgijws/public_html/skku.shop/index.php',
+    'class' => 'classes\\system\\Router',
+    'type' => '->',
+  ),
+  1 => 
+  array (
+    'function' => '__construct',
+    'line' => 120,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Router.php',
+    'class' => 'classes\\system\\ControllerBase',
+    'type' => '->',
+  ),
+  2 => 
+  array (
+    'function' => 'checkInstall',
+    'line' => 69,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/ControllerBase.php',
+    'class' => 'classes\\system\\SysClass',
+    'type' => '::',
+  ),
+  3 => 
+  array (
+    'function' => '__construct',
+    'line' => 870,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/SysClass.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  4 => 
+  array (
+    'function' => 'get_user_data',
+    'line' => 32,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  5 => 
+  array (
+    'function' => 'create_tables',
+    'line' => 75,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  6 => 
+  array (
+    'function' => 'query',
+    'line' => 505,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\plugins\\SafeMySQL',
+    'type' => '->',
+  ),
+  7 => 
+  array (
+    'function' => 'rawQuery',
+    'line' => 146,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/plugins/SafeMySQL.php',
+    'class' => 'classes\\plugins\\SafeMySQL',
+    'type' => '->',
+  ),
+)
+QUERY: INSERT INTO `ee_user_roles` (role_key, name, language_code) VALUES
+                    ('admin', 'Администратор', 'RU'),
+                    ('admin', 'Administrator', 'EN'),
+                    ('moderator', 'Модератор', 'RU'),
+                    ('moderator', 'Moderator', 'EN'),
+                    ('manager', 'Менеджер', 'RU'),
+                    ('manager', 'Manager', 'EN'),
+                    ('user', 'Пользователь', 'RU'),
+                    ('user', 'User', 'EN'),
+                    ('system', 'Система', 'RU'),
+                    ('system', 'System', 'EN')
+                    ON DUPLICATE KEY UPDATE name = VALUES(name);
+Timer: 0.00065898895263672
+Total time: 0.11854195594788
+Backtrace: array (
+  0 => 
+  array (
+    'function' => 'delegate',
+    'line' => 44,
+    'file' => '/home3/whrgijws/public_html/skku.shop/index.php',
+    'class' => 'classes\\system\\Router',
+    'type' => '->',
+  ),
+  1 => 
+  array (
+    'function' => '__construct',
+    'line' => 120,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Router.php',
+    'class' => 'classes\\system\\ControllerBase',
+    'type' => '->',
+  ),
+  2 => 
+  array (
+    'function' => 'checkInstall',
+    'line' => 69,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/ControllerBase.php',
+    'class' => 'classes\\system\\SysClass',
+    'type' => '::',
+  ),
+  3 => 
+  array (
+    'function' => '__construct',
+    'line' => 870,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/SysClass.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  4 => 
+  array (
+    'function' => 'get_user_data',
+    'line' => 32,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  5 => 
+  array (
+    'function' => 'create_tables',
+    'line' => 75,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  6 => 
+  array (
+    'function' => 'query',
+    'line' => 495,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\plugins\\SafeMySQL',
+    'type' => '->',
+  ),
+  7 => 
+  array (
+    'function' => 'rawQuery',
+    'line' => 146,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/plugins/SafeMySQL.php',
+    'class' => 'classes\\plugins\\SafeMySQL',
+    'type' => '->',
+  ),
+)
+QUERY: CREATE TABLE IF NOT EXISTS `ee_user_roles` (
+                    role_id tinyint(2) UNSIGNED NOT NULL AUTO_INCREMENT,
+                    role_key varchar(50) NOT NULL COMMENT 'Уникальный ключ роли',
+                    name varchar(255) NOT NULL,
+                    language_code CHAR(2) NOT NULL DEFAULT 'RU' COMMENT 'Код языка по ISO 3166-2',
+                    PRIMARY KEY (role_id),
+                    UNIQUE KEY (role_key, language_code)
+                    ) ENGINE=innodb DEFAULT CHARSET=utf8 COMMENT='Роли пользователей';
+Timer: 0.05471396446228
+Total time: 0.11788296699524
+Backtrace: array (
+  0 => 
+  array (
+    'function' => 'delegate',
+    'line' => 44,
+    'file' => '/home3/whrgijws/public_html/skku.shop/index.php',
+    'class' => 'classes\\system\\Router',
+    'type' => '->',
+  ),
+  1 => 
+  array (
+    'function' => '__construct',
+    'line' => 120,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Router.php',
+    'class' => 'classes\\system\\ControllerBase',
+    'type' => '->',
+  ),
+  2 => 
+  array (
+    'function' => 'checkInstall',
+    'line' => 69,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/ControllerBase.php',
+    'class' => 'classes\\system\\SysClass',
+    'type' => '::',
+  ),
+  3 => 
+  array (
+    'function' => '__construct',
+    'line' => 870,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/SysClass.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  4 => 
+  array (
+    'function' => 'get_user_data',
+    'line' => 32,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  5 => 
+  array (
+    'function' => 'create_tables',
+    'line' => 75,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  6 => 
+  array (
+    'function' => 'query',
+    'line' => 481,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\plugins\\SafeMySQL',
+    'type' => '->',
+  ),
+  7 => 
+  array (
+    'function' => 'rawQuery',
+    'line' => 146,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/plugins/SafeMySQL.php',
+    'class' => 'classes\\plugins\\SafeMySQL',
+    'type' => '->',
+  ),
+)
+QUERY: CREATE TABLE IF NOT EXISTS `ee_users` (
+                        user_id int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+                        name char(255) NOT NULL DEFAULT 'no name',
+                        email char(255) NOT NULL,
+                        pwd varchar(255) NOT NULL,
+                        active tinyint(1) NOT NULL DEFAULT '1' COMMENT '1 - на подтверждении, 2 - активен,  3 - блокирован',
+                        user_role tinyint(2) NOT NULL DEFAULT '4' COMMENT 'таблица user_roles',
+                        last_ip char(20) DEFAULT NULL,
+                        subscribed tinyint(1) DEFAULT '1' COMMENT 'подписка на рассылку',
+                        created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'дата регистрации',
+                        last_activ datetime DEFAULT NULL COMMENT 'дата крайней активности',
+                        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'дата обновления инф.',
+                        phone varchar(255) NULL,
+                        session varchar(255) NULL,
+                        comment varchar(255) NOT NULL COMMENT 'Комментарий или дивиз пользователя',
+                        deleted BOOLEAN NOT NULL DEFAULT 0 COMMENT 'Флаг удаленного пользователя',
+                        PRIMARY KEY (user_id),
+                        UNIQUE KEY email (email)
+                    ) ENGINE=innodb DEFAULT CHARSET=utf8 COMMENT='Пользователи сайта';
+Timer: 0.062723159790039
+Total time: 0.063169002532959
+Backtrace: array (
+  0 => 
+  array (
+    'function' => 'delegate',
+    'line' => 44,
+    'file' => '/home3/whrgijws/public_html/skku.shop/index.php',
+    'class' => 'classes\\system\\Router',
+    'type' => '->',
+  ),
+  1 => 
+  array (
+    'function' => '__construct',
+    'line' => 120,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Router.php',
+    'class' => 'classes\\system\\ControllerBase',
+    'type' => '->',
+  ),
+  2 => 
+  array (
+    'function' => 'checkInstall',
+    'line' => 69,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/ControllerBase.php',
+    'class' => 'classes\\system\\SysClass',
+    'type' => '::',
+  ),
+  3 => 
+  array (
+    'function' => '__construct',
+    'line' => 870,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/SysClass.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  4 => 
+  array (
+    'function' => 'get_user_data',
+    'line' => 32,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  5 => 
+  array (
+    'function' => 'create_tables',
+    'line' => 75,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  6 => 
+  array (
+    'function' => 'query',
+    'line' => 471,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\plugins\\SafeMySQL',
+    'type' => '->',
+  ),
+  7 => 
+  array (
+    'function' => 'rawQuery',
+    'line' => 146,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/plugins/SafeMySQL.php',
+    'class' => 'classes\\plugins\\SafeMySQL',
+    'type' => '->',
+  ),
+)
+QUERY: SET FOREIGN_KEY_CHECKS=1
+Timer: 0.00010085105895996
+Total time: 0.00044584274291992
+Backtrace: array (
+  0 => 
+  array (
+    'function' => 'delegate',
+    'line' => 44,
+    'file' => '/home3/whrgijws/public_html/skku.shop/index.php',
+    'class' => 'classes\\system\\Router',
+    'type' => '->',
+  ),
+  1 => 
+  array (
+    'function' => '__construct',
+    'line' => 120,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Router.php',
+    'class' => 'classes\\system\\ControllerBase',
+    'type' => '->',
+  ),
+  2 => 
+  array (
+    'function' => 'checkInstall',
+    'line' => 69,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/ControllerBase.php',
+    'class' => 'classes\\system\\SysClass',
+    'type' => '::',
+  ),
+  3 => 
+  array (
+    'function' => '__construct',
+    'line' => 870,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/SysClass.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  4 => 
+  array (
+    'function' => 'get_user_data',
+    'line' => 32,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  5 => 
+  array (
+    'function' => 'create_tables',
+    'line' => 75,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  6 => 
+  array (
+    'function' => 'query',
+    'line' => 449,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\plugins\\SafeMySQL',
+    'type' => '->',
+  ),
+  7 => 
+  array (
+    'function' => 'rawQuery',
+    'line' => 146,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/plugins/SafeMySQL.php',
+    'class' => 'classes\\plugins\\SafeMySQL',
+    'type' => '->',
+  ),
+)
+QUERY: START TRANSACTION
+Timer: 0.00014710426330566
+Total time: 0.00034499168395996
+Backtrace: array (
+  0 => 
+  array (
+    'function' => 'delegate',
+    'line' => 44,
+    'file' => '/home3/whrgijws/public_html/skku.shop/index.php',
+    'class' => 'classes\\system\\Router',
+    'type' => '->',
+  ),
+  1 => 
+  array (
+    'function' => '__construct',
+    'line' => 120,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Router.php',
+    'class' => 'classes\\system\\ControllerBase',
+    'type' => '->',
+  ),
+  2 => 
+  array (
+    'function' => 'checkInstall',
+    'line' => 69,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/ControllerBase.php',
+    'class' => 'classes\\system\\SysClass',
+    'type' => '::',
+  ),
+  3 => 
+  array (
+    'function' => '__construct',
+    'line' => 870,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/SysClass.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  4 => 
+  array (
+    'function' => 'get_user_data',
+    'line' => 32,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  5 => 
+  array (
+    'function' => 'create_tables',
+    'line' => 75,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\system\\Users',
+    'type' => '->',
+  ),
+  6 => 
+  array (
+    'function' => 'query',
+    'line' => 448,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Users.php',
+    'class' => 'classes\\plugins\\SafeMySQL',
+    'type' => '->',
+  ),
+  7 => 
+  array (
+    'function' => 'rawQuery',
+    'line' => 146,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/plugins/SafeMySQL.php',
+    'class' => 'classes\\plugins\\SafeMySQL',
+    'type' => '->',
+  ),
+)
+QUERY: show tables like 'ee_users'
+Timer: 0.0001978874206543
+Total time: 0.0001978874206543
+Backtrace: array (
+  0 => 
+  array (
+    'function' => 'delegate',
+    'line' => 44,
+    'file' => '/home3/whrgijws/public_html/skku.shop/index.php',
+    'class' => 'classes\\system\\Router',
+    'type' => '->',
+  ),
+  1 => 
+  array (
+    'function' => '__construct',
+    'line' => 120,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/Router.php',
+    'class' => 'classes\\system\\ControllerBase',
+    'type' => '->',
+  ),
+  2 => 
+  array (
+    'function' => 'checkInstall',
+    'line' => 69,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/ControllerBase.php',
+    'class' => 'classes\\system\\SysClass',
+    'type' => '::',
+  ),
+  3 => 
+  array (
+    'function' => 'query',
+    'line' => 869,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/system/SysClass.php',
+    'class' => 'classes\\plugins\\SafeMySQL',
+    'type' => '->',
+  ),
+  4 => 
+  array (
+    'function' => 'rawQuery',
+    'line' => 146,
+    'file' => '/home3/whrgijws/public_html/skku.shop/classes/plugins/SafeMySQL.php',
+    'class' => 'classes\\plugins\\SafeMySQL',
+    'type' => '->',
+  ),
+)
+
+Полный стек вызовов: [{"function":"preFile","line":721,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"create_tables","line":75,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"get_user_data","line":32,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"__construct","line":870,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/SysClass.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"checkInstall","line":69,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/ControllerBase.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"__construct","line":120,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"classes\\system\\ControllerBase","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}

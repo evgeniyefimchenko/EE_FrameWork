@@ -5,7 +5,7 @@ actions = {
     showNotification: function (text_message, color, from, align) {
         // color = 'info'; // 'primary', 'info', 'success', 'warning', 'danger'
         return $.notify({
-            icon: "fa-bell1",
+            icon: "fa fa-bell",
             message: text_message
         }, {
             z_index: 10000,

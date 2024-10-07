@@ -3,6 +3,7 @@
 use classes\system\ControllerBase;
 use classes\system\SysClass;
 use classes\system\Session;
+use classes\system\Cookies;
 use classes\helpers\ClassMail;
 
 /**

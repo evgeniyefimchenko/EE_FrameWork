@@ -137,7 +137,6 @@ trait SystemsTrait {
             }
         }
         $data_table['total_rows'] = $php_logs_array['total_count'];
-        // SysClass::pre($data_table);
         if ($postData) {
             echo Plugins::ee_show_table('progect_logs_table_', $data_table, 'get_progect_logs_table', $filters, (int) $postData["page"], $postData["rows_per_page"], $selected_sorting);
             die;
@@ -358,7 +357,7 @@ trait SystemsTrait {
             exit();
         }
         // Путь к файлу-флагу
-        $flagFilePath = ENV_LOGS_PATH . 'test_data_created.txt';
+        $flagFilePath = ENV_TMP_PATH . 'test_data_created.txt';
         // Проверяем, существует ли файл-флаг
         if (file_exists($flagFilePath)) {
             $textMessage = 'Уже есть тестовые данные, для создания дополнительных удалите файл ' . $flagFilePath;
@@ -371,18 +370,6 @@ trait SystemsTrait {
             $this->loadModel('m_pages');
             $this->loadModel('m_properties');
             $users = $this->generateTestUsers();
-            // Добавление основных типов свойств
-            $property_types = [
-                ['name' => 'Строка', 'description' => 'Тип свойства для хранения строковых данных', 'status' => 'active', 'fields' => '["text"]'],
-                ['name' => 'Число', 'description' => 'Тип свойства для хранения числовых данных', 'status' => 'active', 'fields' => '["text"]'],
-                ['name' => 'Дата', 'description' => 'Тип свойства для хранения дат', 'status' => 'active', 'fields' => '["date"]'],
-                ['name' => 'Интервал дат', 'description' => 'Тип свойства для хранения интервалов дат', 'status' => 'active', 'fields' => '["date", "date"]'],
-                ['name' => 'Картинка', 'description' => 'Тип свойства для хранения изображений', 'status' => 'active', 'fields' => '["image"]'],
-                ['name' => 'Сложный тип', 'description' => 'Многосоставной тип данных', 'status' => 'active', 'fields' => '["image", "datetime-local", "hidden", "phone"]'],
-            ];
-            foreach ($property_types as $type) {
-                $this->models['m_properties']->updatePropertyTypeData($type);
-            }
             $prop = $this->generateTestProperties();
             $sets_prop = $this->generateTestSetsProp();
             $catsType = $this->generateTestCategoriesType();
@@ -397,7 +384,9 @@ trait SystemsTrait {
                         . '<br/>generateTestProperties<br/>' . var_export($prop, true);
                 $status = 'danger';
             } else {                              
-                file_put_contents($flagFilePath, 'Test data created on ' . date('Y-m-d H:i:s')); // Создаем файл-флаг  
+                if (!SysClass::createDirectoriesForFile($flagFilePath) || !file_put_contents($flagFilePath, 'Test data created on ' . date('Y-m-d H:i:s'))) {
+                    
+                }
             }
         }
         ClassNotifications::addNotificationUser($this->logged_in, ['text' => $textMessage, 'status' => $status]);
@@ -435,7 +424,7 @@ trait SystemsTrait {
         return true;
     }
 
-    private function generateTestProperties($count = 50) {
+    private function generateTestProperties($count = 20) {
         $props_name = [
             "Цвет", // свойство продукта
             "Вес", // свойство продукта

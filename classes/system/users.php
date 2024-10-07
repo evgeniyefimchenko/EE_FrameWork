@@ -609,6 +609,16 @@ class Users {
 			INDEX (type_id)
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения свойств';";
             SafeMySQL::gi()->query($createPropertiesTable, Constants::PROPERTIES_TABLE, Constants::PROPERTY_TYPES_TABLE);
+            // Таблица для хранения общей информации о наборе свойств.
+            $createPropertySetsTable = "CREATE TABLE IF NOT EXISTS ?n (
+                        set_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                        name VARCHAR(255) NOT NULL,
+                        description MEDIUMTEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                        language_code CHAR(2) NOT NULL DEFAULT 'RU' COMMENT 'Код языка по ISO 3166-2'
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения наборов свойств';";
+            SafeMySQL::gi()->query($createPropertySetsTable, Constants::PROPERTY_SETS_TABLE);            
             // Таблица для хранения значений свойств в формате JSON
             $createPropertyValuesTable = "CREATE TABLE IF NOT EXISTS ?n (
 			value_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -625,17 +635,7 @@ class Users {
 			INDEX (property_id),
 			INDEX (entity_id)
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения значений свойств в формате JSON';";
-            SafeMySQL::gi()->query($createPropertyValuesTable, Constants::PROPERTY_VALUES_TABLE, Constants::PROPERTIES_TABLE, Constants::PROPERTY_SETS_TABLE);                        
-            // Таблица для хранения общей информации о наборе свойств.
-            $createPropertySetsTable = "CREATE TABLE IF NOT EXISTS ?n (
-                        set_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                        name VARCHAR(255) NOT NULL,
-                        description MEDIUMTEXT,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                        language_code CHAR(2) NOT NULL DEFAULT 'RU' COMMENT 'Код языка по ISO 3166-2'
-                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения наборов свойств';";
-            SafeMySQL::gi()->query($createPropertySetsTable, Constants::PROPERTY_SETS_TABLE);
+            SafeMySQL::gi()->query($createPropertyValuesTable, Constants::PROPERTY_VALUES_TABLE, Constants::PROPERTIES_TABLE, Constants::PROPERTY_SETS_TABLE);
             // Таблица для представления отношения многие ко многим между типами категорий и наборами свойств.
             $createCategoryTypeToSetTable = "CREATE TABLE IF NOT EXISTS ?n (
                         type_id INT UNSIGNED NOT NULL,
@@ -684,8 +684,7 @@ class Users {
                                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8
                                  COMMENT='Таблица для сохранения информации о файлах';";
             SafeMySQL::gi()->query($createFilesTable, Constants::FILES_TABLE, Constants::USERS_TABLE);
-            // Запись предварительных данных в БД
-            /*      TODO      
+            // Запись предварительных данных в БД  
             // Добавление основных типов категорий
             $types = [
                 ['name' => 'Товары', 'description' => 'Для хранения информации о товарах'],
@@ -701,22 +700,25 @@ class Users {
                         $type['description']
                 );
             }
-            */
+            // Добавление основных типов свойств
+            $property_types = [
+                ['name' => 'Строка', 'description' => 'Тип свойства для хранения строковых данных', 'status' => 'active', 'fields' => '["text"]'],
+                ['name' => 'Число', 'description' => 'Тип свойства для хранения числовых данных', 'status' => 'active', 'fields' => '["number"]'],
+                ['name' => 'Дата', 'description' => 'Тип свойства для хранения дат', 'status' => 'active', 'fields' => '["date"]'],
+                ['name' => 'Интервал дат', 'description' => 'Тип свойства для хранения интервалов дат', 'status' => 'active', 'fields' => '["date", "date"]'],
+                ['name' => 'Картинка', 'description' => 'Тип свойства для хранения изображений', 'status' => 'active', 'fields' => '["image"]'],
+                ['name' => 'Сложный тип', 'description' => 'Многосоставной тип данных', 'status' => 'active', 'fields' => '["image", "datetime-local", "hidden", "phone"]'],
+            ];
+            if ($objectProperties = SysClass::getModelObject('admin', 'm_properties')) {
+                foreach ($property_types as $type) {
+                    $objectProperties->updatePropertyTypeData($type);
+                }
+            }
             SafeMySQL::gi()->query("COMMIT");
         } catch (Exception $e) {
             SafeMySQL::gi()->query("ROLLBACK");
             SysClass::pre($e);
             return false;
-        }
-        // Получение статистики запросов. Оставлено для примера использования в процессе отладки. TODO
-        $stats = array_reverse(SafeMySQL::gi()->getStats());
-        // Вывод статистики
-        $echo = '';
-        foreach ($stats as $item) {
-            $echo .= "QUERY: " . $item['query'] . PHP_EOL;
-            $echo .= "Timer: " . $item['timer'] . PHP_EOL;
-            $echo .= "Total time: " . $item['total_time'] . PHP_EOL;
-            $echo .= "Backtrace: " . var_export($item['backtrace'], true) . PHP_EOL;
         }
         SysClass::preFile('sql_info', 'create_tables', 'База данных успешно развёрнута', $echo);
     }

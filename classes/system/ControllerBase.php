@@ -66,7 +66,7 @@ abstract class ControllerBase {
      * @param mixed $view Экземпляр класса представления
      */
     function __construct($view = null) {
-        SysClass::checkInstall(); // Подумать над кешированием проверки TODO
+        SysClass::checkInstall();
         $this->view = $view instanceof View ? $view : new View();
         $session = ENV_AUTH_USER === 2 ? Cookies::get('user_session') : Session::get('user_session');
         if ($session) {

@@ -11,7 +11,8 @@ use classes\system\Plugins;
             <a href="/admin/categories_type_edit/id" data-bs-toggle="tooltip" data-bs-placement="top" title="<?= $lang['sys.add'] ?>" type="button"
                class="btn btn-info mx-1 float-end<?= empty($type_data['type_id']) ? " d-none" : "" ?>">
                 <i class="fa fa-plus-circle"></i>&nbsp;<?= $lang['sys.add'] ?>
-            </a>            
+            </a>
+            <button type="submit" class="btn btn-primary float-end"><?=$lang['sys.save']?></button>            
             <h1 class="mt-4"><?= !$type_data ? 'Добавить тип категории' : 'Редактировать тип категории' ?></h1>
             <ol class="breadcrumb mb-4">
                 <li class="breadcrumb-item active">
@@ -71,7 +72,11 @@ use classes\system\Plugins;
                     </div>
                 </div>
             </div>
-            <button type="submit" class="btn btn-primary">Сохранить</button>
+            <div class="row">
+                <div class="col">
+                    <button type="submit" class="btn btn-primary my-3"><?=$lang['sys.save']?></button>
+                </div>                    
+            </div>
         </div>		
     </form>
 </main>
