@@ -1,19 +1,19 @@
 $(document).ready(function () {
+
+    // Дополнительный код и обработчики событий
     var currentPage = window.location.pathname;
-    var parts = currentPage.split('/').filter(part => part !== '');   
+    var parts = currentPage.split('/').filter(part => part !== '');
+
     // Открытие модального окна и добавление существующих options в форму
     $(document).on('click', '.openModal', function () {
         var selectId = $(this).data('select-id');
         createModal(selectId);
     });
+
     // Сохранение новых options и удаление модального окна
     $(document).on('click', '#saveOptions', function () {
         var selectId = $(this).data('select-id');
-        if (parts[1] === 'edit_property') {
-            var defaultId = selectId + '_default';   
-        } else {
-            var defaultId = selectId + '_value';   
-        }        
+        var defaultId = (parts[1] === 'edit_property') ? selectId + '_default' : selectId + '_value';
         var new_values = '';
         $('#' + selectId).empty(); // Очистка select
         $('#options-container .option-field').each(function () {
@@ -28,14 +28,17 @@ $(document).ready(function () {
         $('#select_modal_' + selectId).modal('hide');
         $('#select_modal_' + selectId).remove();
     });
+
     // Удаление поля ввода
     $(document).on('click', '.removeOptionField', function () {
         $(this).closest('.option-field').remove();
     });
+
     // Удаление модального окна после его закрытия
     $(document).on('hidden.bs.modal', '[id^="select_modal_"]', function () {
         $(this).remove();
     });
+
     // Обработчик клика по кнопке добавления/удаления checkbox
     $(document).on('click', '[id$="_add_checkbox_values"]', function () {
         var $button = $(this);
@@ -58,6 +61,7 @@ $(document).ready(function () {
         }
         updateCheckboxValues('.checkbox_container', $parentContainer, general_name, 'checkbox');
     });
+
     // Обработчик клика по кнопке добавления/удаления radiobox
     $(document).on('click', '[id$="_add_radio_values"]', function () {
         var $button = $(this);
@@ -77,6 +81,7 @@ $(document).ready(function () {
         }
         updateCheckboxValues('.radio_container', $parentContainer, general_name, 'radio');
     });
+
 });
 
 function createModal(selectId) {

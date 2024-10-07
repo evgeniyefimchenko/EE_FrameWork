@@ -1,0 +1,756 @@
+{START}
+Время события: 2024-09-23 19:31:37
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":1,"data":{"name":"admin","email":"test@test.com","active":"2","user_role":"1","subscribed":"1","comment":"Смените пароль администратора","pwd":"admin"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":300,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"get_admin_profile","line":125,"file":"/home3/whrgijws/public_html/skku.shop/app/index/index.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"show_login_form","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:31:37
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"test@test.com"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":300,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"get_admin_profile","line":125,"file":"/home3/whrgijws/public_html/skku.shop/app/index/index.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"show_login_form","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:33:45
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":1,"data":{"name":"admin","email":"test@test.com","active":"2","user_role":"1","subscribed":"0","comment":"Смените пароль администратора","pwd":"admin"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":76,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"get_user_data","line":32,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"__construct","line":870,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/SysClass.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"checkInstall","line":69,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/ControllerBase.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"__construct","line":120,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"classes\\system\\ControllerBase","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:33:45
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"test@test.com"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":76,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"get_user_data","line":32,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"__construct","line":870,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/SysClass.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"checkInstall","line":69,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/ControllerBase.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"__construct","line":120,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"classes\\system\\ControllerBase","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:33:45
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":2,"data":{"name":"moderator","email":"test_moderator@test.com","active":"2","user_role":"2","subscribed":"0","comment":"Смените пароль модератора","pwd":"moderator"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":77,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"get_user_data","line":32,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"__construct","line":870,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/SysClass.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"checkInstall","line":69,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/ControllerBase.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"__construct","line":120,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"classes\\system\\ControllerBase","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:33:45
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"test_moderator@test.com"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":77,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"get_user_data","line":32,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"__construct","line":870,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/SysClass.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"checkInstall","line":69,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/ControllerBase.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"__construct","line":120,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"classes\\system\\ControllerBase","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:33:45
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":3,"data":{"name":"system","email":"dont-answer@skku.allbriz.shn-host.ru","active":"2","user_role":"8","subscribed":"0","comment":"","pwd":""}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":78,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"get_user_data","line":32,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"__construct","line":870,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/SysClass.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"checkInstall","line":69,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/ControllerBase.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"__construct","line":120,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"classes\\system\\ControllerBase","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:33:45
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"dont-answer@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":78,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"get_user_data","line":32,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"__construct","line":870,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/SysClass.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"checkInstall","line":69,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/ControllerBase.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"__construct","line":120,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"classes\\system\\ControllerBase","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:11
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":4,"data":{"name":"Ольга_6113","email":"Ольга_6113@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Всегда нахожу то, что нужно. (2024-09-23 19:35:11)","pwd":"b0002cb4"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:11
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Ольга_6113@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:11
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":5,"data":{"name":"Владимир_3008","email":"Владимир_3008@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Превосходный сервис! (2024-09-23 19:35:11)","pwd":"130c9d2d"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:11
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Владимир_3008@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:11
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":6,"data":{"name":"Роман_2275","email":"Роман_2275@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Большой ассортимент товаров. (2024-09-23 19:35:11)","pwd":"711585a5"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:11
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Роман_2275@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:11
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":7,"data":{"name":"Арсений_9624","email":"Арсений_9624@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Очень полезный товар. (2024-09-23 19:35:11)","pwd":"0def230f"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:11
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Арсений_9624@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:11
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":8,"data":{"name":"Татьяна_9089","email":"Татьяна_9089@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Лучшее предложение на рынке. (2024-09-23 19:35:11)","pwd":"2e4392e9"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:11
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Татьяна_9089@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:11
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":9,"data":{"name":"Светлана_7277","email":"Светлана_7277@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Сгенерировано автоматически (2024-09-23 19:35:11)","pwd":"1d848088"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:11
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Светлана_7277@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:11
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":10,"data":{"name":"Маргарита_8901","email":"Маргарита_8901@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Неизвестный пользователь (2024-09-23 19:35:11)","pwd":"f2987143"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:12
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Маргарита_8901@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:12
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":11,"data":{"name":"Мария_8560","email":"Мария_8560@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Очень полезный товар. (2024-09-23 19:35:12)","pwd":"6d2317ca"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:12
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Мария_8560@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:12
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":12,"data":{"name":"Фёдор_5790","email":"Фёдор_5790@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Большой ассортимент товаров. (2024-09-23 19:35:12)","pwd":"02c272ac"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:12
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Фёдор_5790@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:12
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":13,"data":{"name":"Маргарита_6427","email":"Маргарита_6427@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Данные для теста (2024-09-23 19:35:12)","pwd":"3284eeb4"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:12
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Маргарита_6427@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:12
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":14,"data":{"name":"Михаил_9857","email":"Михаил_9857@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Лучшее предложение на рынке. (2024-09-23 19:35:12)","pwd":"204e2ef9"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:12
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Михаил_9857@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:12
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":15,"data":{"name":"Иван_1151","email":"Иван_1151@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Тестовый комментарий (2024-09-23 19:35:12)","pwd":"64e6a1a8"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:12
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Иван_1151@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:12
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":16,"data":{"name":"Ирина_2366","email":"Ирина_2366@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Неизвестный пользователь (2024-09-23 19:35:12)","pwd":"ebf647ce"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:12
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Ирина_2366@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:12
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":17,"data":{"name":"Роман_4874","email":"Роман_4874@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Рекомендую всем друзьям. (2024-09-23 19:35:12)","pwd":"6724a2db"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:12
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Роман_4874@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:12
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":18,"data":{"name":"Мария_5055","email":"Мария_5055@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Большой ассортимент товаров. (2024-09-23 19:35:12)","pwd":"a0704d70"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:12
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Мария_5055@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:12
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":19,"data":{"name":"Валерия_6289","email":"Валерия_6289@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Самые лучшие цены! (2024-09-23 19:35:12)","pwd":"af0dd7e8"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:12
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Валерия_6289@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:12
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":20,"data":{"name":"Дмитрий_1543","email":"Дмитрий_1543@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Лучшее предложение на рынке. (2024-09-23 19:35:12)","pwd":"e4780dee"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:12
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Дмитрий_1543@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:12
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":21,"data":{"name":"Вероника_6328","email":"Вероника_6328@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Отличный выбор для подарка. (2024-09-23 19:35:12)","pwd":"99b2536c"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:12
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Вероника_6328@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:12
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":22,"data":{"name":"Арсений_8609","email":"Арсений_8609@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Неизвестный пользователь (2024-09-23 19:35:12)","pwd":"dc77fb4b"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:13
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Арсений_8609@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:13
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":23,"data":{"name":"Елена_8280","email":"Елена_8280@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Отличный выбор для подарка. (2024-09-23 19:35:13)","pwd":"8340ad72"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:13
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Елена_8280@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:13
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":24,"data":{"name":"Юлия_1682","email":"Юлия_1682@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Неизвестный пользователь (2024-09-23 19:35:13)","pwd":"723c56cb"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:13
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Юлия_1682@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:13
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":25,"data":{"name":"Антон_2833","email":"Антон_2833@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Неизвестный пользователь (2024-09-23 19:35:13)","pwd":"b67bb9d1"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:13
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Антон_2833@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:13
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":26,"data":{"name":"Олег_7106","email":"Олег_7106@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Удобное расположение магазина. (2024-09-23 19:35:13)","pwd":"39f8f76b"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:13
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Олег_7106@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:13
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":27,"data":{"name":"Полина_1021","email":"Полина_1021@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Буду заказывать ещё. (2024-09-23 19:35:13)","pwd":"4a010586"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:13
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Полина_1021@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:13
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":28,"data":{"name":"Павел_6524","email":"Павел_6524@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Сгенерировано автоматически (2024-09-23 19:35:13)","pwd":"da913c39"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:13
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Павел_6524@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:13
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":29,"data":{"name":"Олег_9841","email":"Олег_9841@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Удобное расположение магазина. (2024-09-23 19:35:13)","pwd":"fc49aeb9"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:13
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Олег_9841@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:13
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":30,"data":{"name":"Ирина_2425","email":"Ирина_2425@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Неизвестный пользователь (2024-09-23 19:35:13)","pwd":"011de73b"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:13
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Ирина_2425@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:13
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":31,"data":{"name":"Полина_8876","email":"Полина_8876@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Всегда нахожу то, что нужно. (2024-09-23 19:35:13)","pwd":"a37abaaa"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:13
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Полина_8876@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:13
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":32,"data":{"name":"Екатерина_1328","email":"Екатерина_1328@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Быстрая доставка, отличное качество. (2024-09-23 19:35:13)","pwd":"86d4a96c"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:13
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Екатерина_1328@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:13
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":33,"data":{"name":"Антон_6579","email":"Антон_6579@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Спасибо за быстрый ответ! (2024-09-23 19:35:13)","pwd":"d0bab063"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:13
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Антон_6579@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:13
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":34,"data":{"name":"Лариса_9254","email":"Лариса_9254@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Удобное расположение магазина. (2024-09-23 19:35:13)","pwd":"7d30361f"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:13
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Лариса_9254@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:14
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":35,"data":{"name":"Арсений_9940","email":"Арсений_9940@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Всегда нахожу то, что нужно. (2024-09-23 19:35:13)","pwd":"dcaffa26"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:14
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Арсений_9940@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:14
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":36,"data":{"name":"Мария_1050","email":"Мария_1050@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Превосходный сервис! (2024-09-23 19:35:14)","pwd":"4ccda120"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:14
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Мария_1050@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:14
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":37,"data":{"name":"Владимир_9070","email":"Владимир_9070@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Спасибо за быстрый ответ! (2024-09-23 19:35:14)","pwd":"c60781de"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:14
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Владимир_9070@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:14
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":38,"data":{"name":"Ксения_4157","email":"Ксения_4157@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Тестовый комментарий (2024-09-23 19:35:14)","pwd":"f5f6d0ff"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:14
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Ксения_4157@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:14
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":39,"data":{"name":"Юлия_7619","email":"Юлия_7619@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Спасибо за быстрый ответ! (2024-09-23 19:35:14)","pwd":"5b995047"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:14
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Юлия_7619@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:14
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":40,"data":{"name":"Елена_7549","email":"Елена_7549@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Самые лучшие цены! (2024-09-23 19:35:14)","pwd":"d715c372"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:14
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Елена_7549@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:14
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":41,"data":{"name":"Владимир_4085","email":"Владимир_4085@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Самые лучшие цены! (2024-09-23 19:35:14)","pwd":"76007626"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:14
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Владимир_4085@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:14
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":42,"data":{"name":"Татьяна_6565","email":"Татьяна_6565@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Превосходный сервис! (2024-09-23 19:35:14)","pwd":"34cf425b"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:14
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Татьяна_6565@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:14
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":43,"data":{"name":"Михаил_4907","email":"Михаил_4907@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Буду заказывать ещё. (2024-09-23 19:35:14)","pwd":"fdd89a63"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:14
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Михаил_4907@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:14
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":44,"data":{"name":"Иван_1539","email":"Иван_1539@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Отличный выбор для подарка. (2024-09-23 19:35:14)","pwd":"50821fc3"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:14
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Иван_1539@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:14
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":45,"data":{"name":"Алексей_4831","email":"Алексей_4831@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Всегда нахожу то, что нужно. (2024-09-23 19:35:14)","pwd":"a5a1f512"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:14
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Алексей_4831@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:14
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":46,"data":{"name":"Фёдор_4351","email":"Фёдор_4351@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Лучшее предложение на рынке. (2024-09-23 19:35:14)","pwd":"5b1654e2"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:14
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Фёдор_4351@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:14
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":47,"data":{"name":"Леонид_9222","email":"Леонид_9222@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Рекомендую всем друзьям. (2024-09-23 19:35:14)","pwd":"aa9d1dd9"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:15
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Леонид_9222@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:15
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":48,"data":{"name":"Олег_1839","email":"Олег_1839@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Лучшее предложение на рынке. (2024-09-23 19:35:15)","pwd":"ef3a4041"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:15
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Олег_1839@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:15
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":49,"data":{"name":"Полина_1291","email":"Полина_1291@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Самые лучшие цены! (2024-09-23 19:35:15)","pwd":"8417fe79"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:15
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Полина_1291@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:15
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":50,"data":{"name":"Антон_3741","email":"Антон_3741@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Сгенерировано автоматически (2024-09-23 19:35:15)","pwd":"4aab4c7d"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:15
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Антон_3741@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:15
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":51,"data":{"name":"Екатерина_9660","email":"Екатерина_9660@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Отличный продукт! (2024-09-23 19:35:15)","pwd":"652c3a0a"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:15
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Екатерина_9660@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:15
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":52,"data":{"name":"Анастасия_6366","email":"Анастасия_6366@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Буду заказывать ещё. (2024-09-23 19:35:15)","pwd":"e3045e56"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:15
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Анастасия_6366@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:15
+Инициатор: 'registration_new_user'
+Результат: Зарегистрирован новый пользователь
+Детали: {"user_id":53,"data":{"name":"Олег_4481","email":"Олег_4481@skku.allbriz.shn-host.ru","active":"2","user_role":"4","subscribed":"1","comment":"Большой ассортимент товаров. (2024-09-23 19:35:15)","pwd":"8a825e13"}}
+Полный стек вызовов: [{"function":"preFile","line":285,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}
+{START}
+Время события: 2024-09-23 19:35:15
+Инициатор: 'set_user_password'
+Результат: Пароль обновлён
+Детали: {"email":"Олег_4481@skku.allbriz.shn-host.ru"}
+Полный стек вызовов: [{"function":"preFile","line":330,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_password","line":286,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Users.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"registration_new_user","line":585,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"classes\\system\\Users","type":"->","object":"N/A"},{"function":"generateTestUsers","line":373,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/SystemsTrait.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"createTest","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}

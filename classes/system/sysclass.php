@@ -3,6 +3,7 @@
 namespace classes\system;
 
 use classes\plugins\SafeMySQL;
+
 // use classes\system\Constants;
 
 /**
@@ -127,7 +128,7 @@ class SysClass {
         if (!defined("classes\system\Constants::$role")) {
             self::pre("Constant Constants::$role is not defined");
         }
-        if (in_array(constant("classes\system\Constants::" . $role), $access)) {            
+        if (in_array(constant("classes\system\Constants::" . $role), $access)) {
             return true;
         }
         return false;
@@ -853,21 +854,28 @@ class SysClass {
      * @return bool Возвращает true, если все проверки пройдены успешно
      * @throws Exception Возможное исключение, если соединение с базой данных не установлено или настройки проекта не произведены
      */
-    public static function checkInstall() {
-        if (!ENV_DB_USER || !ENV_DB_PASS) { // Нет настроек для БД
+    public static function checkInstall(): bool {
+        $cacheFilePath = ENV_TMP_PATH . 'checkInstall.txt';
+        if (file_exists($cacheFilePath)) {
+            return true;
+        }
+        if (!ENV_DB_USER || !ENV_DB_PASS) {
             self::pre('Выполните необходимые настройки в файле configuration.php для базы данных!');
         }
-        if (!ENV_SITE_EMAIL || !ENV_ADMIN_EMAIL || !SysClass::validEmail([ENV_SITE_EMAIL, ENV_ADMIN_EMAIL])) { // Нет обязательных адресов почты или они не валидны
+        if (!ENV_SITE_EMAIL || !ENV_ADMIN_EMAIL || !SysClass::validEmail([ENV_SITE_EMAIL, ENV_ADMIN_EMAIL])) {
             self::pre('Выполните необходимые настройки в файле configuration.php для электронной почты!');
         }
         if (!ENV_DATE_SITE_CREATE) {
             self::pre('Выполните необходимые настройки в файле configuration.php для даты создания сайта!');
         }
         if (!self::checkDatabaseConnection()) {
-            self::pre('Нет соединения с БД Выполните необходимые настройки в файле configuration.php');
+            self::pre('Нет соединения с БД. Выполните необходимые настройки в файле configuration.php.');
         }
-        if (SafeMySQL::gi()->query('show tables like ?s', Constants::USERS_TABLE)->{"num_rows"} === 0) {
+        if (SafeMySQL::gi()->query('SHOW TABLES LIKE ?s', Constants::USERS_TABLE)->num_rows === 0) {
             new Users(true);
+        }
+        if (!self::createDirectoriesForFile($cacheFilePath) || file_put_contents($cacheFilePath, 'Install check passed') === false) {
+            self::preFile('errors', 'checkInstall', 'Не удалось создать файл кэша', $cacheFilePath);
         }
         return true;
     }
@@ -1015,11 +1023,11 @@ class SysClass {
     }
 
     /**
-     * Функция логирования в файл с расширенной информацией.
-     * @param string $subFolder Подпапка для лога.
-     * @param string $initiator Инициатор записи в лог.
-     * @param mixed $result Результат для логирования.
-     * @param mixed $details Дополнительные детали.
+     * Функция логирования в файл с расширенной информацией
+     * @param string $subFolder Подпапка для лога
+     * @param string $initiator Инициатор записи в лог
+     * @param mixed $result Результат для логирования
+     * @param mixed $details Дополнительные детали
      */
     public static function preFile(string $subFolder, string $initiator, mixed $result, mixed $details = ''): void {
         if (ENV_LOG) {
@@ -1055,9 +1063,29 @@ class SysClass {
     }
 
     /**
-     * Проверяет, является ли строка правильным JSON.
-     * @param string $string Строка для проверки.
-     * @return bool Возвращает true, если строка является правильным JSON.
+     * Рекурсивно создаёт каталоги по указанному пути, если они не существуют
+     * Функция не создаёт файл, а только структуру директорий до него
+     * В случае успеха возвращает true, в случае ошибки — false и записывает лог
+     * @param string $filePath Путь к файлу, для которого нужно создать директории
+     * @param int $permissions Права на создаваемые директории (по умолчанию 0775)
+     * @return bool Возвращает true в случае успешного создания директорий, иначе false
+     */
+    public static function createDirectoriesForFile(string $filePath, int $permissions = 0775): bool {
+        $directory = dirname($filePath);
+        if (file_exists($directory)) {
+            return true;
+        }
+        if (!mkdir($directory, $permissions, true)) {
+            self::preFile('errors', 'createDirectoriesForFile', 'Ошибка создания директории', $filePath);
+            return false;
+        }
+        return true;
+    }   
+    
+    /**
+     * Проверяет, является ли строка правильным JSON
+     * @param string $string Строка для проверки
+     * @return bool Возвращает true, если строка является правильным JSON
      */
     public static function ee_isValidJson(mixed $string): bool {
         $string = is_string($string) ? json_decode($string) : false;
@@ -1405,8 +1433,8 @@ class SysClass {
 
     /**
      * Преобразует значения массива в числа, если это возможно, или оставляет их как есть
-     * @param array $array Массив значений для преобразования.
-     * @return array Массив с преобразованными значениями.
+     * @param array $array Массив значений для преобразования
+     * @return array Массив с преобразованными значениями
      */
     public static function ee_convertArrayValuesToNumbers(array $array): array {
         array_walk($array, function (&$value) {
@@ -1425,9 +1453,9 @@ class SysClass {
     }
 
     /**
-     * Очищает строковую переменную от специальных символов и обрезает пробелы с начала и конца строки.
-     * @param string $inputString Входная строка для очистки.
-     * @return string Очищенная строка.
+     * Очищает строковую переменную от специальных символов и обрезает пробелы с начала и конца строки
+     * @param string $inputString Входная строка для очистки
+     * @return string Очищенная строка
      */
     public static function ee_cleanString($inputString) {
         if (!is_string($inputString)) {
@@ -1569,6 +1597,25 @@ class SysClass {
             echo "Файл: " . ($item['file'] ?? 'N/A') . "<br/>";
             echo "<hr/>";
         }
+    }
+
+    /**
+     * Выводит статистику запросов SafeMySQL в файл
+     * Функция собирает статистику запросов, выполняемых через SafeMySQL, и сохраняет информацию в лог-файле
+     * Статистика включает сам запрос, время выполнения, общее время и трассировку вызовов
+     * @param string $logFile Имя файла, в который будет записана статистика. По умолчанию 'mysql_log'
+     * @return void
+     */
+    public static function ee_printSafeMySQLStats(string $logFile = 'mysql_log'): void {
+        $stats = array_reverse(classes\plugins\SafeMySQL::gi()->getStats());
+        $echo = '';
+        foreach ($stats as $item) {
+            $echo .= "QUERY: " . $item['query'] . PHP_EOL;
+            $echo .= "Timer: " . $item['timer'] . PHP_EOL;
+            $echo .= "Total time: " . $item['total_time'] . PHP_EOL;
+            $echo .= "Backtrace: " . var_export($item['backtrace'], true) . PHP_EOL;
+        }
+        self::preFile($logFile, 'ee_printSafeMySQLStats', end($stats)['total_time'], $echo);
     }
 
     /**

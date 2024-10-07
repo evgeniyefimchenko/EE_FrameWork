@@ -1,0 +1,192 @@
+<div id="sticky-wrapper">
+    <div id="doc-menu-wrapper" class="doc-fix-menu">
+        <h2>Класс SafePostgres</h2>
+        <div class="list-group">
+            <a href="#concept" class="list-group-item list-group-item-action" data-doc="methods">Назначение</a>
+            <a href="#methods" class="list-group-item list-group-item-action" data-doc="methods">Методы класса</a>
+            <a href="#examples" class="list-group-item list-group-item-action" data-doc="examples">Примеры использования</a>
+            <a href="#conclusion" class="list-group-item list-group-item-action" data-doc="conclusion">Вывод</a>
+        </div>
+    </div>
+</div>
+
+<h4 id="concept">Назначение</h4>
+<p>
+    Класс <strong>SafePostgres</strong> предоставляет безопасный и удобный способ работы с базой данных PostgreSQL, используя паттерн Singleton для обеспечения единственного подключения. Он поддерживает выполнение SQL-запросов с
+    использованием плейсхолдеров для безопасной подстановки значений и защиты от SQL-инъекций.
+</p>
+
+<h4 id="methods">Методы класса</h4>
+<p>Класс <strong>SafePostgres</strong> предлагает методы для выполнения SQL-запросов, получения результатов, работы с плейсхолдерами и фильтрации данных.</p>
+<ul>
+    <li>
+        <strong>query</strong>
+        <p><code>public function query(string $query, ...$args): bool</code></p>
+        <p>Выполняет SQL-запрос с поддержкой плейсхолдеров.</p>
+        <ul>
+            <li>
+                Параметры:
+                <ul>
+                    <li><code>query</code> (string): SQL-запрос с плейсхолдерами.</li>
+                    <li><code>...$args</code> (mixed): Аргументы для замены плейсхолдеров.</li>
+                </ul>
+            </li>
+            <li>Возвращает: <code>bool</code> - Успешность выполнения запроса.</li>
+        </ul>
+        <p>Пример:</p>
+        <pre><code>
+$db = SafePostgres::gI();
+$db->query("INSERT INTO users (name, email) VALUES (?s, ?s)", 'John Doe', 'john@example.com');
+        </code></pre>
+    </li>
+
+    <li>
+        <strong>getOne</strong>
+        <p><code>public function getOne(string $query, ...$args): mixed</code></p>
+        <p>Возвращает одно значение из результата SQL-запроса.</p>
+        <ul>
+            <li>
+                Параметры:
+                <ul>
+                    <li><code>query</code> (string): SQL-запрос с плейсхолдерами.</li>
+                    <li><code>...$args</code> (mixed): Аргументы для замены плейсхолдеров.</li>
+                </ul>
+            </li>
+            <li>Возвращает: <code>mixed</code> - Значение первой колонки первой строки результата или false.</li>
+        </ul>
+        <p>Пример:</p>
+        <pre><code>
+$db = SafePostgres::gI();
+$userName = $db->getOne("SELECT name FROM users WHERE id = ?i", 1);
+echo $userName;
+        </code></pre>
+    </li>
+
+    <li>
+        <strong>getRow</strong>
+        <p><code>public function getRow(string $query, ...$args): array|false</code></p>
+        <p>Возвращает одну строку в виде ассоциативного массива.</p>
+        <ul>
+            <li>
+                Параметры:
+                <ul>
+                    <li><code>query</code> (string): SQL-запрос с плейсхолдерами.</li>
+                    <li><code>...$args</code> (mixed): Аргументы для замены плейсхолдеров.</li>
+                </ul>
+            </li>
+            <li>Возвращает: <code>array|false</code> - Ассоциативный массив с данными строки или false.</li>
+        </ul>
+        <p>Пример:</p>
+        <pre><code>
+$db = SafePostgres::gI();
+$userData = $db->getRow("SELECT * FROM users WHERE id = ?i", 1);
+print_r($userData);
+        </code></pre>
+    </li>
+
+    <li>
+        <strong>getCol</strong>
+        <p><code>public function getCol(string $query, ...$args): array</code></p>
+        <p>Возвращает массив значений одного столбца.</p>
+        <ul>
+            <li>
+                Параметры:
+                <ul>
+                    <li><code>query</code> (string): SQL-запрос с плейсхолдерами.</li>
+                    <li><code>...$args</code> (mixed): Аргументы для замены плейсхолдеров.</li>
+                </ul>
+            </li>
+            <li>Возвращает: <code>array</code> - Массив значений одного столбца.</li>
+        </ul>
+        <p>Пример:</p>
+        <pre><code>
+$db = SafePostgres::gI();
+$userEmails = $db->getCol("SELECT email FROM users");
+print_r($userEmails);
+        </code></pre>
+    </li>
+
+    <li>
+        <strong>getAll</strong>
+        <p><code>public function getAll(string $query, ...$args): array</code></p>
+        <p>Возвращает все строки результата SQL-запроса в виде массива.</p>
+        <ul>
+            <li>
+                Параметры:
+                <ul>
+                    <li><code>query</code> (string): SQL-запрос с плейсхолдерами.</li>
+                    <li><code>...$args</code> (mixed): Аргументы для замены плейсхолдеров.</li>
+                </ul>
+            </li>
+            <li>Возвращает: <code>array</code> - Массив строк результата запроса.</li>
+        </ul>
+        <p>Пример:</p>
+        <pre><code>
+$db = SafePostgres::gI();
+$users = $db->getAll("SELECT * FROM users");
+print_r($users);
+        </code></pre>
+    </li>
+
+    <li>
+        <strong>filterArray</strong>
+        <p><code>public function filterArray(array $input, array $allowed): array</code></p>
+        <p>Фильтрует массив, оставляя только разрешенные ключи.</p>
+        <ul>
+            <li>
+                Параметры:
+                <ul>
+                    <li><code>input</code> (array): Входной массив.</li>
+                    <li><code>allowed</code> (array): Список разрешенных ключей.</li>
+                </ul>
+            </li>
+            <li>Возвращает: <code>array</code> - Отфильтрованный массив.</li>
+        </ul>
+        <p>Пример:</p>
+        <pre><code>
+$db = SafePostgres::gI();
+$allowedFields = ['name', 'email'];
+$postData = $_POST;
+$filteredData = $db->filterArray($postData, $allowedFields);
+print_r($filteredData);
+        </code></pre>
+    </li>
+</ul>
+
+<h4 id="examples">Примеры использования</h4>
+<p><strong>Добавление данных в таблицу</strong></p>
+<p>Используйте метод <code>query</code>, чтобы безопасно вставить данные в базу с использованием плейсхолдеров:</p>
+<pre>
+    <code>
+$db = SafePostgres::gI();
+$db->query("INSERT INTO users (name, email) VALUES (?s, ?s)", 'Jane Doe', 'jane@example.com');
+    </code>
+</pre>
+
+<p><strong>Получение одной строки</strong></p>
+<p>Метод <code>getRow</code> возвращает одну строку в виде ассоциативного массива:</p>
+<pre>
+    <code>
+$db = SafePostgres::gI();
+$user = $db->getRow("SELECT * FROM users WHERE id = ?i", 2);
+print_r($user);
+    </code>
+</pre>
+
+<p><strong>Фильтрация данных перед запросом</strong></p>
+<p>С помощью метода <code>filterArray</code> вы можете отфильтровать входные данные перед вставкой в базу:</p>
+<pre>
+    <code>
+$db = SafePostgres::gI();
+$allowedFields = ['name', 'email'];
+$filteredData = $db->filterArray($_POST, $allowedFields);
+$sql = "INSERT INTO users SET ?u";
+$db->query($sql, $filteredData);
+    </code>
+</pre>
+
+<h4 id="conclusion">Вывод</h4>
+<p>
+    Класс <strong>SafePostgres</strong> обеспечивает безопасное взаимодействие с PostgreSQL, используя PDO и систему плейсхолдеров. Он упрощает выполнение запросов, получение данных и защиту от SQL-инъекций, позволяя легко управлять базой
+    данных в вашем приложении.
+</p>

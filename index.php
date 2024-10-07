@@ -20,7 +20,7 @@ if ($debug && isset($_GET['phpinfo'])) {
 function ee_startUp() {    
     require_once('inc/configuration.php');     
     require_once ('inc/startup.php');    
-    AutoloadManager::init();    
+    AutoloadManager::init(); // Необходимо для hooks.php
     require_once ('inc/hooks.php');
 }
 

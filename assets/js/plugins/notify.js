@@ -1,49 +1,57 @@
-/*
-
-
-
-     Creative Tim Modifications
-
-     Lines: 238, 239 was changed from top: 5px to top: 50% and we added margin-top: -13px. In this way the close button will be aligned vertically
-     Line:222 - modified when the icon is set, we add the class "alert-with-icon", so there will be enough space for the icon.
-
-
-
-
-*/
-
-
-/*
- * Project: Bootstrap Notify = v3.1.5
- * Description: Turns standard Bootstrap alerts into "Growl-like" notifications.
- * Author: Mouse0270 aka Robert McIntosh
- * License: MIT License
- * Website: https://github.com/mouse0270/bootstrap-growl
+/**
+ * Плагин для создания уведомлений на основе Bootstrap 5 и FontAwesome 6.
+ * Позволяет отображать уведомления с различными параметрами, такими как заголовок, сообщение, тип уведомления, иконка и др.
+ *
+ * @param {jQuery} $ jQuery объект
+ * @param {object} content Контент уведомления. Может быть строкой или объектом.
+ * @param {string} content.message Сообщение уведомления
+ * @param {string} [content.title] Заголовок уведомления (опционально)
+ * @param {string} [content.icon] Иконка FontAwesome для уведомления (опционально)
+ * @param {string} [content.url] Ссылка для уведомления (опционально)
+ * @param {string} [content.target] Атрибут target для ссылки (опционально)
+ * @param {object} [options] Дополнительные опции для уведомления
+ * @param {string} [options.type='info'] Тип уведомления (например, 'info', 'success', 'warning', 'danger')
+ * @param {boolean} [options.allow_dismiss=true] Разрешить ли пользователю закрывать уведомление
+ * @param {boolean} [options.allow_duplicates=true] Разрешить ли дубликаты уведомлений
+ * @param {boolean} [options.newest_on_top=false] Показывать ли новые уведомления выше старых
+ * @param {boolean} [options.showProgressbar=false] Показывать ли прогресс-бар
+ * @param {object} [options.placement] Параметры расположения уведомления
+ * @param {string} [options.placement.from='top'] Расположение уведомления по вертикали ('top' или 'bottom')
+ * @param {string} [options.placement.align='right'] Расположение уведомления по горизонтали ('left', 'center' или 'right')
+ * @param {number} [options.offset=20] Отступ от края экрана
+ * @param {number} [options.spacing=10] Отступ между уведомлениями
+ * @param {number} [options.z_index=1031] z-index для уведомления
+ * @param {number} [options.delay=5000] Задержка перед закрытием уведомления (в миллисекундах)
+ * @param {number} [options.timer=1000] Интервал обновления прогресс-бара (в миллисекундах)
+ * @param {string} [options.url_target='_blank'] Атрибут target для ссылки (если указан content.url)
+ * @param {string} [options.icon_type='class'] Тип иконки (например, 'class' для FontAwesome)
+ * @param {object} [options.animate] Параметры анимации для появления и исчезновения уведомления
+ * @param {string} [options.animate.enter='animate__animated animate__fadeInDown'] Анимация появления
+ * @param {string} [options.animate.exit='animate__animated animate__fadeOutUp'] Анимация исчезновения
+ * @param {function} [options.onShow] Callback, вызываемый при показе уведомления
+ * @param {function} [options.onShown] Callback, вызываемый после показа уведомления
+ * @param {function} [options.onClose] Callback, вызываемый при закрытии уведомления
+ * @param {function} [options.onClosed] Callback, вызываемый после закрытия уведомления
+ * @param {function} [options.onClick] Callback, вызываемый при клике на уведомление
+ * @returns {object} notify Экземпляр уведомления с методами для обновления и закрытия
  */
-
-/* global define:false, require: false, jQuery:false */
-
 (function(factory) {
     if (typeof define === 'function' && define.amd) {
-        // AMD. Register as an anonymous module.
         define(['jquery'], factory);
     } else if (typeof exports === 'object') {
-        // Node/CommonJS
         factory(require('jquery'));
     } else {
-        // Browser globals
         factory(jQuery);
     }
 }(function($) {
-    // Create the defaults once
     var defaults = {
         element: 'body',
         position: null,
         type: "info",
         allow_dismiss: true,
-        allow_duplicates: true,
+        allow_duplicates: false,
         newest_on_top: false,
-        showProgressbar: false,
+        showProgressbar: true,
         placement: {
             from: "top",
             align: "right"
@@ -56,8 +64,8 @@
         url_target: '_blank',
         mouse_over: null,
         animate: {
-            enter: 'animated fadeInDown',
-            exit: 'animated fadeOutUp'
+            enter: 'animate__animated animate__fadeInDown',
+            exit: 'animate__animated animate__fadeOutUp'
         },
         onShow: null,
         onShown: null,
@@ -65,7 +73,18 @@
         onClosed: null,
         onClick: null,
         icon_type: 'class',
-        template: '<div data-notify="container" class="col-11 col-sm-4 alert alert-{0}" role="alert"><button type="button" aria-hidden="true" class="close" data-notify="dismiss"><i class="fa fa-times"></i></button><span data-notify="icon"></span> <span data-notify="title">{1}</span> <span data-notify="message">{2}</span><div class="progress" data-notify="progressbar"><div class="progress-bar progress-bar-{0}" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width: 0%;"></div></div><a href="{3}" target="{4}" data-notify="url"></a></div>'
+        template: '<div data-notify="container" class="col-11 col-sm-4 alert alert-{0} d-flex align-items-center" role="alert">' +
+                  '<button type="button" class="btn-close" data-notify="dismiss"></button>' +
+                  '<span data-notify="icon" class="me-2"></span>' +
+                  '<span class="flex-grow-1">' +
+                    '<span data-notify="title" class="fw-bold">{1}</span>' +
+                    '<span data-notify="message">{2}</span>' +
+                  '</span>' +
+                  '<div class="progress" data-notify="progressbar">' +
+                    '<div class="progress-bar progress-bar-{0}" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width: 0%;"></div>' +
+                  '</div>' +
+                  '<a href="{3}" target="{4}" data-notify="url" class="stretched-link"></a>' +
+                  '</div>'
     };
 
     String.format = function() {
@@ -86,15 +105,11 @@
             var title = $el.find('[data-notify="title"]').html().trim();
             var message = $el.find('[data-notify="message"]').html().trim();
 
-            // The input string might be different than the actual parsed HTML string!
-            // (<br> vs <br /> for example)
-            // So we have to force-parse this as HTML here!
             var isSameTitle = title === $("<div>" + notification.settings.content.title + "</div>").html().trim();
             var isSameMsg = message === $("<div>" + notification.settings.content.message + "</div>").html().trim();
             var isSameType = $el.hasClass('alert-' + notification.settings.type);
 
             if (isSameTitle && isSameMsg && isSameType) {
-                //we found the dupe. Set the var and stop checking.
                 isDupe = true;
             }
             return !isDupe;
@@ -104,7 +119,6 @@
     }
 
     function Notify(element, content, options) {
-        // Setup Content of Notify
         var contentObj = {
             content: {
                 message: typeof content === 'object' ? content.message : content,
@@ -133,7 +147,6 @@
             };
         }
 
-        //if duplicate messages are not allowed, then only continue if this new message is not a duplicate of one that it already showing
         if (this.settings.allow_duplicates || (!this.settings.allow_duplicates && !isDuplicateNotification(this))) {
             this.init();
         }
@@ -235,14 +248,13 @@
             this.$ele.find('[data-notify="dismiss"]').css({
                 position: 'absolute',
                 right: '10px',
-                top: '50%',
-                marginTop: '-13px',
+                top: '17px',
                 zIndex: this.settings.z_index + 2
             });
         },
         styleURL: function() {
             this.$ele.find('[data-notify="url"]').css({
-                backgroundImage: 'url(data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7)',
+                backgroundImage: 'none',
                 height: '100%',
                 left: 0,
                 position: 'absolute',
@@ -427,6 +439,5 @@
             $('[data-notify]').not(selector).find('[data-notify="dismiss"]').trigger('click');
         }
     };
-
 
 }));

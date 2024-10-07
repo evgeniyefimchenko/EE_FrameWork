@@ -38,7 +38,7 @@ trait PagesTrait {
     /**
      * Добавить или редактировать сущность
      */
-    public function pageEdit($params = []) {
+    public function page_edit($params = []) {
         $this->access = [Constants::ADMIN, Constants::MODERATOR];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect();
@@ -77,7 +77,7 @@ trait PagesTrait {
                 } else {
                     $pageId = $new_id;
                 }
-            }
+            }            
             // Сохранение свойств для страницы
             if (isset($postData['property_data']) && is_array($postData['property_data']) && isset($postData['property_data_changed']) && $postData['property_data_changed'] != 0) {
                 $this->processPropertyData($postData['property_data']);
@@ -317,7 +317,7 @@ trait PagesTrait {
                 'status' => $statuses_text[$item['status']],
                 'created_at' => date('d.m.Y', strtotime($item['created_at'])),
                 'updated_at' => $item['updated_at'] ? date('d.m.Y', strtotime($item['updated_at'])) : '',
-                'actions' => '<a href="/admin/pageEdit/id/' . $item['page_id'] . '"'
+                'actions' => '<a href="/admin/page_edit/id/' . $item['page_id'] . '"'
                 . 'class="btn btn-primary me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.edit'] . '"><i class="fas fa-edit"></i></a>'
                 . '<a href="/admin/pageDell/id/' . $item['page_id'] . '" onclick="return confirm(\'' . $this->lang['sys.delete'] . '?\');" '
                 . 'class="btn btn-danger me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.delete'] . '"><i class="fas fa-trash"></i></a>'

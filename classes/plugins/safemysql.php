@@ -2,35 +2,6 @@
 
 namespace classes\plugins;
 
-abstract class Singleton {
-
-    private static $_aInstances = array();
-
-    public static function getInstance() {
-        $sClassName = get_called_class();
-        if (class_exists($sClassName)) {
-            if (!isset(self::$_aInstances[$sClassName]))
-                self::$_aInstances[$sClassName] = new $sClassName();
-            return self::$_aInstances[$sClassName];
-        }
-        return 0;
-    }
-
-    // более удобный вызов метода getInstance
-    public static function gI() {
-        return self::getInstance();
-    }
-
-    private function __clone() {
-        
-    }
-
-    private function __construct() {
-        
-    }
-
-}
-
 /**
  * @author col.shrapnel@gmail.com
  * @link http://phpfaq.ru/safemysql
@@ -90,7 +61,7 @@ abstract class Singleton {
  * $data = $db->getAll("SELECT * FROM table WHERE ?p", $bar, $sqlpart);
  * 
  */
-class SafeMySQL extends Singleton {
+class SafeMySQL extends \classes\helpers\Singleton {
 
     private $conn;
     private $stats;

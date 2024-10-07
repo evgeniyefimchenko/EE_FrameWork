@@ -17,6 +17,7 @@ if (!count($allType)) {
                class="btn btn-info mx-1 float-end<?= empty($categoryData['category_id']) ? " d-none" : "" ?>">
                 <i class="fa fa-plus-circle"></i>&nbsp;<?= $lang['sys.add'] ?>
             </a>
+            <button type="submit" class="btn btn-primary float-end"><?=$lang['sys.save']?></button>
             <h1 class="mt-4"><?= !$categoryData ? $lang['sys.add'] : $lang['sys.edit'] ?></h1>
             <ol class="breadcrumb mb-4">
                 <li>
@@ -120,7 +121,6 @@ if (!count($allType)) {
                                     <input type="text" disabled id="update-date-input" class="form-control" value="<?= $categoryData['updated_at'] ?>">
                                 </div>
                             </div>
-                            <button type="submit" class="btn btn-primary"><?=$lang['sys.save']?></button>
                         </div>
                         <!-- Содержимое для присоединённых сущностей -->
                         <div class="tab-pane fade mt-3" id="pages-tab-pane" role="tabpanel" aria-labelledby="pages-tab">
@@ -156,12 +156,16 @@ if (!count($allType)) {
                                     <div id="renderCategorySetsAccordion">
                                         <?=Plugins::renderCategorySetsAccordion($categoriesTypeSetsData, $categoryData['category_id']);?>
                                     </div>
-                                    <button type="submit" class="btn btn-primary my-3"><?=$lang['sys.save']?></button>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
+            </div>
+            <div class="row">
+                <div class="col">
+                    <button type="submit" class="btn btn-primary my-3"><?=$lang['sys.save']?></button>
+                </div>                    
             </div>            
         </div>		
     </form>

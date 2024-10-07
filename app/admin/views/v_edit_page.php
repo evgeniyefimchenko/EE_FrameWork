@@ -2,13 +2,13 @@
 use classes\system\SysClass;
 use classes\system\Plugins;
 ?>
-<!-- Редактирование сущности -->
+<!-- Редактирование страницы -->
 <?php if (!$allType) SysClass::handleRedirect(200, '/admin/type_categories');?> 
 <main>    
-    <form id="edit_page" action="/admin/pageEdit/id/<?= $pageData['page_id'] ?>" method="POST">
+    <form id="edit_page" action="/admin/page_edit/id/<?= $pageData['page_id'] ?>" method="POST">
         <input type="hidden" name="fake" value="1" />
         <div class="container-fluid px-4">
-            <a href="/admin/pageEdit/id" data-bs-toggle="tooltip" data-bs-placement="top" title="<?= $lang['sys.add'] ?>" type="button"
+            <a href="/admin/page_edit/id" data-bs-toggle="tooltip" data-bs-placement="top" title="<?= $lang['sys.add'] ?>" type="button"
                class="btn btn-info mx-1 float-end<?= empty($pageData['page_id']) ? " d-none" : "" ?>">
                 <i class="fa fa-plus-circle"></i>&nbsp;<?= $lang['sys.add'] ?>
             </a>
@@ -116,22 +116,25 @@ use classes\system\Plugins;
                                     <input type="text" disabled class="form-control" value="<?= $pageData['updated_at'] ?>">
                                 </div>
                             </div>
-                            <button type="submit" class="btn btn-primary"><?=$lang['sys.save']?></button>
                         </div>
                         <!-- Свойства -->
                         <div class="tab-pane fade show mt-3" id="features-tab-pane" role="tabpanel" aria-labelledby="features-tab">
                             <div class="row">
                                 <div class="col">
                                     <div id="renderCategorySetsAccordion">
-                                        <?=Plugins::renderCategorySetsAccordion($allProperties, $pageData['page_id'], 'page');?>
-                                    </div>
-                                    <button type="submit" class="btn btn-primary my-3"><?=$lang['sys.save']?></button>
+                                        <?=Plugins::renderCategorySetsAccordion($allProperties, $pageData['page_id'], 'page')?>
+                                    </div>                                    
                                 </div>
                             </div>
                         </div>                        
-                    </div>
+                    </div>                    
                 </div>
-            </div>            
-        </div>		
+            </div>
+            <div class="row">
+                <div class="col">
+                    <button type="submit" class="btn btn-primary my-3"><?=$lang['sys.save']?></button>
+                </div>                    
+            </div>
+        </div>
     </form>
 </main>

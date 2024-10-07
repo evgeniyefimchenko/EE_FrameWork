@@ -55,20 +55,20 @@ window.lang_select = $('#lang_select');
             window.preloader.fadeOut(500);
             window.lang_select.click(function () {
                 sendAjaxRequest(
-                        '/set_options/' + $(this).attr('data-langcode'),
-                        {},
-                        'POST',
-                        'json',
-                        function (data) {
-                            if (data.error !== 'no') {
-                                console.error("Error setting language:", data);
-                            } else {
-                                resetLanguageVars();
-                            }
-                        },
-                        function (jqXHR, textStatus, errorThrown) {
-                            console.error("Error during language selection:", textStatus, errorThrown);
+                    '/set_options/' + $(this).attr('data-langcode'),
+                    {},
+                    'POST',
+                    'json',
+                    function (data) {
+                        if (data.error !== 'no') {
+                            console.error("Error setting language:", data);
+                        } else {
+                            resetLanguageVars(); // TODO когда это происходит?
                         }
+                    },
+                    function (jqXHR, textStatus, errorThrown) {
+                        console.error("Error during language selection:", textStatus, errorThrown);
+                    }
                 );
             });
         });
@@ -114,6 +114,7 @@ function defaultErrorCallback(jqXHR, textStatus, errorThrown) {
     console.error('Request Failed:', 'status: ' + jqXHR.status + ' responseText: ' + jqXHR.responseText);
     console.log('textStatus: ' + textStatus);
     console.log('errorThrown: ' + errorThrown);
+    alert('Critical error!');
 }
 
 /**
@@ -155,6 +156,34 @@ function sendAjaxRequest(
             }
         }
     });
+}
+
+// Подключение CSS
+function loadCSS(url) {
+    var link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = url;
+    link.crossOrigin = "anonymous";
+    document.head.appendChild(link);
+}
+
+// Подключение JS
+function loadJS(url) {
+    var script = document.createElement("script");
+    script.src = url;
+    script.type = "text/javascript";
+    script.crossOrigin = "anonymous";
+    document.body.appendChild(script);
+}
+
+// Функция для загрузки JS-файлов с callback'ом
+function loadJSWithCallback(url, callback) {
+    var script = document.createElement("script");
+    script.src = url;
+    script.type = "text/javascript";
+    script.crossOrigin = "anonymous";
+    script.onload = callback;
+    document.body.appendChild(script);
 }
 
 // Константы с настройками TYNIMCE

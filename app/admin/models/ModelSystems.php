@@ -39,7 +39,7 @@ class ModelSystems {
         }
         // Пересоздание БД и регистрация первичных пользователей
         new Users(true);
-        $flagFilePath = ENV_LOGS_PATH . 'test_data_created.txt';
+        $flagFilePath = ENV_TMP_PATH . 'test_data_created.txt';
         if (file_exists($flagFilePath)) {
             unlink($flagFilePath);
         }

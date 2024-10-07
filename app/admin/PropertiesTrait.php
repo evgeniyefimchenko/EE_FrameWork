@@ -437,7 +437,7 @@ trait PropertiesTrait {
      * @return array
      */
     private function prepareDefaultValuesProperty(array $propertyData, int $propertyId): array {
-        $prepared_data = [];
+        $prepared_data = [];        
         foreach ($propertyData as $key => $value) {
             // Извлекаем порядковый номер и тип из ключа
             if (preg_match('/([a-z\-]+)_([0-9]+)_?([a-z]*)/', $key, $matches)) {
@@ -465,13 +465,13 @@ trait PropertiesTrait {
                 // Заполнение данных в зависимости от дополнительного ключа
                 if ($additional_key) {
                     if ($additional_key === 'default' && is_array($value)) {
-                        $prepared_data[$index]['default'] = implode(',', $value);
+                        $prepared_data[$index]['default'] = SysClass::ee_cleanArray($value);
                     } elseif ($additional_key === 'multiple' && $value === 'on') {
                         $prepared_data[$index]['multiple'] = 1;
                     } elseif ($additional_key === 'required' && $value === 'on') {
                         $prepared_data[$index]['required'] = 1;
                     } else {
-                        $prepared_data[$index][$additional_key] = $value;
+                        $prepared_data[$index][$additional_key] = SysClass::ee_cleanArray($value);
                     }
                 }
             }
@@ -541,7 +541,7 @@ trait PropertiesTrait {
     }
 
     /**
-     * Наборы свойств TODO
+     * Наборы свойств
      * @param type $params
      */
     public function properties_sets($params = []) {

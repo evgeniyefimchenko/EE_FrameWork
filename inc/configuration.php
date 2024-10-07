@@ -11,7 +11,7 @@ function loadConfig() {
      * Настройка базы данных
      * Если указать начальные настройки при первом запуске формы авторизации то первичные таблицы в БД будут созданы автоматически
      */
-    $config['ENV_DB_HOST'] = 'localhost';
+    $config['ENV_DB_HOST'] = '';
     $config['ENV_DB_USER'] = '';
     $config['ENV_DB_PASS'] = '';
     $config['ENV_DB_NAME'] = '';
@@ -29,6 +29,7 @@ function loadConfig() {
     $config['ENV_SITE_PATH'] = realpath(dirname(__FILE__) . $config['ENV_DIRSEP'] . '..' . $config['ENV_DIRSEP']) . $config['ENV_DIRSEP']; // Каталог сайта на сервере
     $config['ENV_LOG'] = 1;        // Логирование изменений в таблицу БД change_log
     $config['ENV_LOGS_PATH'] = $config['ENV_SITE_PATH'] . 'logs' . $config['ENV_DIRSEP'];
+    $config['ENV_TMP_PATH'] = $config['ENV_SITE_PATH'] . 'uploads' . $config['ENV_DIRSEP'] . 'tmp' . $config['ENV_DIRSEP'];
     $config['ENV_COMPRESS_HTML'] = 0;     // Сжимать HTML код 0-нет 1-Да
     $config['ENV_CACHE'] = 1;     // Использовать кеш 0-нет 1-Да
     $config['ENV_SECRET_KEY'] = '(b[RX{28Z_9j;+k'; // Ключ защиты сайта(по умолчанию не используется)
@@ -47,12 +48,14 @@ function loadConfig() {
     /* Персональные настройки сайта */
     $config['ENV_APP_DIRECTORY'] = 'app';    // Директория приложения
     $config['ENV_PATH_LANG'] = 'inc' . DIRECTORY_SEPARATOR . 'langs';    // Директория языковых файлов
-    $config['ENV_PROTO_LANGUAGE'] = 'RU';
+    $config['ENV_PROTO_LANGUAGE'] = 'EN';
     $get_lang_code = strtoupper(substr(GetClientPreferedLanguage(), 0, 2));
     $config['ENV_DEF_LANG'] = $get_lang_code ? $get_lang_code : $config['ENV_PROTO_LANGUAGE'];    // Локализация по умолчанию, выбирает наиболее предпочитаемый язык пользователя или RU
     if ($config['ENV_DEF_LANG'] == 'RU') {
         date_default_timezone_set('Europe/Moscow');
     }
+    
+    $config['ENV_DEF_LANG'] = 'RU';
     
     $config['ENV_SITE_EMAIL'] = '';   // Почта сайта ОБЯЗАТЕЛЬНОЕ ЗАПОЛНЕНИЕ
     $config['ENV_ADMIN_EMAIL'] = '';  // Почта администратора сайта ОБЯЗАТЕЛЬНОЕ ЗАПОЛНЕНИЕ

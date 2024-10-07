@@ -27,7 +27,9 @@ RewriteBase /
 
 # Разрешить доступ к /classes/system/js
 RewriteCond %{REQUEST_URI} !^/classes/system/js/.*$
-# Заблокировать доступ ко всем папкам в /classes, кроме /classes/system/js
+# Разрешить доступ к /classes/system/css
+RewriteCond %{REQUEST_URI} !^/classes/system/css/.*$
+# Заблокировать доступ ко всем папкам в /classes, кроме /classes/system/js и /classes/system/css/
 RewriteRule ^classes/(.*) - [F,L,NC]
 # Заблокировать доступ к папкам inc, layouts, и logs в корне сайта
 RewriteRule ^(inc|layouts|logs) - [F,L,NC]

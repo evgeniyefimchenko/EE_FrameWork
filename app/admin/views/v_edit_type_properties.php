@@ -13,6 +13,7 @@ use classes\system\Plugins;
                class="btn btn-info mx-1 float-end<?= empty($property_type_data['type_id']) ? " d-none" : "" ?>">
                 <i class="fa fa-plus-circle"></i>&nbsp;<?= $lang['sys.add'] ?>
             </a>
+            <button type="submit" class="btn btn-primary float-end"><?=$lang['sys.save']?></button>
             <h1 class="mt-4"><?= empty($property_type_data['type_id']) ? $lang['sys.add'] : $lang['sys.edit'] . '(' . $property_type_data['name'] . ')' ?></h1>
             <ol class="breadcrumb mb-4">
                 <li>
@@ -102,7 +103,11 @@ use classes\system\Plugins;
                     </div>
                 </div>
             </div>
-            <button type="submit" class="btn btn-primary">Сохранить</button>             
+            <div class="row">
+                <div class="col">
+                    <button type="submit" class="btn btn-primary my-3"><?=$lang['sys.save']?></button>
+                </div>                    
+            </div>             
         </div>		
     </form>
 </main>

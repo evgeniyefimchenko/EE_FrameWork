@@ -1,0 +1,7 @@
+{START}
+Время события: 2024-10-01 22:54:01
+Инициатор: 'base get_user_data \'ENV_DEF_LANG\''
+Результат: false
+Детали: Языковой файл не найден(подключаем ENV_PROTO_LANGUAGE RU): /home3/whrgijws/public_html/skku.shop/inc/langs/ZH.php
+Полный стек вызовов: [{"function":"preFile","line":123,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/ControllerBase.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"set_user_data","line":81,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/ControllerBase.php","class":"classes\\system\\ControllerBase","type":"->","object":"N/A"},{"function":"__construct","line":120,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"classes\\system\\ControllerBase","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
+{END}

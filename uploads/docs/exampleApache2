@@ -1,5 +1,5 @@
 <VirtualHost *:80>
-    ServerAdmin evgeniy@efimchenko.com
+    ServerAdmin admin@EXAMPLE.SITE
     ServerName EXAMPLE.SITE
     ServerAlias www.EXAMPLE.SITE
 
@@ -24,7 +24,7 @@
 </VirtualHost>
 
 <VirtualHost *:443>
-    ServerAdmin evgeniy@efimchenko.com
+    ServerAdmin admin@EXAMPLE.SITE
     ServerName EXAMPLE.SITE
     ServerAlias www.EXAMPLE.SITE
 

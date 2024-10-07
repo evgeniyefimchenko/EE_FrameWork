@@ -27,9 +27,35 @@ function initializeStickyMenu() {
     }
 }
 
-$(document).ready(function () {
-    $('.list-group-item').click(function () {
-        let docName = $(this).data('doc');
-        sendAjaxRequest('/get_doc', {docName: docName}, 'POST', 'html', renderDoc, errorDoc);
+function initializeMenuClickHandlers() {
+    $('.list-group-item').each(function () {
+        // Если у элемента есть подменю, добавляем иконку
+        let submenu = $(this).next('.list-group-submenu');
+        if (submenu.length) {
+            // Устанавливаем обработчик клика для элементов с подменю
+            $(this).on('click', function (e) {
+                e.preventDefault();  // Предотвращаем стандартное поведение ссылки
+                submenu.slideToggle();  // Переключаем видимость подменю
+
+                // Меняем иконку на стрелку вверх или вниз
+                $(this).find('i').toggleClass('fa-chevron-down fa-chevron-up');
+            });
+        } else {
+            // Удаляем иконку, если подменю отсутствует
+            $(this).find('i').remove();
+        }
+
+        // AJAX запрос для элементов, не имеющих подменю
+        if (!submenu.length) {
+            $(this).on('click', function (e) {
+                e.preventDefault();
+                let docName = $(this).data('doc');
+                sendAjaxRequest('/get_doc', { docName: docName }, 'POST', 'html', renderDoc, errorDoc);
+            });
+        }
     });
+}
+
+$(document).ready(function () {
+    initializeMenuClickHandlers();
 });
