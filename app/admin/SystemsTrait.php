@@ -564,7 +564,7 @@ trait SystemsTrait {
             $commentPrefix = $comments[array_rand($comments)];
             $comment = $commentPrefix . " (" . date("Y-m-d H:i:s") . ")";
             $password = bin2hex(openssl_random_pseudo_bytes(4)); // 8-character random password
-            $res = $this->users->registration_new_user([
+            $res = $this->users->registrationNewUser([
                 'name' => $name,
                 'email' => $email,
                 'active' => $active,

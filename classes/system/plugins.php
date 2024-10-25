@@ -8,6 +8,11 @@ namespace classes\system;
  */
 class Plugins {
 
+    /**
+     * Загрузка библиотеки SortableJS на страницу
+     */
+    private static $sortableJS = false;
+
     function __construct() {
         throw new Exception('Static only.');
     }
@@ -662,10 +667,10 @@ class Plugins {
                 $result .= '</div>';
             }
             $default[$count]['default'] = isset($default[$count]['default']) ? $default[$count]['default'] : '';
-            $multiple_choice = true;           
+            $multiple_choice = true;
             $multiple = isset($default[$count]['multiple']) && $default[$count]['multiple'] == 1 ? true : false;
             $nameSufix = $multiple ? '[]' : '';
-            $result .= '<div class="col">';            
+            $result .= '<div class="col pt-1">';
             $result .= '<label class="form-label" ' . (in_array($type, ["file", "image"]) ? " style=\"visibility: hidden;\"" : "") . '>' . $global_lang['sys.value'] . '</label>';
             switch ($type) {
                 case 'text':
@@ -674,7 +679,7 @@ class Plugins {
                 case 'time':
                 case 'datetime-local':
                 case 'email':
-                case 'phone': 
+                case 'phone':
                 case 'password':
                 case 'hidden':
                 case 'file':
@@ -689,12 +694,12 @@ class Plugins {
                             $result .= '</div>';
                         }
                     } else {
-                        $result .= '<input type="'. $itype .'"  class="form-control"'
+                        $result .= '<input type="' . $itype . '"  class="form-control"'
                                 . 'data-bs-toggle="tooltip" data-bs-placement="top" title="' . $global_lang['sys.default'] . '" '
                                 . 'name="property_data[' . $type . '_' . $count . '_default]' . $nameSufix . '" value="' . htmlentities($default[$count]['default']) . '" />';
                     }
                     break;
-                case 'select':                    
+                case 'select':
                     $options = '';
                     if ($multiple && is_array($default[$count]['default'])) {
                         $countItemSelect = 0;
@@ -730,7 +735,7 @@ class Plugins {
                                     $options .= '<option value="' . $arr_item[0] . '">' . $arr_item[1] . '</option>';
                                 }
                             }
-                        }                        
+                        }
                         $result .= '<input type="hidden" name="property_data[' . $type . '_' . $count . '_default]' . $nameSufix . '" id="' . $type . '_' . $count . '_0_default"'
                                 . 'value="' . $default[$count]['default'] . '"/>'
                                 . '<div class="input-group">'
@@ -753,13 +758,19 @@ class Plugins {
                     } else {
                         $result .= '<textarea class="form-control" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $global_lang['sys.default'] . '"'
                                 . 'name="property_data[' . $type . '_' . $count . '_default]' . $nameSufix . '">' . $default[$count]['default'] . '</textarea>';
-                    }                    
+                    }
                     break;
                 case 'image':
-                    $result .= self::ee_uploader() . '<span>' . $global_lang['sys.multiple_choice'] . '</span><div class="form-check">'
-                            . '<input class="form-check-input" type="checkbox" name="property_data[' . $type . '_' . $count . '_multiple]"'
-                            . ($default[$count]['multiple'] ? 'checked ' : '') . '/></div>';
-                    $multiple_choice = false;
+                    if (isset($default[$count]['default']) && $default[$count]['default']) { // Что тут делать если файл уже сохранён? TODO
+                        $result .= var_export($default[$count]['default'], true);
+                    } else {
+                        $result .= self::ee_uploader([
+                                    'name' => 'property_data[' . $type . '_' . $count . '_default]',
+                                    'allowed_extensions' => 'jpeg, jpg, png, gif, bmp, tiff, webp, ico',
+                                    'multiple' => $default[$count]['multiple'],
+                                    'required' => $default[$count]['required']
+                        ]);
+                    }
                     break;
                 case 'checkbox':
                     $count_items = $value_count = 0;
@@ -882,10 +893,10 @@ class Plugins {
      */
     public static function renderCategorySetsAccordion($categoriesTypeSetsData, $categoryId, $typeEntity = 'category') {
         global $global_lang;
-        $lang = $global_lang;        
+        $lang = $global_lang;
         $html = '';
         foreach ($categoriesTypeSetsData as $cat_name => $cats_set) {
-            foreach ($cats_set as $propertySet) {                
+            foreach ($cats_set as $propertySet) {
                 $propertySet_id = hash('crc32', $propertySet['set_id'] . $propertySet['name'] . $propertySet['created_at']);
                 $html .= '<div class="accordion my-3" id="accordion-' . $propertySet_id . '">';
                 $html .= '<div class="card">';
@@ -908,7 +919,7 @@ class Plugins {
                 if (!count($propertySet['properties'])) {
                     $html .= '---';
                 }
-                foreach ($propertySet['properties'] as $property) {                    
+                foreach ($propertySet['properties'] as $property) {
                     $property_id = hash('crc32', $propertySet['set_id'] . $property['p_id'] . $property['property_values']['value_id']);
                     $html .= '<div class="accordion my-3" id="accordion-' . $property_id . '">';
                     $html .= '<div class="card">';
@@ -923,12 +934,12 @@ class Plugins {
                             . $property_id . '" data-bs-parent="#accordion-' . $property_id . '">';
                     $html .= '<div class="card-body">';
                     /* Убрал для облегчения понимания структуры
-                    $html .= '<div><label>Is Multiple:</label>';                                                    
-                    $html .= '<input class="ms-1" type="checkbox" disabled ';
-                    $html .= ($property['is_multiple'] == 1 ? 'checked' : '') . '>';
-                    $html .= '&nbsp;&nbsp;<label>Is Required:</label>';
-                    $html .= '<input class="ms-1" type="checkbox" disabled ';
-                    $html .= ($property['is_required'] == 1 ? 'checked' : '') . '></div>';
+                      $html .= '<div><label>Is Multiple:</label>';
+                      $html .= '<input class="ms-1" type="checkbox" disabled ';
+                      $html .= ($property['is_multiple'] == 1 ? 'checked' : '') . '>';
+                      $html .= '&nbsp;&nbsp;<label>Is Required:</label>';
+                      $html .= '<input class="ms-1" type="checkbox" disabled ';
+                      $html .= ($property['is_required'] == 1 ? 'checked' : '') . '></div>';
                      */
                     $html .= self::renderPropertyHtmlFieldsByAdmin($property['property_values'], $categoryId, $typeEntity);
                     $html .= '</div>'; // Закрытие .card-body
@@ -980,11 +991,11 @@ class Plugins {
                 case 'text':
                     $result .= '<input type="text" class="form-control w-50 h-100" data-bs-toggle="tooltip" data-bs-placement="top" '
                             . 'name="property_data[' . $value_name . '_value]" value="' . $value['value'] . '" />';
-                    break;               
+                    break;
                 case 'number':
                     $result .= '<input type="number" class="form-control w-50 h-100" data-bs-toggle="tooltip" data-bs-placement="top" '
                             . 'name="property_data[' . $value_name . '_value]" value="' . $value['value'] . '" />';
-                    break;               
+                    break;
                 case 'date':
                     $result .= '<input type="date" class="form-control w-50 h-100" data-bs-toggle="tooltip" data-bs-placement="top" '
                             . 'name="property_data[' . $value_name . '_value]" value="' . $value['value'] . '" />';
@@ -1161,45 +1172,74 @@ class Plugins {
         return $result;
     }
 
-    public static function ee_uploader($params = []) {
-        $params = [
-            'name' => 'test',
-            'id' => 'test_id_' . rand(1, 100),
+    /**
+    * Генерирует HTML-код для загрузчика файлов с поддержкой множественных загрузок, ограничения по расширениям и модального окна для загрузки файлов по URL
+    * Функция также подключает необходимые CSS и JS файлы для работы загрузчика и сортировки файлов
+    * @param array $params Ассоциативный массив параметров для настройки загрузчика файлов. Поддерживаемые параметры:
+    *  - 'name' (string): Имя инпута для загрузки файлов. По умолчанию 'upload_file'
+    *  - 'id' (string): Уникальный идентификатор элемента загрузки. Если не указан, будет сгенерирован случайным образом
+    *  - 'allowed_extensions' (string): Допустимые расширения файлов, разделенные запятыми (например, 'jpeg, png, gif'). По умолчанию пустая строка
+    *  - 'multiple' (int): Флаг для поддержки множественной загрузки. Если 1, то разрешена множественная загрузка. По умолчанию 0
+    *  - 'required' (int): Флаг, указывающий, является ли загрузка файлов обязательной. Если 1, инпут будет обязательным. По умолчанию 0
+    *  - 'layout' (string): Макет отображения загрузчика ('horizontal' или 'vertical'). По умолчанию 'horizontal'
+    *
+    * @return string Возвращает сгенерированный HTML-код для загрузчика файлов.
+    *
+    * Пример использования:
+    * ```php
+    * echo self::ee_uploader([
+    *     'allowed_extensions' => 'jpeg, png, gif',
+    *     'multiple' => 1,
+    *     'required' => 1,
+    *     'layout' => 'vertical'
+    * ]);
+    * ```
+    */
+    public static function ee_uploader(array $params = []): string {
+        global $global_lang;
+        $defaultParams = [
+            'name' => 'upload_file',
+            'id' => 'upload_id_' . md5(SysClass::ee_generate_uuid()),
             'allowed_extensions' => '',
-            'multiplay' => 'multiplay'
+            'multiple' => 0,
+            'required' => 0,
+            'layout' => 'horizontal' // 'vertical' или 'horizontal' TODO не работает
         ];
-        $html = '
-        <style>
-        .fileItem {
-            margin-bottom: 10px;
-            position: relative;
-            border: 2px solid cyan;
-            border-radius: 5px;
+        $params = array_merge($defaultParams, $params);
+        // Обработка allowed_extensions для атрибута accept
+        $allowedExtensionsArray = array_map('trim', explode(',', $params['allowed_extensions']));
+        if (!empty($allowedExtensionsArray[0])) {
+            $acceptAttribute = 'accept=".' . implode(',.', $allowedExtensionsArray) . '"';
+        } else {
+            $acceptAttribute = '';
         }
-
-        .actionIcons {
-            position: absolute;
-            right: 10px;
-            bottom: 10px;
-            display: flex;
-            gap: 5px;
+        // Атрибуты multiple и required
+        $multipleAttribute = ($params['multiple']) ? 'multiple' : '';
+        $requiredAttribute = ($params['required']) ? 'required' : '';
+        if (!self::$sortableJS) {
+            $html = '<link rel="stylesheet" href="' . ENV_URL_SITE . '/classes/system/css/ee_uploader.css" type="text/css" />';
+            $html .= '<script src="' . ENV_URL_SITE . '/classes/system/js/plugins/Sortable.min.js" type="text/javascript"></script>';
+            $html .= '<script src="' . ENV_URL_SITE . '/classes/system/js/plugins/ee_uploader.js" type="text/javascript"></script>';
+            self::$sortableJS = true;
+        } else {
+            $html = '';
         }
-        </style>';
-
-        $html .= '<div class="card" id="upload-content-' . $params['id'] . '">';
-        $html .= '<input type="file" class="ee_fileInput" name="' . $params['name'] . '" id="' . $params['id'] . '" data-ee_uploader="true" data-allowed-extensions="' . $params['allowed_extensions'] . '" ' . $params['allowed_extensions'] . '>';
+        $html .= '<div class="card" style="align-items: center;" id="upload-content_' . $params['id'] . '" data-layout="' . $params['layout'] . '">';
+        $html .= '<input type="file" class="ee_fileInput" name="' . $params['name'] . ($multipleAttribute ? '[]' : '') . '" id="' . $params['id'] . '" '
+                . 'data-ee_uploader="true" data-allowed-extensions="'
+                . $params['allowed_extensions'] . '" ' . $acceptAttribute . ' ' . $multipleAttribute . ' ' . $requiredAttribute . ' />';
         // HTML для модального окна
         $html .= '<div class="modal fade" id="uploadModal-' . $params['id'] . '" tabindex="-1" aria-labelledby="uploadModalLabel-' . $params['id'] . '" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title" id="uploadModalLabel-' . $params['id'] . '">Загрузка по ссылке</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                        <h5 class="modal-title" id="uploadModalLabel-' . $params['id'] . '">' . $global_lang['sys.download'] . '</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="' . $global_lang['sys.close'] . '"></button>
                     </div>
                     <div class="modal-body">
                         <div class="input-group mb-3">
-                            <input type="text" class="form-control" id="file-url-input-' . $params['id'] . '" placeholder="Вставьте URL">
-                            <button class="btn btn-outline-secondary" type="button" id="add-file-by-url-' . $params['id'] . '">Добавить</button>
+                            <input type="text" class="form-control" id="file-url-input-' . $params['id'] . '" placeholder="' . $global_lang['sys.insert'] . ' URL">
+                            <button class="btn btn-outline-secondary" type="button" id="add-file-by-url-' . $params['id'] . '">' . $global_lang['sys.add'] . '</button>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -1207,10 +1247,27 @@ class Plugins {
                     </div>
                 </div>
             </div>
+        </div>
+        <div class="modal fade" id="addFileParamsModal_' . $params['id'] . '" tabindex="-1" aria-labelledby="addFileParamsModalLabel_' . $params['id'] . '" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="addFileParamsModalLabel_' . $params['id'] . '">' . $global_lang['sys.edit'] . '</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="' . $global_lang['sys.edit'] . '"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="fileParamsForm-' . $params['id'] . '">
+                            <div class="mb-3">
+                                <label for="file_name_' . $params['id'] . '" class="form-label">' . $global_lang['sys.file_name'] . '</label>
+                                <input type="text" class="form-control" id="file_name_' . $params['id'] . '" name="original_name" value="">
+                            </div>
+                            <button type="button" class="btn btn-primary" id="submit_' . $params['id'] . '">' . $global_lang['sys.save'] . '</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
         </div>';
         $html .= '</div>';
-        $html .= '<link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css"><script src="//code.jquery.com/ui/1.12.1/jquery-ui.js"></script>';
-        $html .= '<script src="' . ENV_URL_SITE . '/classes/system/js/plugins/ee_uploader.js" type="text/javascript" /></script>';
         return $html;
     }
 
@@ -1251,9 +1308,9 @@ class Plugins {
         $lang = $global_lang;
         $html = '';
         foreach ($categoriesTypeSetsData as $item_ctsd) {
-            $html .= '<input type="hidden" name="old_property_set[]" value="' . $item_ctsd  . '" />';
-        }        
-        foreach ($propertySetsData['data'] as $propertySet) {            
+            $html .= '<input type="hidden" name="old_property_set[]" value="' . $item_ctsd . '" />';
+        }
+        foreach ($propertySetsData['data'] as $propertySet) {
             $html .= '<div class="accordion my-1" id="accordion-' . $propertySet['set_id'] . '">';
             $html .= '<div class="card">';
             $html .= '<div class="card-header" id="heading-' . $propertySet['set_id'] . '">';
@@ -1261,13 +1318,13 @@ class Plugins {
             $html .= '<input type="checkbox" id="checkbox-' . $propertySet['set_id'] . '" name="property_set[]"'
                     . 'value="' . $propertySet['set_id'] . '" class="form-check-input me-2"'
                     . (in_array($propertySet['set_id'], $categoriesTypeSetsData) ? "checked" : "") . '>';
-            $html .= '<button class="btn btn-link" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-' . $propertySet['set_id'] . 
+            $html .= '<button class="btn btn-link" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-' . $propertySet['set_id'] .
                     '" aria-expanded="true" aria-controls="collapse-' . $propertySet['set_id'] . '">';
             $html .= $propertySet['name'];
             $html .= '</button>';
             $html .= '</h2>';
             $html .= '</div>';
-            $html .= '<div id="collapse-' . $propertySet['set_id'] . '" class="collapse" aria-labelledby="heading-' . $propertySet['set_id'] . 
+            $html .= '<div id="collapse-' . $propertySet['set_id'] . '" class="collapse" aria-labelledby="heading-' . $propertySet['set_id'] .
                     '" data-bs-parent="#accordion-' . $propertySet['set_id'] . '">';
             $html .= '<div class="card-body">';
             $html .= '<h5>' . $lang['sys.description'] . '</h5>' . '<p>' . ($propertySet['description'] ? $propertySet['description'] : '---') . '</p>';

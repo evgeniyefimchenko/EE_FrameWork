@@ -3,7 +3,7 @@
     <!-- General menu -->
 <?= $main_menu ?>                  
     <!-- Content -->
-    <div id="layoutSidenav_content">
+    <div id="layoutSidenav_content" class="pt-5">
         <?= $body_view ?>
         <!-- End Content -->
 <?= $page_footer ?>

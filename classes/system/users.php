@@ -29,7 +29,7 @@ class Users {
         } else {
             $user_id = (int)$params;
         }
-        $this->data = $this->get_user_data($user_id, $create_table);
+        $this->data = $this->getUserData($user_id, $create_table);
     }
 
     /**
@@ -47,7 +47,7 @@ class Users {
      * @param bool $create_table Развернёт БД
      * @return именованный массив
      */
-    public function get_user_data($id = 0, $create_table = false) {
+    public function getUserData($id = 0, $create_table = false) {
         $resArray = [];
         if (!$create_table) {
             $sql_user = 'SELECT * FROM ?n WHERE user_id = ?i';
@@ -59,7 +59,7 @@ class Users {
                 $resArray['user_role_text'] = $this->getTextRole($resArray['user_role']);
                 $resArray['user_role_name'] = $this->getNameRole($resArray['user_role']);
                 $resArray['subscribed_text'] = $resArray['subscribed'] > 0 ? 'Подписан' : 'Не подписан';
-                $resArray['options'] = $this->get_user_options($id);
+                $resArray['options'] = $this->getUserOptions($id);
                 $resArray['new_user'] = 0;
             } else { // Первичное заполнение полей для незарегистрированного пользователя
                 $resArray['new_user'] = 1;
@@ -72,10 +72,10 @@ class Users {
                 $resArray['subscribed_text'] = 'Подписан';
             }
         } else {
-            $this->create_tables(); //создаём необходимый набор таблиц в БД и первого пользователя с ролью администратора
-            $this->registration_new_user(array('name' => 'admin', 'email' => 'test@test.com', 'active' => '2', 'user_role' => '1', 'subscribed' => '0', 'comment' => 'Смените пароль администратора', 'pwd' => 'admin'), true);            
-            $this->registration_new_user(array('name' => 'moderator', 'email' => 'test_moderator@test.com', 'active' => '2', 'user_role' => '2', 'subscribed' => '0', 'comment' => 'Смените пароль модератора', 'pwd' => 'moderator'), true);
-            $this->registration_new_user(array('name' => 'system', 'email' => 'dont-answer@' . ENV_SITE_NAME, 'active' => '2', 'user_role' => '8', 'subscribed' => '0', 'comment' => '', 'pwd' => ''), true);
+            $this->createTables(); //создаём необходимый набор таблиц в БД и первого пользователя с ролью администратора
+            $this->registrationNewUser(array('name' => 'admin', 'email' => 'test@test.com', 'active' => '2', 'user_role' => '1', 'subscribed' => '0', 'comment' => 'Смените пароль администратора', 'pwd' => 'admin'), true);            
+            $this->registrationNewUser(array('name' => 'moderator', 'email' => 'test_moderator@test.com', 'active' => '2', 'user_role' => '2', 'subscribed' => '0', 'comment' => 'Смените пароль модератора', 'pwd' => 'moderator'), true);
+            $this->registrationNewUser(array('name' => 'system', 'email' => 'dont-answer@' . ENV_SITE_NAME, 'active' => '2', 'user_role' => '8', 'subscribed' => '0', 'comment' => '', 'pwd' => ''), true);
         }
         return $resArray;
     }
@@ -95,7 +95,7 @@ class Users {
      * Уровень доступа из таблицы user_roles определяет набор полей для изменения
      * @return - boolean
      */
-    public function set_user_data(int $user_id = 0, array $fields = []): int {
+    public function setUserData(int $user_id = 0, array $fields = []): int {
         if (!filter_var($user_id, FILTER_VALIDATE_INT)) {
             if (ENV_TEST) {
                 die('Неверный формат ID пользователя.');
@@ -117,7 +117,7 @@ class Users {
         if (!$fields)
             return 0;        
         if (isset($fields['pwd']) && strlen($fields['pwd']) >= 5) {
-            $this->set_user_password($user_id, $fields['email'], $fields['pwd']);
+            $this->setUserPassword($user_id, $fields['email'], $fields['pwd']);
         }
         unset($fields['pwd']);
         $sql_user = "UPDATE ?n SET ?u, updated_at = now() WHERE user_id = ?i";
@@ -135,7 +135,7 @@ class Users {
      * @param bool $deleted Учитывать удаленных пользователей
      * @return array Массив с данными пользователей и общим количеством записей
      */
-    public function get_users_data($order = 'user_id ASC', $where = NULL, $start = 0, $limit = 100, bool $deleted = false) {
+    public function getUsersData($order = 'user_id ASC', $where = NULL, $start = 0, $limit = 100, bool $deleted = false) {
         $orderString = $order === false ? 'user_id ASC' : (is_array($order) ? implode(', ', array_map(fn($key, $value) => "$key $value", array_keys($order), $order)) : $order);
         $whereString = $where === false ? '' : ($where ? "WHERE $where" : '');
         if (!$deleted) {
@@ -147,7 +147,7 @@ class Users {
         $start = $start === false ? 0 : $start;
         $limit = $limit === false ? 100 : $limit;
         $resArray = SafeMySQL::gi()->getAll($sql_users, Constants::USERS_TABLE, $start, $limit);
-        $res = array_map(fn($user) => $this->get_user_data($user['user_id']), $resArray);
+        $res = array_map(fn($user) => $this->getUserData($user['user_id']), $resArray);
         $sql_count = "SELECT COUNT(*) as total_count FROM ?n $whereString";
         $total_count = SafeMySQL::gi()->getOne($sql_count, Constants::USERS_TABLE);
         return ['data' => $res, 'total_count' => $total_count];
@@ -159,11 +159,11 @@ class Users {
      * @param user_id - идентификатор пользователя в БД
      * @return именованный массив
      */
-    public function get_user_options($user_id) {
+    public function getUserOptions($user_id) {
         $sql_users = 'SELECT options FROM ?n WHERE user_id = ?i';
         $options = SafeMySQL::gi()->getOne($sql_users, Constants::USERS_DATA_TABLE, $user_id);
         if (!$options) { // Для подстраховки
-            $this->set_user_options($user_id);
+            $this->setUserOptions($user_id);
             $options = self::BASE_OPTIONS_USER;
         }
         return json_decode($options, true);
@@ -176,13 +176,13 @@ class Users {
      * @param array $options - массив с настройками
      * @return true
      */
-    public function set_user_options($user_id, $options = '') {
+    public function setUserOptions($user_id, $options = '') {
         if (is_array($options)) {
             $options = json_encode($options);
         } else {
             $options = self::BASE_OPTIONS_USER;
         }
-        if ($this->isset_options_user($user_id) > 0) {
+        if ($this->issetOptionsUser($user_id) > 0) {
             $sql = 'UPDATE ?n SET options = ?s WHERE user_id = ?i';
         } else {
             $sql = 'INSERT INTO ?n SET options = ?s, user_id = ?i';
@@ -195,7 +195,7 @@ class Users {
      * @param int $user_id - ID пользователя
      * @return boolean
      */
-    public function isset_options_user($user_id) {
+    public function issetOptionsUser($user_id) {
         $sql = 'SELECT 1 FROM ?n WHERE user_id = ?i';
         return SafeMySQL::gi()->getOne($sql, Constants::USERS_DATA_TABLE, $user_id);
     }
@@ -210,7 +210,7 @@ class Users {
     public function confirmUser($email, $psw, $force_login = false) {
         $res = '';
         $user_row = SafeMySQL::gi()->getRow('SELECT user_id, active, pwd FROM ?n WHERE email = ?s', Constants::USERS_TABLE, $email);
-        if ($user_row['active'] == 2 || $force_login) {
+        if ($user_row && ($user_row['active'] == 2 || $force_login)) {
             if (password_verify($psw, $user_row['pwd']) || $force_login) {
                 $add_query = '';
                 if ($force_login) {
@@ -221,20 +221,24 @@ class Users {
                 $ip = SysClass::client_ip();
                 $last_date = date("Y-m-d H:i:s", time());
                 $hash_login = $user_row['user_id'];
-                $session = password_hash($hash_login, PASSWORD_DEFAULT);
+                if (ENV_ONE_IP_ONE_USER) {
+                    $session = password_hash($hash_login, PASSWORD_DEFAULT);
+                } else {                    
+                    $session = md5($hash_login);
+                }
                 if (ENV_AUTH_USER == 0) {
                     Session::set('user_session', $session);
                 }
                 if (ENV_AUTH_USER === 2) {
                     Cookies::set('user_session', $session, ENV_TIME_AUTH_SESSION);
-                }
+                }                
                 SafeMySQL::gi()->query($sql, Constants::USERS_TABLE, $ip, $last_date, $session, $user_row['user_id']);
             } else {
                 $res = $this->lang['sys.the_password_was_not_verified'];
             }
-        } elseif ($user_row['active'] == 1) {
+        } elseif ($user_row && $user_row['active'] == 1) {
             $res = $this->lang['sys.you_have_not_verified_your_email'];
-        } elseif ($user_row['active'] == 3) {
+        } elseif ($user_row && $user_row['active'] == 3) {
             $res = $this->lang['sys.account_is_blocked'];
         } else {
             $res = $this->lang['sys.no_such_data_was_found'];
@@ -249,14 +253,14 @@ class Users {
      * @return boolean
      * ВАЖНО! Роль пользователя устанавливается по умолчанию в таблице БД
      */
-    public function registration_users($email, $password) {
+    public function registrationUsers($email, $password) {
         $newpassword = password_hash($password, PASSWORD_DEFAULT);
         $sql = 'INSERT INTO ?n SET name = ?s, email = ?s, pwd = ?s, last_ip = ?s';
         SafeMySQL::gi()->query($sql, Constants::USERS_TABLE, $email, $email, $newpassword, SysClass::client_ip());
         $sql = 'SELECT MAX(user_id) FROM ?n';
         $user_id = SafeMySQL::gi()->getOne($sql, Constants::USERS_TABLE);
-        SysClass::preFile('users_info', 'registration_users', 'Зарегистрирован новый пользователь', ['user_id' => $user_id, 'email' => $email]);
-        $this->set_user_options($user_id); // Заполнить первичные данные из базы по шаблону
+        SysClass::preFile('users_info', 'registrationUsers', 'Зарегистрирован новый пользователь', ['user_id' => $user_id, 'email' => $email]);
+        $this->setUserOptions($user_id); // Заполнить первичные данные из базы по шаблону
         if ($system_id = $this->get_user_id_by_email('dont-answer@' . ENV_SITE_NAME)) {
             ClassMessages::set_message_user($user_id, $system_id, 'Fill in your personal information <a href="' . ENV_URL_SITE . '/admin/user_edit/id/' . $user_id . '">link</a>', 'info');   
         }        
@@ -270,7 +274,7 @@ class Users {
      * @param $flag - проверка прав пользователя
      * @return boolean результат операции
      */
-    public function registration_new_user($fields, $flag = false) {
+    public function registrationNewUser($fields, $flag = false) {
         if (isset($this->data['user_role']) && $this->data['user_role'] > 2 && !$flag) {
             return 0;
         }
@@ -283,7 +287,7 @@ class Users {
         SafeMySQL::gi()->query($sql, Constants::USERS_TABLE, $fields);
         $user_id = SafeMySQL::gi()->insertId();
         SysClass::preFile('users_info', 'registration_new_user', 'Зарегистрирован новый пользователь', ['user_id' => $user_id, 'data' => $fields]);
-        $this->set_user_password($user_id, $fields['email'], $fields['pwd']);
+        $this->setUserPassword($user_id, $fields['email'], $fields['pwd']);
         if ($system_id = $this->get_user_id_by_email('dont-answer@' . ENV_SITE_NAME)) {
             ClassMessages::set_message_user($user_id, $system_id, 'Заполните свой профиль <a href="' . ENV_URL_SITE . '/admin/user_edit/id/' . $user_id . '">тут</a>', 'info');
         }
@@ -294,10 +298,10 @@ class Users {
      * Проверка существования профиля админа
      * Если не существует то будет создан
      */
-    public function get_admin_profile() {
+    public function getAdminProfile() {
         $sql = 'SELECT 1 FROM ?n WHERE user_role = 1 LIMIT 1';
         if (!SafeMySQL::gi()->getOne($sql, Constants::USERS_TABLE)) {
-            $this->registration_new_user(array('name' => 'admin', 'email' => 'test@test.com', 'active' => '2', 'user_role' => '1', 'subscribed' => '1', 'comment' => 'Смените пароль администратора', 'pwd' => 'admin'), true);
+            $this->registrationNewUser(array('name' => 'admin', 'email' => 'test@test.com', 'active' => '2', 'user_role' => '1', 'subscribed' => '1', 'comment' => 'Смените пароль администратора', 'pwd' => 'admin'), true);
         }
     }
 
@@ -309,7 +313,7 @@ class Users {
      * Если password пустой то генерирует случайный
      * @return пустое значение или сгенерированный пароль
      */
-    public function set_user_password($user_id = 0, $email = '', $password = '') {
+    public function setUserPassword($user_id = 0, $email = '', $password = '') {
         if (!$email) {
             return 0;
         }
@@ -392,7 +396,7 @@ class Users {
      * Меняет и высылает на почту пользователя новый пароль к сайту     
      */
     public function send_recovery_password($email) {
-        $password = $this->set_user_password(0, $email, 0);
+        $password = $this->setUserPassword(0, $email, 0);
         $mailIsSuccess = ClassMail::send_mail($email, $this->lang['sys.restore_password_process'] . ' ' . ENV_SITE_NAME,
                 ['PASSWORD' => $password]);
         if ($mailIsSuccess) {
@@ -444,7 +448,7 @@ class Users {
      * Создаёт необходимые таблицы в БД
      * Если нет подключения то вернёт false
      */
-    public function create_tables() {
+    public function createTables() {
         SafeMySQL::gi()->query("START TRANSACTION");
         SafeMySQL::gi()->query("SET FOREIGN_KEY_CHECKS=1");  // включаем проверку внешних ключей
         try {
@@ -678,7 +682,9 @@ class Users {
                                     file_url VARCHAR(255) NULL,
                                     mime_type VARCHAR(50) NOT NULL,
                                     size BIGINT UNSIGNED NOT NULL,
+                                    image_size ENUM('L', 'M', 'H') DEFAULT NULL,
                                     uploaded_at DATETIME NOT NULL,
+                                    updated_at DATETIME DEFAULT NULL,
                                     user_id INT UNSIGNED NULL,
                                     FOREIGN KEY (user_id) REFERENCES ?n(user_id)
                                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8
@@ -720,7 +726,7 @@ class Users {
             SysClass::pre($e);
             return false;
         }
-        SysClass::preFile('sql_info', 'create_tables', 'База данных успешно развёрнута', $echo);
+        SysClass::preFile('sql_info', 'create_tables', 'База данных успешно развёрнута', 'OK');
     }
 
 }

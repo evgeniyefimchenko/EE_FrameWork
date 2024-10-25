@@ -313,7 +313,7 @@ class ModelCategories Extends ModelBase {
                 $categoryData['title'], $categoryData['type_id'], $languageCode
         );
         if ($existingCategory) {
-            classes\helpers\ClassNotifications::addNotificationUser(SysClass::get_current_user_id(), ['text' => 'Не уникальное имя в рамках одного типа категории!', 'status' => 'danger']);
+            classes\helpers\ClassNotifications::addNotificationUser(SysClass::getCurrentUserId(), ['text' => 'Не уникальное имя в рамках одного типа категории!', 'status' => 'danger']);
             SysClass::preFile('error', 'M_update_category_data ', 'existingCategory title: ' . $categoryData['title'] . ' type_id: ' . $categoryData['type_id']);
             return false;
         }

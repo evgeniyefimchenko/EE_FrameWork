@@ -1,0 +1,92 @@
+.preloadedFiles {
+    max-width: 317px;
+    display: block;
+    min-width: 317px;
+}
+/* При горизонтальном расположении */
+.fileContainer.horizontal {
+    /*float: inline-start;*/
+}
+/* При вертикальном расположении */
+.fileContainer.vertical {
+    /*flex-direction: column;*/ /* Главная картинка сверху, миниатюры снизу */
+}
+.fileItem.horizontal {
+    /*float: inline-end;*/
+}
+.fileItem {
+    width: 100px;
+    max-height: 100px;
+    height: auto;
+    position: relative;
+    border: 2px solid cyan;
+    border-radius: 5px;
+    cursor: grab;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: inline-block;
+    margin-left: 2px;
+}
+.fileItem img {
+    width: 100%;
+    height: auto;
+    display: block;
+    width: 100px;
+    max-height: 100px;
+    min-height: 100px;
+}
+.actionIcons {
+    position: absolute;
+    right: 10px;
+    bottom: 10px;
+    display: flex;
+    gap: 5px;
+}
+.no-select {
+    user-select: none;
+    -webkit-user-select: none;
+    -ms-user-select: none;
+    -moz-user-select: none;
+}
+.actionIcons {
+    background: cornflowerblue;
+    padding: 7px;
+    border-radius: 15px;
+}
+.fileItem.main-file .actionIcons {
+    display: block;
+}
+.fileItem .actionIcons {
+    display: none;
+}
+.fileItem.main-file .actionIcons {
+    display: flex;
+}
+.fileItem.main-file {
+    width: 304px;
+    height: 304px;
+    max-height: 304px;
+    max-width: 304px;
+    display: block;
+    margin-bottom: 5px;
+    cursor: auto;
+}
+.fileItem.main-file img {
+    width: 100%;
+    height: auto;
+    max-width: 270px;
+    max-height: 270px;
+    object-fit: contain; /* Или object-fit: cover, если хотите, чтобы картинка заполнила контейнер полностью */
+    cursor: auto;
+}
+.fileItem.main-file .horizontal {
+    /*float: inline-start;*/
+}
+.fileItem .fileName {
+    background: cornflowerblue;
+    color: white;
+    border-radius: 5px;
+    z-index: 9999;
+    position: relative;    
+}

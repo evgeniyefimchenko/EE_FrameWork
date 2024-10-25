@@ -246,10 +246,11 @@ class ControllerIndex Extends ControllerBase {
      * Загрузка стандартных представлений для каждой страницы
      */
     private function getStandardViews() {
+        $this->view->set('area', 'ADMIN');
         Hook::run('A_beforeGetStandardViews', $this->view);
         $this->view->set('top_bar', $this->view->read('v_top_bar'));
         $this->view->set('main_menu', $this->view->read('v_main_menu'));
-        $this->view->set('page_footer', $this->view->read('v_footer'));
+        $this->view->set('page_footer', $this->view->read('v_footer'));       
         Hook::run('A_afterGetStandardViews', $this->view);
     }
 
@@ -275,7 +276,7 @@ class ControllerIndex Extends ControllerBase {
                         $user_data['options'][$key] = $value;
                     }
                 }
-                echo $this->users->set_user_options($this->logged_in, $user_data['options']);
+                echo $this->users->setUserOptions($this->logged_in, $user_data['options']);
                 exit();
             case isset($postData['get']):
                 echo json_encode($user_data['options']);
@@ -305,7 +306,7 @@ class ControllerIndex Extends ControllerBase {
             } else {
                 $user_id = 0;
             }
-            $get_user_context = is_integer($user_id) ? $this->users->get_user_data($user_id) : [];
+            $get_user_context = is_integer($user_id) ? $this->users->getUserData($user_id) : [];
             /* Нельзя посмотреть чужую карточку равной себе роли или выше */
             if (!$user_id || $this->users->data['user_role'] >= $get_user_context['user_role'] && $this->logged_in != $user_id) {
                 SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/user_edit/id/' . $this->logged_in);
@@ -388,7 +389,7 @@ class ControllerIndex Extends ControllerBase {
         }
 
         if (isset($postData['new']) && $postData['new'] == 1) {
-            if ($this->users->registration_new_user($postData)) {
+            if ($this->users->registrationNewUser($postData)) {
                 $new_id = $this->users->get_user_id(trim($postData['email']));
                 echo json_encode(array('error' => 'no', 'id' => $new_id));
                 exit();
@@ -402,7 +403,7 @@ class ControllerIndex Extends ControllerBase {
         } else {
             $postData['subscribed'] = 0;
         }
-        if ($this->users->set_user_data($user_id, $postData)) {
+        if ($this->users->setUserData($user_id, $postData)) {
             $user_role = $this->users->getUserRole($user_id);
             if (isset($postData['user_role']) && $postData['user_role'] != $user_role) { // Сменилась роль пользователя, оповещаем админа и пишем лог                                
                 SysClass::preFile('users_edit', 'ajax_user_edit', 'Изменили роль пользователю', ['id_user' => $user_id, 'old' => $this->users->data['user_role'], 'new' => $postData['user_role']]);
@@ -553,9 +554,9 @@ class ControllerIndex Extends ControllerBase {
 
         if ($postData && SysClass::isAjaxRequestFromSameSite()) { // AJAX
             list($params, $filters, $selected_sorting) = Plugins::ee_showTablePrepareParams($postData, $data_table['columns']);
-            $users_array = $this->users->get_users_data($params['order'], $params['where'], $params['start'], $params['limit']);
+            $users_array = $this->users->getUsersData($params['order'], $params['where'], $params['start'], $params['limit']);
         } else {
-            $users_array = $this->users->get_users_data(false, false, false, 25);
+            $users_array = $this->users->getUsersData(false, false, false, 25);
         }
 
         foreach ($users_array['data'] as $item) {
@@ -878,9 +879,9 @@ class ControllerIndex Extends ControllerBase {
         $this->loadModel('m_user_edit');
         if ($postData && SysClass::isAjaxRequestFromSameSite()) { // AJAX
             list($params, $filters, $selected_sorting) = Plugins::ee_showTablePrepareParams($postData, $data_table['columns']);
-            $users_array = $this->users->get_users_data($params['order'], $params['where'], $params['start'], $params['limit'], true);
+            $users_array = $this->users->getUsersData($params['order'], $params['where'], $params['start'], $params['limit'], true);
         } else {
-            $users_array = $this->users->get_users_data(false, false, false, 25, true);
+            $users_array = $this->users->getUsersData(false, false, false, 25, true);
         }
         foreach ($users_array['data'] as $item) {
             $data_table['rows'][] = [
@@ -925,7 +926,7 @@ class ControllerIndex Extends ControllerBase {
             } else {
                 $user_id = 0;
             }
-            $get_deleted_user_data = (int) $user_id ? $this->users->get_user_data($user_id) : $default_data;
+            $get_deleted_user_data = (int) $user_id ? $this->users->getUserData($user_id) : $default_data;
             if (!$get_deleted_user_data) {
                 SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/deleted_users');
             }

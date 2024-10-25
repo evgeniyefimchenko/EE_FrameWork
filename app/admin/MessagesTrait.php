@@ -99,7 +99,7 @@ trait MessagesTrait {
                 ],
             ]
         ];
-        $users = $this->users->get_users_data(false, false, false, 100000000);        
+        $users = $this->users->getUsersData(false, false, false, 100000000);        
         if (isset($users['data']) && count($users['data'])) {
             foreach ($users['data'] as $item) {
                 $filter_authors[] = ['value' => $item['user_id'], 'label' => $item['name']];

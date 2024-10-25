@@ -6,12 +6,12 @@
  */
 function loadConfig() {
     $config = [];
-    $config['ENV_VERSION_CORE'] = '4.5.0';
+    $config['ENV_VERSION_CORE'] = '4.7.0';
     /**
      * Настройка базы данных
      * Если указать начальные настройки при первом запуске формы авторизации то первичные таблицы в БД будут созданы автоматически
      */
-    $config['ENV_DB_HOST'] = '';
+    $config['ENV_DB_HOST'] = 'localhost';
     $config['ENV_DB_USER'] = '';
     $config['ENV_DB_PASS'] = '';
     $config['ENV_DB_NAME'] = '';
@@ -21,7 +21,7 @@ function loadConfig() {
     $config['ENV_SITE_NAME'] = ''; // Название сайта
     $config['ENV_SITE_DESCRIPTION'] = ''; // Описание сайта
     $config['ENV_SITE_AUTHOR'] = 'efimchenko.com'; // Автор сайта
-    $config['ENV_DATE_SITE_CREATE'] = '13.02.2023'; // Дата создания сайта
+    $config['ENV_DATE_SITE_CREATE'] = ''; // Дата создания сайта
     $config['ENV_DIRSEP'] = DIRECTORY_SEPARATOR;  // Разделитель операционной системы
     $config['ENV_DOMEN_PROTOCOL'] = !empty($_SERVER['HTTPS']) && strtolower($_SERVER['HTTPS']) !== 'off' ? "https://" : "http://"; // Протокол сайта
     $config['ENV_DOMEN_NAME'] = $_SERVER['SERVER_NAME']; // Домена сайта
@@ -32,6 +32,9 @@ function loadConfig() {
     $config['ENV_TMP_PATH'] = $config['ENV_SITE_PATH'] . 'uploads' . $config['ENV_DIRSEP'] . 'tmp' . $config['ENV_DIRSEP'];
     $config['ENV_COMPRESS_HTML'] = 0;     // Сжимать HTML код 0-нет 1-Да
     $config['ENV_CACHE'] = 1;     // Использовать кеш 0-нет 1-Да
+    $config['ENV_CACHE_LIFETIME'] = 3600;     // Время жизни кеша в секундах
+    $config['ENV_CACHE_REDIS'] = 0;     // Использовать REDIS для хранения кеша 0-нет 1-Да
+    $config['ENV_CACHE_PATH'] = $config['ENV_SITE_PATH'] . 'cache' . $config['ENV_DIRSEP']; // Путь к папке кеша
     $config['ENV_SECRET_KEY'] = '(b[RX{28Z_9j;+k'; // Ключ защиты сайта(по умолчанию не используется)
     $config['ENV_SITE'] = 1;          // Логическая константа
     $config['ENV_TEST'] = 0;          // Режим работы сайта 1 - тест 0 - рабочий(если включен то выводит обрабатываемую информацию по скриптам, где это предусмотрено)
@@ -41,21 +44,22 @@ function loadConfig() {
     $config['ENV_TIME_ACTIVATION'] = 86400 * 15;    // Срок жизни ссылки для активации аккаунта
     $config['ENV_SITE_INDEX'] = 'noindex, nofollow';   // Индексация роботами noindex, nofollow - отключить; ALL - индексировать
     $config['ENV_EMAIL_TEMPLATE'] = $config['ENV_SITE_PATH'] . 'assets' . $config['ENV_DIRSEP'] . 'emails_templates';   // Папка для шаблонов писем
-    $config['ENV_FONT_AWESOME_CDN'] = true;
-    $config['ENV_BOOTSTRAP533_CDN'] = true;
+    $config['ENV_FONT_AWESOME_CDN'] = true; // Использование CDN для fontawesome6
+    $config['ENV_BOOTSTRAP533_CDN'] = true; // Использование CDN для bootstrap5
     $config['ENV_JQUERY_CDN'] = true;
+    $config['ENV_REDIS_ADDRESS'] = '127.0.0.1'; // Настройки адреса REDIS 
+    $config['ENV_REDIS_PORT'] = 6379; // Настройки порта REDIS 
     
     /* Персональные настройки сайта */
     $config['ENV_APP_DIRECTORY'] = 'app';    // Директория приложения
-    $config['ENV_PATH_LANG'] = 'inc' . DIRECTORY_SEPARATOR . 'langs';    // Директория языковых файлов
+    $config['ENV_PATH_LANG'] = 'inc' . $config['ENV_DIRSEP'] . 'langs';    // Директория языковых файлов
     $config['ENV_PROTO_LANGUAGE'] = 'EN';
     $get_lang_code = strtoupper(substr(GetClientPreferedLanguage(), 0, 2));
     $config['ENV_DEF_LANG'] = $get_lang_code ? $get_lang_code : $config['ENV_PROTO_LANGUAGE'];    // Локализация по умолчанию, выбирает наиболее предпочитаемый язык пользователя или RU
+    
     if ($config['ENV_DEF_LANG'] == 'RU') {
         date_default_timezone_set('Europe/Moscow');
     }
-    
-    $config['ENV_DEF_LANG'] = 'RU';
     
     $config['ENV_SITE_EMAIL'] = '';   // Почта сайта ОБЯЗАТЕЛЬНОЕ ЗАПОЛНЕНИЕ
     $config['ENV_ADMIN_EMAIL'] = '';  // Почта администратора сайта ОБЯЗАТЕЛЬНОЕ ЗАПОЛНЕНИЕ
@@ -70,7 +74,43 @@ function loadConfig() {
     $config['ENV_SMTP_SERVER'] = '';
     $config['ENV_SMTP_LOGIN'] = '';
     $config['ENV_SMTP_PASSWORD'] = '';
+    // Проверка подключения к Redis при попытке его использования
+    if ($config['ENV_CACHE_REDIS'] == 1 && !checkRedisConnection($config['ENV_REDIS_ADDRESS'], $config['ENV_REDIS_PORT'], $config)) {
+        $config['ENV_CACHE_REDIS'] = 0;
+    }
     return $config;
+}
+
+/**
+ * Проверяет доступность Redis по указанным параметрам
+ * @param string $address Адрес Redis сервера
+ * @param int $port Порт Redis сервера
+ * @return bool Возвращает true, если Redis доступен, и false в противном случае
+ */
+function checkRedisConnection(string $address, int $port, $config): bool {
+    try {
+        if (!class_exists('Redis')) {
+            return false;
+        }
+        $redis = new Redis();
+        $redis->connect($address, $port);
+        if ($redis->ping() == '+PONG') {
+            return true;
+        } else {
+            return false;
+        }
+    } catch (RedisException $e) {
+        $logsPath = $config['ENV_LOGS_PATH'] . 'errors';
+        $path = $logsPath . ENV_DIRSEP . date("Y-m-d") . '.txt';
+        $logMessage = "{START}";
+        $logMessage .= PHP_EOL . "Время события: " . date("Y-m-d H:i:s");
+        $logMessage .= PHP_EOL . "Инициатор: " . var_export('checkRedisConnection', true);
+        $logMessage .= PHP_EOL . "Результат: Ошибка подключения";
+        $logMessage .= PHP_EOL . "Детали: " . 'Ошибка подключения к Redis: ' . $e->getMessage();
+        $logMessage .= PHP_EOL . "{END}" . PHP_EOL;        
+        file_put_contents($path, $logMessage, FILE_APPEND | LOCK_EX);
+        return false;
+    }
 }
 
 /**

@@ -4,8 +4,7 @@ use classes\system\SysClass;
 use classes\system\Plugins;
 
 // Разбор текущего URI для получения пути без параметров запроса.
-$uri = parse_url(__REQUEST['REQUEST_URI'])['path'];
-
+$uri = parse_url(__REQUEST['_SERVER']['REQUEST_URI'])['path'];
 // Подготовка данных для верхней панели. Включает в себя бренд и меню пользователя.
 $topbarData = [
     'brand' => [

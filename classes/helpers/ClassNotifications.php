@@ -62,7 +62,7 @@ class ClassNotifications {
      */
     public static function get_notifications_user($user_id) {
         $class_users = new Users(array());
-        $user_options = $class_users->get_user_options($user_id);
+        $user_options = $class_users->getUserOptions($user_id);
         return is_array($user_options['notifications']) && count($user_options['notifications']) > 0 ? $user_options['notifications'] : [];
     }
 
@@ -85,7 +85,7 @@ class ClassNotifications {
     private static function set_notifications_user(int $user_id, array $new_notifications = [], bool $add = false): void {
         $filtered_notifications = [];
         $class_users = new Users();
-        $user_options = $class_users->get_user_options($user_id);
+        $user_options = $class_users->getUserOptions($user_id);
         $user_options['notifications'] = $user_options['notifications'] ?? [];
         if (!is_array($user_options['notifications'])) {
             $user_options['notifications'] = [];
@@ -104,7 +104,7 @@ class ClassNotifications {
             }
         }
         $user_options['notifications'] = $filtered_notifications;
-        $class_users->set_user_options($user_id, $user_options);
+        $class_users->setUserOptions($user_id, $user_options);
     }
 
     /**

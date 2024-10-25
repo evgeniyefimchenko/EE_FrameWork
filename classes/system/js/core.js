@@ -26,8 +26,12 @@ window.lang_select = $('#lang_select');
 
     window.lang_var = function (key) {
         const langVars = safeParseJSON(localStorage.getItem('langVars'));
-        return langVars ? langVars[key] : '';
+        if (!langVars || !(key in langVars)) {
+            return 'Key ' + key + ' not found in langVars';
+        }
+        return langVars[key];
     };
+
 
     window.env_Global = function (key) {
         const envGlobal = safeParseJSON(localStorage.getItem('envGlobal'));
@@ -63,7 +67,7 @@ window.lang_select = $('#lang_select');
                         if (data.error !== 'no') {
                             console.error("Error setting language:", data);
                         } else {
-                            resetLanguageVars(); // TODO когда это происходит?
+                            resetLanguageVars();
                         }
                     },
                     function (jqXHR, textStatus, errorThrown) {
@@ -130,21 +134,30 @@ function defaultErrorCallback(jqXHR, textStatus, errorThrown) {
  * @param {Object} [headers] Объект с заголовками запроса.
  */
 function sendAjaxRequest(
-        url,
-        data,
-        method,
-        dataType = 'json',
-        successCallback = defaultSuccessCallback,
-        errorCallback = defaultErrorCallback,
-        headers = {}
+    url,
+    data,
+    method,
+    dataType = 'json',
+    successCallback = defaultSuccessCallback,
+    errorCallback = defaultErrorCallback,
+    headers = {}
 ) {
-    data.is_ajax = 1;
+    var isFormData = data instanceof FormData;
+
+    if (!isFormData) {
+        data.is_ajax = 1;
+    } else {
+        data.append('is_ajax', 1);
+    }
+
     $.ajax({
         url: url,
         type: method,
         data: data,
         headers: headers,
         dataType: dataType,
+        processData: !isFormData, // Не преобразовывать данные, если это FormData
+        contentType: isFormData ? false : 'application/x-www-form-urlencoded; charset=UTF-8',
         success: function (response) {
             if (successCallback && typeof successCallback === 'function') {
                 successCallback(response);
