@@ -1,4 +1,4 @@
-<!-- Всплывающие формы авторизации и регистрации -->
+<!-- Всплывающая форма авторизации и регистрации -->
 <div class="container">
     <div class="modal fade login" id="loginModal">    
         <div class="modal-dialog login animated modal-dialog-centered">

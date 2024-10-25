@@ -15,6 +15,7 @@ class ControllerIndex Extends ControllerBase {
      * Загрузка стандартных представлений
      */
     private function getStandardViews() {
+        $this->view->set('area', 'CLIENT');
         $this->view->set('logged_in', $this->logged_in);
         $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/index.js" type="text/javascript" /></script>';
         $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="' . $this->getPathController() . '/css/index.css"/>';
@@ -29,7 +30,7 @@ class ControllerIndex Extends ControllerBase {
         }
         /* view */
         $this->getStandardViews();
-        $this->view->set('top_panel', $this->view->read('v_top_panel'));
+        $this->view->set('top_panel', $this->view->read('v_top_panel', false));
         $this->html = $this->view->read('v_index');
         /* layouts */
         $this->parameters_layout["title"] = ENV_SITE_NAME . ' - General page';
@@ -123,8 +124,9 @@ class ControllerIndex Extends ControllerBase {
         if ($params) {
             SysClass::handleRedirect();
         }
-        $this->users->get_admin_profile(); // Если профиля админа не существует то он будет создан test@test.com admin
+        $this->users->getAdminProfile(); // Если профиля админа не существует то он будет создан test@test.com admin
         /* view */
+        $this->getStandardViews();
         if ($this->view->get('new_user') || !$this->logged_in) {
             $this->html = $this->view->read('v_login_form');
         } else {
@@ -209,7 +211,7 @@ class ControllerIndex Extends ControllerBase {
             $json['error'] .= $this->lang['sys.the_mail_is_already_busy'];
         }
 
-        if (!$json['error'] && !$this->users->registration_users($email, $pass)) {
+        if (!$json['error'] && !$this->users->registrationUsers($email, $pass)) {
             $json['error'] .= $this->lang['sys.db_registration_error'];
         }
 
@@ -295,7 +297,7 @@ class ControllerIndex Extends ControllerBase {
                     $user_data['options'][$key] = $value;
                 }
             }
-            $this->users->set_user_options($this->logged_in, $user_data['options']);
+            $this->users->setUserOptions($this->logged_in, $user_data['options']);
         } else {
             Session::set('lang', $params[0]);
         }

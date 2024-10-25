@@ -16,7 +16,7 @@ abstract class ControllerBase {
     abstract function index($param = []);
 
     protected $lang = []; // Языковые переменные
-    
+
     /**
      * Массив содержащий ID ролей пользователей имеющих доступ к странице
      * инициализируется внутри каждой функции контроллера
@@ -34,7 +34,7 @@ abstract class ControllerBase {
      * Массив с подключенными моделями
      */
     protected $models = [];
-    
+
     /**
      * Класс PHP хуков     
      */
@@ -74,23 +74,19 @@ abstract class ControllerBase {
         } else {
             Session::destroy();
             Cookies::clear('user_session');
-        }        
+        }
         $this->users = new Users($this->logged_in);
         $user_data = $this->users->data;
         // Прогрузка пользовательских данных в представления и языковой массив        
-        $this->set_user_data($user_data);
-        // Объединение серверных параметров
-        $input_data = file_get_contents('php://input');
-        $php_input = SysClass::ee_isValidJson($input_data) ? json_decode($input_data, true) : [$input_data];
-        define('__REQUEST', array_merge($php_input, $_REQUEST, $_GET, $_POST, $_SERVER));
+        $this->setUserData($user_data);
     }
-    
+
     /**
      * Загрузит в представление данные пользователя
      * И языковой массив
      * @param $user_data - Данные пользователя для загрузки
      */
-    private function set_user_data($user_data) {
+    private function setUserData($user_data) {
         global $global_lang;
         $get_lang_code = '';
         if (!isset($user_data['new_user']) || $user_data['new_user'] != 1) {
@@ -105,7 +101,7 @@ abstract class ControllerBase {
                 $get_lang_code = 'user_data Session';
                 $lang_code = $s_lang;
                 $user_data['options']['localize'] = $lang_code;
-                $this->users->set_user_options($this->logged_in, $user_data['options']);
+                $this->users->setUserOptions($this->logged_in, $user_data['options']);
             }
         } else {
             $lang_code = Session::get('lang');
@@ -157,7 +153,7 @@ abstract class ControllerBase {
         if (!file_exists($modelPath)) {
             SysClass::pre('Модель не найдена: ' . $modelPath);
         }
-        include_once($modelPath);        
+        include_once($modelPath);
         if (!class_exists($className)) {
             SysClass::pre('Класс модели не найден: ' . $className);
         }
@@ -213,7 +209,7 @@ abstract class ControllerBase {
      * Вернёт URL путь к папке контроллера
      */
     public function getPathController() {
-        $stack_dir = dirname(ENV_CONTROLLER_PATH);       
+        $stack_dir = dirname(ENV_CONTROLLER_PATH);
         return ENV_URL_SITE . substr($stack_dir, strpos($stack_dir, ENV_DIRSEP . ENV_APP_DIRECTORY));
     }
 
@@ -236,5 +232,4 @@ abstract class ControllerBase {
             return false;
         }
     }
-
 }

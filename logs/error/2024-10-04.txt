@@ -1,7 +1,0 @@
-{START}
-Время события: 2024-10-04 20:51:38
-Инициатор: 'update_property_data'
-Результат: Error: existingProperty
-Детали: {"name":"Статические","type_id":"1","status":"active","sort":"100","description":"","default_values":"[{\"type\":\"text\",\"label\":\"цукцук\",\"required\":0,\"multiple\":0,\"unique_code\":\"3486103a\"}]","is_multiple":0,"is_required":0,"language_code":"RU"}
-Полный стек вызовов: [{"function":"preFile","line":145,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/models/ModelProperties.php","class":"classes\\system\\SysClass","type":"::","object":"N/A"},{"function":"updatePropertyData","line":363,"file":"/home3/whrgijws/public_html/skku.shop/app/admin/PropertiesTrait.php","class":"ModelProperties","type":"->","object":"N/A"},{"function":"edit_property","line":128,"file":"/home3/whrgijws/public_html/skku.shop/classes/system/Router.php","class":"ControllerIndex","type":"->","object":"N/A"},{"function":"delegate","line":44,"file":"/home3/whrgijws/public_html/skku.shop/index.php","class":"classes\\system\\Router","type":"->","object":"N/A"}]
-{END}

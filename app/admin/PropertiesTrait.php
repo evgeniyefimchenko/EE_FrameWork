@@ -3,6 +3,7 @@
 namespace app\admin;
 
 use classes\system\SysClass;
+use classes\system\FileSystem;
 use classes\system\Constants;
 use classes\helpers\ClassNotifications;
 use classes\system\Plugins;
@@ -359,6 +360,9 @@ trait PropertiesTrait {
                $propertyId = 0; 
             }
             if (isset($postData['name']) && $postData['name']) {
+                if (isset($postData['dataFiles'])) { // Переданы файлы для сохранения
+                    $this->saveFileProperty($postData); // TODO не пишет свойство с файлом
+                }                
                 $postData['default_values'] = isset($postData['property_data']) ? $this->prepareDefaultValuesProperty($postData['property_data'], $propertyId) : [];
                 if (!$new_id = $this->models['m_properties']->updatePropertyData($postData)) {
                     ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
@@ -389,6 +393,63 @@ trait PropertiesTrait {
         $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/func_properties.js" type="text/javascript" /></script>';
         $this->parameters_layout["title"] = 'Редактирование свойства';
         $this->showLayout($this->parameters_layout);
+    }
+    
+    /**
+     * Сохраняет свойства файлов и применяет к ним трансформации, если это необходимо
+     * @param array $postData Массив данных
+     * @throws Exception Если возникает ошибка при загрузке или перемещении файла
+     */
+    private function saveFileProperty(array &$postData): void {
+        $fileId = false;
+        $dataFiles = $postData['dataFiles'];        
+        foreach ($dataFiles as $dataFileJson) {
+            $dataFileJson = htmlspecialchars_decode($dataFileJson);
+            $dataFile = is_string($dataFileJson) ? json_decode($dataFileJson, true) : $dataFileJson;
+            if (isset($dataFile['unique_id'])) {
+                $uniqueID = $dataFile['unique_id'];
+                $originalName = isset($dataFile['original_name']) ? $dataFile['original_name'] : '';
+                if (isset($_FILES['upload_file']['name'][$uniqueID])) {
+                    // Получаем данные загруженного файла
+                    $file = [
+                        'name' => $_FILES['upload_file']['name'][$uniqueID],
+                        'type' => $_FILES['upload_file']['type'][$uniqueID],
+                        'tmp_name' => $_FILES['upload_file']['tmp_name'][$uniqueID],
+                        'error' => $_FILES['upload_file']['error'][$uniqueID],
+                        'size' => $_FILES['upload_file']['size'][$uniqueID],
+                    ];
+                    if ($file['error'] !== UPLOAD_ERR_OK) {
+                        $message = "Ошибка загрузки файла: " . $file['error'];
+                        SysClass::preFile('errors', 'saveFileProperty', $message, $file);
+                        ClassNotifications::addNotificationUser($this->logged_in, ['text' => $message, 'status' => 'danger']);
+                        continue;
+                    }
+                    // Применяем трансформации (если указаны)
+                    if (isset($dataFile['transformations'])) {
+                        FileSystem::applyImageTransformations($file['tmp_name'], $dataFile['transformations']);
+                    }                   
+                    if (!$fileData = FileSystem::safeMoveUploadedFile($file)) {
+                        $message = 'Файл не сохранён ' . $file['name'];
+                        SysClass::preFile('errors', 'saveFileProperty', $message, $file);
+                        ClassNotifications::addNotificationUser(SysClass::getCurrentUserId(), ['text' => $message, 'status' => 'danger']);                        
+                        continue;                        
+                    } else { // Сохраняем данные файла в таблицу
+                        $fileData['original_name'] = $originalName;
+                        $fileData['image_size'] = ''; // задел на будущее
+                        $fileData['user_id'] = SysClass::getCurrentUserId();
+                        $fileId = FileSystem::saveFileInfo($fileData);
+                        if ($fileId) {
+                            $fileIds = [];
+                            if (isset($postData[$dataFile['property_name']])) {
+                                $fileIds = explode(',', $postData[$dataFile['property_name']]);
+                            }
+                            $fileIds[] = $fileId;                                
+                            $postData[$dataFile['property_name']] = implode(',', $fileIds);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /**

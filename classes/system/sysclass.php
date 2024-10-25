@@ -164,9 +164,11 @@ class SysClass {
      * @param int $symbol Минимальная длина ключевого слова
      * @param int $words Максимальное количество ключевых слов для возврата
      * @param int $count Минимальное количество повторений ключевого слова для включения в результат
-     * @return string Строка ключевых слов, разделенных запятыми
+     * @return string Строка ключевых слов, разделенных запятыми или пустая строка в зависимости от ENV_GET_KEYWORDS
      */
     public static function getKeywordsFromText(string $contents, int $symbol = 3, int $words = 5, int $count = 3): string {
+        if (!defined('ENV_GET_KEYWORDS') || !ENV_GET_KEYWORDS)
+            return '';
         $contents = mb_eregi_replace("[^а-яА-ЯёЁ ]", '', $contents);
         $contents = strip_tags($contents);
         $contents = preg_replace(
@@ -249,50 +251,78 @@ class SysClass {
      * Вернёт ID текущего пользователя
      * @return int ID авторизованного пользователя
      */
-    public static function get_current_user_id() {
-        $table = ENV_DB_PREF . 'users';
-        $sql = 'SELECT `id` FROM ?n WHERE `session` = ?s';
-        return SafeMySQL::gi()->getOne($sql, $table, Session::get('user_session'));
+    public static function getCurrentUserId(): int|bool {
+        $session = ENV_AUTH_USER === 2 ? Cookies::get('user_session') : Session::get('user_session');
+        $sql = 'SELECT user_id FROM ?n WHERE `session` = ?s';
+        return SafeMySQL::gi()->getOne($sql, Constants::USERS_TABLE, $session);
     }
 
     /**
-     * Вернёт роль пользователя по ID
+     * Вернёт роль пользователя по его ID
+     * @param int $user_id id пользователя
      * @return int ID роли пользователя
      */
-    public static function get_user_role_by_id($id) {
-        $table = ENV_DB_PREF . 'users';
-        $sql = 'SELECT `user_role` FROM ?n WHERE `id` = ?i';
-        return SafeMySQL::gi()->getOne($sql, $table, $id);
+    public static function getUserRoleById(int $user_id): int|bool {
+        $sql = 'SELECT user_role FROM ?n WHERE user_id = ?i';
+        return SafeMySQL::gi()->getOne($sql, Constants::USERS_TABLE, $user_id);
     }
 
     /**
-     * Транслитерирует и очищает имя файла
-     * @param string $fileName Имя файла для транслитерации
+     * Транслитерирует и очищает имя файла, поддерживает символы из любых языков
+     * Имя файла транслитерируется с использованием `Transliterator` или, если оно недоступно, массивом $transliterationTable
+     * @param string $fileName Имя файла для обработки
      * @return string Транслитерированное и очищенное имя файла
      */
-    public static function transliterateFileName($fileName) {
-        $fileName = (string) $fileName;
+    public static function transliterateFileName(string $fileName): string {
+        // Удаляем теги и пробелы
         $fileName = strip_tags($fileName);
-        $fileName = str_replace(array("\n", "\r"), " ", $fileName);
+        $fileName = str_replace(array("\n", "\r"), ' ', $fileName);
         $fileName = preg_replace("/\s+/", ' ', $fileName);
         $fileName = trim($fileName);
+        // Разделяем имя файла и его расширение
+        $fileExtension = '';
+        if (strpos($fileName, '.') !== false) {
+            $fileParts = explode('.', $fileName);
+            $fileExtension = array_pop($fileParts); // Получаем расширение
+            $fileName = implode('.', $fileParts); // Оставшаяся часть имени
+        }
+        // Приводим к нижнему регистру
         $fileName = function_exists('mb_strtolower') ? mb_strtolower($fileName) : strtolower($fileName);
-        // Транслитерация кириллических символов
-        $transliterationTable = array(
-            'а' => 'a', 'б' => 'b', 'в' => 'v', 'г' => 'g', 'д' => 'd', 'е' => 'e', 'ё' => 'e',
-            'ж' => 'j', 'з' => 'z', 'и' => 'i', 'й' => 'y', 'к' => 'k', 'л' => 'l', 'м' => 'm',
-            'н' => 'n', 'о' => 'o', 'п' => 'p', 'р' => 'r', 'с' => 's', 'т' => 't', 'у' => 'u',
-            'ф' => 'f', 'х' => 'h', 'ц' => 'c', 'ч' => 'ch', 'ш' => 'sh', 'щ' => 'shch', 'ы' => 'y',
-            'э' => 'e', 'ю' => 'yu', 'я' => 'ya', 'ъ' => '', 'ь' => ''
-        );
-        $fileName = strtr($fileName, $transliterationTable);
-        // Поддержка дополнительных символов и алфавитов
-        $additionalTransliterationTable = array(
-                // Добавьте сюда другие символы для транслитерации, если необходимо
-        );
-        $fileName = strtr($fileName, $additionalTransliterationTable);
-        $fileName = preg_replace("/[^a-z0-9]+/", '-', $fileName);
+        // Транслитерация с использованием класса Transliterator, если доступен
+        if (class_exists('Transliterator')) {
+            $transliterator = \Transliterator::create('Any-Latin; Latin-ASCII; [\u0080-\u7fff] remove');
+            $fileName = $transliterator->transliterate($fileName);
+        } else {
+            SysClass::preFile('errors', 'transliterateFileName', 'Класс Transliterator недоступен', __LINE__);
+            // Если Transliterator недоступен, используем ручную транслитерацию кириллицы и других символов
+            $transliterationTable = [
+                'а' => 'a', 'б' => 'b', 'в' => 'v', 'г' => 'g', 'д' => 'd', 'е' => 'e', 'ё' => 'e',
+                'ж' => 'zh', 'з' => 'z', 'и' => 'i', 'й' => 'y', 'к' => 'k', 'л' => 'l', 'м' => 'm',
+                'н' => 'n', 'о' => 'o', 'п' => 'p', 'р' => 'r', 'с' => 's', 'т' => 't', 'у' => 'u',
+                'ф' => 'f', 'х' => 'kh', 'ц' => 'ts', 'ч' => 'ch', 'ш' => 'sh', 'щ' => 'shch', 'ы' => 'y',
+                'э' => 'e', 'ю' => 'yu', 'я' => 'ya', 'ъ' => '', 'ь' => '', 'ї' => 'yi', 'є' => 'ye',
+                ' ' => '-', '_' => '-', '+' => '-', '=' => '-',
+                '(' => '', ')' => '', '{' => '', '}' => '', '[' => '', ']' => '',
+                '<' => '', '>' => '', '"' => '', "'" => '', '«' => '', '»' => '',
+                '\\' => '', '/' => '', '|' => '', '?' => '', '!' => '', '№' => '',
+                ':' => '', ';' => '', '.' => '', ',' => '', '#' => '', '@' => '', 
+                '&' => '', '*' => '', '^' => '', '%' => '', '$' => '', '~' => '',
+                '`' => '', '©' => '', '®' => '', '™' => '', '€' => '', '£' => '', '¥' => ''];
+            $fileName = strtr($fileName, $transliterationTable);
+        }
+        // Заменяем некорректные символы на безопасные (разрешены только буквы, цифры и дефисы)
+        $fileName = preg_replace("/[^a-z0-9\-]+/u", '', $fileName);
+        // Убираем повторяющиеся дефисы
+        $fileName = preg_replace("/-+/", '-', $fileName);
         $fileName = trim($fileName, '-');
+        // Если имя пустое (например, если были только некорректные символы), заменим его на "file"
+        if (empty($fileName)) {
+            $fileName = 'file_' . time();
+        }
+        // Добавляем обратно расширение файла (если оно есть)
+        if ($fileExtension) {
+            $fileName .= '.' . strtolower($fileExtension);
+        }
         return $fileName;
     }
 
@@ -326,7 +356,7 @@ class SysClass {
      * @param int $code Код HTTP ответа
      * @param string $url URL для перенаправления
      */
-    public static function handleRedirect($code = 404, $url = ENV_URL_SITE) {
+    public static function handleRedirect($code = 404, $url = ENV_URL_SITE): void {
         $code_redirect = match ($code) {
             200 => '200 OK',
             301 => '301 Moved Permanently',
@@ -360,7 +390,7 @@ class SysClass {
      * Определяет браузер пользователя на основе строки User-Agent
      * @return string Информация о браузере пользователя
      */
-    public static function detectClientBrowser() {
+    public static function detectClientBrowser(): string {
         $agent = $_SERVER['HTTP_USER_AGENT'];
         $browser_info = [];
         preg_match("/(Edge|Edg|Opera|OPR|Firefox|Chrome|Version|Opera Mini|Netscape|Konqueror|SeaMonkey|Camino|Minefield|Iceweasel|K-Meleon|Maxthon|Vivaldi|Brave)(?:\/| )([0-9.]+)/", $agent, $browser_info);
@@ -407,7 +437,7 @@ class SysClass {
     /**
      * Вернёт название страны по международному коду ISO 3166-2
      */
-    public static function code2country($code, $lang = 'RU') {
+    public static function code2country(string $code, string $lang = 'RU'): bool|string {
         if ($lang == 'RU') {
             $countries = [
                 "RU" => "Россия",
@@ -874,6 +904,9 @@ class SysClass {
         if (SafeMySQL::gi()->query('SHOW TABLES LIKE ?s', Constants::USERS_TABLE)->num_rows === 0) {
             new Users(true);
         }
+        if (ENV_CACHE_PATH && !self::createDirectoriesForFile(ENV_CACHE_PATH . '.cache')) {
+            self::preFile('errors', 'checkInstall', 'Не удалось создать директорию кэша', ENV_CACHE_PATH);
+        }
         if (!self::createDirectoriesForFile($cacheFilePath) || file_put_contents($cacheFilePath, 'Install check passed') === false) {
             self::preFile('errors', 'checkInstall', 'Не удалось создать файл кэша', $cacheFilePath);
         }
@@ -1080,8 +1113,8 @@ class SysClass {
             return false;
         }
         return true;
-    }   
-    
+    }
+
     /**
      * Проверяет, является ли строка правильным JSON
      * @param string $string Строка для проверки
