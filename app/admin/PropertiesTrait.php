@@ -24,7 +24,7 @@ trait PropertiesTrait {
         $this->loadModel('m_properties');
         /* view */
         $this->getStandardViews();
-        $properties_data = $this->get_properties_data_table();
+        $properties_data = $this->getPropertiesDataTable();
         $get_all_property_types = $this->models['m_properties']->getAllPropertyTypes();
         $this->view->set('all_property_types', $get_all_property_types);
         $this->view->set('properties_table', $properties_data);
@@ -161,7 +161,7 @@ trait PropertiesTrait {
     /**
      * Вернёт таблицу свойств
      */
-    public function get_properties_data_table() {
+    public function getPropertiesDataTable() {
         $this->access = [Constants::ADMIN, Constants::MODERATOR];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect();
@@ -268,10 +268,10 @@ trait PropertiesTrait {
         }
         $data_table['total_rows'] = $features_array['total_count'];
         if ($postData) {
-            echo Plugins::ee_show_table('properties_table', $data_table, 'get_properties_data_table', $filters, $postData["page"], $postData["rows_per_page"], $selected_sorting);
+            echo Plugins::ee_show_table('properties_table', $data_table, 'getPropertiesDataTable', $filters, $postData["page"], $postData["rows_per_page"], $selected_sorting);
             die;
         } else {
-            return Plugins::ee_show_table('properties_table', $data_table, 'get_properties_data_table', $filters);
+            return Plugins::ee_show_table('properties_table', $data_table, 'getPropertiesDataTable', $filters);
         }
     }
 
@@ -350,7 +350,6 @@ trait PropertiesTrait {
         }
         /* model */
         $this->loadModel('m_properties');
-        
         $postData = SysClass::ee_cleanArray($_POST);
         if (in_array('id', $params)) {
             $keyId = array_search('id', $params);
@@ -360,8 +359,8 @@ trait PropertiesTrait {
                $propertyId = 0; 
             }
             if (isset($postData['name']) && $postData['name']) {
-                if (isset($postData['dataFiles'])) { // Переданы файлы для сохранения
-                    $this->saveFileProperty($postData); // TODO не пишет свойство с файлом
+                if (isset($postData['property_data']) && isset($postData['ee_dataFiles'])) { // Переданы файлы для сохранения                    
+                    $this->saveFileProperty($postData);
                 }                
                 $postData['default_values'] = isset($postData['property_data']) ? $this->prepareDefaultValuesProperty($postData['property_data'], $propertyId) : [];
                 if (!$new_id = $this->models['m_properties']->updatePropertyData($postData)) {
@@ -402,52 +401,73 @@ trait PropertiesTrait {
      */
     private function saveFileProperty(array &$postData): void {
         $fileId = false;
-        $dataFiles = $postData['dataFiles'];        
-        foreach ($dataFiles as $dataFileJson) {
-            $dataFileJson = htmlspecialchars_decode($dataFileJson);
-            $dataFile = is_string($dataFileJson) ? json_decode($dataFileJson, true) : $dataFileJson;
-            if (isset($dataFile['unique_id'])) {
-                $uniqueID = $dataFile['unique_id'];
-                $originalName = isset($dataFile['original_name']) ? $dataFile['original_name'] : '';
-                if (isset($_FILES['upload_file']['name'][$uniqueID])) {
-                    // Получаем данные загруженного файла
-                    $file = [
-                        'name' => $_FILES['upload_file']['name'][$uniqueID],
-                        'type' => $_FILES['upload_file']['type'][$uniqueID],
-                        'tmp_name' => $_FILES['upload_file']['tmp_name'][$uniqueID],
-                        'error' => $_FILES['upload_file']['error'][$uniqueID],
-                        'size' => $_FILES['upload_file']['size'][$uniqueID],
-                    ];
-                    if ($file['error'] !== UPLOAD_ERR_OK) {
-                        $message = "Ошибка загрузки файла: " . $file['error'];
-                        SysClass::preFile('errors', 'saveFileProperty', $message, $file);
-                        ClassNotifications::addNotificationUser($this->logged_in, ['text' => $message, 'status' => 'danger']);
-                        continue;
+        $dataFiles = $postData['ee_dataFiles'];
+        if (is_array($dataFiles)) {
+            $fileIds = [];
+            foreach ($dataFiles as $dataFileJson) {
+                $dataFileJson = htmlspecialchars_decode($dataFileJson);
+                $dataFile = is_string($dataFileJson) ? json_decode($dataFileJson, true) : $dataFileJson;
+                if (isset($dataFile['unique_id'])) {                    
+                    if (!empty($postData['property_data'][$dataFile['property_name']])) {
+                        $fileIds = explode(',', $postData['property_data'][$dataFile['property_name']]);
                     }
-                    // Применяем трансформации (если указаны)
-                    if (isset($dataFile['transformations'])) {
-                        FileSystem::applyImageTransformations($file['tmp_name'], $dataFile['transformations']);
-                    }                   
-                    if (!$fileData = FileSystem::safeMoveUploadedFile($file)) {
-                        $message = 'Файл не сохранён ' . $file['name'];
-                        SysClass::preFile('errors', 'saveFileProperty', $message, $file);
-                        ClassNotifications::addNotificationUser(SysClass::getCurrentUserId(), ['text' => $message, 'status' => 'danger']);                        
-                        continue;                        
-                    } else { // Сохраняем данные файла в таблицу
-                        $fileData['original_name'] = $originalName;
-                        $fileData['image_size'] = ''; // задел на будущее
-                        $fileData['user_id'] = SysClass::getCurrentUserId();
-                        $fileId = FileSystem::saveFileInfo($fileData);
-                        if ($fileId) {
-                            $fileIds = [];
-                            if (isset($postData[$dataFile['property_name']])) {
-                                $fileIds = explode(',', $postData[$dataFile['property_name']]);
+                    $uniqueID = $dataFile['unique_id'];
+                    if (is_numeric($uniqueID)) { // Передан ранее загруженный файл  
+                        if (isset($dataFile['update']) && $dataFile['update'] === true) { // Есть обновления
+                            if (isset($dataFile['delete']) && $dataFile['delete'] === true) { // Удалить файл
+                                FileSystem::deleteFileData($uniqueID);
+                                continue;
+                            } else { // Обновить данные
+                                $data['original_name'] = $dataFile['original_name'];
+                                FileSystem::updateFileData($uniqueID, $data);
+                                unset($data);
                             }
-                            $fileIds[] = $fileId;                                
-                            $postData[$dataFile['property_name']] = implode(',', $fileIds);
                         }
-                    }
+                        $fileIds[] = $uniqueID;
+                        $postData['property_data'][$dataFile['property_name']] = implode(',', $fileIds);
+                        $fileIds = [];
+                        continue;
+                    }                    
+                    if (isset($_FILES['property_data']['name'][$dataFile['property_name']]) && count($_FILES['property_data']['name'][$dataFile['property_name']])) {
+                        $fileCount = count($_FILES['property_data']['name'][$dataFile['property_name']]);
+                        for ($i = 0; $i < $fileCount; $i++) {
+                            $file = [
+                                'name' => $_FILES['property_data']['name'][$dataFile['property_name']][$i],
+                                'type' => $_FILES['property_data']['type'][$dataFile['property_name']][$i],
+                                'tmp_name' => $_FILES['property_data']['tmp_name'][$dataFile['property_name']][$i],
+                                'error' => $_FILES['property_data']['error'][$dataFile['property_name']][$i],
+                                'size' => $_FILES['property_data']['size'][$dataFile['property_name']][$i],
+                            ];
+                            if ($file['name'] !== $dataFile['file_name']) continue; // Если имя файла не совпало то сейчас его не грузим так как в $dataFile другие данные
+                            if ($file['error'] !== UPLOAD_ERR_OK) {
+                                $message = FileSystem::getErrorDescriptionByUploadCode($file['error']);
+                                SysClass::preFile('errors', 'saveFileProperty', $message, $file);
+                                ClassNotifications::addNotificationUser($this->logged_in, ['text' => $message, 'status' => 'danger']);
+                                continue;
+                            }
+                            // Применяем трансформации (если указаны)
+                            if (isset($dataFile['transformations'])) {
+                                FileSystem::applyImageTransformations($file['tmp_name'], $dataFile['transformations']);
+                            }                   
+                            if (!$fileData = FileSystem::safeMoveUploadedFile($file)) {
+                                $message = 'Файл не сохранён ' . $file['name'];
+                                SysClass::preFile('errors', 'saveFileProperty', $message, [$file, $fileData]);
+                                ClassNotifications::addNotificationUser(SysClass::getCurrentUserId(), ['text' => $message, 'status' => 'danger']);                        
+                                continue;                        
+                            } else { // Сохраняем данные файла в таблицу
+                                $originalName = isset($dataFile['original_name']) && !empty($dataFile['original_name']) ? $dataFile['original_name'] : $file['name'];
+                                $fileData['original_name'] = $originalName;
+                                $fileData['image_size'] = ''; // задел на будущее
+                                $fileData['user_id'] = SysClass::getCurrentUserId();
+                                if ($fileId = FileSystem::saveFileInfo($fileData)) {
+                                    $fileIds[] = $fileId;                                
+                                }                                
+                            }
+                        }
+                    }                    
                 }
+                if (count($fileIds)) $postData['property_data'][$dataFile['property_name']] = implode(',', $fileIds);
+                $fileIds = [];
             }
         }
     }
@@ -506,12 +526,9 @@ trait PropertiesTrait {
                 $index = $matches[2];
                 $additional_key = isset($matches[3]) ? $matches[3] : null;
                 // Генерация уникального кода
-                $unique_code = hash('crc32', $type . $index . $propertyId);
-                // Проверка уникальности кода
-                while ($this->models['m_properties']->findUniqueCodeInPropertiesTable($unique_code)) {
-                    // Генерация нового уникального кода, если текущий уже существует
-                    $unique_code = hash('crc32', $type . $index . $propertyId . uniqid());
-                }
+                do {
+                    $unique_code = hash('crc32', $type . $index . $propertyId . uniqid('', true));
+                } while ($this->models['m_properties']->findUniqueCodeInPropertiesTable($unique_code));
                 if (!isset($prepared_data[$index])) {
                     $prepared_data[$index] = [
                         'type' => $type,
@@ -524,14 +541,26 @@ trait PropertiesTrait {
                     ];
                 }
                 // Заполнение данных в зависимости от дополнительного ключа
+                $flattenedArr = [];
                 if ($additional_key) {
                     if ($additional_key === 'default' && is_array($value)) {
-                        $prepared_data[$index]['default'] = SysClass::ee_cleanArray($value);
+                        array_walk_recursive($value, function ($val, $key) use (&$flattenedArr) {
+                            $flattenedArr[] = html_entity_decode($val);
+                        });
+                        $prepared_data[$index]['default'] = SysClass::ee_cleanArray($flattenedArr);
                     } elseif ($additional_key === 'multiple' && $value === 'on') {
                         $prepared_data[$index]['multiple'] = 1;
                     } elseif ($additional_key === 'required' && $value === 'on') {
                         $prepared_data[$index]['required'] = 1;
                     } else {
+                        if (is_array($value)) {
+                            array_walk_recursive($value, function ($val, $key) use (&$flattenedArr) {
+                                $flattenedArr[] = html_entity_decode($val);
+                            });
+                            $value = $flattenedArr;
+                        } else {
+                            $value = html_entity_decode($value);
+                        }
                         $prepared_data[$index][$additional_key] = SysClass::ee_cleanArray($value);
                     }
                 }

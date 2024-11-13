@@ -3,6 +3,7 @@
 namespace classes\system;
 
 use classes\plugins\SafeMySQL;
+use classes\helpers\ClassNotifications;
 
 class FileSystem {
 
@@ -13,7 +14,7 @@ class FileSystem {
      * @param string $tmpFilePath Путь к временно загруженному файлу
      * @return bool Возвращает true, если сигнатура файла соответствует поддерживаемому формату, иначе false
      */
-    public static function checkFileSignature(string $tmpFilePath): bool {
+    private static function checkFileSignature(string $tmpFilePath): bool {
         $file = fopen($tmpFilePath, 'rb');
         $header = fread($file, 12); // Читаем первые 12 байт
         fclose($file);
@@ -194,10 +195,10 @@ class FileSystem {
         $mime = $file['type'];
         // Проверка размера файла
         if ($file['size'] > ENV_MAX_FILE_SIZE) {
-            $message = 'Размер файла превышает допустимый лимит ' . ENV_MAX_FILE_SIZE;
+            $message = 'Размер файла превышает допустимый лимит ENV_MAX_FILE_SIZE = ' . ENV_MAX_FILE_SIZE;
             SysClass::preFile('errors', 'safeMoveUploadedFile', $message, $file);
             ClassNotifications::addNotificationUser(SysClass::getCurrentUserId(), ['text' => $message, 'status' => 'danger']);
-            return NULL;            
+            return NULL;
         }
         // Проверка расширения
         $fileExtension = strtolower(pathinfo($originalFileName, PATHINFO_EXTENSION));
@@ -234,6 +235,7 @@ class FileSystem {
             'video/x-ms-wmv', // WMV
             // Архивы
             'application/zip', // ZIP/PKZip
+            'application/x-zip-compressed', // ZIP
             'application/x-rar-compressed', // RAR
             'application/x-7z-compressed', // 7z
             'application/gzip', // GZIP
@@ -258,32 +260,33 @@ class FileSystem {
             'text/csv', // CSV
             'text/plain', // TXT
             'application/xml', // XML
+            'text/xml',
             'application/json', // JSON
-        ];
+            'text/json',
+        ];        
         if (!in_array($mime, $allowedMimeTypes)) {
-            $message = 'Недопустимый MIME-тип файла ' . $originalFileName;
+            $message = 'Недопустимый MIME-тип файла ' . $originalFileName . ' MIME:' . $mime;
             SysClass::preFile('errors', 'safeMoveUploadedFile', $message, $file);
             ClassNotifications::addNotificationUser(SysClass::getCurrentUserId(), ['text' => $message, 'status' => 'danger']);
             return NULL;
-        }
+        }        
         // Проверка сигнатуры файла
         if (!self::checkFileSignature($tmpFilePath)) {
             $message = 'Файл имеет недопустимую сигнатуру ' . $originalFileName;
             SysClass::preFile('errors', 'safeMoveUploadedFile', $message, $file);
             ClassNotifications::addNotificationUser(SysClass::getCurrentUserId(), ['text' => $message, 'status' => 'danger']);
             return NULL;
-        }
+        }        
         // Создать уникальное имя файла и проверить его уникальность
         do {
             // Генерируем новое уникальное имя файла
             $fileName = md5(uniqid(ENV_DB_PREF, true)) . '.' . $fileExtension;
-            // Создать под каждый mime type свою папку
             $transliterateFileName = SysClass::transliterateFileName($file['type']);
             $targetDirectory = ENV_SITE_PATH . 'uploads' . ENV_DIRSEP . 'files' . ENV_DIRSEP . $transliterateFileName;
             $destination = $targetDirectory . ENV_DIRSEP . $fileName;
         } while (file_exists($destination));
         // Создать папку, если ещё не существует, для каждого MIME типа файла и поместить туда файл
-        if (!SysClass::createDirectoriesForFile($destination) || !move_uploaded_file($file['tmp_name'], $destination)) {
+        if (!SysClass::createDirectoriesForFile($destination) || !move_uploaded_file($file['tmp_name'], $destination)) {            
             $message = "Не удалось переместить файл в: $destination";
             SysClass::preFile('errors', 'safeMoveUploadedFile', $message, $file);
             ClassNotifications::addNotificationUser(SysClass::getCurrentUserId(), ['text' => $message, 'status' => 'danger']);
@@ -291,10 +294,10 @@ class FileSystem {
         }
         $fileData['name'] = $fileName;
         $fileData['file_path'] = $destination;
-        $fileData['file_url'] = ENV_URL_SITE . '/uploads/files/' . $transliterateFileName . '/' . $fileName; 
-        $fileData['mime_type'] = $mime; 
+        $fileData['file_url'] = ENV_URL_SITE . '/uploads/files/' . $transliterateFileName . '/' . $fileName;
+        $fileData['mime_type'] = $mime;
         $fileData['size'] = $file['size'];
-        $fileData['uploaded_at'] = date('Y-m-d H:i:s');
+        $fileData['uploaded_at'] = date('Y-m-d H:i:s');        
         return $fileData;
     }
 
@@ -317,7 +320,9 @@ class FileSystem {
         } elseif (extension_loaded('gd')) {
             self::applyWithGD($filePath, $transformations);
         } else {
-            throw new Exception('Библиотеки GD или Imagick не установлены.');
+            $message = 'Библиотеки GD или Imagick не установлены.';
+            SysClass::preFile('errors', 'applyImageTransformations', $message, [$filePath, $transformations]);
+            ClassNotifications::addNotificationUser(SysClass::getCurrentUserId(), ['text' => $message, 'status' => 'danger']);
         }
     }
 
@@ -329,28 +334,39 @@ class FileSystem {
      */
     private static function applyWithImagick($filePath, $transformations): void {
         $image = new Imagick($filePath);
-        if (isset($transformations['rotation']) && $transformations['rotation'] != 0) {
-            $image->rotateImage(new ImagickPixel('none'), $transformations['rotation']);
+        if ($image) {
+            if (isset($transformations['rotation']) && $transformations['rotation'] != 0) {
+                $image->rotateImage(new ImagickPixel('none'), $transformations['rotation']);
+            }
+            if (isset($transformations['flipH']) && $transformations['flipH']) {
+                $image->flopImage();
+            }
+            if (isset($transformations['flipV']) && $transformations['flipV']) {
+                $image->flipImage();
+            }
+            $image->writeImage($filePath);
+            $image->clear();
+            $image->destroy();
         }
-        if (isset($transformations['flipH']) && $transformations['flipH']) {
-            $image->flopImage();
-        }
-        if (isset($transformations['flipV']) && $transformations['flipV']) {
-            $image->flipImage();
-        }
-        $image->writeImage($filePath);
-        $image->clear();
-        $image->destroy();
     }
 
     /**
      * Применяет трансформации с использованием GD
      * @param string $filePath Путь к файлу изображения
-     * @param array $transformations Массив трансформаций
-     * @throws Exception Если формат файла не поддерживается
+     * @param array $transformations Массив трансформаций (может включать 'rotation', 'flipH', 'flipV')
+     * Если формат файла не поддерживается или возникает ошибка, добавляет запись в лог и уведомляет пользователя
      */
-    private static function applyWithGD($filePath, $transformations): void {
+    private static function applyWithGD(string $filePath, array $transformations): void {
         $image = self::createImageFromFile($filePath);
+        if ($image === false) {
+            $message = "Не удалось загрузить изображение для обработки: $filePath";
+            SysClass::preFile('errors', 'applyWithGD', $message, $filePath);
+            ClassNotifications::addNotificationUser(
+                    SysClass::getCurrentUserId(),
+                    ['text' => $message, 'status' => 'danger']
+            );
+            return;
+        }
         if (isset($transformations['rotation']) && $transformations['rotation'] != 0) {
             $rotationAngle = 360 - $transformations['rotation'];
             $image = imagerotate($image, $rotationAngle, 0);
@@ -366,65 +382,121 @@ class FileSystem {
     }
 
     /**
-     * Создаёт изображение с использованием GD
+     * Создает изображение из файла, поддерживая различные форматы
+     * Эта функция принимает путь к файлу изображения, определяет его расширение или MIME-тип,
+     * и создает изображение с помощью соответствующей функции PHP. Если формат файла не поддерживается,
+     * функция записывает ошибку и уведомляет пользователя
      * @param string $filePath Путь к файлу изображения
-     * @return resource Изображение GD
-     * @throws Exception Если формат файла не поддерживается
+     * @return resource|false Ресурс изображения или `false` в случае ошибки
      */
-    private static function createImageFromFile($filePath) {
+    private static function createImageFromFile(string $filePath) {
         $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
-        switch ($extension) {
-            case 'jpg':
-            case 'jpeg':
-                return imagecreatefromjpeg($filePath);
-            case 'png':
-                return imagecreatefrompng($filePath);
-            case 'gif':
-                return imagecreatefromgif($filePath);
-            case 'bmp':
-                return imagecreatefrombmp($filePath);
-            case 'webp':
-                return imagecreatefromwebp($filePath);
-            case 'ico':
-                return imagecreatefromstring(file_get_contents($filePath));
-            default:
-                throw new Exception("Неподдерживаемый формат файла: $extension");
+        // Если расширения нет, определяем его с помощью MIME-типа
+        if (empty($extension)) {
+            $extension = self::getExtensionFromMimeType($filePath);
+            if ($extension === null) {
+                $message = "Неподдерживаемый формат файла или ошибка определения MIME-типа: $filePath";
+                SysClass::preFile('errors', 'createImageFromFile', $message, $filePath);
+                ClassNotifications::addNotificationUser(
+                        SysClass::getCurrentUserId(),
+                        ['text' => $message, 'status' => 'danger']
+                );
+                return false;
+            }
         }
+        // Определяем функцию для создания изображения по расширению
+        $image = match ($extension) {
+            'jpg', 'jpeg' => imagecreatefromjpeg($filePath),
+            'png' => imagecreatefrompng($filePath),
+            'gif' => imagecreatefromgif($filePath),
+            'bmp' => imagecreatefrombmp($filePath),
+            'webp' => imagecreatefromwebp($filePath),
+            'ico' => imagecreatefromstring(file_get_contents($filePath)),
+            default => null,
+        };
+        // Если формат не поддерживается
+        if ($image === null) {
+            $message = "Неподдерживаемый формат файла: $extension";
+            SysClass::preFile('errors', 'createImageFromFile', $message, $filePath);
+            ClassNotifications::addNotificationUser(
+                    SysClass::getCurrentUserId(),
+                    ['text' => $message, 'status' => 'danger']
+            );
+            return false;
+        }
+        return $image;
     }
 
     /**
      * Сохраняет изображение с использованием GD
      * @param resource $image Изображение GD
      * @param string $filePath Путь к файлу изображения
-     * @throws Exception Если формат файла не поддерживается
+     * Если формат файла не поддерживается или отсутствует, добавляет запись в лог и уведомляет пользователя
      */
-    private static function saveImageToFile($image, $filePath) {
+    private static function saveImageToFile($image, string $filePath): void {
         $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
-        switch ($extension) {
-            case 'jpg':
-            case 'jpeg':
-                imagejpeg($image, $filePath);
-                break;
-            case 'png':
-                imagepng($image, $filePath);
-                break;
-            case 'gif':
-                imagegif($image, $filePath);
-                break;
-            case 'bmp':
-                imagebmp($image, $filePath);
-                break;
-            case 'webp':
-                imagewebp($image, $filePath);
-                break;
-            case 'ico':
-                file_put_contents($filePath, file_get_contents($filePath));
-                break;
-            default:
-                throw new Exception("Неподдерживаемый формат файла: $extension");
+        if (empty($extension)) {
+            $extension = self::getExtensionFromMimeType($filePath);
+
+            if ($extension === null) {
+                $message = "Неподдерживаемый формат файла или ошибка определения MIME-типа для сохранения: $filePath";
+                SysClass::preFile('errors', 'saveImageToFile', $message, $filePath);
+                ClassNotifications::addNotificationUser(
+                        SysClass::getCurrentUserId(),
+                        ['text' => $message, 'status' => 'danger']
+                );
+                return;
+            }
+        }
+        $success = match ($extension) {
+            'jpg', 'jpeg' => imagejpeg($image, $filePath),
+            'png' => imagepng($image, $filePath),
+            'gif' => imagegif($image, $filePath),
+            'bmp' => imagebmp($image, $filePath),
+            'webp' => imagewebp($image, $filePath),
+            'ico' => file_put_contents($filePath, file_get_contents($filePath)) !== false,
+            default => false,
+        };
+        if (!$success) {
+            $message = "Не удалось сохранить изображение: неподдерживаемый формат файла $extension для $filePath";
+            SysClass::preFile('errors', 'saveImageToFile', $message, $filePath);
+            ClassNotifications::addNotificationUser(
+                    SysClass::getCurrentUserId(),
+                    ['text' => $message, 'status' => 'danger']
+            );
         }
     }
-    
+
+    /**
+     * Получает расширение файла на основе MIME-типа
+     * Эта функция принимает путь к файлу, определяет его MIME-тип с помощью `mime_content_type` и
+     * возвращает соответствующее расширение файла. Если MIME-тип не поддерживается, функция возвращает `null`
+     * и отправляет сообщение об ошибке в журнал и пользователю
+     * @param string $filePath Путь к файлу, для которого необходимо определить расширение
+     * @return string|null Расширение файла (например, 'jpg', 'png'), или `null`, если MIME-тип не поддерживается
+     */
+    private static function getExtensionFromMimeType(string $filePath): ?string {
+        $mimeType = mime_content_type($filePath);
+        if ($mimeType === false) {
+            $message = "Не удалось определить MIME-тип для файла: $filePath";
+            SysClass::preFile('errors', 'getExtensionFromMimeType', $message, $filePath);
+            ClassNotifications::addNotificationUser(
+                    SysClass::getCurrentUserId(),
+                    ['text' => $message, 'status' => 'danger']
+            );
+            return null;
+        }
+        return match ($mimeType) {
+            'image/jpeg' => 'jpg',
+            'image/png' => 'png',
+            'image/gif' => 'gif',
+            'image/bmp' => 'bmp',
+            'image/webp' => 'webp',
+            'image/x-icon' => 'ico',
+            default => null,
+        };
+    }
+
     /**
      * Сохраняет информацию о загруженном файле в таблицу файлов и возвращает его ID
      * @param array $fileData Ассоциативный массив с данными о файле
@@ -432,9 +504,9 @@ class FileSystem {
      */
     public static function saveFileInfo(array $fileData): ?int {
         $fileData = SafeMySQL::gi()->filterArray($fileData, SysClass::ee_getFieldsTable(Constants::FILES_TABLE));
-        $fileData = array_map(function($value) {
+        $fileData = array_map(function ($value) {
             return is_string($value) ? trim($value) : $value;
-        }, $fileData);        
+        }, $fileData);
         $sql = "INSERT INTO ?n SET ?u";
         $result = SafeMySQL::gi()->query($sql, Constants::FILES_TABLE, $fileData);
         if ($result) {
@@ -442,5 +514,113 @@ class FileSystem {
         }
         return NULL;
     }
+
+    /**
+     * Вернёт данные файла из БД
+     * Выполнив проверку на существование файла на диске
+     * @param int $fileId ID файла в БД
+     * @return array|null массив данных или NULL
+     */
+    public static function getFileData(int $fileId): ?array {
+        $sql = 'SELECT * FROM ?n WHERE file_id = ?i';
+        $result = SafeMySQL::gi()->getRow($sql, Constants::FILES_TABLE, $fileId);
+        if ($result) {
+            if(!file_exists($result['file_path'])) {
+                $message = 'Не удалось найти файл на диске: ' . $result['file_path'] . ' fileId: ' . $fileId;
+                SysClass::preFile('errors', 'getFileData', $message, $result);
+                ClassNotifications::addNotificationUser(
+                        SysClass::getCurrentUserId(),
+                        ['text' => $message, 'status' => 'danger']
+                );                
+            }
+        }
+        return $result ? $result : NULL;
+    }
+    
+    /**
+     * Удалит данные файла из таблицы и файл с диска
+     * @param int $fileId - ID файла в таблице
+     * @return void
+     */
+    public static function deleteFileData(int $fileId): void {
+        $fileData = self::getFileData($fileId);
+        if (!unlink($fileData['file_path'])) {
+            $message = 'Не удалось удалить файл с диска: ' . $fileData['file_path'];
+            SysClass::preFile('errors', 'deleteFileData', $message, $fileData['file_path']);
+            ClassNotifications::addNotificationUser(
+                    SysClass::getCurrentUserId(),
+                    ['text' => $message, 'status' => 'danger']
+            );            
+        }
+        $sql = 'DELETE FROM ?n WHERE file_id = ?i';
+        SafeMySQL::gi()->query($sql, Constants::FILES_TABLE, $fileId);
+    }        
+
+    /**
+     * Обновить данные файла
+     * @param int $fileId - ID файла в таблице
+     * @param array $fileData - Данные для обновления
+     * @return int|null
+     */
+    public static function updateFileData(int $fileId, array $fileData): ?int {
+        $fileData = SafeMySQL::gi()->filterArray($fileData, SysClass::ee_getFieldsTable(Constants::FILES_TABLE));
+        $fileData = array_map(function ($value) {
+            return is_string($value) ? trim($value) : $value;
+        }, $fileData);
+        $fileData['updated_at'] = date('Y-m-d H:i:s');
+        $sql = "UPDATE ?n SET ?u WHERE file_id = ?i";
+        $result = SafeMySQL::gi()->query($sql, Constants::FILES_TABLE, $fileData, $fileId);
+        return $result ? $result : NULL;       
+    }
+    
+    /**
+     * Возвращает текстовое описание ошибки загрузки файла по коду ошибки
+     * @param int $code Код ошибки загрузки файла из $_FILES
+     * @param string $lang_code Язык возвращаемого сообщения. 'RU' для русского, любой другой код для английского
+     * @return string Описание ошибки на выбранном языке
+     */
+    public static function getErrorDescriptionByUploadCode(int $code, string $lang_code = ENV_DEF_LANG): string {
+        $errors = [
+            'RU' => [
+                UPLOAD_ERR_OK => 'Файл успешно загружен.',
+                UPLOAD_ERR_INI_SIZE => 'Размер файла превышает максимально допустимый размер, заданный директивой upload_max_filesize в php.ini ' . ini_get('upload_max_filesize'),
+                UPLOAD_ERR_FORM_SIZE => 'Размер файла превышает указанное значение в HTML-форме.',
+                UPLOAD_ERR_PARTIAL => 'Файл был загружен только частично.',
+                UPLOAD_ERR_NO_FILE => 'Файл не был загружен.',
+                UPLOAD_ERR_NO_TMP_DIR => 'Отсутствует временная папка.',
+                UPLOAD_ERR_CANT_WRITE => 'Не удалось записать файл на диск.',
+                UPLOAD_ERR_EXTENSION => 'PHP-расширение остановило загрузку файла.',
+            ],
+            'EN' => [
+                UPLOAD_ERR_OK => 'The file was uploaded successfully.',
+                UPLOAD_ERR_INI_SIZE => 'The uploaded file exceeds the upload_max_filesize directive in php.ini.',
+                UPLOAD_ERR_FORM_SIZE => 'The uploaded file exceeds the MAX_FILE_SIZE directive specified in the HTML form.',
+                UPLOAD_ERR_PARTIAL => 'The file was only partially uploaded.',
+                UPLOAD_ERR_NO_FILE => 'No file was uploaded.',
+                UPLOAD_ERR_NO_TMP_DIR => 'Missing a temporary folder.',
+                UPLOAD_ERR_CANT_WRITE => 'Failed to write file to disk.',
+                UPLOAD_ERR_EXTENSION => 'A PHP extension stopped the file upload.',
+            ],
+        ];
+        $language = strtoupper($lang_code) === 'RU' ? 'RU' : 'EN';
+        return $errors[$language][$code] ?? 'Неизвестная ошибка загрузки файла.';
+    }
+    
+    /**
+     * Получает HTML-код иконки для указанного расширения файла
+     * @param string $extension - Расширение файла
+     * @return string - HTML-код иконки
+     */
+    public static function getFileIcon(string $extension, string $addStyle = 'fa-4x'): string {
+        return match ($extension) {
+            'pdf' => '<i class="fas fa-file-pdf ' . $addStyle . '"></i>',
+            'doc', 'docx' => '<i class="fas fa-file-word ' . $addStyle . '"></i>',
+            'xls', 'xlsx' => '<i class="fas fa-file-excel ' . $addStyle . '"></i>',
+            'ppt', 'pptx' => '<i class="fas fa-file-powerpoint ' . $addStyle . '"></i>',
+            'zip', 'rar', 'tar', 'gz' => '<i class="fas fa-file-archive ' . $addStyle . '"></i>',
+            'txt' => '<i class="fas fa-file-alt ' . $addStyle . '"></i>',
+            default => '<i class="fas fa-file ' . $addStyle . '"></i>',
+        };
+    }   
     
 }

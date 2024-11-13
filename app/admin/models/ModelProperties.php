@@ -123,7 +123,7 @@ class ModelProperties {
         $propertyData['is_required'] = isset($propertyData['is_required']) && ($propertyData['is_required'] == 'on' || $propertyData['is_required'] == 1) ? 1 : 0;
         $propertyData['language_code'] = $languageCode;  // добавлено
         if (empty($propertyData['name']) || !isset($propertyData['type_id'])) {
-            SysClass::preFile('error', 'update_property_data', 'Error: property_data', $propertyData);
+            SysClass::preFile('errors', 'update_property_data', 'Error: property_data', $propertyData);
             return false;
         }
         if (!empty($propertyData['property_id']) && $propertyData['property_id'] != 0) {
@@ -142,7 +142,7 @@ class ModelProperties {
                 $propertyData['name'], $propertyData['type_id'], $languageCode
         );
         if ($existingProperty) {
-            SysClass::preFile('error', 'update_property_data', 'Error: existingProperty', $propertyData);
+            SysClass::preFile('errors', 'update_property_data', 'Error: existingProperty', $propertyData);
             return false;
         }
         $sql = "INSERT INTO ?n SET ?u";

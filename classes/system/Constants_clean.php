@@ -22,7 +22,7 @@ class Constants {
             CATEGORIES_TABLE_FIELDS = [],
             CATEGORIES_TYPES_TABLE = ENV_DB_PREF . 'categories_types',
             CATEGORIES_TYPES_TABLE_FIELDS = [],
-            PAGES_TABLE = ENV_DB_PREF . 'entities',
+            PAGES_TABLE = ENV_DB_PREF . 'pages',
             PAGES_TABLE_FIELDS = [],
             PROPERTY_TYPES_TABLE = ENV_DB_PREF . 'property_types',
             PROPERTY_TYPES_TABLE_FIELDS = [],

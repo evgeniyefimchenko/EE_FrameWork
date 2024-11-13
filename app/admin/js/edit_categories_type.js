@@ -20,7 +20,6 @@ $(document).ready(function () {
                     'POST',
                     'json',
                     function (response) {
-                        console.log(type_id, response);                        
                         if (typeof event.originalEvent !== 'undefined')
                             checkBoxs.prop('checked', false).prop('disabled', false);
                         if (response.all_sets_ids) {

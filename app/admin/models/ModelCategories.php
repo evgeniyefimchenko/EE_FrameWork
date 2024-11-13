@@ -280,15 +280,15 @@ class ModelCategories Extends ModelBase {
             $parent_type_id = SafeMySQL::gi()->getOne('SELECT type_id FROM ?n WHERE category_id = ?i', Constants::CATEGORIES_TABLE, $categoryData['parent_id']);
             $allAvailableTypes = $this->getTypeIds($this->params['m_categories_types']->getAllTypes(false, false, $parent_type_id));
             if (isset($categoryData['type_id']) && !in_array($categoryData['type_id'], $allAvailableTypes)) {
-                SysClass::preFile('error', 'M_update_category_data ', 'not Available type_id for parent_id', json_encode($categoryData, JSON_UNESCAPED_UNICODE));
+                SysClass::preFile('errors', 'M_update_category_data ', 'not Available type_id for parent_id', json_encode($categoryData, JSON_UNESCAPED_UNICODE));
                 return false;               
             }
         } else if (!$categoryData['type_id'] || !is_numeric($categoryData['type_id'])) {
-            SysClass::preFile('error', 'M_update_category_data ', 'error type_id', json_encode($categoryData, JSON_UNESCAPED_UNICODE));
+            SysClass::preFile('errors', 'M_update_category_data ', 'error type_id', json_encode($categoryData, JSON_UNESCAPED_UNICODE));
             return false;
         }
         if (empty($categoryData['title'])) {
-            SysClass::preFile('error', 'M_update_category_data ', 'empty title', $categoryData);
+            SysClass::preFile('errors', 'M_update_category_data ', 'empty title', $categoryData);
             return false;
         }
         if (!isset($categoryData['description'])) {
@@ -300,7 +300,7 @@ class ModelCategories Extends ModelBase {
             $sql = "UPDATE ?n SET ?u WHERE `category_id` = ?i AND language_code = ?s";
             $result = SafeMySQL::gi()->query($sql, Constants::CATEGORIES_TABLE, $categoryData, $category_id, $languageCode);
             if (!$result) {
-                SysClass::preFile('error', 'M_update_category_data ', 'error SQL ' . SafeMySQL::gi()->parse($sql, Constants::CATEGORIES_TABLE, $categoryData, $category_id, $languageCode));
+                SysClass::preFile('errors', 'M_update_category_data ', 'error SQL ' . SafeMySQL::gi()->parse($sql, Constants::CATEGORIES_TABLE, $categoryData, $category_id, $languageCode));
             }
             return $result ? $category_id : false;
         } else {
@@ -314,13 +314,13 @@ class ModelCategories Extends ModelBase {
         );
         if ($existingCategory) {
             classes\helpers\ClassNotifications::addNotificationUser(SysClass::getCurrentUserId(), ['text' => 'Не уникальное имя в рамках одного типа категории!', 'status' => 'danger']);
-            SysClass::preFile('error', 'M_update_category_data ', 'existingCategory title: ' . $categoryData['title'] . ' type_id: ' . $categoryData['type_id']);
+            SysClass::preFile('errors', 'M_update_category_data ', 'existingCategory title: ' . $categoryData['title'] . ' type_id: ' . $categoryData['type_id']);
             return false;
         }
         $sql = "INSERT INTO ?n SET ?u";
         $result = SafeMySQL::gi()->query($sql, Constants::CATEGORIES_TABLE, $categoryData);
         if (!$result) {
-            SysClass::preFile('error', 'M_update_category_data ', 'error SQL ' . SafeMySQL::gi()->parse($sql, Constants::CATEGORIES_TABLE, $categoryData));
+            SysClass::preFile('errors', 'M_update_category_data ', 'error SQL ' . SafeMySQL::gi()->parse($sql, Constants::CATEGORIES_TABLE, $categoryData));
         }
         return $result ? SafeMySQL::gi()->insertId() : false;
     }

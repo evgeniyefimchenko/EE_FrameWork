@@ -2195,3 +2195,7 @@ body {
   transform: rotateX(90deg) translateZ(-40px);
   filter: blur(12px);
 }
+
+.modal.fade.show {
+    z-index: 11000;
+}

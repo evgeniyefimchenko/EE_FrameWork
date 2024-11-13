@@ -11,9 +11,9 @@
      */
     $.fn.eeUploader = function (options) {
         /**
-         * Получает HTML-код иконки для указанного расширения файла.
-         * @param {string} extension - Расширение файла.
-         * @returns {string} - HTML-код иконки.
+         * Получает HTML-код иконки для указанного расширения файла
+         * @param {string} extension - Расширение файла
+         * @returns {string} - HTML-код иконки
          */
         function getFileIcon(extension) {
             switch (extension) {
@@ -40,6 +40,30 @@
             }
         }
 
+        /**
+         * Преобразует строку в объект, добавляет параметры из переданного объекта и возвращает результат в виде строки JSON
+         * Если строка пустая, возвращает объект с дополнительными данными
+         * Если additionalData пустой или не объект, возвращает исходную строку или пустую строку
+         * @param {string} jsonString - Входная строка, которая может содержать данные в формате JSON
+         * @param {Object} additionalData - Объект с дополнительными параметрами, которые нужно добавить в JSON-объект
+         * @returns {string} Возвращает строку в формате JSON или пустую строку, если входные данные некорректны
+         */
+        function mergeJsonStringWithObject(jsonString, additionalData) {
+            if (typeof additionalData !== 'object' || additionalData === null || Object.keys(additionalData).length === 0) {
+                return jsonString || '';
+            }
+            let data = {};
+            if (jsonString) {
+                try {
+                    data = JSON.parse(jsonString);
+                } catch (e) {
+                    data = {};
+                }
+            }
+            Object.assign(data, additionalData);
+            return JSON.stringify(data);
+        }
+
         // Настройки по умолчанию Не используются!
         var settings = $.extend({
             // Добавьте здесь настройки по умолчанию, если необходимо
@@ -47,6 +71,7 @@
 
         this.each(function () {
             var $input = $(this);
+            var property_name = $input.attr('name').match(/\[([^[\]]*)\]/)[1];
             var $form = $input.closest('form');
             var fileObjectList = [];
             var layout = $input.closest('.card').data('layout') || 'vertical';
@@ -54,7 +79,7 @@
             var allowedExtensions = $input.data('allowed-extensions').split(',').map(function (item) {
                 return item.trim().toLowerCase();
             });
-
+            var $preloadedFilesData = $('#preloaded_' + $input.attr('id'));
             /**
              * Проверяет, разрешено ли указанное расширение файла
              * @param {string} fileExtension - Расширение файла
@@ -72,23 +97,20 @@
              * @param {File} [fileObject] - Объект файла (если доступен)
              * @returns {jQuery} - jQuery-элемент контейнера файла
              */
-            function createFileContainer(fileName, fileExtension, fileSrc, fileObject) {
-                var uniqueID = generateUniqueID();
-                var fileContainer = $('<div class="fileItem p-2"></div>').attr('data-unique-id', uniqueID);
-                var fileNameDiv = $('<div class="fileName mb-2"></div>').text(fileName);
-                var property_name = $input.attr('name').match(/\[([^[\]]*)\]/)[1];
+            function createFileContainer(fileName, fileExtension, fileSrc, fileObject) {                
+                var fileContainer = $('<div class="fileItem"></div>').attr('data-unique-id', fileObject.uniqueID);
+                var fileNameDiv = $('<div class="fileName mb-2"></div>').text(fileName);                
                 fileContainer.append(fileNameDiv);
                 var data = {
-                    unique_id: uniqueID,
+                    unique_id: fileObject.uniqueID,
                     file_name: fileName,
-                    property_name: property_name
+                    property_name: property_name,
+                    original_name: fileName
                 };
                 // Создаем скрытое поле с данными файла
-                var dataFileInput = $('<input type="hidden" name="dataFiles[]" value=\'' + JSON.stringify(data) + '\'>');
+                var dataFileInput = $('<input type="hidden" name="ee_dataFiles[]" value=\'' + JSON.stringify(data) + '\'>');
                 fileContainer.append(dataFileInput);
                 if (fileObject) {
-                    // Сохраняем объект файла и уникальный ID для последующей отправки
-                    fileObject.uniqueID = uniqueID;
                     fileObjectList.push(fileObject);
                 }
                 if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff', 'webp', 'ico'].includes(fileExtension)) {
@@ -116,7 +138,7 @@
             }
 
             var $uploadButton = $('<span role="button" class="badge bg-secondary m-2 p-3">Загрузить</span>');
-            var $uploadButton_url = $('<span role="button" class="badge bg-secondary m-2 p-3">URL</span>');
+            var $uploadButton_url = '';// $('<span role="button" class="badge bg-secondary m-2 p-3">URL</span>');
             var $preloadedFilesContainer = $('<div style="display: none;" class="preloadedFiles text-center p-1 border bg-light rounded no-select fileContainer ' + layout + '"></div>');
             $input.after($preloadedFilesContainer, $uploadButton, $uploadButton_url);
             $input.hide();
@@ -125,7 +147,7 @@
              * Обновляет порядок файлов (если требуется)
              */
             function updateFileOrder() {
-                // Если необходимо, реализуйте обновление порядка файлов
+                // Если необходимо, обновление порядка файлов
             }
 
             /**
@@ -137,7 +159,7 @@
                 $preloadedFilesContainer.find('.fileItem').first().addClass('main-file');
             }
 
-            // Инициализация SortableJS для сортировки
+            // Инициализация SortableJS для сортировки загруженных файлов
             new Sortable($preloadedFilesContainer[0], {
                 animation: 150,
                 ghostClass: 'sortable-ghost',
@@ -146,16 +168,17 @@
                     updateMainFile();
                 }
             });
-
             $uploadButton.on('click', function () {
                 $input.trigger('click');
             });
-
+            /*
             $uploadButton_url.on('click', function () {
                 $('#uploadModal-' + $input.attr('id')).modal('show');
             });
-
-            $('#add-file-by-url-' + $input.attr('id')).on('click', function () {
+             */
+            // Для загрузки по URL требуется использовать текущий набор параметров ee_dataFiles с добавлением флага URL загрузки
+            // Для загрузки на стороне сервера и преобразования файла если это необходимо TODO
+            /*$('#add-file-by-url-' + $input.attr('id')).on('click', function () {
                 var url = $('#file-url-input-' + $input.attr('id')).val();
                 if (url) {
                     var fileExtension = url.split('.').pop().toLowerCase();
@@ -163,24 +186,44 @@
                         alert('Файл с расширением .' + fileExtension + ' не поддерживается!');
                         return;
                     }
-
                     var fileName = url.substring(url.lastIndexOf('/') + 1);
                     if (!isMultiple) {
                         $preloadedFilesContainer.empty();
                     }
-
-                    var fileContainer = createFileContainer(fileName, fileExtension, url);
-                    $preloadedFilesContainer.append(fileContainer);
-                    updateMainFile();
-                    updateFileOrder();
-                    $('#uploadModal-' + $input.attr('id')).modal('hide');
-                    $('#file-url-input-' + $input.attr('id')).val('');
+                    // Попытка загрузить изображение по URL
+                    fetch(url, { mode: 'no-cors' })
+                        .then(function(response) {
+                            if (!response.ok) {
+                                console.error(response);
+                                throw new Error('Ошибка сети');
+                            }
+                            return response.blob();
+                        })
+                        .then(function(blob) {
+                            var file = new File([blob], fileName, { type: blob.type });
+                            file.uniqueID = generateUniqueID();
+                            fileObjectList.push(file);
+                            var reader = new FileReader();
+                            reader.onload = function(e) {
+                                var fileContainer = createFileContainer(file.name, fileExtension, e.target.result, file);
+                                $preloadedFilesContainer.append(fileContainer);
+                                updateMainFile();
+                                updateFileOrder();
+                                $('#uploadModal-' + $input.attr('id')).modal('hide');
+                                $('#file-url-input-' + $input.attr('id')).val('');
+                            };
+                            reader.readAsDataURL(file);
+                        })
+                        .catch(function(error) {
+                            console.error('Ошибка при загрузке изображения:', error);
+                            alert('Не удалось загрузить файл по указанному URL.');
+                        });
                 } else {
                     alert('Пожалуйста, введите URL.');
                 }
             });
-
-            // Обработчик изменения файлового input
+               */
+            // Обработчик изменения файлового input TODO
             $input.on('change', function () {
                 if (!isMultiple) {
                     $preloadedFilesContainer.empty();
@@ -188,14 +231,14 @@
                 }
                 var files = this.files;
                 for (var i = 0; i < files.length; i++) {
+                    var uniqueID = generateUniqueID();
                     var file = files[i];
+                    file.uniqueID = uniqueID;
                     var fileExtension = file.name.split('.').pop().toLowerCase();
-
                     if (!isExtensionAllowed(fileExtension)) {
                         alert(file.name + ' не поддерживается!');
                         continue;
                     }
-
                     (function (file) {
                         var reader = new FileReader();
                         reader.onload = function (e) {
@@ -210,7 +253,6 @@
                 }
             });
 
-            // Удаление элемента!!! Не удаляет предзагруженный файл из массива upload_file[] TODO
             $preloadedFilesContainer.on('click', '.deleteIcon', function (event) {
                 event.stopPropagation();
                 var $fileItem = $(this).closest('.fileItem');
@@ -251,7 +293,7 @@
                     var id = $(this).attr('name');
                     var value = $(this).val();
                     data[id] = value;
-                    // Сохраняем первый элемент
+                    // Сохраняем первый элемент для записи original_name
                     if (index === 0) {
                         firstElement = { id: id, value: value };
                     }
@@ -261,19 +303,12 @@
                 if ($fileItem) {
                     if (firstElement)
                         $fileItem.find('div.fileName').text(firstElement.value);
-                    var dataFileInput = $fileItem.find('input[type="hidden"][name="dataFiles[]"]');
-                    var existingData = {};
+                    var dataFileInput = $fileItem.find('input[type="hidden"][name="ee_dataFiles[]"]');
                     var dataFileValue = dataFileInput.val();
-                    if (dataFileValue) {
-                        try {
-                            existingData = JSON.parse(dataFileValue);
-                        } catch (e) {
-                            existingData = {};
-                        }
-                    }
-                    // Объединяем существующие данные с новыми данными, не перезаписывая ключ transformations
-                    var newData = $.extend({}, existingData, data);
-                    dataFileInput.val(JSON.stringify(newData));
+                    data.update = true;
+                    data.property_name = property_name;
+                    var newData = mergeJsonStringWithObject(dataFileValue, data);
+                    dataFileInput.val(newData);
                 }
                 // Удаляем ссылку на fileItem из data-атрибутов модального окна
                 $(modalId).removeData('fileItem');
@@ -282,9 +317,8 @@
             });
 
             /**
-             * Обновляет трансформации изображения (поворот, отражение).
-             *
-             * @param {jQuery} $image - jQuery-элемент изображения.
+             * Обновляет трансформации изображения (поворот, отражение)
+             * @param {jQuery} $image - jQuery-элемент изображения
              */
             function updateImageTransform($image) {
                 var rotation = $image.data('rotation') || 0;
@@ -293,25 +327,18 @@
                 var scaleX = isFlippedH ? -1 : 1;
                 var scaleY = isFlippedV ? -1 : 1;
                 $image.css('transform', 'rotate(' + rotation + 'deg) scale(' + scaleX + ', ' + scaleY + ')');
-
-                // Обновление скрытого поля с данными трансформации
                 var $fileItem = $image.closest('.fileItem');
-                var dataFileInput = $fileItem.find('input[type="hidden"][name="dataFiles[]"]');
+                var dataFileInput = $fileItem.find('input[type="hidden"][name="ee_dataFiles[]"]');
                 var dataFileValue = dataFileInput.val();
-                var data = {};
-                if (dataFileValue) {
-                    try {
-                        data = JSON.parse(dataFileValue);
-                    } catch (e) {
-                        data = {};
+                var transformations = {
+                    transformations: {
+                        rotation: rotation,
+                        flipH: isFlippedH,
+                        flipV: isFlippedV
                     }
-                }
-                data.transformations = {
-                    rotation: rotation,
-                    flipH: isFlippedH,
-                    flipV: isFlippedV
                 };
-                dataFileInput.val(JSON.stringify(data));
+                var newData = mergeJsonStringWithObject(dataFileValue, transformations);
+                dataFileInput.val(newData);
             }
 
             // Обработчик вращения изображения
@@ -348,39 +375,51 @@
             });
 
             /**
-             * Генерирует уникальный идентификатор.
-             *
-             * @returns {string} - Уникальный идентификатор.
+             * Генерирует уникальный идентификатор
+             * @returns {string} - Уникальный идентификатор
              */
             function generateUniqueID() {
                 return 'id_' + Math.random().toString(36).substr(2, 9);
             }
+            // События по предзагруженным файлам
+            if ($preloadedFilesData.length) {
+                // Инициализация SortableJS для сортировки предзагруженных файлов
+                new Sortable($preloadedFilesData[0], {
+                    animation: 150,
+                    ghostClass: 'sortable-ghost',
+                    onEnd: function (evt) {
 
-            // Привязываем обработчик отправки формы только к этой форме
-            $form.on('submit', function (event) {
-                event.preventDefault();
-                var formData = new FormData(this);
-                fileObjectList.forEach(function (file) {
-                    formData.append('upload_file[' + file.uniqueID + ']', file);
-                });
-                sendAjaxRequest(
-                    $form.attr('action'),
-                    formData,
-                    $form.attr('method') || 'POST',
-                    'json',
-                    function (response) {
-                        // Обработка успешного ответа
-                    },
-                    function (jqXHR, textStatus, errorThrown) {
-                        console.error(jqXHR, textStatus, errorThrown);
-                        alert('В модуле ee_uploader возникла ошибка!');
                     }
-                );
-            });
+                });         
+                $preloadedFilesData.on('click', '.deleteIcon', function (event) {
+                    event.stopPropagation();
+                    var $fileItem = $(this).closest('.fileItem');
+                    var uniqueID = $fileItem.attr('data-unique-id');
+                    var dataFileInput = $fileItem.find('input[type="hidden"][name="ee_dataFiles[]"]');
+                    var dataFileValue = dataFileInput.val();
+                    var deleteData = {
+                        unique_id: uniqueID,
+                        delete: true,
+                        property_name: property_name,
+                        update: true
+                    };
+                    var newData = mergeJsonStringWithObject(dataFileValue, deleteData);
+                    $fileItem.fadeOut(300, function () {
+                        dataFileInput.val(newData);
+                    });
+                });
+                $preloadedFilesData.on('click', '.editIcon', function (event) {
+                    event.stopPropagation();
+                    var $fileItem = $(this).closest('.fileItem');
+                    var fileName = $fileItem.find('.fileName').text();
+                    var modalId = '#addFileParamsModal_' + $input.attr('id');
+                    $(modalId).find('#file_name_' + $input.attr('id')).val(fileName);
+                    $(modalId).data('fileItem', $fileItem);
+                    $(modalId).modal('show');
+                });
+            }
         }); // Конец each
-
     }; // Конец $.fn.eeUploader
-
     // Автоматическая инициализация плагина
     $(document).ready(function () {
         $('input[data-ee_uploader="true"]').eeUploader();

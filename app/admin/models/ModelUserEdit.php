@@ -81,7 +81,7 @@ class ModelUserEdit {
             $sql = "UPDATE ?n SET ?u WHERE role_id = ?i AND language_code = ?s";
             $result = SafeMySQL::gi()->query($sql, Constants::USERS_ROLES_TABLE, $users_role_data, $role_id, $language_code);
             if (!$result) {
-                SysClass::preFile('error', 'update_users_role_data', 'error SQL ' . SafeMySQL::gi()->parse($sql, Constants::USERS_ROLES_TABLE, $users_role_data, $role_id, $language_code));
+                SysClass::preFile('errors', 'update_users_role_data', 'error SQL ' . SafeMySQL::gi()->parse($sql, Constants::USERS_ROLES_TABLE, $users_role_data, $role_id, $language_code));
             }
             return $result ? $role_id : false;
         } else {
@@ -90,7 +90,7 @@ class ModelUserEdit {
                 $sql = "INSERT INTO ?n SET ?u";
         $result = SafeMySQL::gi()->query($sql, Constants::USERS_ROLES_TABLE, $category_data);
         if (!$result) {
-            SysClass::preFile('error', 'update_users_role_data', 'error SQL ' . SafeMySQL::gi()->parse($sql, Constants::USERS_ROLES_TABLE, $category_data));
+            SysClass::preFile('errors', 'update_users_role_data', 'error SQL ' . SafeMySQL::gi()->parse($sql, Constants::USERS_ROLES_TABLE, $category_data));
         }
         return $result ? SafeMySQL::gi()->insertId() : false;
     }
