@@ -3,7 +3,6 @@ $(document).ready(function () {
     setActiveNavLink('/admin/pages');
     $('.accordion-button').dblclick(function () {        
         var categoryID = $(this).data('category_id');
-        console.log(categoryID);
         $('#category_id-input').val(categoryID);
         $('#category_id-input').change();
         $('#categories_modal').modal('hide');

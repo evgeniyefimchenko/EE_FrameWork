@@ -87,7 +87,7 @@ abstract class ControllerBase {
      * @param $user_data - Данные пользователя для загрузки
      */
     private function setUserData($user_data) {
-        global $global_lang;
+        global $globalLang;
         $get_lang_code = '';
         if (!isset($user_data['new_user']) || $user_data['new_user'] != 1) {
             foreach ($user_data as $name => $val) {
@@ -125,7 +125,7 @@ abstract class ControllerBase {
         }
         Session::set('lang', $lang_code);
         $this->view->set('lang', $lang);
-        $global_lang = $lang;
+        $globalLang = $lang;
         // Фильтрация массива языковых элементов, содержащих 'sys' в ключе
         $sysLang = array_filter($lang, function ($key) {
             return strpos($key, 'sys.') === 0;

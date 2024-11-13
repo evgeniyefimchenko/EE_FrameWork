@@ -726,7 +726,7 @@ trait SystemsTrait {
         // Получаем список существующих категорий
         $categories = $this->models['m_categories']->getAllCategories();
         if (empty($categories)) {
-            SysClass::preFile('error', "No categories found in the categories table.");
+            SysClass::preFile('errors', "No categories found in the categories table.");
             return false;
         }
         // Массивы с возможными словами для названий и описаний

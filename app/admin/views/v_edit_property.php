@@ -1,9 +1,5 @@
-<?php
-use classes\system\SysClass;
-use classes\system\Plugins;
-?>
 <!-- Редактирование свойства -->
-<?php if (!$all_property_types) SysClass::handleRedirect(200, '/admin/types_properties');?> 
+<?php if (!$all_property_types) \classes\system\SysClass::handleRedirect(200, '/admin/types_properties');?> 
 <main>    
     <form id="edit_entity" action="/admin/edit_property/id/<?= $property_data['property_id'] ?>" method="POST" enctype="multipart/form-data">
         <input type="hidden" name="fake" value="1" />
@@ -87,7 +83,7 @@ use classes\system\Plugins;
                                 <div class="col-12 col-sm-12 card">
                                     <div class="card-body border-primary" id="fields_contents">
                                         <h5 class="card-title"><?=$lang['sys.fields'] . '(' . $lang['sys.field'] . ')'?></h5>
-                                        <?php echo Plugins::renderPropertyHtmlFields($property_data['fields'], $property_data['default_values']); ?>
+                                        <?php echo \classes\system\Plugins::renderPropertyHtmlFields($property_data['fields'], $property_data['default_values']); ?>
                                     </div>
                                 </div>
                             </div>

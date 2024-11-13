@@ -21,7 +21,7 @@ $(document).ready(function () {
             var value = $(this).find('.value').val();
             if (key && value) {
                 $('#' + selectId).append(new Option(value, key)); // Добавление option в select
-                new_values = new_values + '&' + key + '=' + value;
+                new_values = new_values + '{|}' + key + '=' + value;
             }
         });
         $('#' + defaultId).val(new_values);

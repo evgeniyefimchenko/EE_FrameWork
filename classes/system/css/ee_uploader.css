@@ -32,9 +32,9 @@
     width: 100%;
     height: auto;
     display: block;
-    width: 100px;
-    max-height: 100px;
-    min-height: 100px;
+    max-height: 70px;
+    min-height: 70px;
+    padding: 2px;
 }
 .actionIcons {
     position: absolute;
@@ -88,5 +88,17 @@
     color: white;
     border-radius: 5px;
     z-index: 9999;
-    position: relative;    
+    position: relative;
+    padding: 0 2px;
+    text-align: center;
+}
+.preloadedFilesData {
+    padding-top: 5px;
+}
+.preloadedFilesData .fileItem .actionIcons {
+    display: block;
+}
+
+.preloadedFilesData .actionIcons {
+    padding: 0 3px;
 }
