@@ -25,8 +25,8 @@ trait PropertiesTrait {
         /* view */
         $this->getStandardViews();
         $properties_data = $this->getPropertiesDataTable();
-        $get_all_property_types = $this->models['m_properties']->getAllPropertyTypes();
-        $this->view->set('all_property_types', $get_all_property_types);
+        $getAllPropertyTypes = $this->models['m_properties']->getAllPropertyTypes();
+        $this->view->set('all_property_types', $getAllPropertyTypes);
         $this->view->set('properties_table', $properties_data);
         $this->view->set('body_view', $this->view->read('v_properties'));
         $this->html = $this->view->read('v_dashboard');
@@ -70,7 +70,7 @@ trait PropertiesTrait {
         }
         $this->loadModel('m_properties');
         $postData = SysClass::ee_cleanArray($_POST);
-        $data_table = [
+        $dataTable = [
             'columns' => [
                 [
                     'field' => 'type_id',
@@ -130,14 +130,14 @@ trait PropertiesTrait {
             ],
         ];
         if ($postData && SysClass::isAjaxRequestFromSameSite()) { // AJAX
-            list($params, $filters, $selected_sorting) = Plugins::ee_showTablePrepareParams($postData, $data_table['columns']);
+            list($params, $filters, $selected_sorting) = Plugins::ee_showTablePrepareParams($postData, $dataTable['columns']);
             $features_array = $this->models['m_properties']->getTypePropertiesData($params['order'], $params['where'], $params['start'], $params['limit']);
         } else {
-            $features_array = $this->models['m_properties']->getTypePropertiesData(false, false, false, 25);
+            $features_array = $this->models['m_properties']->getTypePropertiesData(false, false, 0, 25);
         }
 
         foreach ($features_array['data'] as $item) {
-            $data_table['rows'][] = [
+            $dataTable['rows'][] = [
                 'type_id' => $item['type_id'],
                 'name' => $item['name'],
                 'status' => $this->lang['sys.' . $item['status']],
@@ -149,12 +149,12 @@ trait PropertiesTrait {
                 . 'class="btn btn-danger me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.delete'] . '"><i class="fas fa-trash"></i></a>'
             ];
         }
-        $data_table['total_rows'] = $features_array['total_count'];
+        $dataTable['total_rows'] = $features_array['total_count'];
         if ($postData) {
-            echo Plugins::ee_show_table('types_properties_table', $data_table, 'getTypesPropertiesDataTable', $filters, $postData["page"], $postData["rows_per_page"], $selected_sorting);
+            echo Plugins::ee_show_table('types_properties_table', $dataTable, 'getTypesPropertiesDataTable', $filters, $postData["page"], $postData["rows_per_page"], $selected_sorting);
             die;
         } else {
-            return Plugins::ee_show_table('types_properties_table', $data_table, 'getTypesPropertiesDataTable', $filters);
+            return Plugins::ee_show_table('types_properties_table', $dataTable, 'getTypesPropertiesDataTable', $filters);
         }
     }
 
@@ -169,7 +169,7 @@ trait PropertiesTrait {
         }
         $this->loadModel('m_properties');
         $postData = SysClass::ee_cleanArray($_POST);
-        $data_table = [
+        $dataTable = [
             'columns' => [
                 [
                     'field' => 'property_id',
@@ -246,14 +246,14 @@ trait PropertiesTrait {
             $filters['type_id']['options'][] = ['value' => $item['type_id'], 'label' => $item['name']];
         }
         if ($postData && SysClass::isAjaxRequestFromSameSite()) { // AJAX
-            list($params, $filters, $selected_sorting) = Plugins::ee_showTablePrepareParams($postData, $data_table['columns']);
+            list($params, $filters, $selected_sorting) = Plugins::ee_showTablePrepareParams($postData, $dataTable['columns']);
             $features_array = $this->models['m_properties']->getPropertiesData($params['order'], $params['where'], $params['start'], $params['limit']);
         } else {
             $features_array = $this->models['m_properties']->getPropertiesData(false, false, false, 25);
         }
 
         foreach ($features_array['data'] as $item) {
-            $data_table['rows'][] = [
+            $dataTable['rows'][] = [
                 'property_id' => $item['property_id'],
                 'name' => $item['name'],
                 'type_id' => $item['type_name'],
@@ -266,12 +266,12 @@ trait PropertiesTrait {
                 . 'class="btn btn-danger me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.delete'] . '"><i class="fas fa-trash"></i></a>'
             ];
         }
-        $data_table['total_rows'] = $features_array['total_count'];
+        $dataTable['total_rows'] = $features_array['total_count'];
         if ($postData) {
-            echo Plugins::ee_show_table('properties_table', $data_table, 'getPropertiesDataTable', $filters, $postData["page"], $postData["rows_per_page"], $selected_sorting);
+            echo Plugins::ee_show_table('properties_table', $dataTable, 'getPropertiesDataTable', $filters, $postData["page"], $postData["rows_per_page"], $selected_sorting);
             die;
         } else {
-            return Plugins::ee_show_table('properties_table', $data_table, 'getPropertiesDataTable', $filters);
+            return Plugins::ee_show_table('properties_table', $dataTable, 'getPropertiesDataTable', $filters);
         }
     }
 
@@ -299,35 +299,38 @@ trait PropertiesTrait {
         if (in_array('id', $params)) {
             $keyId = array_search('id', $params);
             if ($keyId !== false && isset($params[$keyId + 1])) {
-                $id = filter_var($params[$keyId + 1], FILTER_VALIDATE_INT);
+                $typeId = filter_var($params[$keyId + 1], FILTER_VALIDATE_INT);
             } else {
-               $id = 0; 
+               $typeId = 0; 
             }
+            $usedByProperties = $this->models['m_properties']->isExistPropertiesWithType($typeId);
             if (isset($postData['name']) && $postData['name']) {
                 if (!is_array($postData['fields']) || !count($postData['fields'])) {
                     ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Заполните хотя бы одно поле типа!', 'status' => 'danger']);
-                } else {
+                } else {                    
                     $postData['fields'] = json_encode($postData['fields']);
+                    if ($usedByProperties) unset($postData['fields']);
                     if (!$new_id = $this->models['m_properties']->updatePropertyTypeData($postData)) {
                         ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
                     } else {
-                        $id = $new_id;
+                        $typeId = $new_id;
                     }
                 }
             }            
-            $property_type_data = (int) $id ? $this->models['m_properties']->getTypePropertyData($id) : $default_data;            
-            $property_type_data = !$property_type_data ? $default_data : $property_type_data;
-            $property_type_data['fields'] = isset($property_type_data['fields']) ? json_decode($property_type_data['fields'], true) : [];
+            $propertyTypeData = (int) $typeId ? $this->models['m_properties']->getTypePropertyData($typeId) : $default_data;            
+            $propertyTypeData = !$propertyTypeData ? $default_data : $propertyTypeData;
+            $propertyTypeData['fields'] = isset($propertyTypeData['fields']) ? json_decode($propertyTypeData['fields'], true) : [];
         } else { // Не передан ключевой параметр id
             SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/type_properties_edit/id');
         }
         foreach (Constants::ALL_STATUS as $key => $value) {
-            $all_status[$key] = $this->lang['sys.' . $value];
-        }
+            $allStatus[$key] = $this->lang['sys.' . $value];
+        }        
         /* view */
-        $this->view->set('property_type_data', $property_type_data);        
-        $this->view->set('count_fields', count($property_type_data['fields']));        
-        $this->view->set('all_status', $all_status);
+        $this->view->set('property_type_data', $propertyTypeData);        
+        $this->view->set('count_fields', count($propertyTypeData['fields']));        
+        $this->view->set('all_status', $allStatus);
+        $this->view->set('usedByProperties', $usedByProperties);
         $this->getStandardViews();
         $this->view->set('body_view', $this->view->read('v_edit_type_properties'));
         $this->html = $this->view->read('v_dashboard');
@@ -356,13 +359,30 @@ trait PropertiesTrait {
             if ($keyId !== false && isset($params[$keyId + 1])) {
                 $propertyId = filter_var($params[$keyId + 1], FILTER_VALIDATE_INT);
             } else {
-               $propertyId = 0; 
+                $propertyId = 0;
+                $defaultData = [
+                    'property_id' => 0,
+                    'type_id' => 0,
+                    'name' => '',
+                    'status' => 'active',
+                    'sort' => '100',
+                    'default_values' => '[]',
+                    'is_multiple' => '0',
+                    'is_required' => '0',
+                    'description' => '',
+                    'entity_type' => 'all',
+                    'fields' => '[]',
+                    'created_at' => false,
+                    'updated_at' => false 
+                ];
             }
+            $isExistSetsWithProperty = $this->models['m_properties']->isExistSetsWithProperty($propertyId);
             if (isset($postData['name']) && $postData['name']) {
-                if (isset($postData['property_data']) && isset($postData['ee_dataFiles'])) { // Переданы файлы для сохранения                    
-                    $this->saveFileProperty($postData);
-                }                
-                $postData['default_values'] = isset($postData['property_data']) ? $this->prepareDefaultValuesProperty($postData['property_data'], $propertyId) : [];
+                $this->saveFileProperty($postData);
+                $postData['default_values'] = isset($postData['property_data']) ? $this->prepareDefaultValuesProperty($postData['property_data'], $propertyId) : [];                
+                if ($isExistSetsWithProperty) {
+                    unset($postData['type_id']);
+                }
                 if (!$new_id = $this->models['m_properties']->updatePropertyData($postData)) {
                     ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
                 } else {
@@ -370,18 +390,23 @@ trait PropertiesTrait {
                     ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.success'], 'status' => 'info']);
                 }
             }
-            $getPropertyData = $this->getPropertyData($propertyId);
+            $getPropertyData = !empty($propertyId) ? $this->getPropertyData($propertyId) : $defaultData;
         } else { // Не передан ключевой параметр id
             SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/user_edit/id/' . $this->logged_in);
         }
-        $get_all_property_types = $this->models['m_properties']->getAllPropertyTypes();
+        $getAllPropertyTypes = $this->models['m_properties']->getAllPropertyTypes();
         foreach (Constants::ALL_STATUS as $key => $value) {
-            $all_status[$key] = $this->lang['sys.' . $value];
+            $allStatus[$key] = $this->lang['sys.' . $value];
+        }
+        foreach (Constants::ALL_ENTITY_TYPE as $key => $value) {
+            $allEntityType[$key] = $this->lang[$value];
         }
         /* view */
-        $this->view->set('property_data', $getPropertyData);
-        $this->view->set('all_property_types', $get_all_property_types);
-        $this->view->set('all_status', $all_status);
+        $this->view->set('propertyData', $getPropertyData);
+        $this->view->set('allPropertyTypes', $getAllPropertyTypes);
+        $this->view->set('allStatus', $allStatus);
+        $this->view->set('allEntityType', $allEntityType);
+        $this->view->set('isExistSetsWithProperty', $isExistSetsWithProperty);
         $this->getStandardViews();
         $this->view->set('body_view', $this->view->read('v_edit_property'));
         $this->html = $this->view->read('v_dashboard');
@@ -401,19 +426,21 @@ trait PropertiesTrait {
      */
     private function saveFileProperty(array &$postData): void {
         $fileId = false;
-        $dataFiles = $postData['ee_dataFiles'];
+        $dataFiles = !empty($postData['ee_dataFiles']) ? $postData['ee_dataFiles'] : false;
+        $changed = !empty($postData['property_data_changed']) ? $postData['property_data_changed'] : false;
         if (is_array($dataFiles)) {
             $fileIds = [];
             foreach ($dataFiles as $dataFileJson) {
                 $dataFileJson = htmlspecialchars_decode($dataFileJson);
                 $dataFile = is_string($dataFileJson) ? json_decode($dataFileJson, true) : $dataFileJson;
-                if (isset($dataFile['unique_id'])) {                    
-                    if (!empty($postData['property_data'][$dataFile['property_name']])) {
+                if (!empty($dataFile['unique_id'])) {                    
+                    if (!empty($postData['property_data'][$dataFile['property_name']]) && is_string($postData['property_data'][$dataFile['property_name']])) {                        
                         $fileIds = explode(',', $postData['property_data'][$dataFile['property_name']]);
                     }
                     $uniqueID = $dataFile['unique_id'];
                     if (is_numeric($uniqueID)) { // Передан ранее загруженный файл  
                         if (isset($dataFile['update']) && $dataFile['update'] === true) { // Есть обновления
+                            $changed = true;
                             if (isset($dataFile['delete']) && $dataFile['delete'] === true) { // Удалить файл
                                 FileSystem::deleteFileData($uniqueID);
                                 continue;
@@ -460,6 +487,7 @@ trait PropertiesTrait {
                                 $fileData['image_size'] = ''; // задел на будущее
                                 $fileData['user_id'] = SysClass::getCurrentUserId();
                                 if ($fileId = FileSystem::saveFileInfo($fileData)) {
+                                    $changed = true;
                                     $fileIds[] = $fileId;                                
                                 }                                
                             }
@@ -470,8 +498,122 @@ trait PropertiesTrait {
                 $fileIds = [];
             }
         }
+        $postData['property_data_changed'] = $changed;
     }
 
+    /**
+     * Обрабатывает массив данных свойств и обновляет их в базе данных
+     * @param array $propertyData Массив данных свойств
+     * @return void
+     */
+    public function processPropertyData(array $propertyData): void {
+        $arrValueProp = [];
+        $this->loadModel('m_properties');
+        foreach ($propertyData as $itemPropKey => $itemPropValue) {
+            $arrPropName = explode('_', $itemPropKey);
+            $valueId = $arrPropName[0]; // property_values.value_id
+            $keyProp = $arrPropName[1]; // index field
+            $typeProp = $arrPropName[2]; // type field
+            $entityIdProp = $arrPropName[3]; // entity ID
+            $entityTypeProp = $arrPropName[4]; // entity type
+            $propertyIdProp = $arrPropName[5]; // global property ID
+            $setId = $arrPropName[6]; // set ID
+            $addFieldProp = isset($arrPropName[7]) ? $arrPropName[7] : null; // Классификатор сущности поля multiple, type, label, value, title, count
+            $keyArr = $propertyIdProp . '_' . $setId;
+            $arrValueProp[$keyArr]['entity_id'] = $entityIdProp;
+            $arrValueProp[$keyArr]['property_id'] = $propertyIdProp;
+            $arrValueProp[$keyArr]['entity_type'] = $entityTypeProp;
+            $arrValueProp[$keyArr]['value_id'] = $valueId;
+            $arrValueProp[$keyArr]['set_id'] = $setId;
+            if ($addFieldProp) {
+                if (($addFieldProp == 'multiple' || $addFieldProp == 'required') && isset($itemPropValue)) {
+                    $itemPropValue = 1;
+                }
+                if ($addFieldProp == 'value' && ($typeProp == 'image' || $typeProp == 'file')) {
+                    $itemPropValue = is_array($itemPropValue) ? implode(',', $itemPropValue) : $itemPropValue;
+                }
+                $arrValueProp[$keyArr]['property_values'][$keyProp][$addFieldProp] = $itemPropValue;
+            } else {
+                ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Error, not type value!', 'status' => 'danger']);
+                SysClass::pre([$itemPropKey, $arrPropName]);
+            }
+        }
+        foreach (SysClass::ee_removeEmptyValuesToArray($arrValueProp) as $arrValue) {
+            array_walk($arrValue['property_values'], function (&$property) {
+                if (!in_array($property['type'], ['file', 'image', 'checkbox', 'radio'], true) && empty($property['multiple'])) {
+                    if (is_array($property['value'] ?? null)) {
+                        $property['value'] = (string) array_shift($property['value']);
+                    }
+                }
+            });            
+            $res = $this->models['m_properties']->updatePropertiesValueEntities($arrValue);
+            if ($res === false) {
+                $message = 'Error, not write properties!';
+                SysClass::preFile('errors', 'processPropertyData', $message, $arrValue);
+                ClassNotifications::addNotificationUser($this->logged_in, ['text' => $message, 'status' => 'danger']);
+            }
+        }
+    }    
+
+    /**
+     * Подготавливает на вывод данные свойств для сущностей и сохраняет значения свойств при создании сущности
+     * @param array $setIds Массив идентификаторов наборов свойств
+     * @param int $entityId Идентификатор сущности
+     * @param string $typeEntity тип сущности category, page
+     * @param array $title Название сущности, её имя или заголовок
+     * @return array Возвращает массив обработанных данных свойств
+     */
+    public function formattingEntityProperties(array $setIds, int $entityId, string $typeEntity, string $title = ''): array {
+        $this->loadModel('m_properties');
+        $result = [];
+        foreach ($setIds as $setId) {
+            $defaultValues = false;
+            $propertiesData = $this->models['m_properties']->getPropertySetData($setId);
+            foreach ($propertiesData['properties'] as $k_prop => &$prop) {
+                if ($prop['property_entity_type'] != $typeEntity && $prop['property_entity_type'] != 'all') continue;
+                if (!empty($prop['default_values'])) {
+                    $defaultValues = json_decode($prop['default_values'], true);
+                    unset($prop['default_values']);
+                }
+                $prop = array_merge($prop, $this->models['m_properties']->getPropertyValuesForEntity($entityId, $typeEntity, $prop['property_id'], $setId));                
+                if (empty($prop['fields'])) { // Возникает при создании новой сущности
+                    $count = 0;
+                    $prop['entity_id'] = $entityId;
+                    $prop['entity_type'] = $typeEntity;
+                    $prop['set_id'] = $propertiesData['set_id'];
+                    $prop['value_id'] = SysClass::ee_generate_uuid();
+                    if (empty($defaultValues)) {
+                        SysClass::pre('Критическая ошибка: default_values пусто или не установлено! ' . var_export($prop, true));
+                    }
+                    foreach ($defaultValues as $prop_default) {
+                        $prop['fields'][$count] = [
+                            'type' => $prop_default['type'],
+                            'value' => isset($prop_default['default']) ? $prop_default['default'] : '',
+                            'label' => $prop_default['label'],
+                            'multiple' => $prop_default['multiple'],
+                            'required' => $prop_default['required'],
+                            'title' => isset($prop_default['title']) ? $prop_default['title'] : ''
+                        ];
+                        $count++;
+                    }                    
+                } else {
+                   $defaultValues = false; 
+                }
+            }
+            usort($propertiesData['properties'], function ($a, $b) {
+                return $a['sort'] <=> $b['sort'];
+            });
+            if ($defaultValues) { // Записываем значения свойств при создании
+                foreach ($propertiesData['properties'] as &$arrValue) {
+                    unset($arrValue['value_id']);
+                    $arrValue['value_id'] = $this->models['m_properties']->updatePropertiesValueEntities($arrValue);                    
+                }
+            }
+            $result[$title][$setId] = $propertiesData;
+        }
+        return $result;
+    }
+    
     /**
      * Подготовка списка полей для свойства
      * Используется как в AJAX запросе так и напрямую в коде
@@ -525,10 +667,6 @@ trait PropertiesTrait {
                 $type = $matches[1];
                 $index = $matches[2];
                 $additional_key = isset($matches[3]) ? $matches[3] : null;
-                // Генерация уникального кода
-                do {
-                    $unique_code = hash('crc32', $type . $index . $propertyId . uniqid('', true));
-                } while ($this->models['m_properties']->findUniqueCodeInPropertiesTable($unique_code));
                 if (!isset($prepared_data[$index])) {
                     $prepared_data[$index] = [
                         'type' => $type,
@@ -536,15 +674,14 @@ trait PropertiesTrait {
                         'title' => '',
                         'default' => '',
                         'required' => 0,
-                        'multiple' => 0,
-                        'unique_code' => $unique_code
+                        'multiple' => 0
                     ];
                 }
                 // Заполнение данных в зависимости от дополнительного ключа
                 $flattenedArr = [];
                 if ($additional_key) {
                     if ($additional_key === 'default' && is_array($value)) {
-                        array_walk_recursive($value, function ($val, $key) use (&$flattenedArr) {
+                        array_walk($value, function ($val, $key) use (&$flattenedArr) {
                             $flattenedArr[] = html_entity_decode($val);
                         });
                         $prepared_data[$index]['default'] = SysClass::ee_cleanArray($flattenedArr);
@@ -554,7 +691,7 @@ trait PropertiesTrait {
                         $prepared_data[$index]['required'] = 1;
                     } else {
                         if (is_array($value)) {
-                            array_walk_recursive($value, function ($val, $key) use (&$flattenedArr) {
+                            array_walk($value, function ($val, $key) use (&$flattenedArr) {
                                 $flattenedArr[] = html_entity_decode($val);
                             });
                             $value = $flattenedArr;
@@ -666,7 +803,7 @@ trait PropertiesTrait {
         }
         $this->loadModel('m_properties');
         $postData = SysClass::ee_cleanArray($_POST);
-        $data_table = [
+        $dataTable = [
             'columns' => [
                 [
                     'field' => 'set_id',
@@ -717,14 +854,14 @@ trait PropertiesTrait {
             ],
         ];
         if ($postData && SysClass::isAjaxRequestFromSameSite()) { // AJAX
-            list($params, $filters, $selected_sorting) = Plugins::ee_showTablePrepareParams($postData, $data_table['columns']);
+            list($params, $filters, $selected_sorting) = Plugins::ee_showTablePrepareParams($postData, $dataTable['columns']);
             $features_array = $this->models['m_properties']->getPropertySetsData($params['order'], $params['where'], $params['start'], $params['limit']);
         } else {
             $features_array = $this->models['m_properties']->getPropertySetsData(false, false, false, 25);
         }
 
         foreach ($features_array['data'] as $item) {
-            $data_table['rows'][] = [
+            $dataTable['rows'][] = [
                 'set_id' => $item['set_id'],
                 'name' => $item['name'],
                 'created_at' => date('d.m.Y', strtotime($item['created_at'])),
@@ -734,12 +871,12 @@ trait PropertiesTrait {
                 . 'class="btn btn-danger me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.delete'] . '"><i class="fas fa-trash"></i></a>'
             ];
         }
-        $data_table['total_rows'] = $features_array['total_count'];
+        $dataTable['total_rows'] = $features_array['total_count'];
         if ($postData) {
-            echo Plugins::ee_show_table('properties_table', $data_table, 'get_properties_property_sets_table', $filters, $postData["page"], $postData["rows_per_page"], $selected_sorting);
+            echo Plugins::ee_show_table('properties_table', $dataTable, 'get_properties_property_sets_table', $filters, $postData["page"], $postData["rows_per_page"], $selected_sorting);
             die;
         } else {
-            return Plugins::ee_show_table('properties_table', $data_table, 'get_properties_property_sets_table', $filters);
+            return Plugins::ee_show_table('properties_table', $dataTable, 'get_properties_property_sets_table', $filters);
         }
     }
 
@@ -769,34 +906,39 @@ trait PropertiesTrait {
         if (in_array('id', $params)) {
             $keyId = array_search('id', $params);
             if ($keyId !== false && isset($params[$keyId + 1])) {
-                $id = filter_var($params[$keyId + 1], FILTER_VALIDATE_INT);
+                $setId = filter_var($params[$keyId + 1], FILTER_VALIDATE_INT);
             } else {
-                $id = 0; 
+                $setId = 0; 
             }
+            $isExistCategoryTypeWithSet = $this->models['m_properties']->isExistCategoryTypeWithSet($setId);
             // Обработка основных полей
-            if (isset($postData['name']) && $postData['name']) {                
+            if (isset($postData['name']) && $postData['name']) {
+                if ($isExistCategoryTypeWithSet) {
+                    unset($postData['selected_properties']);
+                }
                 if (!$new_id = $this->models['m_properties']->updatePropertySetData($postData)) {
                     ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
                 } else {
-                    $id = $new_id;
+                    $setId = $new_id;
                     ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.success'], 'status' => 'info']);
                 }
             }
             // Обработка добавления свойств
             if (isset($postData['selected_properties']) && is_array($postData['selected_properties'])) {
                 // Удалить все предыдущие свойства для этого набора
-                $this->models['m_properties']->deletePreviousProperties($id);
+                $this->models['m_properties']->deletePreviousProperties($setId);
                 // Добавить выбранные свойства в таблицу
-                $this->models['m_properties']->addPropertiesToSet($id, $postData['selected_properties']);
+                $this->models['m_properties']->addPropertiesToSet($setId, $postData['selected_properties']);
             }
-            $property_set_data = (int) $id ? $this->models['m_properties']->getPropertySetData($id) : $default_data;
-            $property_set_data = $property_set_data ? $property_set_data : $default_data;
+            $propertySetData = (int) $setId ? $this->models['m_properties']->getPropertySetData($setId) : $default_data;
+            $propertySetData = $propertySetData ? $propertySetData : $default_data;
         } else { // Не передан ключевой параметр id
             SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/user_edit/id/' . $this->logged_in);
         }
         /* view */
         $this->getStandardViews();
-        $this->view->set('property_set_data', $property_set_data);
+        $this->view->set('property_set_data', $propertySetData);
+        $this->view->set('isExistCategoryTypeWithSet', $isExistCategoryTypeWithSet);
         $this->view->set('all_properties_data', $this->models['m_properties']->getAllProperties('active'));
         $this->view->set('body_view', $this->view->read('v_edit_property_set'));
         $this->html = $this->view->read('v_dashboard');
@@ -828,16 +970,16 @@ trait PropertiesTrait {
                 $set_id = 0;
             }
             $this->loadModel('m_properties');
-            $res = $this->models['m_properties']->property_set_delete($set_id);
+            $res = $this->models['m_properties']->propertySetDelete($set_id);
             if (count($res)) {
-                ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Ошибка удаления свойства id=' . $set_id . '<br/>' . $res['error'], 'status' => 'danger']);
+                ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Ошибка удаления набора id=' . $set_id . '<br/>' . $res['error'], 'status' => 'danger']);
             } else {
                 ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Удалено!', 'status' => 'info']);
             }
         } else {
             ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Нет обязательного параметра id', 'status' => 'danger']);
         }
-        SysClass::handleRedirect(200, '/admin/properties');
+        SysClass::handleRedirect(200, '/admin/properties_sets');
     }
 
 }

@@ -6,7 +6,6 @@ use classes\system\Constants;
 use classes\system\Plugins;
 use classes\helpers\ClassNotifications;
 use classes\system\Hook;
-use classes\system\Session;
 use app\admin\MessagesTrait;
 use app\admin\NotificationsTrait;
 use app\admin\SystemsTrait;
@@ -16,7 +15,6 @@ use app\admin\CategoriesTypesTrait;
 use app\admin\PagesTrait;
 use app\admin\PropertiesTrait;
 use classes\helpers\ClassMessages;
-use classes\helpers\ClassMail;
 
 /*
  * Админ-панель
@@ -250,7 +248,7 @@ class ControllerIndex Extends ControllerBase {
         Hook::run('A_beforeGetStandardViews', $this->view);
         $this->view->set('top_bar', $this->view->read('v_top_bar'));
         $this->view->set('main_menu', $this->view->read('v_main_menu'));
-        $this->view->set('page_footer', $this->view->read('v_footer'));       
+        $this->view->set('page_footer', /*$this->view->read('v_footer')*/'');       
         Hook::run('A_afterGetStandardViews', $this->view);
     }
 

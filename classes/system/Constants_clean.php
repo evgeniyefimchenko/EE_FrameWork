@@ -40,9 +40,12 @@ class Constants {
             SEARCH_CONTENTS_TABLE_FIELDS = [],
             FILES_TABLE = ENV_DB_PREF . 'files_table',
             FILES_TABLE_FIELDS = [],
+            GLOBAL_OPTIONS = ENV_DB_PREF . 'global_options',
+            GLOBAL_OPTIONS_FIELDS = [],            
             ALL_STATUS = ['active' => 'active', 'hidden' => 'hidden', 'disabled' => 'disabled'], // Ручное заполнение
+            ALL_ENTITY_TYPE = ['categories' => 'sys.categories', 'pages' => 'sys.pages', 'all' => 'sys.all'], // Ручное заполнение
             USERS_STATUS = [1 => 'sys.not_confirmed', 2 => 'sys.active', 3 => 'sys.blocked'],  // Ручное заполнение
-            ALL_TYPE_PROPERTY_TYPES_FIELDS = [ // Ручное заполнение
+            ALL_TYPE_PROPERTY_TYPES_FIELDS = [ // Типы полей свойств, ручное заполнение
                 "text" => "Text",
                 "number" => "Number",
                 "date" => "Date",

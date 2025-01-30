@@ -5,7 +5,7 @@ use classes\system\Plugins;
 <!-- Редактирование страницы -->
 <?php if (!$allType) SysClass::handleRedirect(200, '/admin/type_categories');?> 
 <main>    
-    <form id="edit_page" action="/admin/page_edit/id/<?= $pageData['page_id'] ?>" method="POST">
+    <form id="edit_page" action="/admin/page_edit/id/<?= $pageData['page_id'] ?>" method="POST" enctype="multipart/form-data" novalidate>
         <input type="hidden" name="fake" value="1" />
         <div class="container-fluid px-4">
             <a href="/admin/page_edit/id" data-bs-toggle="tooltip" data-bs-placement="top" title="<?= $lang['sys.add'] ?>" type="button"
@@ -121,8 +121,8 @@ use classes\system\Plugins;
                         <div class="tab-pane fade show mt-3" id="features-tab-pane" role="tabpanel" aria-labelledby="features-tab">
                             <div class="row">
                                 <div class="col">
-                                    <div id="renderCategorySetsAccordion">
-                                        <?=Plugins::renderCategorySetsAccordion($allProperties, $pageData['page_id'], 'page')?>
+                                    <div id="renderPropertiesSetsAccordion">
+                                        <?=Plugins::renderPropertiesSetsAccordion($allProperties, $pageData['page_id'], 'page')?>
                                     </div>                                    
                                 </div>
                             </div>

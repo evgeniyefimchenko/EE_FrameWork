@@ -15,61 +15,67 @@ class FileSystem {
      * @return bool Возвращает true, если сигнатура файла соответствует поддерживаемому формату, иначе false
      */
     private static function checkFileSignature(string $tmpFilePath): bool {
+        if (!is_readable($tmpFilePath)) {
+            return false;
+        }       
+        // Открываем файл и считываем первые 12 байт
         $file = fopen($tmpFilePath, 'rb');
-        $header = fread($file, 12); // Читаем первые 12 байт
+        $header = fread($file, 12);
         fclose($file);
+        if (empty($header)) {
+            $message = 'Неудалось считать заголовок файла!';
+            SysClass::preFile('errors', 'checkFileSignature', $message, $tmpFilePath);
+            return false; // Файл пуст или недоступен
+        }
         // Список сигнатур файлов
         $signatures = [
             // Изображения
-            'jpg' => "\xFF\xD8\xFF", // JPEG/JPG
-            'png' => "\x89\x50\x4E\x47", // PNG
-            'gif' => "GIF", // GIF
-            'bmp' => "\x42\x4D", // BMP (Windows Bitmap)
-            'tiff' => ["\x49\x49\x2A\x00", "\x4D\x4D\x00\x2A"], // TIFF (Intel/Big-endian)
-            'webp' => "\x52\x49\x46\x46", // WEBP (RIFF-based format)
-            'ico' => "\x00\x00\x01\x00", // ICO (Windows Icon)
-            'psd' => "\x38\x42\x50\x53", // PSD (Photoshop)
-            'svg' => "<svg", // SVG (Scalable Vector Graphics)
+            'jpg' => "\xFF\xD8\xFF",
+            'png' => "\x89\x50\x4E\x47",
+            'gif' => "GIF",
+            'bmp' => "\x42\x4D",
+            'tiff' => ["\x49\x49\x2A\x00", "\x4D\x4D\x00\x2A"],
+            'webp' => "\x52\x49\x46\x46", // Доп. проверка байтов 8-11
+            'ico' => "\x00\x00\x01\x00",
+            'psd' => "\x38\x42\x50\x53",
+            'svg' => "<svg",
             // Аудио
-            'wav' => "\x52\x49\x46\x46", // WAV
-            'flac' => "fLaC", // FLAC
-            'midi' => "MThd", // MIDI
-            'mp3' => "ID3", // MP3
+            'wav' => "\x52\x49\x46\x46", // Доп. проверка байтов 8-11
+            'flac' => "fLaC",
+            'midi' => "MThd",
+            'mp3' => "ID3",
             // Видео
-            'avi' => "\x52\x49\x46\x46", // AVI (RIFF)
-            'mkv' => "\x1A\x45\xDF\xA3", // MKV
-            'mov' => "\x66\x74\x79\x70", // MOV/QuickTime
-            'mp4' => "ftyp", // MP4
-            '3gp' => "\x66\x74\x79\x70\x33\x67", // 3GP
-            'wmv' => "\x30\x26\xB2\x75", // WMV
+            'avi' => "\x52\x49\x46\x46", // Доп. проверка байтов 8-11
+            'mkv' => "\x1A\x45\xDF\xA3",
+            'mov' => "\x66\x74\x79\x70",
+            'mp4' => "ftyp",
+            '3gp' => "\x66\x74\x79\x70\x33\x67",
+            'wmv' => "\x30\x26\xB2\x75",
             // Архивы
-            'zip' => "PK\x03\x04", // ZIP/PKZip
-            'rar' => "Rar!", // RAR
-            '7z' => "\x37\x7A\xBC\xAF\x27\x1C", // 7z
-            'gzip' => "\x1F\x8B", // GZIP
-            'bz2' => "\x42\x5A\x68", // Bzip2
+            'zip' => "PK\x03\x04",
+            'rar' => "Rar!",
+            '7z' => "\x37\x7A\xBC\xAF\x27\x1C",
+            'gzip' => "\x1F\x8B",
+            'bz2' => "\x42\x5A\x68",
             // Документы
-            'pdf' => "%PDF", // PDF
-            'doc' => "\xD0\xCF\x11\xE0", // DOC (старый формат Word)
-            'xlsx' => "PK\x03\x04", // DOCX/XLSX/PPTX (новый формат Office)
-            'odt' => "PK\x03\x04", // ODT (OpenDocument Text)
-            'ods' => "PK\x03\x04", // ODS (OpenDocument Spreadsheet)
-            'odp' => "PK\x03\x04", // ODP (OpenDocument Presentation)            
-            'rtf' => "\x7B\x5C\x72\x74\x66", // RTF (Rich Text Format)
-            'epub' => "PK\x03\x04", // EPUB (совпадает с форматом ZIP)
+            'pdf' => "%PDF",
+            'doc' => "\xD0\xCF\x11\xE0",
+            'xlsx' => "PK\x03\x04", // Доп. проверка содержимого
+            'odt' => "PK\x03\x04", // ODT
+            'ods' => "PK\x03\x04", // ODS
+            'odp' => "PK\x03\x04", // ODP
+            'rtf' => "\x7B\x5C\x72\x74\x66",
+            'epub' => "PK\x03\x04", // Доп. проверка содержимого
             // Шрифты
-            'woff' => "wOFF", // WOFF
-            'woff2' => "wOF2", // WOFF2
-            'ttf' => "\x00\x01\x00\x00", // TTF (TrueType Font)
-            'otf' => "OTTO", // OTF (OpenType Font)
+            'woff' => "wOFF",
+            'woff2' => "wOF2",
+            'ttf' => "\x00\x01\x00\x00",
+            'otf' => "OTTO",
             // Другие форматы
-            'iso' => "\x43\x44\x30\x30\x31", // ISO9660 CD/DVD
-            'sqlite' => "\x53\x51\x4C\x69\x74\x65", // SQLite Database
-            //'exe' => "\x4D\x5A", // EXE (Windows Executable)
-            'csv' => "\x30", // CSV (Comma Separated Values)
-            'txt' => "\x41", // TXT (простой текстовый формат)
-            'xml' => "<?xml", // XML (Extensible Markup Language)
-            'json' => "\x7B", // JSON (JavaScript Object Notation)
+            'iso' => "\x43\x44\x30\x30\x31",
+            'sqlite' => "\x53\x51\x4C\x69\x74\x65",
+            'xml' => "<?xml",
+            'json' => ["\x7B", "["], // JSON (объект или массив)
         ];
         foreach ($signatures as $format => $signature) {
             if (is_array($signature)) {
@@ -80,9 +86,57 @@ class FileSystem {
                 }
             } else {
                 if (strpos($header, $signature) === 0) {
+                    // Дополнительные проверки для сложных форматов
+                    if (in_array($format, ['webp', 'wav', 'avi'])) {
+                        return self::checkRiffFormat($tmpFilePath, $format);
+                    }
+                    if (in_array($format, ['xlsx', 'epub'])) {
+                        return self::checkZipBasedFormat($tmpFilePath, $format);
+                    }
                     return true;
                 }
             }
+        }
+        return false;
+    }
+
+    /**
+     * Проверка форматов на основе RIFF (например, AVI, WAV, WEBP)
+     * @param string $tmpFilePath
+     * @param string $format
+     * @return bool
+     */
+    private static function checkRiffFormat(string $tmpFilePath, string $format): bool {
+        $file = fopen($tmpFilePath, 'rb');
+        fseek($file, 8); // Перемещаем указатель на байты 8-11
+        $subHeader = fread($file, 4);
+        fclose($file);
+
+        $riffSubFormats = [
+            'webp' => 'WEBP',
+            'wav' => 'WAVE',
+            'avi' => 'AVI ',
+        ];
+
+        return isset($riffSubFormats[$format]) && $subHeader === $riffSubFormats[$format];
+    }
+
+    /**
+     * Проверка форматов, основанных на ZIP (например, XLSX, EPUB)
+     * @param string $tmpFilePath
+     * @param string $format
+     * @return bool
+     */
+    private static function checkZipBasedFormat(string $tmpFilePath, string $format): bool {
+        $zip = new \ZipArchive();
+        if ($zip->open($tmpFilePath) === true) {
+            $checkFiles = [
+                'xlsx' => 'xl/workbook.xml',
+                'epub' => 'mimetype',
+            ];
+            $result = isset($checkFiles[$format]) && $zip->locateName($checkFiles[$format]) !== false;
+            $zip->close();
+            return $result;
         }
         return false;
     }
@@ -263,20 +317,22 @@ class FileSystem {
             'text/xml',
             'application/json', // JSON
             'text/json',
-        ];        
+        ];
         if (!in_array($mime, $allowedMimeTypes)) {
             $message = 'Недопустимый MIME-тип файла ' . $originalFileName . ' MIME:' . $mime;
             SysClass::preFile('errors', 'safeMoveUploadedFile', $message, $file);
             ClassNotifications::addNotificationUser(SysClass::getCurrentUserId(), ['text' => $message, 'status' => 'danger']);
             return NULL;
-        }        
+        }
         // Проверка сигнатуры файла
-        if (!self::checkFileSignature($tmpFilePath)) {
+        if (strpos($mime, 'text/') !== false) {
+            // Пропустить проверку сигнатуры для текстовых файлов
+        } elseif (!self::checkFileSignature($tmpFilePath)) {
             $message = 'Файл имеет недопустимую сигнатуру ' . $originalFileName;
             SysClass::preFile('errors', 'safeMoveUploadedFile', $message, $file);
             ClassNotifications::addNotificationUser(SysClass::getCurrentUserId(), ['text' => $message, 'status' => 'danger']);
             return NULL;
-        }        
+        }
         // Создать уникальное имя файла и проверить его уникальность
         do {
             // Генерируем новое уникальное имя файла
@@ -286,7 +342,7 @@ class FileSystem {
             $destination = $targetDirectory . ENV_DIRSEP . $fileName;
         } while (file_exists($destination));
         // Создать папку, если ещё не существует, для каждого MIME типа файла и поместить туда файл
-        if (!SysClass::createDirectoriesForFile($destination) || !move_uploaded_file($file['tmp_name'], $destination)) {            
+        if (!SysClass::createDirectoriesForFile($destination) || !move_uploaded_file($file['tmp_name'], $destination)) {
             $message = "Не удалось переместить файл в: $destination";
             SysClass::preFile('errors', 'safeMoveUploadedFile', $message, $file);
             ClassNotifications::addNotificationUser(SysClass::getCurrentUserId(), ['text' => $message, 'status' => 'danger']);
@@ -297,7 +353,7 @@ class FileSystem {
         $fileData['file_url'] = ENV_URL_SITE . '/uploads/files/' . $transliterateFileName . '/' . $fileName;
         $fileData['mime_type'] = $mime;
         $fileData['size'] = $file['size'];
-        $fileData['uploaded_at'] = date('Y-m-d H:i:s');        
+        $fileData['uploaded_at'] = date('Y-m-d H:i:s');
         return $fileData;
     }
 
@@ -525,18 +581,18 @@ class FileSystem {
         $sql = 'SELECT * FROM ?n WHERE file_id = ?i';
         $result = SafeMySQL::gi()->getRow($sql, Constants::FILES_TABLE, $fileId);
         if ($result) {
-            if(!file_exists($result['file_path'])) {
+            if (!file_exists($result['file_path'])) {
                 $message = 'Не удалось найти файл на диске: ' . $result['file_path'] . ' fileId: ' . $fileId;
                 SysClass::preFile('errors', 'getFileData', $message, $result);
                 ClassNotifications::addNotificationUser(
                         SysClass::getCurrentUserId(),
                         ['text' => $message, 'status' => 'danger']
-                );                
+                );
             }
         }
         return $result ? $result : NULL;
     }
-    
+
     /**
      * Удалит данные файла из таблицы и файл с диска
      * @param int $fileId - ID файла в таблице
@@ -544,17 +600,18 @@ class FileSystem {
      */
     public static function deleteFileData(int $fileId): void {
         $fileData = self::getFileData($fileId);
-        if (!unlink($fileData['file_path'])) {
+        if (!@unlink($fileData['file_path'])) {
+            $fileData['file_path'] = !empty($fileData['file_path']) ? $fileData['file_path'] : 'Нет записи в БД';
             $message = 'Не удалось удалить файл с диска: ' . $fileData['file_path'];
             SysClass::preFile('errors', 'deleteFileData', $message, $fileData['file_path']);
             ClassNotifications::addNotificationUser(
                     SysClass::getCurrentUserId(),
                     ['text' => $message, 'status' => 'danger']
-            );            
+            );
         }
         $sql = 'DELETE FROM ?n WHERE file_id = ?i';
         SafeMySQL::gi()->query($sql, Constants::FILES_TABLE, $fileId);
-    }        
+    }
 
     /**
      * Обновить данные файла
@@ -570,9 +627,9 @@ class FileSystem {
         $fileData['updated_at'] = date('Y-m-d H:i:s');
         $sql = "UPDATE ?n SET ?u WHERE file_id = ?i";
         $result = SafeMySQL::gi()->query($sql, Constants::FILES_TABLE, $fileData, $fileId);
-        return $result ? $result : NULL;       
+        return $result ? $result : NULL;
     }
-    
+
     /**
      * Возвращает текстовое описание ошибки загрузки файла по коду ошибки
      * @param int $code Код ошибки загрузки файла из $_FILES
@@ -605,7 +662,7 @@ class FileSystem {
         $language = strtoupper($lang_code) === 'RU' ? 'RU' : 'EN';
         return $errors[$language][$code] ?? 'Неизвестная ошибка загрузки файла.';
     }
-    
+
     /**
      * Получает HTML-код иконки для указанного расширения файла
      * @param string $extension - Расширение файла
@@ -621,6 +678,5 @@ class FileSystem {
             'txt' => '<i class="fas fa-file-alt ' . $addStyle . '"></i>',
             default => '<i class="fas fa-file ' . $addStyle . '"></i>',
         };
-    }   
-    
+    }
 }

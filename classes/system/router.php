@@ -124,7 +124,7 @@ class Router {
             }
             Sysclass::handleRedirect(404);
             exit;
-        }
+        }        
         $controller->$action($args);
     }
 

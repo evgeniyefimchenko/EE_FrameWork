@@ -71,17 +71,19 @@ trait PagesTrait {
             } else {
                 $pageId = 0; 
             }
-            if (isset($postData['title']) && $postData['title']) {             
-                if (!$new_id = $this->models['m_pages']->updatePageData($postData)) {
-                    ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
+            if (isset($postData['title']) && $postData['title']) {
+                $new_id = $this->models['m_pages']->updatePageData($postData);
+                if (!is_numeric($new_id)) {
+                    ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.db_registration_error'] . ' ' . var_export($new_id, true), 'status' => 'danger']);
                 } else {
                     $pageId = $new_id;
                 }
-            }            
-            // Сохранение свойств для страницы
-            if (isset($postData['property_data']) && is_array($postData['property_data']) && isset($postData['property_data_changed']) && $postData['property_data_changed'] != 0) {
-                $this->processPropertyData($postData['property_data']);
-            }            
+                $this->saveFileProperty($postData);         
+                // Сохранение свойств
+                if (isset($postData['property_data']) && is_array($postData['property_data']) && !empty($postData['property_data_changed'])) {
+                    $this->processPropertyData($postData['property_data']);
+                }
+            }
             $getPageData = (int)$pageId ? $this->models['m_pages']->getPageData($pageId) : $default_data;
             $getPageData = $getPageData ? $getPageData : $default_data;
         } else { // Не передан ключевой параметр id
@@ -112,6 +114,7 @@ trait PagesTrait {
         $this->html = $this->view->read('v_dashboard');
         /* layouts */
         $this->add_editor_to_layout();
+        $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/func_properties.js" type="text/javascript" /></script>';
         $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/edit_pages.js" type="text/javascript" /></script>';
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
@@ -122,45 +125,8 @@ trait PagesTrait {
     private function getPropertiesByCategoryId(int $categoryId, int $pageId): array {
         $categoryTypeId = $this->models['m_categories']->getCategoryTypeId($categoryId);
         $getCategoriesTypeSets = $this->models['m_categories_types']->getCategoriesTypeSetsData($categoryTypeId);
-        $getCategoriesTypeSetsData = $this->processPageProperties($getCategoriesTypeSets, $pageId);
-        return $getCategoriesTypeSetsData;
-    }
- 
-    public function processPageProperties($getCategoriesTypeSets, $pageId) {
-        $this->loadModel('m_properties');
-        $getCategoriesTypeSetsData = [];
-        foreach ($getCategoriesTypeSets as $setId) {
-            $properties_data = $this->models['m_properties']->getPropertySetData($setId);
-            foreach ($properties_data['properties'] as $k_prop => &$prop) {
-                $prop['default_values'] = json_decode($prop['default_values'], true);
-                $prop['property_values'] = $this->models['m_properties']->getPropertyValuesForEntity($pageId, 'page', $prop['p_id'], $setId);
-                if (!count($prop['property_values'])) {
-                    $count = 0;
-                    $prop['property_values']['property_id'] = $prop['p_id'];
-                    $prop['property_values']['entity_id'] = $pageId;
-                    $prop['property_values']['entity_type'] = 'page';
-                    $prop['property_values']['value_id'] = SysClass::ee_generate_uuid();
-                    $prop['property_values']['set_id'] = $properties_data['set_id'];
-                    if (!isset($prop['default_values']) || !count($prop['default_values'])) {
-                        SysClass::pre('Критическая ошибка: default_values пусто или не установлено! ' . var_export($prop, true));
-                    }
-                    foreach ($prop['default_values'] as $propDefault) {
-                        $prop['property_values']['property_values'][$count] = ['type' => $propDefault['type'],
-                            'value' => isset($propDefault['default']) ? $propDefault['default'] : '',
-                            'label' => $propDefault['label'],
-                            'multiple' => $propDefault['multiple'],
-                            'required' => $propDefault['required'],
-                            'title' => isset($propDefault['title']) ? $propDefault['title'] : ''];
-                        $count++;
-                    }
-                }
-                unset($prop['default_values']);
-            }
-            usort($properties_data['properties'], function ($a, $b) {
-                return $a['sort'] <=> $b['sort'];
-            });
-            $getCategoriesTypeSetsData['page'][$setId] = $properties_data;
-        }
+        // $getCategoriesTypeSetsData = $this->processPageProperties($getCategoriesTypeSets, $pageId);
+        $getCategoriesTypeSetsData = $this->formattingEntityProperties($getCategoriesTypeSets, $pageId, 'page', $pageId);
         return $getCategoriesTypeSetsData;
     }    
     
@@ -183,8 +149,8 @@ trait PagesTrait {
                 $id = 0; 
             }
             $res = $this->models['m_pages']->deletePage($id);
-            if (isset($res['error'])) {
-                ClassNotifications::addNotificationUser($this->logged_in, ['text' => $res['error'], 'status' => 'danger']);                
+            if (is_object($res)) {
+                ClassNotifications::addNotificationUser($this->logged_in, ['text' => $res->result['error_message'], 'status' => 'danger']);                
             }
         }
         SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/pages');        
@@ -227,6 +193,11 @@ trait PagesTrait {
                     'title' => $this->lang['sys.type'],
                     'sorted' => 'ASC',
                     'filterable' => true
+                ], [
+                    'field' => 'parent_page_id',
+                    'title' => $this->lang['sys.parent'],
+                    'sorted' => false,
+                    'filterable' => false
                 ], [
                     'field' => 'status',
                     'title' => $this->lang['sys.status'],
@@ -314,6 +285,7 @@ trait PagesTrait {
                 'title' => $item['title'],
                 'category_id' => $item['category_title'] ? $item['category_title'] : 'Без категории',
                 'type_id' => $item['type_name'],
+                'parent_page_id' => $this->models['m_pages']->getPageTitleById($item['parent_page_id']) ?? $this->lang['sys.no'],
                 'status' => $statuses_text[$item['status']],
                 'created_at' => date('d.m.Y', strtotime($item['created_at'])),
                 'updated_at' => $item['updated_at'] ? date('d.m.Y', strtotime($item['updated_at'])) : '',

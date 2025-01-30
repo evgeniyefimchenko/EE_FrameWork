@@ -1117,11 +1117,14 @@ class SysClass {
 
     /**
      * Проверяет, является ли строка правильным JSON
-     * @param string $string Строка для проверки
-     * @return bool Возвращает true, если строка является правильным JSON
+     * @param mixed $input Данные для проверки
+     * @return bool Возвращает true, если входные данные являются правильным JSON
      */
-    public static function ee_isValidJson(mixed $string): bool {
-        $string = is_string($string) ? json_decode($string) : false;
+    public static function ee_isValidJson(mixed $input): bool {
+        if (!is_string($input)) {
+            return false;
+        }
+        json_decode($input);
         return json_last_error() === JSON_ERROR_NONE;
     }
 
@@ -1176,20 +1179,17 @@ class SysClass {
     }
 
     /**
-     * Создает резервную копию файлов в указанной директории в архиве ZIP.
-     *
-     * @param string $dir Директория для создания резервной копии.
-     * @param array $exclude_dirs Список директорий, которые нужно исключить из копии.
-     * @param string|null $password Пароль для шифрования архива (по умолчанию null).
-     * @return string Имя файла резервной копии.
+     * Создает резервную копию файлов в указанной директории в архиве ZIP
+     * @param string $dir Директория для создания резервной копии
+     * @param array $exclude_dirs Список директорий, которые нужно исключить из копии
+     * @param string|null $password Пароль для шифрования архива (по умолчанию null)
+     * @return string Имя файла резервной копии
      */
     public static function ee_backup_files($dir, $exclude_dirs = array(), $password = null) {
         // Создаем имя файла резервной копии
         $backup_file = "backup_" . date("Ymd") . ".zip";
-
         // Создаем новый объект класса ZipArchive
         $zip = new ZipArchive();
-
         // Открываем архив для записи и задаем пароль, если он задан
         if ($zip->open($backup_file, ZIPARCHIVE::CREATE | ZIPARCHIVE::OVERWRITE) !== TRUE) {
             die("Ошибка: Не удалось создать архив");
@@ -1197,7 +1197,6 @@ class SysClass {
         if ($password) {
             $zip->setPassword($password);
         }
-
         // Добавляем все файлы в директории к архиву
         $files = scandir($dir);
         foreach ($files as $file) {
@@ -1210,10 +1209,8 @@ class SysClass {
                 }
             }
         }
-
         // Закрываем архив
         $zip->close();
-
         // Возвращаем имя файла резервной копии
         return $backup_file;
     }
@@ -1669,9 +1666,10 @@ class SysClass {
      * Получает объект модели на основе переданных области и имени модели
      * @param string $area Название области, где находится модель
      * @param string $modelName Имя модели в формате "Модель_Название"
+     * @param array $params Параметры для модели
      * @return object|false Возвращает объект модели, если он существует, или false, если модель не найдена
      */
-    public static function getModelObject(string $area, string $modelName): object|false {
+    public static function getModelObject(string $area, string $modelName, array $params = []): object|false {
         $parts = explode('_', substr($modelName, 2));
         $className = 'Model' . implode('', array_map('ucfirst', $parts));
         $filePath = ENV_SITE_PATH . ENV_APP_DIRECTORY . ENV_DIRSEP . $area . ENV_DIRSEP . 'models' . ENV_DIRSEP . $className . '.php';
@@ -1679,19 +1677,46 @@ class SysClass {
             return false;
         }
         include_once($filePath);
-        if (class_exists($className)) {
-            return new $className();
+        if (class_exists($className)) {            
+            return new $className($params);
         }
         return false;
     }
 
     /**
-     * Файервол проекта :-)
+     * Сохраняет глобальную опцию
+     * @param string $key Ключ опции
+     * @param mixed $value Значение опции
+     * @return bool
      */
-    public static function guard() {
-        if (!isset($_SERVER['HTTP_USER_AGENT']) || empty($_SERVER['HTTP_USER_AGENT'])) {
-            http_response_code(400);
-            exit('Bad Request');
+    public static function setOption(string $key, $value): bool {
+        // Проверяем, существует ли опция
+        $existing = SafeMySQL::gi()->getOne("SELECT option_id FROM ?n WHERE option_key = ?s", Constants::GLOBAL_OPTIONS, $key);
+        if ($existing) {
+            SafeMySQL::gi()->query("UPDATE ?n SET option_value = ?s, updated_at = NOW() WHERE option_id = ?i", Constants::GLOBAL_OPTIONS, $value, $existing);
+        } else {
+            SafeMySQL::gi()->query("INSERT INTO ?n (option_key, option_value) VALUES (?s, ?s)", Constants::GLOBAL_OPTIONS, $key, $value);
         }
+        return true;
     }
+
+    /**
+     * Получает глобальную опцию
+     * @param string $key Ключ опции
+     * @return mixed
+     */
+    public static function getOption(string $key) {
+        return SafeMySQL::gi()->getOne("SELECT option_value FROM ?n WHERE option_key = ?s", Constants::GLOBAL_OPTIONS, $key);
+    }
+
+    /**
+     * Удаляет глобальную опцию
+     * @param string $key Ключ опции
+     * @return bool
+     */
+    public static function deleteOption(string $key): bool {
+        SafeMySQL::gi()->query("DELETE FROM ?n WHERE option_key = ?s", Constants::GLOBAL_OPTIONS, $key);
+        return true;
+    }    
+
 }

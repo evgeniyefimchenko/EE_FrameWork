@@ -51,17 +51,18 @@
         allow_dismiss: true,
         allow_duplicates: false,
         newest_on_top: false,
-        showProgressbar: true,
+        showProgressbar: false,
         placement: {
             from: "top",
             align: "right"
         },
         offset: 20,
         spacing: 10,
-        z_index: 1031,
+        z_index: 100000,
         delay: 5000,
         timer: 1000,
-        url_target: '_blank',
+        url: 'javascript:void(0);', // URL по умолчанию
+        url_target: '_blank',        
         mouse_over: null,
         animate: {
             enter: 'animate__animated animate__fadeInDown',
@@ -124,7 +125,7 @@
                 message: typeof content === 'object' ? content.message : content,
                 title: content.title ? content.title : '',
                 icon: content.icon ? content.icon : '',
-                url: content.url ? content.url : '#',
+                url: content.url ? content.url : 'javascript:void(0);',
                 target: content.target ? content.target : '-'
             }
         };
@@ -222,8 +223,20 @@
         },
         buildNotify: function() {
             var content = this.settings.content;
-            this.$ele = $(String.format(this.settings.template, this.settings.type, content.title, content.message, content.url, content.target));
-            this.$ele.attr('data-notify-position', this.settings.placement.from + '-' + this.settings.placement.align);
+            this.$ele = $(String.format(
+                this.settings.template,
+                this.settings.type,
+                content.title || '',
+                content.message || '',
+                content.url || 'javascript:void(0);',
+                content.target || '_blank'
+            ));
+
+            // Удалить ссылку, если URL не задан
+            if (!content.url || content.url === 'javascript:void(0);') {
+                this.$ele.find('[data-notify="url"]').remove();
+            }
+
             if (!this.settings.allow_dismiss) {
                 this.$ele.find('[data-notify="dismiss"]').css('display', 'none');
             }
@@ -275,7 +288,6 @@
                 },
                 hasAnimation = false,
                 settings = this.settings;
-
             $('[data-notify-position="' + this.settings.placement.from + '-' + this.settings.placement.align + '"]:not([data-closing="true"])').each(function() {
                 offsetAmt = Math.max(offsetAmt, parseInt($(this).css(settings.placement.from)) + parseInt($(this).outerHeight()) + parseInt(settings.spacing));
             });
@@ -283,7 +295,6 @@
                 offsetAmt = this.settings.offset.y;
             }
             css[this.settings.placement.from] = offsetAmt + 'px';
-
             switch (this.settings.placement.align) {
                 case "left":
                 case "right":
@@ -298,18 +309,14 @@
             $.each(Array('webkit-', 'moz-', 'o-', 'ms-', ''), function(index, prefix) {
                 self.$ele[0].style[prefix + 'AnimationIterationCount'] = 1;
             });
-
             $(this.settings.element).append(this.$ele);
-
             if (this.settings.newest_on_top === true) {
                 offsetAmt = (parseInt(offsetAmt) + parseInt(this.settings.spacing)) + this.$ele.outerHeight();
                 this.reposition(offsetAmt);
             }
-
             if ($.isFunction(self.settings.onShow)) {
                 self.settings.onShow.call(this.$ele);
             }
-
             this.$ele.one(this.animations.start, function() {
                 hasAnimation = true;
             }).one(this.animations.end, function() {
@@ -318,7 +325,6 @@
                     self.settings.onShown.call(this);
                 }
             });
-
             setTimeout(function() {
                 if (!hasAnimation) {
                     if ($.isFunction(self.settings.onShown)) {
@@ -329,19 +335,21 @@
         },
         bind: function() {
             var self = this;
-
             this.$ele.find('[data-notify="dismiss"]').on('click', function() {
                 self.close();
             });
-
-            if ($.isFunction(self.settings.onClick)) {
+            this.$ele.find('[data-notify="url"]').on('click', function(e) {
+                if ($(this).attr('href') === 'javascript:void(0);') {
+                    e.preventDefault(); // Предотвратить открытие пустой вкладки
+                }
+            });
+            if ($.isFunction(this.settings.onClick)) {
                 this.$ele.on('click', function(event) {
                     if (event.target != self.$ele.find('[data-notify="dismiss"]')[0]) {
                         self.settings.onClick.call(this, event);
                     }
                 });
             }
-
             this.$ele.mouseover(function() {
                 $(this).data('data-hover', "true");
             }).mouseout(function() {

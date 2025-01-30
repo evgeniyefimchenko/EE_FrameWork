@@ -466,7 +466,7 @@ class Users {
                         last_activ datetime DEFAULT NULL COMMENT 'дата крайней активности',
                         updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'дата обновления инф.',
                         phone varchar(255) NULL,
-                        session varchar(255) NULL,
+                        session varchar(512) NULL,
                         comment varchar(255) NOT NULL COMMENT 'Комментарий или дивиз пользователя',
                         deleted BOOLEAN NOT NULL DEFAULT 0 COMMENT 'Флаг удаленного пользователя',
                         PRIMARY KEY (user_id),
@@ -538,7 +538,7 @@ class Users {
                         type_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                         parent_type_id INT UNSIGNED NULL,
                         name VARCHAR(255) NOT NULL UNIQUE,
-                        description VARCHAR(255),
+                        description VARCHAR(1000),
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                         language_code CHAR(2) NOT NULL DEFAULT 'RU' COMMENT 'Код языка по ISO 3166-2',
@@ -552,7 +552,7 @@ class Users {
                         type_id INT UNSIGNED NOT NULL,
                         title VARCHAR(255) NOT NULL,
                         description mediumtext,
-                        short_description VARCHAR(255),
+                        short_description VARCHAR(1000),
                         parent_id INT UNSIGNED,
                         status ENUM('active', 'hidden', 'disabled') NOT NULL DEFAULT 'active',
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -575,7 +575,7 @@ class Users {
                         status ENUM('active', 'hidden', 'disabled') NOT NULL DEFAULT 'active',
 			title VARCHAR(255) NOT NULL,
 			short_description VARCHAR(255),
-			description mediumtext,
+			description LONGTEXT,
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                         language_code CHAR(2) NOT NULL DEFAULT 'RU' COMMENT 'Код языка по ISO 3166-2',
@@ -589,7 +589,7 @@ class Users {
 			name VARCHAR(255) NOT NULL,
 			status ENUM('active', 'hidden', 'disabled') NOT NULL DEFAULT 'active',
                         fields JSON NOT NULL,
-			description VARCHAR(255),
+			description VARCHAR(1000),
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                         language_code CHAR(2) NOT NULL DEFAULT 'RU' COMMENT 'Код языка по ISO 3166-2'
@@ -605,7 +605,8 @@ class Users {
                         default_values JSON NOT NULL,
 			is_multiple BOOLEAN NOT NULL,
 			is_required BOOLEAN NOT NULL,
-			description VARCHAR(255),
+			description VARCHAR(1000),
+                        entity_type ENUM('category', 'page', 'all') NOT NULL DEFAULT 'all',
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                         language_code CHAR(2) NOT NULL DEFAULT 'RU' COMMENT 'Код языка по ISO 3166-2',
@@ -682,7 +683,7 @@ class Users {
                                     file_url VARCHAR(255) NULL,
                                     mime_type VARCHAR(50) NOT NULL,
                                     size BIGINT UNSIGNED NOT NULL,
-                                    image_size ENUM('L', 'M', 'H') DEFAULT NULL,
+                                    image_size ENUM('small', 'medium', 'large') DEFAULT NULL,
                                     uploaded_at DATETIME NOT NULL,
                                     updated_at DATETIME DEFAULT NULL,
                                     user_id INT UNSIGNED NULL,
@@ -690,6 +691,16 @@ class Users {
                                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8
                                  COMMENT='Таблица для сохранения информации о файлах';";
             SafeMySQL::gi()->query($createFilesTable, Constants::FILES_TABLE, Constants::USERS_TABLE);
+            // Создание таблицы для глобальных опций
+            $createGlobalOptionsTable = "CREATE TABLE IF NOT EXISTS ?n (
+                                            option_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY COMMENT 'Уникальный идентификатор опции',
+                                            option_key VARCHAR(255) NOT NULL COMMENT 'Уникальный ключ опции',
+                                            option_value TEXT NOT NULL COMMENT 'Значение опции (в виде текста, без преобразования)',
+                                            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Дата создания записи',
+                                            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Дата обновления записи',
+                                            UNIQUE KEY (option_key) COMMENT 'Уникальность ключа опции'
+                                        ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения глобальных опций';";
+            SafeMySQL::gi()->query($createGlobalOptionsTable, Constants::GLOBAL_OPTIONS);            
             // Запись предварительных данных в БД  
             // Добавление основных типов категорий
             $types = [
@@ -707,18 +718,290 @@ class Users {
                 );
             }
             // Добавление основных типов свойств
-            $property_types = [
+            $propertyTypes = [
                 ['name' => 'Строка', 'description' => 'Тип свойства для хранения строковых данных', 'status' => 'active', 'fields' => '["text"]'],
                 ['name' => 'Число', 'description' => 'Тип свойства для хранения числовых данных', 'status' => 'active', 'fields' => '["number"]'],
                 ['name' => 'Дата', 'description' => 'Тип свойства для хранения дат', 'status' => 'active', 'fields' => '["date"]'],
                 ['name' => 'Интервал дат', 'description' => 'Тип свойства для хранения интервалов дат', 'status' => 'active', 'fields' => '["date", "date"]'],
                 ['name' => 'Картинка', 'description' => 'Тип свойства для хранения изображений', 'status' => 'active', 'fields' => '["image"]'],
-                ['name' => 'Сложный тип', 'description' => 'Многосоставной тип данных', 'status' => 'active', 'fields' => '["image", "datetime-local", "hidden", "phone"]'],
+                ['name' => 'SEO-параметры', 'description' => '
+                    meta_title (string): заголовок, отображающийся в title
+                    slug (text): ЧПУ/короткий URL
+                    meta_description (text): мета-описание
+                    meta_keywords (text): ключевые слова (менее актуально, но может пригодиться)
+                    canonical_url (text): канонический URL
+                    robots_meta (select): директивы для роботов (index, noindex, follow, nofollow и т.д.)
+                    open_graph_title (text): заголовок для соцсетей (если не заполнено, используется meta_title)
+                    open_graph_description (text): описание для соцсетей (если не заполнено, используется meta_description)
+                    open_graph_image (image): изображение для соцсетей (Open Graph)
+                    Комментарий: Поля open_graph_* дают гибкость в оформлении публикации в соцсетях. Обычно нужны «для всех» — чтобы и категориям, и страницам при желании настраивать SEO.',
+                    'status' => 'active', 'fields' => '["text", "text", "text", "text", "text", "select", "text", "text", "image"]'],
+                ['name' => 'Основные свойства страницы', 'description' => '
+                    author (text): автор материала
+                    visibility (select): публичная, приватная, черновик и т.д.
+                    page_status (select): опубликована, черновик, на проверке и т.д.
+                    Комментарий: Обычно эти поля нужны только для страниц, но в некоторых случаях (например, content или last_updated) могут использоваться и в категориях.',
+                    'status' => 'active', 'fields' => '["text", "select", "select"]'],
+                ['name' => 'Социальные элементы', 'description' => '
+                    allow_comments (Разрешить комментарии: да/нет)
+                    allow_sharing (Разрешить поделиться в соцсетях: да/нет)
+                    comment_count (Количество комментариев)
+                    like_count (Количество лайков)',
+                    'status' => 'active', 'fields' => '["checkbox", "checkbox", "number", "number"]'],
+                ['name' => 'Параметры для карточек товаров', 'description' => '
+                    price (Цена товара)
+                    list_price(Рекомендованная цена)
+                    discount (Скидка)
+                    stock_status (Наличие на складе)
+                    sku (Артикул)
+                    brand (Бренд товара)
+                    rating (Рейтинг товара)
+                    review_count (Количество отзывов)',
+                    'status' => 'active', 'fields' => '["text", "text", "number", "text", "text", "number", "number"]'],
+                ['name' => 'Мультимедийные элементы', 'description' => '
+                    featured_image (Изображение страницы)
+                    gallery (Галерея изображений)
+                    video_url (URL видео)
+                    file_attachments (Вложения файлов)',
+                    'status' => 'active', 'fields' => '["image", "image", "text", "file"]'],
+                ['name' => 'Структурные свойства', 'description' => '
+                    parent_category (Родительская категория)
+                    related_pages (Связанные страницы)
+                    breadcrumb_navigation (Навигация по хлебным крошкам)',
+                    'status' => 'active', 'fields' => '["text", "text", "text"]'],
+                ['name' => 'Дополнительные параметры', 'description' => '
+                    custom_css (Пользовательский CSS)
+                    custom_js (Пользовательский JavaScript)
+                    redirect_url (URL для редиректа)',
+                    'status' => 'active', 'fields' => '["text", "text", "text"]'],
             ];
-            if ($objectProperties = SysClass::getModelObject('admin', 'm_properties')) {
-                foreach ($property_types as $type) {
-                    $objectProperties->updatePropertyTypeData($type);
+            // Очистка description
+            foreach ($propertyTypes as &$type) {
+                if (isset($type['description'])) {
+                    // Удаляем лишние пробелы и TAB, оставляя переносы строк
+                    $type['description'] = preg_replace('/[ \t]+/', ' ', $type['description']); // Заменяем группы пробелов и TAB на один пробел
+                    $type['description'] = preg_replace('/\s*\n\s*/', "\n", $type['description']); // Убираем пробелы и TAB вокруг переноса строк
                 }
+            }            
+            // Создание дефолтных свойств
+            if ($objectModelProperties = SysClass::getModelObject('admin', 'm_properties')) {
+                foreach ($propertyTypes as &$type) {
+                    $propertyData = [];
+                    $type['type_id'] = $objectModelProperties->updatePropertyTypeData($type);
+                    $propertyData['type_id'] = $type['type_id'];
+                    $propertyData['name'] = $type['name'];                
+                    $propertyData['entity_type'] = 'all';
+                    $propertyData['default_values'] = [];
+                    $propertyData['description'] = $type['description'];
+                    $propParams = [];
+                    switch ($type['name']) {
+                        case 'SEO-параметры' :
+                            $propParams = ['Заголовок, отображающийся в title' => 'text', 'ЧПУ/короткий URL' => 'text', 'Мета-описание' => 'text', 'Ключевые слова' => 'text',
+                                'Канонический URL' => 'text', 'Директивы для роботов' => ['select', '{|}index=index{|}noindex=noindex{|}follow=follow{|}nofollow=nofollow'], 
+                                'Заголовок для соцсетей' => 'text', 'Описание для соцсетей' => 'text',
+                                'Изображение для соцсетей' => 'image'];
+                        break;
+                        case 'Основные свойства страницы':
+                            $propertyData['entity_type'] = 'page';
+                            $propParams = ['Автор материала' => 'text', 'Видимость' => 'select', 'Публичный статус' => 'select'];
+                        break;
+                        case 'Социальные элементы': 
+                            $propParams = ['Разрешить комментарии' => 'checkbox', 'Разрешить поделиться в соцсетях' => 'checkbox', 'Количество комментариев' => 'number',
+                                'Количество лайков' => 'number'];
+                        break;
+                        case 'Параметры для карточек товаров':
+                            $propertyData['entity_type'] = 'page';
+                            $propParams = ['Цена товара' => 'text', 'Скидка' => 'text', 'Наличие на складе' => 'number',
+                                'Артикул' => 'text', 'Бренд товара' => 'text', 'Рейтинг товара' => 'number', 'Количество отзывов' => 'number'];
+                        break;
+                        case 'Мультимедийные элементы': 
+                            $propParams = ['Изображение страницы' => 'image', 'Галерея изображений' => 'image', 'URL видео' => 'text',
+                                'Вложения файлов' => 'file'];
+                        break;
+                        case 'Структурные свойства':
+                            $propertyData['entity_type'] = 'category';
+                            $propParams = ['Родительская категория' => 'text', 'Связанные страницы' => 'text', 'Навигация по хлебным крошкам' => 'text'];
+                        break;
+                        case 'Дополнительные параметры': 
+                            $propParams = ['Пользовательский CSS' => 'text', 'Пользовательский JavaScript' => 'text', 'URL для редиректа' => 'text'];
+                        break;
+                        default: break;
+                    }
+                    $count = 0;
+                    foreach ($propParams as $itemLabel => $fieldType) {
+                        if (is_array($fieldType)) { // Пока только для select
+                            $propertyData['default_values'][] = ['type' => $fieldType[0], 'label' => $itemLabel, 'default' => $fieldType[1], 'multiple' => 0,
+                                'required' => 0];
+                        } else {
+                            if ($fieldType == 'checkbox' || $fieldType == 'radio') {
+                                $propertyData['default_values'][] = ['title' => $itemLabel, 'count' => 1, 'type' => $fieldType, 'label' => [$itemLabel], 'default' => '', 'multiple' => 0,
+                                    'required' => 0];
+                            } else {
+                                $propertyData['default_values'][] = ['type' => $fieldType, 'label' => $itemLabel, 'default' => '', 'multiple' => 0,
+                                    'required' => 0];
+                            }
+                        }
+                    }
+                    if (count($propertyData['default_values'])) { // Создаём свойство только с default_values
+                        $objectModelProperties->updatePropertyData($propertyData);
+                    }
+                }
+                
+                // TODO только для теста!
+                if (1 == 2) {
+                    $objectModelCategoriesTypes = SysClass::getModelObject('admin', 'm_categories_types');
+                    $objectModelCategories = SysClass::getModelObject('admin', 'm_categories', ['m_categories_types' => $objectModelCategoriesTypes]);
+                    $objectModelProperties = SysClass::getModelObject('admin', 'm_properties');
+                    $objectModelPages= SysClass::getModelObject('admin', 'm_pages');
+                    // Наборы свойств
+                    $setsData[] = [
+                        'set_id' => '0',
+                        'name' => 'Курорты',
+                        'description' => 'Для категории курорты'
+                    ];
+                    $setsData[] = [
+                        'set_id' => '0',
+                        'name' => 'Объекты',
+                        'description' => 'Для страниц объектов'
+                    ];
+                    $setsData[] = [
+                        'set_id' => '0',
+                        'name' => 'Социалочка',
+                        'description' => 'Для дополнения'
+                    ];
+                    foreach ($setsData as $setData) {
+                        $objectModelProperties->updatePropertySetData($setData);
+                    }
+                    // Добавим наборам свойства
+                    $objectModelProperties->addPropertiesToSet(1, [1, 5, 6]); // Для курортов
+                    $objectModelProperties->addPropertiesToSet(2, [1, 2, 4, 7]); // Для объектов
+                    $objectModelProperties->addPropertiesToSet(3, [3]); // До кучи
+                    // Типы категорий
+                    $categoriesTypeData[] = ['typeData' => [
+                        'type_id' => '0',
+                        'name' => 'Для курортов',
+                        'parent_type_id' => NULL,
+                        'description' => ''
+                    ], 'catSetData' => [1, 3]];
+                    $categoriesTypeData[] = ['typeData' => [
+                        'type_id' => '0',
+                        'name' => 'Для объектов',
+                        'parent_type_id' => NULL,
+                        'description' => ''
+                    ], 'catSetData' => [2]];
+                    foreach ($categoriesTypeData as $catTypeData) {
+                        $type_id = $objectModelCategoriesTypes->updateCategoriesTypeData($catTypeData['typeData']);
+                        $objectModelCategoriesTypes->updateCategoriesTypeSetsData($type_id, $catTypeData['catSetData']);
+                    }                
+                    // Категории
+                    $categoriesData[] = [
+                        'category_id' => 0,
+                        'title' => 'Курорты',
+                        'type_id' => 5,
+                        'parent_id' => 0,
+                        'status' => 'active',
+                        'short_description' => 'Главная',
+                        'description' => 'Главная',
+                    ];
+                    $categoriesData[] = [
+                        'category_id' => 0,
+                        'title' => 'Курорты Азовского моря в России',
+                        'type_id' => 5,
+                        'parent_id' => 1,
+                        'status' => 'active',
+                        'short_description' => '-Дочерняя',
+                        'description' => '-Дочерняя',
+                    ];
+                    $categoriesData[] = [
+                        'category_id' => 0,
+                        'title' => 'Голубицкая',
+                        'type_id' => 5,
+                        'parent_id' => 2,
+                        'status' => 'active',
+                        'short_description' => '--Дочерняя',
+                        'description' => '--Дочерняя',
+                    ];
+                    $categoriesData[] = [
+                        'category_id' => 0,
+                        'title' => 'Должанская',
+                        'type_id' => 5,
+                        'parent_id' => 2,
+                        'status' => 'active',
+                        'short_description' => '--Дочерняя',
+                        'description' => '--Дочерняя',
+                    ];
+                    $categoriesData[] = [
+                        'category_id' => 0,
+                        'title' => 'Курорты Черного моря в Абхазии',
+                        'type_id' => 5,
+                        'parent_id' => 1,
+                        'status' => 'active',
+                        'short_description' => '-Дочерняя',
+                        'description' => '-Дочерняя',
+                    ];
+                    $categoriesData[] = [
+                        'category_id' => 0,
+                        'title' => 'Сухум',
+                        'type_id' => 5,
+                        'parent_id' => 5,
+                        'status' => 'active',
+                        'short_description' => '--Дочерняя',
+                        'description' => '--Дочерняя',
+                    ];
+                    foreach ($categoriesData as $catData) {
+                        $objectModelCategories->updateCategoryData($catData);
+                    }
+                    // Нужно создать страницы !!!
+                    $pages[] = [
+                        'page_id' => 0,
+                        'title' => 'Гостиница «Морской компотик»',
+                        'category_id' => 3,
+                        'parent_page_id' => 0,
+                        'status' => 'active',
+                        'short_description' => 'Голубицкая, ул. Курортная, 69',
+                        'description' => '',                    
+                    ];
+                    $pages[] = [
+                        'page_id' => 0,
+                        'title' => 'Гостевой дом у моря',
+                        'category_id' => 3,
+                        'parent_page_id' => 0,
+                        'status' => 'active',
+                        'short_description' => 'Десантников освободителей 20',
+                        'description' => '',                    
+                    ];
+                    $pages[] = [
+                        'page_id' => 0,
+                        'title' => 'Гостиничный комплекс «МЫС»',
+                        'category_id' => 4,
+                        'parent_page_id' => 0,
+                        'status' => 'active',
+                        'short_description' => 'Должанская, Знаменский переулок, 16а',
+                        'description' => '',                    
+                    ];
+                    $pages[] = [
+                        'page_id' => 0,
+                        'title' => 'Студия в центре Сухум на Чачба',
+                        'category_id' => 6,
+                        'parent_page_id' => 0,
+                        'status' => 'active',
+                        'short_description' => 'Абхазия, Сухум, Чачба',
+                        'description' => '',                    
+                    ];
+                    $pages[] = [
+                        'page_id' => 0,
+                        'title' => 'Hotel in Sukhum',
+                        'category_id' => 6,
+                        'parent_page_id' => 0,
+                        'status' => 'active',
+                        'short_description' => 'Сухум, ул. Званба, 21',
+                        'description' => '',                    
+                    ];
+                    foreach ($pages as $page) {
+                        $objectModelPages->updatePageData($page);
+                    }
+                }
+                // Конец теста TODO не записывает значения свойств
             }
             SafeMySQL::gi()->query("COMMIT");
         } catch (Exception $e) {

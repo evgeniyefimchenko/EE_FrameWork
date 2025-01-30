@@ -3,59 +3,58 @@
 use classes\plugins\SafeMySQL;
 use classes\system\Constants;
 use classes\system\SysClass;
-use classes\system\ModelBase;
 use classes\system\Hook;
 
 /**
  * Модель работы с типами категорий
  */
-class ModelCategoriesTypes Extends ModelBase {
+class ModelCategoriesTypes {
 
     /**
-     * Получает все типы категорий, с учетом определенных параметров фильтрации и структуры.
+     * Получает все типы категорий, с учетом определенных параметров фильтрации и структуры
      * Позволяет выборочно включить или исключить определенные типы и их потомков из результата,
-     * а также опционально возвращать данные в иерархической структуре.
-     * @param int|null $exclude_typeID ID типа, который нужно исключить вместе с его потомками.
-     *                                Если не null, исключает указанный тип и всех его потомков из результата.
-     * @param bool $flat_array Если true, возвращает плоский массив типов; если false, возвращает иерархический массив.
-     *                         Плоский массив содержит типы на одном уровне, иерархический - организован как дерево.
-     * @param int|null $include_typeID ID типа, начиная с которого и его потомков нужно включить в результат.
-     *                                Если не null, результат будет ограничен указанным типом и его потомками.
-     * @param string $languageCode Код языка по стандарту ISO. Используется для выборки типов определенного языка.
-     *                              По умолчанию используется значение из константы ENV_DEF_LANG.
-     * @return array Массив типов, организованный в соответствии с указанными параметрами.
-     *               Может быть как плоским списком, так и иерархически структурированным деревом.
+     * а также опционально возвращать данные в иерархической структуре
+     * @param int|null $excludeTypeID ID типа, который нужно исключить вместе с его потомками
+     *                                Если не null, исключает указанный тип и всех его потомков из результата
+     * @param bool $flatArray Если true, возвращает плоский массив типов; если false, возвращает иерархический массив
+     *                         Плоский массив содержит типы на одном уровне, иерархический - организован как дерево
+     * @param int|null $includeTypeID ID типа, начиная с которого и его потомков нужно включить в результат
+     *                                Если не null, результат будет ограничен указанным типом и его потомками
+     * @param string $languageCode Код языка по стандарту ISO. Используется для выборки типов определенного языка
+     *                              По умолчанию используется значение из константы ENV_DEF_LANG
+     * @return array Массив типов, организованный в соответствии с указанными параметрами
+     *               Может быть как плоским списком, так и иерархически структурированным деревом
      */
-    public function getAllTypes(int $exclude_typeID = null, bool $flat_array = true, int $include_typeID = null, string $languageCode = ENV_DEF_LANG) {
+    public function getAllTypes(int $excludeTypeID = null, bool $flatArray = true, int $includeTypeID = null, string $languageCode = ENV_DEF_LANG) {
         $sql = "SELECT type_id, parent_type_id, name FROM ?n WHERE language_code = ?s";
         $types = SafeMySQL::gi()->getAll($sql, Constants::CATEGORIES_TYPES_TABLE, $languageCode);
-        if ($include_typeID !== null) {
-            // Выводим иерархию начиная с $include_typeID типа
-            $types = $this->includeTypeAndDescendants($types, $include_typeID);
-            return $flat_array ? $types : $this->buildHierarchyType($types, $include_typeID);
-        } elseif ($exclude_typeID > 0) {
+        if ($includeTypeID !== null) {
+            // Выводим иерархию начиная с $includeTypeID типа
+            $types = $this->includeTypeAndDescendants($types, $includeTypeID);
+            return $flatArray ? $types : $this->buildHierarchyType($types, $includeTypeID);
+        } elseif ($excludeTypeID > 0) {
             // Исключаем указанный тип и его потомков
-            $types = $this->excludeTypeAndDescendants($types, $exclude_typeID);
-        }
-        return $flat_array ? $types : $this->buildHierarchyType($types);
+            $types = $this->excludeTypeAndDescendants($types, $excludeTypeID);
+        }        
+        return $flatArray ? $types : $this->buildHierarchyType($types);
     }
 
     /**
-     * Возвращает подмножество типов, включая указанный тип и всех его потомков.
+     * Возвращает подмножество типов, включая указанный тип и всех его потомков
      * Эта функция используется для создания массива типов, который включает в себя конкретный тип
      * и всех его потомков в иерархической структуре.
-     * Это может быть полезно, например, при отображении поддерева типов, начиная с определенного узла.
-     * @param array $types Исходный массив всех типов, каждый элемент которого содержит ключи 'type_id', 'parent_type_id', и 'name'.
+     * Это может быть полезно, например, при отображении поддерева типов, начиная с определенного узла
+     * @param array $types Исходный массив всех типов, каждый элемент которого содержит ключи 'type_id', 'parent_type_id', и 'name'
      *                     'type_id' - уникальный идентификатор типа,
-     *                     'parent_type_id' - ID родительского типа (если таковой имеется).
-     * @param int $include_typeID ID типа, который нужно включить вместе с его потомками.
-     *                            В результат включаются все типы, соответствующие этому ID и его потомки.
-     * @return array Отфильтрованный массив, включающий указанный тип и всех его потомков.
-     *               Массив сохраняет свою исходную структуру, но ограничивается только включенными элементами.
+     *                     'parent_type_id' - ID родительского типа (если таковой имеется)
+     * @param int $includeTypeID ID типа, который нужно включить вместе с его потомками
+     *                            В результат включаются все типы, соответствующие этому ID и его потомки
+     * @return array Отфильтрованный массив, включающий указанный тип и всех его потомков
+     *               Массив сохраняет свою исходную структуру, но ограничивается только включенными элементами
      */
-    private function includeTypeAndDescendants($types, $include_typeID) {
-        $included_ids = $this->getDescendantTypeIds($types, $include_typeID);
-        $included_ids[] = $include_typeID; // Включаем сам тип
+    private function includeTypeAndDescendants($types, $includeTypeID) {
+        $included_ids = $this->getDescendantTypeIds($types, $includeTypeID);
+        $included_ids[] = $includeTypeID; // Включаем сам тип
 
         return array_filter($types, function ($type) use ($included_ids) {
             return in_array($type['type_id'], $included_ids);
@@ -69,31 +68,31 @@ class ModelCategoriesTypes Extends ModelBase {
      * @param array $types Исходный массив всех типов, каждый элемент которого содержит ключи 'type_id', 'parent_type_id', и 'name'.
      *                     'type_id' - уникальный идентификатор типа,
      *                     'parent_type_id' - ID родительского типа (если таковой имеется).
-     * @param int $exclude_typeID ID типа, который нужно исключить вместе с его потомками.
+     * @param int $excludeTypeID ID типа, который нужно исключить вместе с его потомками.
      *                            Все типы, соответствующие этому ID и его потомки, будут удалены из результата.
      * @return array Отфильтрованный массив, исключающий указанный тип и всех его потомков.
      *               Массив сохраняет свою исходную структуру, за исключением удаленных элементов.
      */
-    private function excludeTypeAndDescendants($types, $exclude_typeID) {
-        $excluded_ids = $this->getDescendantTypeIds($types, $exclude_typeID);
-        $excluded_ids[] = $exclude_typeID; // Исключаем также и сам тип
+    private function excludeTypeAndDescendants($types, $excludeTypeID) {
+        $excluded_ids = $this->getDescendantTypeIds($types, $excludeTypeID);
+        $excluded_ids[] = $excludeTypeID; // Исключаем также и сам тип
         return array_filter($types, function ($type) use ($excluded_ids) {
             return !in_array($type['type_id'], $excluded_ids);
         });
     }
 
     /**
-     * Рекурсивно собирает ID всех потомков указанного типа.
+     * Рекурсивно собирает ID всех потомков указанного типа
      * Используется внутри других функций для определения потомков заданного типа,
-     * включая не только прямых потомков, но и все последующие уровни вложенности.
-     * @param array $types Массив типов, каждый элемент которого содержит ключи 'type_id' и 'parent_type_id'.
+     * включая не только прямых потомков, но и все последующие уровни вложенности
+     * @param array $types Массив типов, каждый элемент которого содержит ключи 'type_id' и 'parent_type_id'
      *                     'type_id' - уникальный идентификатор типа,
-     *                     'parent_type_id' - ID родительского типа (если таковой имеется).
-     * @param int $parent_type_id ID родительского типа, для которого необходимо найти всех потомков.
-     * @param array &$descendants Массив для сбора ID всех потомков. 
-     *                            Используется для рекурсивного сбора данных и аккумулирования результатов поиска.
-     *                            Изначально передается пустым и наполняется в процессе выполнения функции.
-     * @return array Массив, содержащий ID всех потомков указанного типа, включая все уровни вложенности.
+     *                     'parent_type_id' - ID родительского типа (если таковой имеется)
+     * @param int $parent_type_id ID родительского типа, для которого необходимо найти всех потомков
+     * @param array &$descendants Массив для сбора ID всех потомков
+     *                            Используется для рекурсивного сбора данных и аккумулирования результатов поиска
+     *                            Изначально передается пустым и наполняется в процессе выполнения функции
+     * @return array Массив, содержащий ID всех потомков указанного типа, включая все уровни вложенности
      */
     private function getDescendantTypeIds($types, $parent_type_id, &$descendants = []) {
         foreach ($types as $type) {
@@ -106,34 +105,31 @@ class ModelCategoriesTypes Extends ModelBase {
     }
 
     /**
-     * Строит иерархическую структуру типов из переданного массива.
-     * Преобразует плоский массив типов в многоуровневую иерархическую структуру.
-     * Каждый тип может иметь дочерние типы, которые представлены в виде вложенного массива 'children'.
-     * @param array $types Массив типов, каждый элемент которого содержит ключи 'type_id', 'parent_type_id', и 'name'.
+     * Строит иерархическую структуру типов из переданного массива
+     * Преобразует плоский массив типов в многоуровневую иерархическую структуру
+     * Каждый тип может иметь дочерние типы, которые представлены в виде вложенного массива 'children'
+     * @param array $types Массив типов, каждый элемент которого содержит ключи 'type_id', 'parent_type_id', и 'name'
      *                     'type_id' является уникальным идентификатором типа,
      *                     'parent_type_id' указывает на родительский тип (если есть),
-     *                     'name' - название типа.
-     * @param int|null $rootId ID корневого типа, начиная с которого строится дерево. Если null, строится полное дерево.
-     *                         Этот параметр позволяет сформировать дерево, начиная с указанного типа и включая всех его потомков.
-     * @return array Возвращает иерархически организованный массив типов. 
-     *               Если задан $rootId, возвращает дерево, начинающееся с указанного корневого типа и его потомков.
-     *               В противном случае, возвращает полное дерево со всеми типами.
+     *                     'name' - название типа
+     * @param int|null $rootId ID корневого типа, начиная с которого строится дерево. Если null, строится полное дерево
+     *                         Этот параметр позволяет сформировать дерево, начиная с указанного типа и включая всех его потомков
+     * @return array Возвращает иерархически организованный массив типов
+     *               Если задан $rootId, возвращает дерево, начинающееся с указанного корневого типа и его потомков
+     *               В противном случае, возвращает полное дерево со всеми типами
      */
     private function buildHierarchyType($types, $rootId = null) {
         if (empty($types)) {
             return [];
         }
-
         $children = [];
         $rootElement = null;
-
         foreach ($types as $type) {
             if ($rootId !== null && $type['type_id'] == $rootId) {
                 $rootElement = $type;
             }
             $children[$type['parent_type_id']][] = $type;
         }
-
         $buildTree = function ($parentId) use ($children, &$buildTree) {
             $branch = [];
             if (isset($children[$parentId])) {
@@ -144,13 +140,11 @@ class ModelCategoriesTypes Extends ModelBase {
             }
             return $branch;
         };
-
         // Если rootId задан, возвращаем дерево, начинающееся с rootId
         if ($rootId !== null && $rootElement !== null) {
             $rootElement['children'] = $buildTree($rootId);
             return [$rootElement];
         }
-
         // В противном случае, возвращаем полное дерево
         return $buildTree(null);
     }
@@ -213,13 +207,13 @@ class ModelCategoriesTypes Extends ModelBase {
         $orderString = $order ?: 'type_id ASC';
         $whereString = $where ? $where . " AND language_code = '$languageCode'" : "WHERE language_code = '$languageCode'";
         $start = $start ?: 0;
-        $sql_types = "SELECT `type_id` FROM ?n $whereString ORDER BY $orderString LIMIT ?i, ?i";
+        $sql_types = "SELECT type_id FROM ?n $whereString ORDER BY $orderString LIMIT ?i, ?i";
         $res_array = SafeMySQL::gi()->getAll($sql_types, Constants::CATEGORIES_TYPES_TABLE, $start, $limit);
         $res = [];
         foreach ($res_array as $type) {
             $res[] = $this->getCategoriesTypeData($type['type_id'], $languageCode);
         }
-        $sql_count = "SELECT COUNT(DISTINCT `type_id`) as total_count FROM ?n $whereString";
+        $sql_count = "SELECT COUNT(DISTINCT type_id) as total_count FROM ?n $whereString";
         $total_count = SafeMySQL::gi()->getOne($sql_count, Constants::CATEGORIES_TYPES_TABLE);
         return [
             'data' => $res,
@@ -228,16 +222,16 @@ class ModelCategoriesTypes Extends ModelBase {
     }
 
     /**
-     * Получает данные конкретного типа по его ID и языку.
-     * @param int $type_id ID типа, данные которого необходимо получить.
-     * @param string $languageCode Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG.
-     * @return array|null Ассоциативный массив с данными типа или null, если тип не найден.
+     * Получает данные конкретного типа по его ID и языку
+     * @param int $type_id ID типа, данные которого необходимо получить
+     * @param string $languageCode Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG
+     * @return array|null Ассоциативный массив с данными типа или null, если тип не найден
      */
     public function getCategoriesTypeData($type_id, $languageCode = ENV_DEF_LANG) {
         if (!$type_id) {
             return null;
         }
-        $sql = "SELECT * FROM ?n WHERE `type_id` = ?i AND language_code = ?s";
+        $sql = "SELECT * FROM ?n WHERE type_id = ?i AND language_code = ?s";
         $typeData = SafeMySQL::gi()->getRow($sql, Constants::CATEGORIES_TYPES_TABLE, $type_id, $languageCode);
         return $typeData;
     }
@@ -264,7 +258,7 @@ class ModelCategoriesTypes Extends ModelBase {
         if (!empty($typeData['type_id']) && $typeData['type_id'] != 0) {
             $type_id = $typeData['type_id'];
             unset($typeData['type_id']); // Удаляем type_id из массива данных, чтобы избежать его обновление
-            $sql = "UPDATE ?n SET ?u WHERE `type_id` = ?i";
+            $sql = "UPDATE ?n SET ?u WHERE type_id = ?i";
             $result = SafeMySQL::gi()->query($sql, Constants::CATEGORIES_TYPES_TABLE, $typeData, $type_id);
             return $result ? $type_id : false;
         }
@@ -351,7 +345,7 @@ class ModelCategoriesTypes Extends ModelBase {
                 SafeMySQL::gi()->query($sql, Constants::CATEGORY_TYPE_TO_PROPERTY_SET_TABLE, $data);
             }
         }
-        Hook::run('A_updateCategoriesTypeSetsData', $type_id, $set_ids, $allTypeChildrenIds);
+        Hook::run('postUpdateCategoriesTypeSetsData', $type_id, $set_ids, $allTypeChildrenIds);
     }
 
     /**

@@ -72,7 +72,6 @@
         this.each(function () {
             var $input = $(this);
             var property_name = $input.attr('name').match(/\[([^[\]]*)\]/)[1];
-            var $form = $input.closest('form');
             var fileObjectList = [];
             var layout = $input.closest('.card').data('layout') || 'vertical';
             var isMultiple = $input.prop('multiple');
@@ -99,7 +98,8 @@
              */
             function createFileContainer(fileName, fileExtension, fileSrc, fileObject) {                
                 var fileContainer = $('<div class="fileItem"></div>').attr('data-unique-id', fileObject.uniqueID);
-                var fileNameDiv = $('<div class="fileName mb-2"></div>').text(fileName);                
+                var fileNameDiv = $('<div class="fileName mb-2"></div>').text(fileName);
+                $('[name^="ee_check_file"]').val('1');
                 fileContainer.append(fileNameDiv);
                 var data = {
                     unique_id: fileObject.uniqueID,
@@ -133,6 +133,12 @@
                     var iconMarkup = getFileIcon(fileExtension);
                     var iconContainer = $('<div class="mt-2 w-100 text-center"></div>').html(iconMarkup);
                     fileContainer.append(iconContainer);
+                }
+                if ($preloadedFilesData.length && !isMultiple) { // Есть предзагруженные файлы и поле не множественное
+                    // Удалить все предзагруженный файлы
+                        $preloadedFilesData.find('.deleteIcon').each(function () {
+                            $(this).click();
+                        });
                 }
                 return fileContainer;
             }
@@ -181,49 +187,13 @@
             /*$('#add-file-by-url-' + $input.attr('id')).on('click', function () {
                 var url = $('#file-url-input-' + $input.attr('id')).val();
                 if (url) {
-                    var fileExtension = url.split('.').pop().toLowerCase();
-                    if (!isExtensionAllowed(fileExtension)) {
-                        alert('Файл с расширением .' + fileExtension + ' не поддерживается!');
-                        return;
-                    }
-                    var fileName = url.substring(url.lastIndexOf('/') + 1);
-                    if (!isMultiple) {
-                        $preloadedFilesContainer.empty();
-                    }
-                    // Попытка загрузить изображение по URL
-                    fetch(url, { mode: 'no-cors' })
-                        .then(function(response) {
-                            if (!response.ok) {
-                                console.error(response);
-                                throw new Error('Ошибка сети');
-                            }
-                            return response.blob();
-                        })
-                        .then(function(blob) {
-                            var file = new File([blob], fileName, { type: blob.type });
-                            file.uniqueID = generateUniqueID();
-                            fileObjectList.push(file);
-                            var reader = new FileReader();
-                            reader.onload = function(e) {
-                                var fileContainer = createFileContainer(file.name, fileExtension, e.target.result, file);
-                                $preloadedFilesContainer.append(fileContainer);
-                                updateMainFile();
-                                updateFileOrder();
-                                $('#uploadModal-' + $input.attr('id')).modal('hide');
-                                $('#file-url-input-' + $input.attr('id')).val('');
-                            };
-                            reader.readAsDataURL(file);
-                        })
-                        .catch(function(error) {
-                            console.error('Ошибка при загрузке изображения:', error);
-                            alert('Не удалось загрузить файл по указанному URL.');
-                        });
+
                 } else {
                     alert('Пожалуйста, введите URL.');
                 }
             });
                */
-            // Обработчик изменения файлового input TODO
+            // Обработчик изменения файлового input
             $input.on('change', function () {
                 if (!isMultiple) {
                     $preloadedFilesContainer.empty();
@@ -285,6 +255,7 @@
             // Обработка формы сохранения параметров файла
             $('#addFileParamsModal_' + $input.attr('id')).on('click', '#submit_' + $input.attr('id'), function (event) {
                 event.preventDefault();
+                $('[name^="ee_check_file"]').val('1');
                 var modalId = '#addFileParamsModal_' + $input.attr('id');
                 var data = {};
                 // Собираем все элементы с атрибутом name в модальном окне и их значения
@@ -388,7 +359,7 @@
                     animation: 150,
                     ghostClass: 'sortable-ghost',
                     onEnd: function (evt) {
-
+                        $('[name^="ee_check_file"]').val('1');
                     }
                 });         
                 $preloadedFilesData.on('click', '.deleteIcon', function (event) {
@@ -407,6 +378,7 @@
                     $fileItem.fadeOut(300, function () {
                         dataFileInput.val(newData);
                     });
+                    $('[name^="ee_check_file"]').val('1');
                 });
                 $preloadedFilesData.on('click', '.editIcon', function (event) {
                     event.stopPropagation();

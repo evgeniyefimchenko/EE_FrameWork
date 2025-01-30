@@ -45,8 +45,7 @@ trait CategoriesTrait {
             SysClass::handleRedirect(200, '/show_login_form?return=admin/categories');
             exit();
         }
-        $new_element = false;
-        $default_data = [
+        $defaultData = [
             'category_id' => 0,
             'type_id' => 0,
             'title' => '',
@@ -58,34 +57,35 @@ trait CategoriesTrait {
             'updated_at' => '',
             'parent_title' => '',
             'type_name' => '',
-            'entity_count' => '',
+            'pages_count' => '',
             'category_path' => '',
             'category_path_text' => '',
         ];
         /* model */
         $this->loadModel('m_categories_types');
-        $this->loadModel('m_categories', ['m_categories_types' => $this->models['m_categories_types']]);        
+        $this->loadModel('m_categories');        
         $postData = SysClass::ee_cleanArray($_POST);        
         if (in_array('id', $params)) {
             $keyId = array_search('id', $params);
             if ($keyId !== false && isset($params[$keyId + 1])) {                
-                $categoryId = filter_var($params[$keyId + 1], FILTER_VALIDATE_INT);
+                $categoryId = filter_var($params[$keyId + 1], FILTER_VALIDATE_INT);                
             } else {
                 $categoryId = 0;
-            }
-            // Сохранение основных данных
+            }            
             if (isset($postData['title']) && $postData['title']) {
+                // Сохранение основных данных
                 if (!$new_id = $this->models['m_categories']->updateCategoryData($postData)) {
                     ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
                 } else {
                     $categoryId = $new_id;
+                }            
+                $this->saveFileProperty($postData);         
+                // Сохранение свойств для категории
+                if (isset($postData['property_data']) && is_array($postData['property_data']) && !empty($postData['property_data_changed'])) {
+                    $this->processPropertyData($postData['property_data']);
                 }
             }
-            // Сохранение свойств для категории
-            if (isset($postData['property_data']) && is_array($postData['property_data']) && isset($postData['property_data_changed']) && $postData['property_data_changed'] != 0) {
-                $this->processPropertyData($postData['property_data']);
-            }
-            $getCategoryData = ((int) $categoryId ? $this->models['m_categories']->getCategoryData($categoryId) : null) ?: $default_data;            
+            $getCategoryData = ((int) $categoryId ? $this->models['m_categories']->getCategoryData($categoryId) : null) ?: $defaultData;            
         } else { // Не передан ключевой параметр id
             SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/category_edit/id/');
         }        
@@ -96,8 +96,8 @@ trait CategoriesTrait {
         $getAllTypes = [];
         if (isset($getCategoryData['parent_id']) && $getCategoryData['parent_id']) {
             // Есть родитель, можно выбрать только его тип или подчинённый
-            $parent_type_id = $this->models['m_categories']->getCategoryTypeId($getCategoryData['parent_id']);
-            $getAllTypes = $this->models['m_categories_types']->getAllTypes(false, false, $parent_type_id);
+            $parentTypeId = $this->models['m_categories']->getCategoryTypeId($getCategoryData['parent_id']);
+            $getAllTypes = $this->models['m_categories_types']->getAllTypes(false, false, $parentTypeId);
         } elseif (isset($getCategoryData['type_id']) && $getCategoryData['type_id']) {
             // Если нет родителя то можно выбрать любой тип категории
             $getAllTypes = $this->models['m_categories_types']->getAllTypes(false, false);            
@@ -106,7 +106,7 @@ trait CategoriesTrait {
         }
         $getCategoriesTypeSetsData = [];
         if (count($getCategoriesTypeSets) && $getCategoryData) {
-            $getCategoriesTypeSetsData = $this->processCategoryProperties($getCategoriesTypeSets, $categoryId, $getCategoryData['title']);
+            $getCategoriesTypeSetsData = $this->formattingEntityProperties($getCategoriesTypeSets, $categoryId, 'category', $getCategoryData['title']);
         }
         
         /* view */
@@ -130,102 +130,13 @@ trait CategoriesTrait {
     }
 
     /**
-     * Обрабатывает данные свойств для категорий
-     * @param array $getCategoriesTypeSets Массив идентификаторов наборов свойств
-     * @param int $categoryId Идентификатор категории
-     * @param array $titleCategory Название категории
-     * @return array Возвращает массив обработанных данных свойств
-     */
-    public function processCategoryProperties($getCategoriesTypeSets, $categoryId, $titleCategory) {
-        $this->loadModel('m_properties');
-        $getCategoriesTypeSetsData = [];
-        foreach ($getCategoriesTypeSets as $setId) {
-            $properties_data = $this->models['m_properties']->getPropertySetData($setId);
-            foreach ($properties_data['properties'] as $k_prop => &$prop) {
-                $prop['default_values'] = json_decode($prop['default_values'], true);
-                $prop['property_values'] = $this->models['m_properties']->getPropertyValuesForEntity($categoryId, 'category', $prop['p_id'], $setId);
-                if (!count($prop['property_values'])) {
-                    $count = 0;
-                    $prop['property_values']['property_id'] = $prop['p_id'];
-                    $prop['property_values']['entity_id'] = $categoryId;
-                    $prop['property_values']['entity_type'] = 'category';
-                    $prop['property_values']['value_id'] = SysClass::ee_generate_uuid();
-                    $prop['property_values']['set_id'] = $properties_data['set_id'];
-                    if (!isset($prop['default_values']) || !count($prop['default_values'])) {
-                        SysClass::pre('Критическая ошибка: default_values пусто или не установлено! ' . var_export($prop, true));
-                    }
-                    foreach ($prop['default_values'] as $prop_default) {
-                        $prop['property_values']['property_values'][$count] = ['type' => $prop_default['type'],
-                            'value' => isset($prop_default['default']) ? $prop_default['default'] : '',
-                            'label' => $prop_default['label'],
-                            'multiple' => $prop_default['multiple'],
-                            'required' => $prop_default['required'],
-                            'title' => isset($prop_default['title']) ? $prop_default['title'] : ''];
-                        $count++;
-                    }
-                }
-                unset($prop['default_values']);
-            }
-            usort($properties_data['properties'], function ($a, $b) {
-                return $a['sort'] <=> $b['sort'];
-            });
-            $getCategoriesTypeSetsData[$titleCategory][$setId] = $properties_data;
-        }
-        return $getCategoriesTypeSetsData;
-    }
-    
-    
-    /**
-     * Обрабатывает массив данных свойств и обновляет их в базе данных
-     * @param array $propertyData Массив данных свойств
-     * @return void
-     */
-    public function processPropertyData(array $propertyData): void {
-        $arrValueProp = [];
-        $this->loadModel('m_properties');
-        foreach ($propertyData as $itemPropKey => $itemPropValue) {
-            $arrPropName = explode('_', $itemPropKey);
-            $valueId = $arrPropName[0];
-            $keyProp = $arrPropName[1];
-            $typeProp = $arrPropName[2];
-            $entityIdProp = $arrPropName[3];
-            $entityTypeProp = $arrPropName[4];
-            $propertyIdProp = $arrPropName[5];
-            $setId = $arrPropName[6];
-            $addFieldProp = isset($arrPropName[7]) ? $arrPropName[7] : null;
-            $keyArr = $propertyIdProp . '_' . $setId;
-            $arrValueProp[$keyArr]['entity_id'] = $entityIdProp;
-            $arrValueProp[$keyArr]['property_id'] = $propertyIdProp;
-            $arrValueProp[$keyArr]['entity_type'] = $entityTypeProp;
-            $arrValueProp[$keyArr]['value_id'] = $valueId;
-            $arrValueProp[$keyArr]['set_id'] = $setId;
-            if ($addFieldProp) {
-                if (($addFieldProp == 'multiple' || $addFieldProp == 'required') && isset($itemPropValue)) {
-                    $itemPropValue = 1;
-                }
-                $itemPropValue = is_array($itemPropValue) && $addFieldProp == 'value' ? implode(',', $itemPropValue) : $itemPropValue;
-                $arrValueProp[$keyArr]['property_values'][$keyProp][$addFieldProp] = $itemPropValue;
-            } else {
-                ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Error, not type value!', 'status' => 'danger']);
-                SysClass::pre([$itemPropKey, $arrPropName]);
-            }
-        }
-        foreach ($arrValueProp as $arrValue) {
-            $res = $this->models['m_properties']->updatePropertiesValueEntities($arrValue);
-            if ($res === false) {
-                ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Error, not write properties!', 'status' => 'danger']);
-            }
-        }
-    }
-
-    /**
      * AJAX
      * Получение возможного набора типов категорий
      * для отображения в карточке категории при смене родителя     
      */
-    public function getTypeCategory($params = []) {
+    public function getTypeCategory(array $params = []) {
         $is_ajax = SysClass::isAjaxRequestFromSameSite();
-        if ($is_ajax) {
+        if ($is_ajax && empty($params)) {
             $this->access = [Constants::ADMIN, Constants::MODERATOR];
             if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
                 SysClass::handleRedirect();
@@ -234,23 +145,28 @@ trait CategoriesTrait {
             $this->loadModel('m_categories');
             $this->loadModel('m_categories_types');
             $postData = SysClass::ee_cleanArray($_POST);
-            if (isset($postData['parent_id']) && $postData['parent_id'] > 0) {
-                $type_id = $this->models['m_categories']->getCategoryTypeId($postData['parent_id']);
-                $get_all_types = $this->models['m_categories_types']->getAllTypes(false, false, $type_id);
+            if (!empty($postData['parent_id'])) {                
+                $typeId = $this->models['m_categories']->getCategoryTypeId($postData['parent_id']);
+                $oldTypeId = $this->models['m_categories']->getCategoryTypeId($postData['category_id']);
+                $getAllTypes = $this->models['m_categories_types']->getAllTypes(false, false, $typeId);
+                if ($typeId !== $oldTypeId && $postData['count_pages'] > 0) { // Нельзя сменить тип категории если есть страницы
+                    echo json_encode(['parent_type_id' => false, 'html' => 'Нельзя сменить тип категории если есть страницы!']);
+                    die;
+                }
             } else {
-                $get_all_types = $this->models['m_categories_types']->getAllTypes(false, false);
+                $getAllTypes = $this->models['m_categories_types']->getAllTypes(false, false);
                 $postData['parent_id'] = 0;
-                $type_id = 0;
+                $typeId = 0;
             }
-            if (isset($get_all_types[0])) {
-                $selected_id = $get_all_types[0]['type_id'];
+            if (isset($getAllTypes[0])) {
+                $selectedId = $getAllTypes[0]['type_id'];
             } else {
-                $selected_id = null;
+                $selectedId = null;
             }
-            echo json_encode(['html' => Plugins::showTypeCategogyForSelect($get_all_types, $selected_id),
-                'parent_type_id' => $type_id,
+            echo json_encode(['html' => Plugins::showTypeCategogyForSelect($getAllTypes, $selectedId),
+                'parent_type_id' => $typeId,
                 'parent_id' => $postData['parent_id'],
-                'all_types' => $get_all_types]);
+                'all_types' => $getAllTypes]);
         }
         die;
     }
@@ -260,9 +176,9 @@ trait CategoriesTrait {
      * Получение набора свойств категории
      * для отображения в карточке категории при смене родителя     
      */
-    public function getCategoriesType($params = []) {
+    public function getCategoriesType(array $params = []): void {
         $is_ajax = SysClass::isAjaxRequestFromSameSite();
-        if ($is_ajax) {
+        if ($is_ajax && empty($params)) {
             $this->access = [Constants::ADMIN, Constants::MODERATOR];
             if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
                 SysClass::handleRedirect();
@@ -271,9 +187,9 @@ trait CategoriesTrait {
             $postData = SysClass::ee_cleanArray($_POST);
             $this->loadModel('m_categories_types');
             $getCategoriesTypeSets = $this->models['m_categories_types']->getCategoriesTypeSetsData($postData['type_id']);
-            $categoryId = $postData['category_id'];
-            $getCategoriesTypeSetsData = $this->processCategoryProperties($getCategoriesTypeSets, $categoryId, $postData['title']);
-            echo json_encode(['html' => Plugins::renderCategorySetsAccordion($getCategoriesTypeSetsData, $categoryId),
+            $categoryId = $postData['category_id'];                                    
+            $getCategoriesTypeSetsData = $this->formattingEntityProperties($getCategoriesTypeSets, $categoryId, 'category', $postData['title']);
+            echo json_encode(['html' => Plugins::renderPropertiesSetsAccordion($getCategoriesTypeSetsData, $categoryId),
                 'get_categories_type_sets' => $getCategoriesTypeSets, 'category_id' => $categoryId]);
         }
         die;
@@ -282,7 +198,7 @@ trait CategoriesTrait {
     /**
      * Удаление категории
      */
-    public function category_dell($params = []) {
+    public function category_delete($params = []) {
         $this->access = [Constants::ADMIN, Constants::MODERATOR];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect();
@@ -293,14 +209,16 @@ trait CategoriesTrait {
         if (in_array('id', $params)) {
             $keyId = array_search('id', $params);
             if ($keyId !== false && isset($params[$keyId + 1])) {
-                $id = filter_var($params[$keyId + 1], FILTER_VALIDATE_INT);
+                $categoryId = filter_var($params[$keyId + 1], FILTER_VALIDATE_INT);
             } else {
-                $id = 0;
+                $categoryId = 0;
             }
-            $res = $this->models['m_categories']->deleteСategory($id);
+            $res = $this->models['m_categories']->deleteСategory($categoryId);
             if (isset($res['error'])) {
                 ClassNotifications::addNotificationUser($this->logged_in, ['text' => $res['error'], 'status' => 'danger']);
             } else {
+                $this->loadModel('m_properties');
+                $this->models['m_properties']->deleteAllpropertiesValuesEntity($categoryId, 'category');
                 ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Удалено', 'status' => 'success']);
             }
         }
@@ -418,12 +336,12 @@ trait CategoriesTrait {
                 'title' => $item['title'],
                 'parent_id' => $item['parent_title'] ? $item['parent_title'] : 'Без категории',
                 'type_id' => $item['type_name'],
-                'children' => $item['entity_count'],
+                'children' => $item['pages_count'],
                 'created_at' => date('d.m.Y', strtotime($item['created_at'])),
                 'updated_at' => $item['updated_at'] ? date('d.m.Y', strtotime($item['updated_at'])) : '',
                 'actions' => '<a href="/admin/category_edit/id/' . $item['category_id'] . '"'
                 . 'class="btn btn-primary me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.edit'] . '"><i class="fas fa-edit"></i></a>'
-                . '<a href="/admin/category_dell/id/' . $item['category_id'] . '" onclick="return confirm(\'' . $this->lang['sys.delete'] . '?\');" '
+                . '<a href="/admin/category_delete/id/' . $item['category_id'] . '" onclick="return confirm(\'' . $this->lang['sys.delete'] . '?\');" '
                 . 'class="btn btn-danger me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.delete'] . '"><i class="fas fa-trash"></i></a>'
             ];
         }
