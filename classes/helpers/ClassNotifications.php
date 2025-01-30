@@ -11,7 +11,7 @@ use classes\system\Users;
 class ClassNotifications {
 
     /**
-     * Удалит все найденные уведомления по переданному тексту
+     * Удалит все найденные уведомления по переданному вхождению текста
      * @param type $user_id
      * @param type $text_notification
      */

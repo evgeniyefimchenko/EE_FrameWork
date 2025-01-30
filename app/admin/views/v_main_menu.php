@@ -72,9 +72,9 @@ $menuItems = [
             ],
             'Система' => [
                 [
-                    'title' => 'Разделы',
+                    'title' => $lang['sys.tools'],
                     'link' => '#',
-                    'icon' => 'fa-regular fa-file',
+                    'icon' => 'fa fa-wrench',
                     'subItems' => [
                         [
                             'title' => $lang['sys.logs'],

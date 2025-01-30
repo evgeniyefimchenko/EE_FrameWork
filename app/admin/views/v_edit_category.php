@@ -7,11 +7,13 @@ if (!count($allType)) {
    ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Необходимо создать хотя бы один тип категории!', 'status' => 'info']);
    SysClass::handleRedirect(200, '/admin/types_categories');
 }
+$countPages = count($categoryPages);
 ?>
 <!-- Редактирование категории -->
 <main>    
-    <form id="edit_category" action="/admin/category_edit/id/<?= $categoryData['category_id'] ?>" method="POST">
+    <form id="edit_category" action="/admin/category_edit/id/<?= $categoryData['category_id'] ?>" method="POST" enctype="multipart/form-data">
         <input type="hidden" name="fake" value="1" />
+        <input type="hidden" id="count_pages" value="<?=$countPages?>" />
         <div class="container-fluid px-4">
             <a href="/admin/category_edit/id" data-bs-toggle="tooltip" data-bs-placement="top" title="<?= $lang['sys.add'] ?>" type="button"
                class="btn btn-info mx-1 float-end<?= empty($categoryData['category_id']) ? " d-none" : "" ?>">
@@ -34,7 +36,7 @@ if (!count($allType)) {
                         </li>
                         <?php if ($categoryData['category_id']) { ?>
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link<?=(!count($categoryPages) ? ' text-danger' : '')?>" id="pages-tab" data-bs-toggle="tab" data-bs-target="#pages-tab-pane"
+                            <button class="nav-link<?=(!$countPages ? ' text-danger' : '')?>" id="pages-tab" data-bs-toggle="tab" data-bs-target="#pages-tab-pane"
                                     type="button" role="tab" aria-controls="pages-tab-pane" aria-selected="false"><?=$lang['sys.category_pages']?></button>
                         </li>
                         <li class="nav-item" role="presentation">
@@ -58,15 +60,15 @@ if (!count($allType)) {
                                 </div>
                                 <div class="col-6 col-sm-3">
                                     <label for="type_id-input">Тип:</label>
-                                    <div role="group" class="input-group">                                      
+                                    <div role="group" class="input-group">
                                         <select id="type_id-input" name="type_id" class="form-control">
                                             <?=Plugins::showTypeCategogyForSelect($allType, $categoryData['type_id']); ?>
                                         </select>
-                                        <?php
+                                        <?php                                        
                                         if (isset($categoryData['parent_id'])) {
-                                            $text_to_type = 'При наличии категории родителя можно выбрать только дочерний тип категории родителя.';
+                                            $text_to_type = 'При наличии категории родителя можно выбрать только дочерний тип категории родителя или её.';
                                         } else {
-                                            $text_to_type = 'Все наборы свойств типа будут унаследованы дочерними категориями.';
+                                            $text_to_type = 'Все наборы свойств типа будут унаследованы дочерними категориями и страницами.';
                                         }
                                         ?>                                        
                                         <span role="button" class="input-group-text btn-danger" data-bs-toggle="tooltip" data-bs-placement="top" title="<?=$text_to_type?>">
@@ -79,7 +81,8 @@ if (!count($allType)) {
                                     <div role="group" class="input-group">
                                         <select id="parent_id-input" name="parent_id" class="form-control">
                                             <?php echo Plugins::showCategogyForSelect($categories_tree, $categoryData['parent_id']); ?>
-                                        </select>                                        
+                                        </select>
+                                        <input type="hidden" id="oldParentId" value="<?=$categoryData['parent_id']?>">
                                         <span title="<?=$categoryData['category_path_text']?>" data-bs-toggle="tooltip" data-bs-placement="top" role="button"
                                               class="input-group-text btn-primary">
                                             <i class="fas fa-tree" data-bs-toggle="modal" data-bs-target="#parents_modal"></i><!-- Иконка со знаком вопроса -->
@@ -129,14 +132,14 @@ if (!count($allType)) {
                                     <?php
                                         $html = '';
                                         foreach ($categoryPages as $page) {
-                                            $html .= '<div class="card">';
+                                            $html .= '<div class="card p-1">';
                                             $color_status = 'text-success';
                                             if ($page['status'] != 'active') {
                                                 $color_status = 'text-danger';
                                             }
                                             $html .= '<div class="row align-items-center">';
                                             $html .= '<div class="col-auto">№ ' . $page['page_id'] . '</div>';
-                                            $html .= '<div class="col"><a href="/admin/pageEdit/id/' . $page['page_id'] . '" target="_BLANK">' . $page['title'] . '</a></div>';
+                                            $html .= '<div class="col"><a href="/admin/page_edit/id/' . $page['page_id'] . '" target="_BLANK">' . $page['title'] . '</a></div>';
                                             $html .= '</div>';
                                             $html .= '<div class="row align-items-center">';
                                             $html .= '<div class="col-auto">' . $lang['sys.status'] . ': <span class="' . $color_status . '">'
@@ -153,8 +156,8 @@ if (!count($allType)) {
                         <div class="tab-pane fade mt-3" id="property_sets-tab-pane" role="tabpanel" aria-labelledby="property_sets-tab">
                             <div class="row">
                                 <div class="col">
-                                    <div id="renderCategorySetsAccordion">
-                                        <?=Plugins::renderCategorySetsAccordion($categoriesTypeSetsData, $categoryData['category_id']);?>
+                                    <div id="renderPropertiesSetsAccordion">
+                                        <?=Plugins::renderPropertiesSetsAccordion($categoriesTypeSetsData, $categoryData['category_id']);?>
                                     </div>
                                 </div>
                             </div>

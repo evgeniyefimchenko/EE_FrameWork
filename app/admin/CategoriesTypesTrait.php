@@ -62,6 +62,11 @@ trait CategoriesTypesTrait {
                     'sorted' => 'ASC',
                     'filterable' => true
                 ], [
+                    'field' => 'parent_type_id',
+                    'title' => $this->lang['sys.parent'],
+                    'sorted' => 'ASC',
+                    'filterable' => true
+                ], [
                     'field' => 'created_at',
                     'title' => $this->lang['sys.date_create'],
                     'sorted' => 'ASC',
@@ -88,6 +93,12 @@ trait CategoriesTypesTrait {
                 'value' => '',
                 'label' => $this->lang['sys.name']
             ],
+            'name' => [
+                'type' => 'text',
+                'id' => "parent_type_id",
+                'value' => '',
+                'label' => $this->lang['sys.parent']
+            ],
             'created_at' => [
                 'type' => 'date',
                 'id' => "created_at",
@@ -111,6 +122,8 @@ trait CategoriesTypesTrait {
             $data_table['rows'][] = [
                 'type_id' => $item['type_id'],
                 'name' => $item['name'],
+                'parent_type_id' => !empty($item['parent_type_id']) ? 
+                    '(' . $item['parent_type_id'] . ')' . $this->models['m_categories_types']->getNameCategoriesType($item['parent_type_id']) : '',
                 'created_at' => date('d.m.Y', strtotime($item['created_at'])),
                 'updated_at' => $item['updated_at'] ? date('d.m.Y', strtotime($item['updated_at'])) : '',
                 'actions' => '<a href="/admin/categories_type_edit/id/' . $item['type_id'] . '" class="btn btn-primary me-2" data-bs-toggle="tooltip"'
@@ -157,7 +170,7 @@ trait CategoriesTypesTrait {
             } else {
                 $id = 0;
             }
-            if (isset($postData['name']) && $postData['name']) {
+            if (isset($postData['name']) && $postData['name'] && !empty($postData['property_set'])) {
                 if (!$id = $this->models['m_categories_types']->updateCategoriesTypeData($postData)) {
                     ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
                 }

@@ -1917,7 +1917,7 @@ body {
   }
 }
 .sb-nav-fixed .sb-topnav {
-  z-index: 1039;
+  z-index: 11111;
 }
 .sb-nav-fixed #layoutSidenav #layoutSidenav_nav {
   width: 225px;
@@ -2198,4 +2198,8 @@ body {
 
 .modal.fade.show {
     z-index: 11000;
+}
+
+.bs-tooltip-auto {
+    z-index: 65535;
 }

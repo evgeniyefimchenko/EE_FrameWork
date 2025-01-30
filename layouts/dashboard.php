@@ -21,7 +21,7 @@
         <meta name="reply-to" content = "<?= ENV_SITE_EMAIL ?>" /> <!-- Почта автора сайта-->
         <meta name="copyright" content="<?= ENV_SITE_AUTHOR ?>" /> 
         <meta name="address" content="<?= ENV_URL_SITE ?>" /> <!-- Указывает адрес автора или организации собственника страницы. -->
-        <meta name="publisher-name" content="efimchenko.com" /> <!-- Кто разместил сайт-->
+        <meta name="publisher-name" content="<?= ENV_SITE_NAME ?>" /> <!-- Кто разместил сайт-->
         <meta name="publisher-type" content="Private" /> <!-- Тип владельца сайта "Private", "Company" -->
         <meta name="home-url" content="<?= ENV_URL_SITE ?>" />
         <meta name="keywords" content='<?= $keywords ?>'/>
@@ -30,31 +30,31 @@
         <meta property="og:type" content="website" />
         <meta property="og:title" content="<?= $title ?>" />
         <meta property="og:description" content="<?= $description ?>"/>
-        <meta property="og:image" content="<?= $image_social ?>"> <!-- URL-адрес изображения JPG, PNG и GIF min-size = 120х90 -->
+        <meta property="og:image" content="<?= !empty($image_social) ? $image_social : ENV_URL_SITE . '/favicon.png' ?>"> <!-- URL-адрес изображения JPG, PNG и GIF min-size = 120х90 -->
         <meta property="og:url" content="<?= ENV_URL_SITE ?>">
-        <meta name="twitter:card" content="summary">
-        <meta name="twitter:site" content=""> <!-- аккаунт в Twitter -->
-        <meta name="twitter:title" content="<?= $title ?>">
-        <meta name="twitter:description" content="<?= $description ?>">
-        <meta name="twitter:image" content="<?= $image_twiter ?>"> <!-- URL-адрес изображения JPG, PNG и GIF min-size = 120×120 -->
+        <meta name="twitter:card" content="summary" />
+        <meta name="twitter:site" content="" /> <!-- аккаунт в Twitter -->
+        <meta name="twitter:title" content="<?= $title ?>" />
+        <meta name="twitter:description" content="<?= $description ?>" />
+        <meta name="twitter:image" content="<?= !empty($image_twiter) ? $image_twiter : ENV_URL_SITE . '/favicon.png' ?>" /> <!-- URL-адрес изображения JPG, PNG и GIF min-size = 120×120 -->
         <!-- Стили -->
-        <link rel="apple-touch-icon" sizes="76x76" href="<?= ENV_URL_SITE ?>/favicon.png">
-        <link rel="icon" type="image/png" href="<?= ENV_URL_SITE ?>/favicon.ico">
+        <link rel="apple-touch-icon" sizes="76x76" href="<?= ENV_URL_SITE ?>/favicon.png" />
+        <link rel="icon" type="image/png" href="<?= ENV_URL_SITE ?>/favicon.ico" />
         <!-- Стандартные стили-->
         <!-- Bootstrap Min CSS -->        
         <?php if (!ENV_BOOTSTRAP533_CDN) { ?>
-            <link rel="stylesheet" href="<?= ENV_URL_SITE ?>/assets/bootstrap/css/bootstrap.min.css" type="text/css">
+            <link rel="stylesheet" href="<?= ENV_URL_SITE ?>/assets/bootstrap/css/bootstrap.min.css" type="text/css" />
         <?php } else { ?>
-            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" type="text/css">
+            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" type="text/css" />
         <?php } ?>
         <!-- Font Awesome Min CSS -->
         <?php if (!ENV_FONT_AWESOME_CDN) { ?>
-            <link rel="stylesheet" href="<?= ENV_URL_SITE ?>/assets/fontawesome/css/all.css" type="text/css"/>
+            <link rel="stylesheet" href="<?= ENV_URL_SITE ?>/assets/fontawesome/css/all.css" type="text/css" />
         <?php } else { ?>
             <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" integrity="sha512-Kc323vGBEqzTmouAECnVceyQqyqdsSiqLQISBL29aUW4U/M7pSPA/gEUZQqv1cwx4OnYxTxve5UMg5GT6L4JJg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
         <?php } ?>
         <!-- Wizard -->
-        <link rel="stylesheet" href="<?= ENV_URL_SITE ?>/classes/system/css/ee_wizard.css" type="text/css"/>
+        <link rel="stylesheet" href="<?= ENV_URL_SITE ?>/classes/system/css/ee_wizard.css" type="text/css" />
         <!-- General Styles -->
         <link rel="stylesheet" href="<?= ENV_URL_SITE . '/' . ENV_APP_DIRECTORY ?>/admin/css/index.css" type="text/css" />				
         <!-- canonical -->

@@ -8,7 +8,7 @@ actions = {
             icon: "fa fa-bell",
             message: text_message
         }, {
-            z_index: 10000,
+            z_index: 100000,
             type: color,
             timer: 5000,
             placement: {

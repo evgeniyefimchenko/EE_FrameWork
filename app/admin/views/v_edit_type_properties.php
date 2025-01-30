@@ -1,8 +1,6 @@
 <?php
 use classes\system\SysClass;
 use classes\system\Constants;
-use classes\helpers\ClassNotifications;
-use classes\system\Plugins;
 ?>
 <!-- Редактирование типа свойств сущности -->
 <main>    
@@ -77,25 +75,30 @@ use classes\system\Plugins;
                                 </div>
                             </div>
                         </div>
-                        <!-- Поля типа свойства -->
+                        <!-- Поля типа свойства -->                        
                         <div class="tab-pane fade mt-3" id="fields-tab-pane" role="tabpanel" aria-labelledby="fields-tab-pane">
                             <?php  $first = true;                              
                                 foreach ($property_type_data['fields'] as $item) { ?>
                                     <div class="row mb-3" id="fields-container">
                                         <div class="col-5 d-flex align-items-center">
                                             <label class="w-25 form-label"><?= $lang['sys.field_type'] ?>:</label>
-                                            <select required class="form-select me-2" name="fields[]">
-                                                <option disabled><?= $lang['sys.select'] . ' ' . $lang['sys.field_type'] ?></option>
-                                                <?php foreach (Constants::ALL_TYPE_PROPERTY_TYPES_FIELDS as $k => $v) { ?>
-                                                    <option <?= $item == $k ? 'selected ' : ''?>value="<?=$k?>"><?=$v?></option>
-                                                <?php } ?>
-                                            </select>
-                                            <?php if ($count_fields && !$first) {
-                                                echo '<button class="btn btn-danger remove-field-btn" type="button"><i class="fa fa-minus-circle"></i></button>';
-                                            } else {
-                                                $first = false;
-                                                echo '<button class="btn btn-primary add-field-btn" type="button"><i class="fa fa-plus-circle"></i></button>';
-                                            } ?>
+                                            <?php if (!$usedByProperties) { ?>
+                                                <select required class="form-select me-2" name="fields[]">
+                                                    <option disabled><?= $lang['sys.select'] . ' ' . $lang['sys.field_type'] ?></option>
+                                                    <?php foreach (Constants::ALL_TYPE_PROPERTY_TYPES_FIELDS as $k => $v) { ?>
+                                                        <option <?= $item == $k ? 'selected ' : ''?>value="<?=$k?>"><?=$v?></option>
+                                                    <?php } ?>
+                                                </select>
+                                                <?php if ($count_fields && !$first) {
+                                                    echo '<button class="btn btn-danger remove-field-btn" type="button"><i class="fa fa-minus-circle"></i></button>';
+                                                } else {
+                                                    $first = false;
+                                                    echo '<button class="btn btn-primary add-field-btn" type="button"><i class="fa fa-plus-circle"></i></button>';
+                                                }
+                                            } else { ?>
+                                                <?=$item?>
+                                                <input type="hidden" name="fields[]" value="<?=$item?>">
+                                            <?php } ?>
                                         </div>
                                     </div>                                                
                             <?php } ?>

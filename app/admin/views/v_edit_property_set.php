@@ -16,7 +16,7 @@ use classes\system\Plugins;
             <h1 class="mt-4"><?= !$property_set_data ? $lang['sys.add'] : $lang['sys.edit'] ?></h1>
             <ol class="breadcrumb mb-4">
                 <li>
-                    <span id="set_id" data-id="<?= $property_set_data['set_id'] ?>">id = <?php echo !$property_set_data['set_id'] ? 'Не присвоен' : $property_set_data['set_id'] ?></span>
+                    <span id="set_id" data-id="<?= $property_set_data['set_id'] ?>">id = <?php echo !$property_set_data['set_id'] ? $lang['sys.not_assigned'] : $property_set_data['set_id'] ?></span>
                     <input type="hidden" name="set_id" class="form-control" value="<?= $property_set_data['set_id'] ? $property_set_data['set_id'] : 0 ?>">
                 </li>
             </ol>
@@ -62,18 +62,18 @@ use classes\system\Plugins;
                         <div class="tab-pane fade mt-3" id="properties-tab-pane" role="tabpanel" aria-labelledby="properties-tab-pane">
                             <div class="row mb-3">
                                 <div class="col-12">
-                                    <h5>Список свойств для набора</h5>
+                                    <h5><?=$lang['sys.list_properties_for_set']?></h5>
                                     <form id="add-properties-to-set-form">
                                         <?php foreach ($all_properties_data as $property): ?>
                                             <?php if ($property['status'] === 'active'): ?>
                                                 <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" name="selected_properties[]"
-                                                           <?php if (isset($property_set_data['properties'][$property['property_id']])) echo 'checked ';?>
-                                                           value="<?php echo $property['property_id']; ?>" id="property-<?php echo $property['property_id']; ?>">
+                                                    <input<?=$isExistCategoryTypeWithSet ? ' disabled' : ''?> class="form-check-input" type="checkbox" name="selected_properties[]"
+                                                        <?php if (isset($property_set_data['properties'][$property['property_id']])) echo 'checked ';?>
+                                                        value="<?php echo $property['property_id']; ?>" id="property-<?php echo $property['property_id']; ?>">
                                                     <label class="form-check-label" for="property-<?php echo $property['property_id']; ?>">
-                                                        <?php echo htmlspecialchars($property['name']); ?>
+                                                        <?php echo htmlspecialchars($property['name']) . '(' . $lang['sys.' . $property['entity_type']] . ')'; ?>
                                                         <?php if (!empty($property['description'])): ?>
-                                                            <small class="text-muted">(<?php echo htmlspecialchars($property['description']); ?>)</small>
+                                                            <br/><small class="text-muted">(<?php echo htmlspecialchars($property['description']); ?>)</small>
                                                         <?php endif; ?>
                                                     </label>
                                                 </div>

@@ -366,7 +366,7 @@ trait SystemsTrait {
             $textMessage = 'Тестовые данны записаны!';
             $status = 'info';
             $this->loadModel('m_categories_types');
-            $this->loadModel('m_categories', ['m_categories_types' => $this->models['m_categories_types']]);
+            $this->loadModel('m_categories');
             $this->loadModel('m_pages');
             $this->loadModel('m_properties');
             $users = $this->generateTestUsers();
@@ -401,26 +401,6 @@ trait SystemsTrait {
      * в вашей системе имеется необходимая логика для связывания этих свойств с наборами, если это требуется
      */
     private function generateTestSetsProp($count = 10): bool {
-        $all_properties = $this->models['m_properties']->getAllProperties();
-        if (empty($all_properties)) {
-            return false; // Нет свойств для создания наборов
-        }
-        for ($i = 0; $i < $count; $i++) {
-            $random_keys = array_rand($all_properties, rand(1, count($all_properties))); // Получаем случайные ключи
-            $random_properties = array_map(function ($key) use ($all_properties) {
-                return $all_properties[$key]['property_id']; // Извлекаем property_id
-            }, (array) $random_keys); // Приведение к массиву нужно для случая, когда выбирается только одно свойство
-            $set_name = 'Test Set ' . ($i + rand(1, 1000));
-            $property_set_data = [
-                'name' => $set_name,
-                'description' => SysClass::ee_generate_uuid()
-            ];
-            $set_id = $this->models['m_properties']->updatePropertySetData($property_set_data);
-            if (!$set_id) {
-                return false;
-            }
-            $this->models['m_properties']->addPropertiesToSet($set_id, $random_properties);
-        }
         return true;
     }
 
@@ -474,29 +454,6 @@ trait SystemsTrait {
             "Метод печати", // свойство принтера
             "Частота обновления", // свойство монитора или телевизора
         ];
-        $all_property_types = $this->models['m_properties']->getAllPropertyTypes();
-        // Смешаем массив типов свойств для случайного выбора
-        shuffle($all_property_types);
-        $types_count = count($all_property_types);
-        $count_name = count($props_name);
-        // Смешаем массивы, чтобы каждый раз генерировать разные свойства
-        shuffle($props_name);
-        shuffle($all_property_types);
-        for ($i = 0; $i < $count; $i++) {
-            $key_type = $i % $types_count;
-            $property_data = [
-                'name' => $props_name[rand(0, $count_name - 1)] . '_' . random_int($i, 1000000),
-                'type_id' => $all_property_types[$key_type]['type_id'],
-                'default_values' => $this->create_default_values($all_property_types[$key_type]['fields'], $props_name),
-                'is_multiple' => random_int(0, 1),
-                'is_required' => random_int(0, 1)
-            ];
-            $result = $this->models['m_properties']->updatePropertyData($property_data);
-            if (!$result) {
-                SysClass::preFile('genError', 'generate_test_properties ' . var_export($property_data, true));
-                return $result;
-            }
-        }
         return true;
     }
 
@@ -593,21 +550,6 @@ trait SystemsTrait {
             'Спорт',
             'Одежда'
         ];
-        $step = 0;
-        while($count !== $step) {
-            $data = [
-                'name' => $testName[rand(0, 13)],
-                'description' => 'Тестовый тип категории'
-            ];
-            if ($this->models['m_categories_types']->getIdCategoriesTypeByName($data['name'])) {
-                $data['name'] = $data['name'] . '_copy' . SysClass::ee_generate_uuid();
-            }
-            if ($this->models['m_categories_types']->updateCategoriesTypeData($data)) {
-                $step++;
-            } else {
-                return false;
-            }
-        }
         return true;
     }
     
@@ -634,87 +576,6 @@ trait SystemsTrait {
             "Политика", "Экология", "Астрономия", "Туризм", "Рукоделие",
             "Йога", "Фитнес", "Танцы", "Медитация", "Компьютерная графика"
         ];
-
-        $categoriesData = [];
-        $generatedTitles = []; // Массив для отслеживания сгенерированных названий
-        for ($i = 0; $i < $count; $i++) {
-            $randomTypeKey = array_rand($types);
-            $randomTypeId = $types[$randomTypeKey]['type_id'];
-            $randomStatus = ['active', 'hidden', 'disabled'][rand(0, 2)];
-            $randomTimestamp = strtotime('now - ' . rand(0, 30) . ' days');
-            $randomDate = date('Y-m-d H:i:s', $randomTimestamp);
-
-            // Выбор случайного названия
-            $randomNameKey = array_rand($predefinedNames);
-            $categoryName = $predefinedNames[$randomNameKey];
-
-            // Проверка уникальности названия
-            $suffix = 1;
-            $finalName = $categoryName;
-            while (true) {
-                $existingCategory = SafeMySQL::gi()->getRow(
-                        "SELECT `category_id` FROM ?n WHERE `title` = ?s AND type_id = ?i AND language_code = ?s",
-                        Constants::CATEGORIES_TABLE,
-                        $finalName, $randomTypeId, ENV_DEF_LANG
-                );
-                // Дополнительная проверка в сгенерированном массиве
-                if (!$existingCategory && !in_array($finalName, $generatedTitles)) {
-                    $generatedTitles[] = $finalName; // Добавление названия в массив сгенерированных названий
-                    break;
-                }
-                $finalName = $categoryName . '-' . $suffix++;
-            }
-
-            $categoriesData[] = [
-                'type_id' => $randomTypeId,
-                'title' => $finalName,
-                'description' => 'Description for ' . $finalName,
-                'short_description' => 'Short Description for ' . $finalName,
-                'parent_id' => NULL,
-                'status' => $randomStatus,
-                'created_at' => $randomDate
-            ];
-        }
-        // Вставка данных в таблицу категорий
-        foreach ($categoriesData as $k => $categoryData) {
-            if ($categoryData) {
-                $res = $this->models['m_categories']->updateCategoryData($categoryData);
-            } else {
-                $res = false;
-            }
-            $categoriesData[$k]['category_id'] = $res;
-            if (!$res) {
-                SysClass::pre(['error', 'ADD test category', $categoryData, $categoriesData]);
-                return $res;
-            }
-        }
-        // Обновление parent_id для половины созданных категорий
-        $halfCount = intval($count / 2);
-        for ($i = 0; $i < $halfCount; $i++) {
-            $categoryId = $categoriesData[$i]['category_id'];  // предполагая, что category_id был сохранен при создании
-            $parentIndex = rand($halfCount, $count - 1);
-            $parentId = $categoriesData[$parentIndex]['category_id'];  // выбор случайного parent_id из второй половины
-            $categoryTitle = $categoriesData[$i]['title'];  // получение title
-            $type_id = $categoriesData[$parentIndex]['type_id'];
-            $categoryData = [
-                'category_id' => $categoryId,
-                'parent_id' => $parentId,
-                'title' => $categoryTitle,
-                'type_id' => $type_id
-            ];
-            if (!$categoryId) {
-                SysClass::pre(['ERROR !$categoryId', $categoryData, $categoriesData]);
-            }
-            if ($categoryData) {
-                $res = $this->models['m_categories']->updateCategoryData($categoryData);
-            } else {
-                $res = false;
-            }
-        }
-        if (!$res) {
-            SysClass::pre(['error', 'UPDATE test children category']);
-            return $res;
-        }
         return true;
     }
 
@@ -723,42 +584,7 @@ trait SystemsTrait {
      * @param int $count Количество генерируемых страниц
      */
     private function generateTestPages($count = 200) {
-        // Получаем список существующих категорий
-        $categories = $this->models['m_categories']->getAllCategories();
-        if (empty($categories)) {
-            SysClass::preFile('errors', "No categories found in the categories table.");
-            return false;
-        }
-        // Массивы с возможными словами для названий и описаний
-        $titleWords = ['Тестовая', 'Пример', 'Демонстрация', 'Образец', 'Экземпляр'];
-        $descriptionWords = ['описание', 'элемент', 'сущность', 'объект', 'пример'];
-        // Подготовка данных для вставки
-        $entitiesData = [];
-        for ($i = 0; $i < $count; $i++) {
-            $randomCategoryKey = array_rand($categories);  // выбираем случайную категорию
-            $randomCategoryId = $categories[$randomCategoryKey]['category_id'];
-            $randomStatus = ['active', 'hidden', 'disabled'][rand(0, 2)];  // выбираем случайный статус
-            // Генерация случайной даты и времени, не ранее текущего времени
-            $randomTimestamp = strtotime('now + ' . rand(0, 30) . ' days');
-            $randomDate = date('Y-m-d H:i:s', $randomTimestamp);
-            // Генерация случайных названий и описаний
-            $randomTitle = $titleWords[array_rand($titleWords)] . ' ' . $descriptionWords[array_rand($descriptionWords)];
-            $randomShortDescription = 'Краткое ' . $descriptionWords[array_rand($descriptionWords)];
-            $randomDescription = 'Полное ' . $descriptionWords[array_rand($descriptionWords)];
-            $entitiesData[] = [
-                'category_id' => $randomCategoryId,
-                'status' => $randomStatus,
-                'title' => $randomTitle,
-                'short_description' => $randomShortDescription,
-                'description' => $randomDescription,
-                'created_at' => $randomDate  // добавляем случайную дату и время
-            ];
-        }
-        // Вставка данных в таблицу сущностей
-        foreach ($entitiesData as $entityData) {
-            $res = $this->models['m_pages']->updatePageData($entityData);
-        }
-        return $res;
+        return true;
     }
     
     /**
@@ -766,26 +592,6 @@ trait SystemsTrait {
      * @return bool
      */
     private function setLinksTypeToCats() {
-        $types = $this->models['m_categories_types']->getAllTypes();        
-        $propertySetsData = array_keys($this->models['m_properties']->getAllPropertySetsData());
-        foreach ($types as $arrType) {
-            $typeId = $arrType['type_id'];
-            $randomCount = rand(1, count($propertySetsData)); 
-            $randomKeys = array_rand($propertySetsData, $randomCount);
-            if (!is_array($randomKeys)) {
-                $randomKeys = [$randomKeys];
-            } else {
-                if (count($randomKeys) > 4) {
-                    $randomKeys = array_slice($randomKeys, 0, rand(1, 3));
-                }
-            }
-            foreach ($randomKeys as $key) {
-                $propertySet[] = $propertySetsData[$key];
-            }
-            $parentsTypesIds = $this->models['m_categories_types']->getAllTypeParentsIds($typeId);
-            $realSetsIds = array_unique(array_merge($this->models['m_categories_types']->getCategoriesTypeSetsData($parentsTypesIds), $propertySet));            
-            $this->models['m_categories_types']->updateCategoriesTypeSetsData($typeId, $realSetsIds);
-        }
         return true;
     }
 }
