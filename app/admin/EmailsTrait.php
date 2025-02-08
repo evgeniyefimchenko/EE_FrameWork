@@ -27,8 +27,7 @@ trait EmailsTrait {
         $this->view->set('content_email', $content_email);        
         $this->view->set('body_view', $this->view->read('v_admin_edit_emails_tpl'));
         $this->html = $this->view->read('v_dashboard');
-        /* layouts */       
-        $this->parameters_layout["add_script"] .= '<script type="text/javascript" src="' . ENV_URL_SITE . '/assets/editor/tinymce/js/tinymce/tinymce.min.js"></script>';
+        /* layouts */
         $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/edit_emails_templates.js" type="text/javascript" /></script>';
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';

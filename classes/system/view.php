@@ -117,7 +117,7 @@ class View {
     public function read(string $templateName, bool $cache = true, string $add_path = '', bool $full_path = false): string {
         $content = '';
         // Никогда не кешировать админскую часть
-        if ($this->vars['area'] == 'ADMIN') {
+        if (ENV_CONTROLLER_FOLDER == 'admin') {
             $cache = false;
             $this->cacheManager = NULL;
         }

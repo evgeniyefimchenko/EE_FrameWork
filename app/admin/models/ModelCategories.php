@@ -267,7 +267,7 @@ class ModelCategories {
      * @return mixed Возвращает ID обновленной или созданной записи в случае успеха, иначе false
      * @throws Exception В случае ошибки в запросе к базе данных
      */
-    public function updateCategoryData($categoryData = [], $languageCode = ENV_DEF_LANG) {        
+    public function updateCategoryData(array $categoryData = [], string $languageCode = ENV_DEF_LANG): bool|int {        
         $categoryData = SafeMySQL::gi()->filterArray($categoryData, SysClass::ee_getFieldsTable(Constants::CATEGORIES_TABLE));
         $categoryData = array_map(function($value) {
             return is_string($value) ? trim($value) : $value;
@@ -281,29 +281,33 @@ class ModelCategories {
             $objectModelCategoriesTypes = SysClass::getModelObject('admin', 'm_categories_types');
             $allAvailableTypes = $this->getTypeIds($objectModelCategoriesTypes->getAllTypes(false, false, $parent_type_id));
             if (isset($categoryData['type_id']) && !in_array($categoryData['type_id'], $allAvailableTypes)) {
-                SysClass::preFile('errors', 'M_update_category_data ', 'not Available type_id for parent_id', json_encode($categoryData, JSON_UNESCAPED_UNICODE));
+                $message = 'M_update_category_data not Available type_id for parent_id';
+                new \classes\system\ErrorLogger($message, __FUNCTION__, 'category', $categoryData);
                 return false;               
             }
         } else if (!$categoryData['type_id'] || !is_numeric($categoryData['type_id'])) {
-            SysClass::preFile('errors', 'M_update_category_data ', 'error type_id', json_encode($categoryData, JSON_UNESCAPED_UNICODE));
+            $message = 'M_update_category_data error type_id';
+            new \classes\system\ErrorLogger($message, __FUNCTION__, 'category', $categoryData);
             return false;
         }
         if (empty($categoryData['title'])) {
-            SysClass::preFile('errors', 'M_update_category_data ', 'empty title', $categoryData);
+            $message = 'M_update_category_data empty title';
+            new \classes\system\ErrorLogger($message, __FUNCTION__, 'category', $categoryData);
             return false;
         }
         if (!isset($categoryData['description'])) {
             $categoryData['description'] = $categoryData['title'];
         }
         if (!empty($categoryData['category_id'])) {
-            // TODO получить type_id до обновления и если он сменился то удалить значения уже установленных свойств
             $oldTypeId = SafeMySQL::gi()->getOne('SELECT type_id FROM ?n WHERE category_id = ?i', Constants::CATEGORIES_TABLE, $categoryData['category_id']);
             $categoryId = $categoryData['category_id'];
             unset($categoryData['category_id']); // Удаляем category_id из массива данных, чтобы избежать его обновление
             $sql = "UPDATE ?n SET ?u WHERE `category_id` = ?i AND language_code = ?s";
             $result = SafeMySQL::gi()->query($sql, Constants::CATEGORIES_TABLE, $categoryData, $categoryId, $languageCode);
             if (!$result) {
-                SysClass::preFile('errors', 'M_update_category_data ', 'error SQL ' . SafeMySQL::gi()->parse($sql, Constants::CATEGORIES_TABLE, $categoryData, $categoryId, $languageCode));
+                $message = 'M_update_category_data error SQL';
+                new \classes\system\ErrorLogger($message, __FUNCTION__, 'category', SafeMySQL::gi()->parse($sql, Constants::CATEGORIES_TABLE, $categoryData, $categoryId, $languageCode));
+                return false;
             }
             if ($oldTypeId != $categoryData['type_id']) { // Смена типа категории
                 $categoryData['oldCategoryType'] = $oldTypeId;
@@ -320,13 +324,15 @@ class ModelCategories {
             );
             if ($existingCategory) {
                 classes\helpers\ClassNotifications::addNotificationUser(SysClass::getCurrentUserId(), ['text' => 'Не уникальное имя в рамках одного типа категории!', 'status' => 'danger']);
-                SysClass::preFile('errors', 'M_update_category_data ', 'existingCategory title: ' . $categoryData['title'] . ' type_id: ' . $categoryData['type_id']);
+                $message = 'M_update_category_data existing Category title: ' . $categoryData['title'] . ' type_id: ' . $categoryData['type_id'];
+                new \classes\system\ErrorLogger($message, __FUNCTION__, 'category', $categoryData);
                 return false;
             }
             $sql = "INSERT INTO ?n SET ?u";
             $result = SafeMySQL::gi()->query($sql, Constants::CATEGORIES_TABLE, $categoryData);
             if (!$result) {
-                SysClass::preFile('errors', 'M_update_category_data ', 'error SQL ' . SafeMySQL::gi()->parse($sql, Constants::CATEGORIES_TABLE, $categoryData));
+                $message = 'M_update_category_data error SQL';
+                new \classes\system\ErrorLogger($message, __FUNCTION__, 'category', SafeMySQL::gi()->parse($sql, Constants::CATEGORIES_TABLE, $categoryData));
             }
             $categoryId = SafeMySQL::gi()->insertId();
         }

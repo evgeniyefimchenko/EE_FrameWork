@@ -7,7 +7,7 @@
             <h1 class="mt-4"><?= $users_role_data['role_id'] ? $lang['sys.add'] : $lang['sys.edit'] ?></h1>
             <ol class="breadcrumb mb-4">
                 <li class="breadcrumb-item active">
-                    <span <?= $user_role > 2 ? 'style="display:none;"' : '' ?> id="role_id" data-id="<?= $users_role_data['role_id'] ?>">
+                    <span <?= $userData['user_role'] > 2 ? 'style="display:none;"' : '' ?> id="role_id" data-id="<?= $users_role_data['role_id'] ?>">
                         id = <?php echo !$users_role_data['role_id'] ? 'Не присвоен' : $users_role_data['role_id'] ?></span>
                 </li>
             </ol>

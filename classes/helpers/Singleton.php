@@ -47,8 +47,8 @@ abstract class Singleton {
 }
 
 /**
- * Класс для безопасного выполнения запросов к базе данных PostgreSQL.
- * Реализует паттерн Singleton.
+ * Класс для безопасного выполнения запросов к базе данных PostgreSQL
+ * Реализует паттерн Singleton
  */
 class SafePostgres extends Singleton {
 

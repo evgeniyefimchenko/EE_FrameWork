@@ -11,7 +11,7 @@ use classes\system\Plugins;
             <h1 class="mt-4"><?= $user_context['new_user'] ? $lang['sys.add'] : $lang['sys.edit'] ?></h1>
             <ol class="breadcrumb mb-4">
                 <li class="breadcrumb-item active">
-                    <span <?= $user_role > 2 ? 'style="display:none;"' : '' ?> id="id_user" data-id="<?= $user_context['user_id'] ?>">id = <?php echo $user_context['new_user'] ? 'Не присвоен' : $user_context['user_id'] ?></span>
+                    <span <?= $userData['user_role'] > 2 ? 'style="display:none;"' : '' ?> id="id_user" data-id="<?= $user_context['user_id'] ?>">id = <?php echo $user_context['new_user'] ? 'Не присвоен' : $user_context['user_id'] ?></span>
                 </li>
             </ol>
             <div class="row">
@@ -58,7 +58,7 @@ use classes\system\Plugins;
                                     <!-- Посмотреть статус и роль пользователя может администратор и модератор -->
                                     <!-- Роль пользователя может сменить только администратор -->
                                     <label><?= $lang['sys.role'] ?></label>
-                                    <?php if ($user_role == 1) { ?>
+                                    <?php if ($userData['user_role'] == 1) { ?>
                                         <select <?= $user_context['user_id'] == 1 || $user_context['user_role'] == 3 ? 'disabled' : '' ?> name="user_role" class="selectpicker form-control">
                                             <option value="<?= $user_context['user_role'] ?>"><?= $user_context['user_role_text'] ?></option>
                                             <?php foreach ($get_free_roles as $role) { ?>

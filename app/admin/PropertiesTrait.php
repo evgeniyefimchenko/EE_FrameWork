@@ -468,7 +468,7 @@ trait PropertiesTrait {
                             if ($file['name'] !== $dataFile['file_name']) continue; // Если имя файла не совпало то сейчас его не грузим так как в $dataFile другие данные
                             if ($file['error'] !== UPLOAD_ERR_OK) {
                                 $message = FileSystem::getErrorDescriptionByUploadCode($file['error']);
-                                SysClass::preFile('errors', 'saveFileProperty', $message, $file);
+                                new \classes\system\ErrorLogger($message . ': `' . var_export($file, true) . '`', __FUNCTION__);
                                 ClassNotifications::addNotificationUser($this->logged_in, ['text' => $message, 'status' => 'danger']);
                                 continue;
                             }
@@ -478,7 +478,7 @@ trait PropertiesTrait {
                             }                   
                             if (!$fileData = FileSystem::safeMoveUploadedFile($file)) {
                                 $message = 'Файл не сохранён ' . $file['name'];
-                                SysClass::preFile('errors', 'saveFileProperty', $message, [$file, $fileData]);
+                                new \classes\system\ErrorLogger($message . ': `' . var_export([$file, $fileData], true) . '`', __FUNCTION__);
                                 ClassNotifications::addNotificationUser(SysClass::getCurrentUserId(), ['text' => $message, 'status' => 'danger']);                        
                                 continue;                        
                             } else { // Сохраняем данные файла в таблицу
@@ -549,7 +549,7 @@ trait PropertiesTrait {
             $res = $this->models['m_properties']->updatePropertiesValueEntities($arrValue);
             if ($res === false) {
                 $message = 'Error, not write properties!';
-                SysClass::preFile('errors', 'processPropertyData', $message, $arrValue);
+                new \classes\system\ErrorLogger($message . ': `' . var_export($arrValue, true) . '`', __FUNCTION__);
                 ClassNotifications::addNotificationUser($this->logged_in, ['text' => $message, 'status' => 'danger']);
             }
         }

@@ -122,7 +122,7 @@ use classes\system\Plugins;
                             <div class="row">
                                 <div class="col">
                                     <div id="renderPropertiesSetsAccordion">
-                                        <?=Plugins::renderPropertiesSetsAccordion($allProperties, $pageData['page_id'], 'page')?>
+                                        <?= Plugins::renderPropertiesSetsTabs($allProperties, $pageData['page_id'], 'page') ?>
                                     </div>                                    
                                 </div>
                             </div>

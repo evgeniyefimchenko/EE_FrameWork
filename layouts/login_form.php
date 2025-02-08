@@ -15,12 +15,12 @@
         <meta name="site-created" content="<?= ENV_DATE_SITE_CREATE ?>" /> <!-- Дата создания сайта-->
         <meta name="document-state" content="Dynamic">
         <meta name="page-type" content="Текст" />
-        <meta name="generator" content="efimchenko.ru" /> <!-- Какой софт сгенерировал страницу-->
+        <meta name="generator" content="efimchenko.com" /> <!-- Какой софт сгенерировал страницу-->
         <meta name="author" content = "<?= ENV_SITE_AUTHOR ?>" /> <!-- Автор сайта-->
         <meta name="reply-to" content = "<?= ENV_SITE_EMAIL ?>" /> <!-- Почта автора сайта-->
         <meta name="copyright" content="<?= ENV_SITE_AUTHOR ?>" /> 
         <meta name="address" content="<?= ENV_URL_SITE ?>" /> <!-- Указывает адрес автора или организации собственника страницы. -->
-        <meta name="publisher-name" content="efimchenko.ru" /> <!-- Кто разместил сайт-->
+        <meta name="publisher-name" content="efimchenko.com" /> <!-- Кто разместил сайт-->
         <meta name="publisher-type" content="Private" /> <!-- Тип владельца сайта "Private", "Company" -->
         <meta name="home-url" content="<?= ENV_URL_SITE ?>" />
         <meta name="keywords" content='<?= $keywords ?>'/>
@@ -77,7 +77,8 @@
             <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" type="text/javascript"></script>
         <?php } ?>
         <!-- core -->
-        <script src="<?= ENV_URL_SITE ?>/classes/system/js/core.js" type="text/javascript"></script>
+        <script src="<?= ENV_URL_SITE ?>/uploads/tmp/<?=\classes\system\Session::get('lang')?>.js" type="text/javascript"></script>
+        <script src="<?= ENV_URL_SITE ?>/assets/js/core.js" type="text/javascript"></script>
         <!-- end of non-relocatable JS scripts -->
         <!-- Добавленные скрипты из контроллера -->
         <?= $add_script ?>

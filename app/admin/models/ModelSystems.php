@@ -3,6 +3,7 @@
 use classes\plugins\SafeMySQL;
 use classes\system\Users;
 use classes\system\SysClass;
+
 /**
  * Модель системных действий
  */
@@ -13,11 +14,14 @@ class ModelSystems {
      * Этот метод получает список всех таблиц в текущей базе данных,
      * и выполняет операцию DROP на каждой таблице для её очистки.
      * Операции выполняются в рамках одной транзакции, чтобы гарантировать,
-     * что все таблицы будут успешно очищены, или ни одна из таблиц не будет удалена в случае ошибки
+     * что все таблицы будут успешно очищены, или ни одна из таблиц не будет удалена в случае ошибки.
+     * После очистки базы данных метод перезаписывает файл Constants.php содержимым файла Constants_clean.php.
+     *
      * @param int $user_id Кто вызвал
      * @throws Exception Если произошла ошибка во время очистки таблиц
+     * @return bool Возвращает true, если операция выполнена успешно, и false в случае ошибки
      */
-    public function killDB($user_id) {
+    public function killDB(int $user_id): bool {
         $tables = SafeMySQL::gi()->getCol("SHOW TABLES");
         if ($tables) {
             SafeMySQL::gi()->query("START TRANSACTION");
@@ -37,12 +41,31 @@ class ModelSystems {
             ClassNotifications::add_notification_user($user_id, ['text' => 'No tables found in the database.', 'status' => 'info']);
             return false;
         }
+
         // Пересоздание БД и регистрация первичных пользователей
         new Users(true);
+
+        // Удаление флага создания тестовых данных
         $flagFilePath = ENV_TMP_PATH . 'test_data_created.txt';
         if (file_exists($flagFilePath)) {
             unlink($flagFilePath);
         }
+
+        // Перезапись файла Constants.php содержимым Constants_clean.php
+        $constantsCleanPath = ENV_SITE_PATH . 'classes' . ENV_DIRSEP . 'system' . ENV_DIRSEP . 'Constants_clean.php';
+        $constantsPath = ENV_SITE_PATH . 'classes' . ENV_DIRSEP . 'system' . ENV_DIRSEP . 'Constants.php';
+
+        if (file_exists($constantsCleanPath)) {
+            $constantsCleanContent = file_get_contents($constantsCleanPath);
+            if (file_put_contents($constantsPath, $constantsCleanContent) === false) {
+                ClassNotifications::add_notification_user($user_id, ['text' => 'Failed to overwrite Constants.php.', 'status' => 'danger']);
+                return false;
+            }
+        } else {
+            ClassNotifications::add_notification_user($user_id, ['text' => 'Constants_clean.php not found.', 'status' => 'danger']);
+            return false;
+        }
+
         return true;
     }
 
@@ -90,7 +113,7 @@ class ModelSystems {
                         if (trim($line) !== '') {
                             $currentLog['stack_trace'][] = trim($line);
                         }
-                    }                    
+                    }
                 } else if (preg_match('/\[(.*?)\] (.*?): (.*)/', $line, $matches)) {
                     // Обработка стандартного формата (php_errors.log)   
                     if ($currentLog) {
@@ -121,10 +144,10 @@ class ModelSystems {
             'stack_trace' => []
             ]];
             $logs['total_count'] = 0;
-        }        
+        }
         return $logs;
     }
-    
+
     /**
      * Разбирает блок логов, извлекая из него информацию о времени события, инициаторе, результате, деталях и трассировке стека
      * Форматирует извлеченные данные в структурированный массив
@@ -145,32 +168,32 @@ class ModelSystems {
             } elseif (strpos($line, 'Инициатор: ') === 0) {
                 $log['initiator'] = trim(substr($line, strlen('Инициатор: ')));
             } elseif (strpos($line, 'Результат: ') === 0) {
-                $log['result'] = trim(substr($line, strlen('Результат: ')), " '");                
+                $log['result'] = trim(substr($line, strlen('Результат: ')), " '");
             } elseif (strpos($line, 'Детали: ') === 0) {
                 $log['details'] = trim(substr($line, strlen('Детали: ')));
             } elseif (strpos($line, 'Полный стек вызовов: ') === 0) {
                 $json_data = trim(substr($line, strlen('Полный стек вызовов: ')));
                 if (SysClass::ee_isValidJson($json_data)) {
-                    $log['stack_trace'] = json_decode($json_data, true);                    
+                    $log['stack_trace'] = json_decode($json_data, true);
                     $stack = '';
                     $count = 0;
                     foreach ($log['stack_trace'] as $item) {
                         $string = '';
                         foreach ($item as $key => $value) {
-                            $string .= '<b>' . $key . '</b>: ' . $value . '<br/>';                            
+                            $string .= '<b>' . $key . '</b>: ' . $value . '<br/>';
                         }
                         $count++;
                         $stack .= '#' . $count . '<br/>' . trim($string) . '<hr/>';
-                    }                    
-                    $log['stack_trace'] = $stack;                    
+                    }
+                    $log['stack_trace'] = $stack;
                 } else {
                     $log['stack_trace'] = '';
                 }
             }
-        }        
+        }
         return $log;
     }
-    
+
     /**
      * Получает все логи из заданных директорий и файлов
      * Применяет фильтрацию, сортировку и пагинацию к полученным логам
@@ -214,13 +237,13 @@ class ModelSystems {
             'total_count' => count($filteredLogs)
         ];
     }
-    
+
     /**
-    * Фильтрует лог на основе заданного условия
-    * @param array $log Массив, представляющий одну запись лога
-    * @param mixed $where Строка с условиями фильтрации, может быть false для отсутствия фильтрации
-    * @return bool Возвращает true, если лог соответствует всем условиям фильтрации, иначе false
-    */   
+     * Фильтрует лог на основе заданного условия
+     * @param array $log Массив, представляющий одну запись лога
+     * @param mixed $where Строка с условиями фильтрации, может быть false для отсутствия фильтрации
+     * @return bool Возвращает true, если лог соответствует всем условиям фильтрации, иначе false
+     */
     private function filterLog($log, $where) {
         if ($where === false) {
             return true;
@@ -247,7 +270,7 @@ class ModelSystems {
         }
         return true;
     }
-    
+
     /**
      * Сравнивает дату и время из лога с заданным условием
      * @param string $logTime Дата и время из лога
@@ -275,7 +298,7 @@ class ModelSystems {
      * @param int $start Начальная позиция для пагинации
      * @param int $limit Количество логов для возврата 
      * @return array Возвращает массив логов после применения сортировки и пагинации
-     */    
+     */
     private function sortAndPaginateLogs($logs, $order, $start, $limit) {
         if ($order !== false) {
             usort($logs, function ($a, $b) use ($order) {
@@ -345,5 +368,4 @@ class ModelSystems {
     public function get_progect_logs() {
         $logFilePath = ENV_LOGS_PATH; // Содержит /home3/whrgijws/public_html/skku.shop/logs
     }
-
 }

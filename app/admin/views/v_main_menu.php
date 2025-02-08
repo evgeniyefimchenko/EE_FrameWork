@@ -109,7 +109,7 @@ $menuItems = [
                 'link' => '/admin/upgrade',
             ],
             [
-                'title' => '<div class="small">' . $lang['sys.welcome'] . ':</div><a href="/admin/user_edit" class="nav-link">' . $name . '</a>',
+                'title' => '<div class="small">' . $lang['sys.welcome'] . ':</div><a href="/admin/user_edit" class="nav-link">' . $userData['name'] . '</a>',
                 'link' => false,
             ],
         ]

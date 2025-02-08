@@ -97,7 +97,7 @@ trait CategoriesTrait {
         if (isset($getCategoryData['parent_id']) && $getCategoryData['parent_id']) {
             // Есть родитель, можно выбрать только его тип или подчинённый
             $parentTypeId = $this->models['m_categories']->getCategoryTypeId($getCategoryData['parent_id']);
-            $getAllTypes = $this->models['m_categories_types']->getAllTypes(false, false, $parentTypeId);
+            $getAllTypes = $this->models['m_categories_types']->getAllTypes(false, false, $parentTypeId);            
         } elseif (isset($getCategoryData['type_id']) && $getCategoryData['type_id']) {
             // Если нет родителя то можно выбрать любой тип категории
             $getAllTypes = $this->models['m_categories_types']->getAllTypes(false, false);            
@@ -122,7 +122,7 @@ trait CategoriesTrait {
         /* layouts */
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
-        $this->add_editor_to_layout();
+        $this->addEditorToLayout();
         $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/func_properties.js" type="text/javascript" /></script>';
         $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/edit_categories.js" type="text/javascript" /></script>';
         $this->parameters_layout["title"] = $this->lang['sys.categories_edit'];
@@ -149,10 +149,6 @@ trait CategoriesTrait {
                 $typeId = $this->models['m_categories']->getCategoryTypeId($postData['parent_id']);
                 $oldTypeId = $this->models['m_categories']->getCategoryTypeId($postData['category_id']);
                 $getAllTypes = $this->models['m_categories_types']->getAllTypes(false, false, $typeId);
-                if ($typeId !== $oldTypeId && $postData['count_pages'] > 0) { // Нельзя сменить тип категории если есть страницы
-                    echo json_encode(['parent_type_id' => false, 'html' => 'Нельзя сменить тип категории если есть страницы!']);
-                    die;
-                }
             } else {
                 $getAllTypes = $this->models['m_categories_types']->getAllTypes(false, false);
                 $postData['parent_id'] = 0;

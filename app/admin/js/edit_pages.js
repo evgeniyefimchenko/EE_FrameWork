@@ -10,7 +10,5 @@ $(document).ready(function () {
     });
     $('input[name^=property_data]').change(function() {
         $('input[name=property_data_changed]').val(1);
-    });    
-    initializeTinyMCE('#short_description-input', settingsShortDescription);
-    initializeTinyMCE('#description-input', settingsLongDescription);
+    });
 });

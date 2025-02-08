@@ -76,62 +76,38 @@ abstract class ControllerBase {
             Cookies::clear('user_session');
         }
         $this->users = new Users($this->logged_in);
-        $user_data = $this->users->data;
+        $userData = $this->users->data;
         // Прогрузка пользовательских данных в представления и языковой массив        
-        $this->setUserData($user_data);
+        $this->setUserData($userData);
     }
 
     /**
      * Загрузит в представление данные пользователя
      * И языковой массив
-     * @param $user_data - Данные пользователя для загрузки
+     * @param $userData - Данные пользователя для загрузки
      */
-    private function setUserData($user_data) {
-        global $globalLang;
-        $get_lang_code = '';
-        if (!isset($user_data['new_user']) || $user_data['new_user'] != 1) {
-            foreach ($user_data as $name => $val) {
-                $this->view->set($name, $val);
-            }
-            $s_lang = Session::get('lang');
-            if (strlen($user_data['options']['localize']) > 1 && empty($s_lang)) { // Проверка на наличие локали в настройках пользователя
-                $get_lang_code = 'user_data options localize';
-                $lang_code = $user_data['options']['localize'];
+    private function setUserData($userData) {
+        $getLangCode = ''; // Для логирования
+        if (empty($userData['new_user'])) { // Разегистрированный пользователь
+            $this->view->set('userData', $userData);
+            if (!empty($userData['options']['localize'])) { // Проверка на наличие локали в настройках пользователя
+                $getLangCode = 'user_data options localize';
+                $langCode = $userData['options']['localize'];
             } else { // Записываем локаль в опции пользователя
-                $get_lang_code = 'user_data Session';
-                $lang_code = $s_lang;
-                $user_data['options']['localize'] = $lang_code;
-                $this->users->setUserOptions($this->logged_in, $user_data['options']);
+                $getLangCode = 'user_data Session';
+                $langCode = !empty(Session::get('lang')) ? Session::get('lang') : ENV_DEF_LANG;
+                $userData['options']['localize'] = $langCode;
+                $this->users->setUserOptions($this->logged_in, $userData['options']);
             }
-        } else {
-            $lang_code = Session::get('lang');
-            $get_lang_code = 'Session';
-            if (!$lang_code) {
-                $lang_code = ENV_DEF_LANG;
-                $get_lang_code = 'ENV_DEF_LANG';
-                Session::set('lang', $lang_code);
-            }
-        }
-        $lang_path = ENV_SITE_PATH . ENV_PATH_LANG . '/' . $lang_code . '.php';
-        $lang = file_exists($lang_path) ? include($lang_path) : false;
-        if (!is_array($lang)) {
-            SysClass::preFile('lang_errors', 'base get_user_data ' . var_export($get_lang_code, true), var_export($lang, true), 'Языковой файл не найден(подключаем ENV_PROTO_LANGUAGE'
-                    . ' ' . ENV_PROTO_LANGUAGE . '): ' . $lang_path);
-            $lang_path = ENV_SITE_PATH . ENV_PATH_LANG . '/' . ENV_PROTO_LANGUAGE . '.php';
-            $lang_code = ENV_PROTO_LANGUAGE;
-            if (file_exists($lang_path)) {
-                $lang = include($lang_path);
-            }
-        }
-        Session::set('lang', $lang_code);
-        $this->view->set('lang', $lang);
-        $globalLang = $lang;
-        // Фильтрация массива языковых элементов, содержащих 'sys' в ключе
-        $sysLang = array_filter($lang, function ($key) {
-            return strpos($key, 'sys.') === 0;
-        }, ARRAY_FILTER_USE_KEY);
-        $this->users->lang = $sysLang;
-        $this->lang = $lang;
+        } else { // Новый пользователь
+            $langCode = !empty(Session::get('lang')) ? Session::get('lang') : ENV_DEF_LANG;
+            $getLangCode = 'New user ' . $langCode;
+            Session::set('lang', $langCode);
+        }        
+        $this->lang = Lang::init($langCode);
+        Session::set('lang', $langCode);
+        SysClass::checkLangVars($langCode, $this->lang);
+        $this->view->set('lang', $this->lang);
     }
 
     /**
@@ -220,14 +196,14 @@ abstract class ControllerBase {
      */
     private function getUsersSessionData($session) {
         $sql = 'SELECT user_id, last_ip FROM ?n WHERE session = ?s';
-        $user_data = SafeMySQL::gi()->getRow($sql, ENV_DB_PREF . 'users', $session);
-        if (ENV_ONE_IP_ONE_USER && $user_data['last_ip'] !== SysClass::client_ip()) {
+        $userData = SafeMySQL::gi()->getRow($sql, ENV_DB_PREF . 'users', $session);
+        if (ENV_ONE_IP_ONE_USER && $userData['last_ip'] !== SysClass::client_ip()) {
             return false;
         } else {
-            if (isset($user_data['user_id'])) {
+            if (isset($userData['user_id'])) {
                 $sql = 'UPDATE ?n SET last_activ = NOW() WHERE user_id = ?i';
-                SafeMySQL::gi()->query($sql, ENV_DB_PREF . 'users', $user_data['user_id']);
-                return $user_data['user_id'];
+                SafeMySQL::gi()->query($sql, ENV_DB_PREF . 'users', $userData['user_id']);
+                return $userData['user_id'];
             }
             return false;
         }

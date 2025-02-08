@@ -50,7 +50,7 @@ function initializeMenuClickHandlers() {
             $(this).on('click', function (e) {
                 e.preventDefault();
                 let docName = $(this).data('doc');
-                sendAjaxRequest('/get_doc', { docName: docName }, 'POST', 'html', renderDoc, errorDoc);
+                AppCore.sendAjaxRequest('/get_doc', { docName: docName }, 'POST', 'html', renderDoc, errorDoc);
             });
         }
     });

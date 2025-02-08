@@ -25,7 +25,7 @@ trait SystemsTrait {
         /* get data */
         $fatal_errors_table = $this->get_php_logs_table('fatal_errors');
         $php_logs_table = $this->get_php_logs_table('php_logs');
-        $progect_logs = $this->get_progect_logs_table();
+        $progect_logs = $this->get_project_logs_table();
         /* view */
         $this->getStandardViews();
         $this->view->set('php_logs_table', $php_logs_table);
@@ -43,7 +43,7 @@ trait SystemsTrait {
     /**
      * Вернёт таблицу логирования проекта
      */
-    public function get_progect_logs_table() {
+    public function get_project_logs_table() {
         $this->access = [Constants::ADMIN];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect();
@@ -138,10 +138,10 @@ trait SystemsTrait {
         }
         $data_table['total_rows'] = $php_logs_array['total_count'];
         if ($postData) {
-            echo Plugins::ee_show_table('progect_logs_table_', $data_table, 'get_progect_logs_table', $filters, (int) $postData["page"], $postData["rows_per_page"], $selected_sorting);
+            echo Plugins::ee_show_table('progect_logs_table_', $data_table, 'get_project_logs_table', $filters, (int) $postData["page"], $postData["rows_per_page"], $selected_sorting);
             die;
         } else {
-            return Plugins::ee_show_table('progect_logs_table_', $data_table, 'get_progect_logs_table', $filters);
+            return Plugins::ee_show_table('progect_logs_table_', $data_table, 'get_project_logs_table', $filters);
         }
     }
 

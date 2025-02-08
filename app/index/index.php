@@ -15,7 +15,6 @@ class ControllerIndex Extends ControllerBase {
      * Загрузка стандартных представлений
      */
     private function getStandardViews() {
-        $this->view->set('area', 'CLIENT');
         $this->view->set('logged_in', $this->logged_in);
         $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/index.js" type="text/javascript" /></script>';
         $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="' . $this->getPathController() . '/css/index.css"/>';
@@ -26,6 +25,7 @@ class ControllerIndex Extends ControllerBase {
      */
     public function index($params = NULL) {
         if ($params) {
+            SysClass::pre($params);
             SysClass::handleRedirect();
         }
         /* view */
@@ -277,7 +277,8 @@ class ControllerIndex Extends ControllerBase {
      * И обновление всех параметров пользователя, если есть авторизация
      */
     public function set_options($params = []) {
-        if (count($params) > 1 || count($params) == 0 || !SysClass::isAjaxRequestFromSameSite() || empty(ENV_SITE)) {
+        $allExistingLanguages = classes\system\Lang::getLangFilesWithoutExtension();
+        if (count($params) > 1 || count($params) == 0 || !SysClass::isAjaxRequestFromSameSite() || !in_array(strtoupper($params[0]), $allExistingLanguages)) {
             die(json_encode(array('error' => 'it`s a lie')));
         }
         $postData = SysClass::ee_cleanArray($_POST);
@@ -285,11 +286,9 @@ class ControllerIndex Extends ControllerBase {
             $this->access = [classes\system\Constants::ALL_AUTH];
             if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
                 die(json_encode(array('error' => 'access denieded')));
-            }
-            if ($params[0] == 'en' || $params[0] == 'ru') {                
-                Session::set('lang', $params[0]);
-                $postData['localize'] = $params[0];
-            }
+            }                          
+            Session::set('lang', $params[0]);
+            $postData['localize'] = $params[0];
             $this->loadModel('m_index');
             $user_data = $this->users->data;
             foreach ($postData as $key => $value) {
@@ -303,32 +302,5 @@ class ControllerIndex Extends ControllerBase {
         }
         die(json_encode(array('error' => 'no')));
     }
-
-    /**
-     * Функция возврата языковых переменных AJAX
-     */
-    public function language($params = NULL) {
-        if ($params || !SysClass::isAjaxRequestFromSameSite() || empty(ENV_SITE)) {
-            die('it`s a lie');
-        }
-        $postData = SysClass::ee_cleanArray($_POST);
-        if (isset($postData['loadAll']) && $postData['loadAll'] == 'true') {
-            die(json_encode(['langVars' => json_encode($this->lang), 'envGlobal' => json_encode($this->get_global())]));
-        } else {
-            die(isset($this->lang[$postData['text']]) ? $this->lang[$postData['text']] : 'var ' . $postData['text'] . ' not found!');
-        }
-    }
     
-    private function get_global() {
-        return [
-            'ENV_SITE_NAME' => ENV_SITE_NAME,            
-            'ENV_DOMEN_NAME' => ENV_DOMEN_NAME,            
-            'ENV_URL_SITE' => ENV_URL_SITE,            
-            'ENV_SITE_PATH' => ENV_SITE_PATH,            
-            'ENV_LOGS_PATH' => ENV_LOGS_PATH,            
-            'ENV_DEF_LANG' => ENV_DEF_LANG,            
-            'ENV_COMPRESS_HTML' => ENV_COMPRESS_HTML
-        ];
-    }
-
 }

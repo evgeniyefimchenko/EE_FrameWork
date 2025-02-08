@@ -244,11 +244,10 @@ class ControllerIndex Extends ControllerBase {
      * Загрузка стандартных представлений для каждой страницы
      */
     private function getStandardViews() {
-        $this->view->set('area', 'ADMIN');
         Hook::run('A_beforeGetStandardViews', $this->view);
         $this->view->set('top_bar', $this->view->read('v_top_bar'));
         $this->view->set('main_menu', $this->view->read('v_main_menu'));
-        $this->view->set('page_footer', /*$this->view->read('v_footer')*/'');       
+        $this->view->set('page_footer', /*$this->view->read('v_footer')*/''); // TODO        
         Hook::run('A_afterGetStandardViews', $this->view);
     }
 
@@ -947,10 +946,19 @@ class ControllerIndex Extends ControllerBase {
     /**
      * Добавит необходимые стили и скрипты для подключения редактора
      */
-    private function add_editor_to_layout() {
-        $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/elfinder/2.1.9/css/elfinder.min.css">' . '<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/elfinder/2.1.9/css/theme.css">';
-        $this->parameters_layout["add_script"] .= '<script src="' . ENV_URL_SITE . '/assets/editor/tinymce/tinymce.min.js"></script>';
-        $this->parameters_layout["add_script"] .= '<script src="https://cdnjs.cloudflare.com/ajax/libs/elfinder/2.1.9/js/elfinder.min.js"></script>';
+    private function addEditorToLayout() {
+        $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="' . ENV_URL_SITE . '/assets/editor/summernote/summernote-bs5.min.css">';
+        $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="' . ENV_URL_SITE . '/assets/js/plugins/cropper.min.css">';
+        $this->parameters_layout["add_script"] .= '<script src="' . ENV_URL_SITE . '/assets/editor/summernote/summernote-bs5.min.js" type="text/javascript"></script>';
+        $this->parameters_layout["add_script"] .= '<script src="' . ENV_URL_SITE . '/assets/js/plugins/cropper.min.js" type="text/javascript"></script>';
+        $this->parameters_layout["add_script"] .= '<script src="' . ENV_URL_SITE . '/assets/editor/summernote/plugin/text/text_manipulation.js" type="text/javascript"></script>';
+        $this->parameters_layout["add_script"] .= '<script src="' . ENV_URL_SITE . '/assets/editor/summernote/plugin/cropper/summernote-cropper.js" type="text/javascript" type="text/javascript"></script>';
+        $this->parameters_layout["add_script"] .= '<script src="' . ENV_URL_SITE . '/assets/editor/summernote/plugin/cropper/summernote-ext-image.js" type="text/javascript" type="text/javascript"></script>';
+        if (ENV_DEF_LANG == 'RU') {
+            $this->parameters_layout["add_script"] .= '<script src="' . ENV_URL_SITE . '/assets/editor/summernote/lang/summernote-ru-RU.min.js" type="text/javascript"></script>';
+        } else {
+            $this->parameters_layout["add_script"] .= '<script src="' . ENV_URL_SITE . '/assets/editor/summernote/lang/summernote-en-US.min.js" type="text/javascript"></script>';            
+        }
     }
 
 }

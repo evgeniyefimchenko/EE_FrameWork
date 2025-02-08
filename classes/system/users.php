@@ -15,7 +15,7 @@ class Users {
     const BASE_OPTIONS_USER = '{"localize": "", "user_logo_img": "uploads/images/avatars/face-0-lite.jpg","user_img": "/uploads/images/avatars/face-0.jpg",'
                               . '"skin": "skin-default", "notifications": false}';
 
-    public $lang = []; // Языковые переменные для текущего класса
+    private $lang = []; // Языковые переменные для текущего класса
     public $data;
 
     public function __construct($params = []) {
@@ -30,14 +30,7 @@ class Users {
             $user_id = (int)$params;
         }
         $this->data = $this->getUserData($user_id, $create_table);
-    }
-
-    /**
-     * Запишет языковые переменные
-     * Массив должен быть передан из экземпляра класса использующего функции Class Users
-     */
-    public function set_lang($lang) {
-        $this->lang = $lang;
+        $this->lang = !empty(Session::get('lang')) ? Lang::init(Session::get('lang')) : [];
     }
 
     /**
@@ -478,23 +471,17 @@ class Users {
                     role_id tinyint(2) UNSIGNED NOT NULL AUTO_INCREMENT,
                     role_key varchar(50) NOT NULL COMMENT 'Уникальный ключ роли',
                     name varchar(255) NOT NULL,
-                    language_code CHAR(2) NOT NULL DEFAULT 'RU' COMMENT 'Код языка по ISO 3166-2',
                     PRIMARY KEY (role_id),
-                    UNIQUE KEY (role_key, language_code)
+                    UNIQUE KEY (role_key)
                     ) ENGINE=innodb DEFAULT CHARSET=utf8 COMMENT='Роли пользователей';";
             SafeMySQL::gi()->query($createUsersRolesTable, Constants::USERS_ROLES_TABLE);
-            /* Добавим стандартные роли на русском и английском языках */
-            $insertData = "INSERT INTO ?n (role_key, name, language_code) VALUES
-                    ('admin', 'Администратор', 'RU'),
-                    ('admin', 'Administrator', 'EN'),
-                    ('moderator', 'Модератор', 'RU'),
-                    ('moderator', 'Moderator', 'EN'),
-                    ('manager', 'Менеджер', 'RU'),
-                    ('manager', 'Manager', 'EN'),
-                    ('user', 'Пользователь', 'RU'),
-                    ('user', 'User', 'EN'),
-                    ('system', 'Система', 'RU'),
-                    ('system', 'System', 'EN')
+            /* Добавим стандартные роли */
+            $insertData = "INSERT INTO ?n (role_id, role_key, name) VALUES
+                    (1, 'admin', 'Администратор'),
+                    (2, 'moderator', 'Модератор'),
+                    (3, 'manager', 'Менеджер'),
+                    (4, 'user', 'Пользователь'),
+                    (8, 'system', 'Система')
                     ON DUPLICATE KEY UPDATE name = VALUES(name);";
             SafeMySQL::gi()->query($insertData, Constants::USERS_ROLES_TABLE);
             /* Данные пользователя */
@@ -687,6 +674,8 @@ class Users {
                                     uploaded_at DATETIME NOT NULL,
                                     updated_at DATETIME DEFAULT NULL,
                                     user_id INT UNSIGNED NULL,
+                                    file_hash CHAR(32) NOT NULL COMMENT 'MD5 хеш файла для проверки уникальности',
+                                    UNIQUE KEY unique_file_hash (file_hash),                                 
                                     FOREIGN KEY (user_id) REFERENCES ?n(user_id)
                                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8
                                  COMMENT='Таблица для сохранения информации о файлах';";
@@ -848,7 +837,7 @@ class Users {
                 }
                 
                 // TODO только для теста!
-                if (1 == 2) {
+                if (1 == 1) {
                     $objectModelCategoriesTypes = SysClass::getModelObject('admin', 'm_categories_types');
                     $objectModelCategories = SysClass::getModelObject('admin', 'm_categories', ['m_categories_types' => $objectModelCategoriesTypes]);
                     $objectModelProperties = SysClass::getModelObject('admin', 'm_properties');

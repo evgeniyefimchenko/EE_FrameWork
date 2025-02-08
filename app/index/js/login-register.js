@@ -1,20 +1,8 @@
-const MODAL_TITLE_SIGN_UP = lang_var('sys.sign_up_text');
-const MODAL_TITLE_LOG_IN = lang_var('sys.log_in');
-const MODAL_TITLE_RESTORE_PASSWORD = lang_var('sys.restore_password');
-const urlParams = getUrlVars();
+const MODAL_TITLE_SIGN_UP = AppCore.getLangVar('sys.sign_up_text');
+const MODAL_TITLE_LOG_IN = AppCore.getLangVar('sys.log_in');
+const MODAL_TITLE_RESTORE_PASSWORD = AppCore.getLangVar('sys.restore_password');
+const urlParams = AppCore.getUrlVars();
 const urlReturn = urlParams['return'] || '/';
-
-/**
- * Получает переменные из URL.
- * @returns {Object} Объект с переменными из URL.
- */
-function getUrlVars() {
-    const vars = {};
-    window.location.href.replace(/[?&]+([^=&]+)=([^&]*)/gi, function (m, key, value) {
-        vars[key] = value;
-    });
-    return vars;
-}
 
 /**
  * Анимирует модальное окно в зависимости от типа сообщения: "встряхивание" для ошибки и плавное исчезновение для успеха.
@@ -81,22 +69,17 @@ function openRecoveryModal() {
  * @param {Function} successCallback Функция обратного вызова при успешном запросе.
  */
 function performAjaxRequest(url, data, successCallback) {
-    $.ajax({
-        type: 'POST',
-        url: url,
-        dataType: 'json',
-        data: data,
-        beforeSend: function () {
-            window.preloader.fadeIn("slow");
-        },
-        success: successCallback,
-        error: function (xhr, ajaxOptions, thrownError) {
-            console.log(xhr.status, xhr.responseText, thrownError);
-        },
-        complete: function () {
-            window.preloader.fadeOut("slow");
+    AppCore.sendAjaxRequest(
+        url,
+        data,
+        'POST',
+        'json',
+        successCallback,
+        function (jqXHR, textStatus, errorThrown) {
+            console.error("AJAX request failed:", textStatus, errorThrown);
+            console.error("Response details:", jqXHR.status, jqXHR.responseText);
         }
-    });
+    );
 }
 
 $(document).ready(function () {
@@ -138,7 +121,7 @@ $(document).ready(function () {
             if (data.error !== "") {
                 await shakeOrFadeModal(data['error']);
             } else {
-                await shakeOrFadeModal(lang_var('sys.welcome') + '!', true);
+                await shakeOrFadeModal(AppCore.getLangVar('sys.welcome') + '!', true);
                 // Переход на адрес из параметра 'return', если он существует, иначе переход на '/admin'
                 window.location = returnUrl ? returnUrl : "/admin";
             }
@@ -151,11 +134,11 @@ $(document).ready(function () {
         performAjaxRequest('/register', formData, function (data) {
             if (data.error !== "") {
                 shakeOrFadeModal(data['error']);
-                if (data.error === lang_var('sys.welcome')) {
+                if (data.error === AppCore.getLangVar('sys.welcome')) {
                     $('#return_general').submit();
                 }
             } else {
-                shakeOrFadeModal(lang_var('sys.verify_email'), true);
+                shakeOrFadeModal(AppCore.getLangVar('sys.verify_email'), true);
             }
         });
         return false;
@@ -168,7 +151,7 @@ $(document).ready(function () {
             if (data.error !== "") {
                 shakeOrFadeModal(data['error']);
             } else {
-                shakeOrFadeModal(lang_var('sys.new_password_in_email'), true);
+                shakeOrFadeModal(AppCore.getLangVar('sys.new_password_in_email'), true);
             }
         });
         return false;

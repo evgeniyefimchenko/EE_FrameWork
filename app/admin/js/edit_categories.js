@@ -9,7 +9,7 @@ $(document).ready(function () {
         var category_id = $('#category_id').attr('data-id');
         var countPages = $('#count_pages').val();
         if (parent_id) {
-            sendAjaxRequest('/admin/getTypeCategory',
+            AppCore.sendAjaxRequest('/admin/getTypeCategory',
                     {
                         parent_id: parent_id,
                         category_id: category_id,
@@ -20,8 +20,8 @@ $(document).ready(function () {
                     function (response) {
                         var type_id = response.parent_type_id;
                         if (type_id >= 0) {
-                            $('#type_id-input').html(response.html);                            
-                            sendAjaxRequest('/admin/getCategoriesType',
+                            $('#type_id-input').html(response.html);
+                            AppCore.sendAjaxRequest('/admin/getCategoriesType',
                                     {
                                         type_id: type_id,
                                         category_id: category_id,
@@ -34,7 +34,10 @@ $(document).ready(function () {
                                     }
                             );
                         } else {
-                            if ($('#oldParentId').val()) $('#parent_id-input').val($('#oldParentId').val()); else $('#parent_id-input').val(0);
+                            if ($('#oldParentId').val())
+                                $('#parent_id-input').val($('#oldParentId').val());
+                            else
+                                $('#parent_id-input').val(0);
                         }
                     });
         } else {
@@ -52,7 +55,7 @@ $(document).ready(function () {
     var parts = currentPage.split('/').filter(part => part !== '');
 
     if (parts[1] === 'category_edit') {
-        initializeTinyMCE('#short_description-input', settingsShortDescription);
-        initializeTinyMCE('#description-input', settingsLongDescription);
+        console.log(AppCore.summernoteParams);
+        $('#description-input').summernote(AppCore.summernoteParams);
     }
 });

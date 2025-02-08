@@ -2,8 +2,6 @@
 
 namespace classes\system;
 
-use Redis;
-
 /**
  * Класс CacheManager
  * Этот класс предоставляет методы для управления кешем сайта, поддерживая кеширование на основе файловой системы и Redis
@@ -21,7 +19,7 @@ class CacheManager {
     private $cacheDuration;
 
     /**
-     * @var Redis|null $redisClient Клиент Redis (если используется Redis)
+     * @var \Redis|null $redisClient Клиент Redis (если используется Redis)
      */
     private $redisClient = null;
 
@@ -42,11 +40,19 @@ class CacheManager {
     public function __construct(int $cacheDuration = 3600) {
         $this->cachePath = ENV_CACHE_PATH;
         $this->cacheDuration = $cacheDuration;        
+        
         // Проверка на использование Redis
-        if (ENV_CACHE_REDIS == 1) {
+        if (ENV_CACHE_REDIS == 1 && class_exists('\Redis')) {
             $this->useRedis = true;
-            $this->redisClient = new Redis();
-            $this->redisClient->connect(ENV_REDIS_ADDRESS, ENV_REDIS_PORT);
+            try {
+                $this->redisClient = new \Redis();
+                $this->redisClient->connect(ENV_REDIS_ADDRESS, ENV_REDIS_PORT);
+            } catch (\Exception $e) {
+                // Если подключение к Redis не удалось, отключаем его использование
+                $this->useRedis = false;
+                $this->redisClient = null;
+                error_log("Redis connection failed: " . $e->getMessage());
+            }
         }
     }
 
@@ -55,7 +61,7 @@ class CacheManager {
      * @param string $param Уникальный ключ для блока кеширования
      * @return string Возвращает хешированный ключ для идентификации кеша
      */
-    private function generateCacheKey($param): string {
+    private function generateCacheKey(string $param): string {
         $key = $param;
         $key .= isset($_GET) ? json_encode($_GET) : '';
         return md5($key);
@@ -66,9 +72,9 @@ class CacheManager {
      * @param string $param Уникальный ключ для блока кеширования
      * @return string|false Путь к кеш-файлу или содержимое из Redis, если существует актуальный кеш
      */
-    public function isCached($param) {
+    public function isCached(string $param): string|false {
         $cacheKey = $this->generateCacheKey($param);
-        if ($this->useRedis) {
+        if ($this->useRedis && $this->redisClient) {
             if ($this->redisClient->exists($cacheKey)) {
                 return $this->redisClient->get($cacheKey);
             }
@@ -87,7 +93,7 @@ class CacheManager {
      * @return string Содержимое кеша
      */
     public function getCache(string $cacheKey): string {
-        if ($this->useRedis) {
+        if ($this->useRedis && $this->redisClient) {
             return $cacheKey;  // В случае с Redis возвращаем кеш сразу
         }        
         return file_get_contents($cacheKey);  // Для файловой системы читаем содержимое файла
@@ -99,13 +105,15 @@ class CacheManager {
      * @param string $param Уникальный ключ для блока кеширования
      * @return void
      */
-    public function setCache(string $content, $param): void {
+    public function setCache(string $content, string $param): void {
         $cacheKey = $this->generateCacheKey($param);        
-        if ($this->useRedis) {
+        if ($this->useRedis && $this->redisClient) {
             $this->redisClient->set($cacheKey, $content, $this->cacheDuration);  // Кешируем в Redis
         } else {
             $cacheFile = $this->cachePath . $cacheKey . '.cache';
-            if (SysClass::createDirectoriesForFile($cacheFile)) file_put_contents($cacheFile, $content);  // Кешируем в файловую систему
+            if (SysClass::createDirectoriesForFile($cacheFile)) {
+                file_put_contents($cacheFile, $content);  // Кешируем в файловую систему
+            }
         }
     }
 
@@ -114,9 +122,9 @@ class CacheManager {
      * @param string $param Уникальный ключ для блока кеширования
      * @return void
      */
-    public function clearCache($param): void {
+    public function clearCache(string $param): void {
         $cacheKey = $this->generateCacheKey($param);        
-        if ($this->useRedis) {
+        if ($this->useRedis && $this->redisClient) {
             $this->redisClient->del($cacheKey);
         } else {
             $cacheFile = $this->cachePath . DIRECTORY_SEPARATOR . $cacheKey . '.cache';
@@ -131,7 +139,7 @@ class CacheManager {
      * @return void
      */
     public function clearAllCache(): void {
-        if ($this->useRedis) {
+        if ($this->useRedis && $this->redisClient) {
             $this->redisClient->flushAll();
         } else {
             array_map('unlink', glob($this->cachePath . DIRECTORY_SEPARATOR . '*.cache'));
@@ -143,7 +151,7 @@ class CacheManager {
      * @return array Лог-файл с информацией о кешированных данных
      */
     public function logCacheFiles(): array {
-        if ($this->useRedis) {
+        if ($this->useRedis && $this->redisClient) {
             // Логирование для Redis
             $keys = $this->redisClient->keys('*');
             $log = [];
@@ -178,7 +186,7 @@ class CacheManager {
      */
     public function cacheBlock(string $blockId, string $content): void {
         $cacheKey = md5($blockId);        
-        if ($this->useRedis) {
+        if ($this->useRedis && $this->redisClient) {
             $this->redisClient->set($cacheKey, $content, $this->cacheDuration);
         } else {
             $cacheFile = $this->cachePath . DIRECTORY_SEPARATOR . $cacheKey . '.cache';
@@ -191,18 +199,16 @@ class CacheManager {
      * @param string $blockId Уникальный идентификатор блока
      * @return string|false Кешированный блок или false
      */
-    public function getCachedBlock(string $blockId) {
-        $cacheKey = md5($blockId);
-        
-        if ($this->useRedis) {
+    public function getCachedBlock(string $blockId): string|false {
+        $cacheKey = md5($blockId);        
+        if ($this->useRedis && $this->redisClient) {
             return $this->redisClient->get($cacheKey);
         } else {
             $cacheFile = $this->cachePath . DIRECTORY_SEPARATOR . $cacheKey . '.cache';
             if (file_exists($cacheFile)) {
                 return file_get_contents($cacheFile);
             }
-        }
-        
+        }        
         return false;
     }
 }

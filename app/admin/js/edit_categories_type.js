@@ -13,7 +13,7 @@ $(document).ready(function () {
     $('#type_id-input').on('change', function (event) {
         var type_id = $(this).val();
         if (type_id) {
-            sendAjaxRequest('/admin/getParentCategoriesType',
+            AppCore.sendAjaxRequest('/admin/getParentCategoriesType',
                     {
                         type_id: type_id
                     },
@@ -34,5 +34,4 @@ $(document).ready(function () {
         }
     });
     $('#type_id-input').change();
-    initializeTinyMCE('#description-input', settingsShortDescription);
 });

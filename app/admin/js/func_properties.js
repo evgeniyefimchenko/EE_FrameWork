@@ -99,7 +99,7 @@ $(document).ready(function () {
             var $defaultElement = $('[name="' + newName + '"]');
             var $parentContent = $(this).closest('.property_content'); // Ищем родительский контейнер
             if ($defaultElement.length && !$parentContent.find('a[data-' + nameSuffix + '-name="' + newName + '"]').length) {
-                $parentContent.append('<a href="#" class="add-element" data-' + nameSuffix + '-name="' + newName + '">' + lang_var('sys.add') + '</a>');
+                $parentContent.append('<a href="#" class="add-element" data-' + nameSuffix + '-name="' + newName + '">' + AppCore.getLangVar('sys.add') + '</a>');
             }
             // Добавляем кнопку удаления для всех элементов после первого
             $parentContent.find('.field_container').each(function (index) {
@@ -212,18 +212,18 @@ function createModal(selectId) {
             <div class="modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title">` + lang_var('sys.add') + `</h5>
+                        <h5 class="modal-title">` + AppCore.getLangVar('sys.add') + `</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
                         <div id="options-container">
                             <!-- Здесь будут поля для ввода опций -->
                         </div>
-                        <button class="btn btn-success mt-2" id="addOptionField" type="button">` + lang_var('sys.add') + `</button>
+                        <button class="btn btn-success mt-2" id="addOptionField" type="button">` + AppCore.getLangVar('sys.add') + `</button>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-primary" id="saveOptions" data-select-id="${selectId}">` + lang_var('sys.insert') + `</button>
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">` + lang_var('sys.cancel') + `</button>                        
+                        <button type="button" class="btn btn-primary" id="saveOptions" data-select-id="${selectId}">` + AppCore.getLangVar('sys.insert') + `</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">` + AppCore.getLangVar('sys.cancel') + `</button>                        
                     </div>
                 </div>
             </div>
@@ -245,11 +245,11 @@ function addOptionField(key = '', value = '') {
     var rand = Date.now();
     var fieldHtml = `
         <div class="option-field mb-2 d-flex align-items-center">
-            <label for="valueInput` + rand + `" class="me-2">` + lang_var('sys.name') + `:</label>
-            <input type="text" id="valueInput` + rand + `" class="form-control value me-2" placeholder="` + lang_var('sys.name') + `" value="${value}">    
-            <label for="keyInput` + rand + `" class="me-2">` + lang_var('sys.value') + `:</label>
-            <input type="text" id="keyInput` + rand + `" class="form-control key me-2" placeholder="` + lang_var('sys.value') + `" value="${key}">
-            <button class="btn btn-danger ms-2 removeOptionField" type="button">` + lang_var('sys.delete') + `</button>
+            <label for="valueInput` + rand + `" class="me-2">` + AppCore.getLangVar('sys.name') + `:</label>
+            <input type="text" id="valueInput` + rand + `" class="form-control value me-2" placeholder="` + AppCore.getLangVar('sys.name') + `" value="${value}">    
+            <label for="keyInput` + rand + `" class="me-2">` + AppCore.getLangVar('sys.value') + `:</label>
+            <input type="text" id="keyInput` + rand + `" class="form-control key me-2" placeholder="` + AppCore.getLangVar('sys.value') + `" value="${key}">
+            <button class="btn btn-danger ms-2 removeOptionField" type="button">` + AppCore.getLangVar('sys.delete') + `</button>
         </div>`;
     $('#options-container').append(fieldHtml);
 }

@@ -86,7 +86,8 @@
             <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" type="text/javascript"></script>
         <?php } ?>
         <!-- core -->
-        <script src="<?= ENV_URL_SITE ?>/classes/system/js/core.js" type="text/javascript"></script>
+        <script src="<?= ENV_URL_SITE ?>/uploads/tmp/<?=\classes\system\Session::get('lang')?>.js" type="text/javascript"></script>
+        <script src="<?= ENV_URL_SITE ?>/assets/js/core.js" type="text/javascript"></script>
         <!-- General scripts -->
         <script src="<?= ENV_URL_SITE . '/' . ENV_APP_DIRECTORY ?>/index/js/index.js" type="text/javascript" /></script>
         <!-- end of non-relocatable JS scripts -->
