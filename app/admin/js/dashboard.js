@@ -18,69 +18,81 @@ actions = {
         });
     },
     loadOptionsUser: function () {
-        $.ajax({
-            type: 'POST',
-            url: '/admin/ajax_admin',
-            dataType: 'json',
-            data: {'get': 1},
-            success: function (data) {
-                if (typeof data.error !== 'undefined') {
-                    console.log('error', data);
-                    actions.showNotification(lang_var('sys.data_read_error') + ' ' + data.error, 'danger');
-                } else {
-                    if (data.notifications && typeof data.notifications[0] !== 'undefined') {
-                        var d = new Date().getTime();
-                        for (key in data.notifications) {
-                            if (data.notifications[key].status === 'info' || data.notifications[key].status === 'success' || data.notifications[key].status === 'danger') {
-                                actions.showNotification(data.notifications[key].text, data.notifications[key].status);
-                                // Информационные сообщения удаляем сразу
-                                $.post('/admin/killNotificationById', {'id': data.notifications[key].id});
-                            } else if (data.notifications[key].status === 'primary') {
-                                if ((parseInt(data.notifications[key].showtime) - parseInt(d)) <= 0) {
+        AppCore.sendAjaxRequest(
+                '/admin/ajax_admin',
+                {'get': 1},
+                'POST',
+                'json',
+                function (data) {
+                    if (typeof data.error !== 'undefined') {
+                        console.log('error', data);
+                        actions.showNotification(AppCore.getLangVar('sys.data_read_error') + ' ' + data.error, 'danger');
+                    } else {
+                        if (data.notifications && typeof data.notifications[0] !== 'undefined') {
+                            var d = new Date().getTime();
+                            for (let key in data.notifications) {
+                                if (['info', 'success', 'danger'].includes(data.notifications[key].status)) {
                                     actions.showNotification(data.notifications[key].text, data.notifications[key].status);
-                                    // Отложить показ уведомлений на 5-ть минут 
-                                    $.post('/admin/setNotificationTime', {'showtime': d + 300000, 'id': data.notifications[key].id});
+                                    AppCore.sendAjaxRequest(
+                                            '/admin/killNotificationById',
+                                            {'id': data.notifications[key].id},
+                                            'POST'
+                                            );
+                                } else if (data.notifications[key].status === 'primary') {
+                                    if ((parseInt(data.notifications[key].showtime) - parseInt(d)) <= 0) {
+                                        actions.showNotification(data.notifications[key].text, data.notifications[key].status);
+                                        AppCore.sendAjaxRequest(
+                                                '/admin/setNotificationTime',
+                                                {'showtime': d + 300000, 'id': data.notifications[key].id},
+                                                'POST'
+                                                );
+                                    }
+                                } else {
+                                    // Показывать все остальные сообщения постоянно до удаления в контроллере
+                                    actions.showNotification(data.notifications[key].text, data.notifications[key].status);
+                                    AppCore.sendAjaxRequest(
+                                            '/admin/setNotificationTime',
+                                            {'showtime': d, 'id': data.notifications[key].id},
+                                            'POST'
+                                            );
                                 }
-                            } else { // Показывать все остальные сообщения постоянно до удаления в контроллере                           
-                                actions.showNotification(data.notifications[key].text, data.notifications[key].status);
-                                $.post('/admin/setNotificationTime', {'showtime': d, 'id': data.notifications[key].id});
                             }
                         }
-                        ;
                     }
+                },
+                function (jqXHR, textStatus, errorThrown) {
+                    console.error("AJAX request failed:", textStatus, errorThrown);
+                    console.error("Response details:", jqXHR.status, jqXHR.responseText);
                 }
-            },
-            error: function (xhr, ajaxOptions, thrownError) {
-                console.log(xhr.status, xhr.responseText, thrownError);
-            }
-        });
+        );
     },
     saveOptionsUser: function (data) {
         data.update = 1;
-        $.ajax({
-            type: 'POST',
-            url: '/admin/ajax_admin',
-            dataType: 'json',
-            data: data,
-            beforeSend: function (data) {
-                notify = actions.showNotification(lang_var('sys.data_being_saved'), 'primary');
-            },
-            success: function (data) {
-                if (typeof data.error !== 'undefined') {
-                    console.log('error', data);
-                    actions.showNotification(lang_var('sys.data_update_error'), 'danger');
-                } else {
-                    actions.showNotification(lang_var('sys.personal_data_updated'), 'primary');
-                }
-            },
-            error: function (xhr, ajaxOptions, thrownError) {
-                console.log(xhr.status, xhr.responseText, thrownError);
-            },
-            complete: function (data) {
-                notify.close();
-            }
+        let notify = actions.showNotification(AppCore.getLangVar('sys.data_being_saved'), 'primary');
+        AppCore.sendAjaxRequest(
+                '/admin/ajax_admin',
+                data,
+                'POST',
+                'json',
+                function (data) {
+                    if (typeof data.error !== 'undefined') {
+                        console.log('error', data);
+                        actions.showNotification(AppCore.getLangVar('sys.data_update_error'), 'danger');
+                    } else {
+                        actions.showNotification(AppCore.getLangVar('sys.personal_data_updated'), 'primary');
+                    }
+                },
+                function (jqXHR, textStatus, errorThrown) {
+                    console.error("AJAX request failed:", textStatus, errorThrown);
+                    console.error("Response details:", jqXHR.status, jqXHR.responseText);
+                },
+                {}
+        ).finally(function () {
+            // Закрытие уведомления после завершения запроса
+            notify.close();
         });
     }
+
 };
 
 // Загрузка и активация пользовательских настроек
@@ -100,7 +112,7 @@ $(document).ready(function () {
     // Пометить все сообщения прочитанными
     $('#set_readed_all, #read_all_message').click(function () {
         let return_url = $(this).data('return');
-        sendAjaxRequest(
+        AppCore.sendAjaxRequest(
                 '/admin/set_readed_all', // URL
                 {}, // Data
                 'GET', // Method
@@ -126,4 +138,3 @@ $(document).ready(function () {
     });
     $(".preloader").fadeOut();
 });
-

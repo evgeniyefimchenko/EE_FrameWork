@@ -206,7 +206,7 @@ trait CategoriesTypesTrait {
         /* layouts */
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
-        $this->add_editor_to_layout();
+        $this->addEditorToLayout();
         $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/edit_categories_type.js" type="text/javascript" /></script>';
         $this->parameters_layout["title"] = 'Редактирование типов категорий';
         $this->showLayout($this->parameters_layout);

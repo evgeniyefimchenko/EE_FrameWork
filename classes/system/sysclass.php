@@ -305,7 +305,7 @@ class SysClass {
                 '(' => '', ')' => '', '{' => '', '}' => '', '[' => '', ']' => '',
                 '<' => '', '>' => '', '"' => '', "'" => '', '«' => '', '»' => '',
                 '\\' => '', '/' => '', '|' => '', '?' => '', '!' => '', '№' => '',
-                ':' => '', ';' => '', '.' => '', ',' => '', '#' => '', '@' => '', 
+                ':' => '', ';' => '', '.' => '', ',' => '', '#' => '', '@' => '',
                 '&' => '', '*' => '', '^' => '', '%' => '', '$' => '', '~' => '',
                 '`' => '', '©' => '', '®' => '', '™' => '', '€' => '', '£' => '', '¥' => ''];
             $fileName = strtr($fileName, $transliterationTable);
@@ -486,6 +486,7 @@ class SysClass {
                 "CL" => "Чили",
                 "CM" => "Камерун",
                 "CN" => "Китай",
+                "ZH" => "Китай",
                 "CO" => "Колумбия",
                 "CR" => "Коста-Рика",
                 "CU" => "Куба",
@@ -710,6 +711,7 @@ class SysClass {
                 "CL" => "Chile",
                 "PW" => "Palau",
                 "CN" => "China",
+                "ZH" => "China",                
                 "PS" => "Palestine, State of",
                 "CX" => "Christmas Island",
                 "PA" => "Panama",
@@ -914,6 +916,43 @@ class SysClass {
     }
 
     /**
+     * Проверяет языковые переменные и создает JS-файл с этими переменными, если файл не существует
+     * @param string $langCode Код языка, например 'ru', 'en'.
+     * @param array $lang Массив языковых переменных, который будет экспортирован в JS
+     * Если файл с языковыми переменными уже существует или в массиве $lang присутствует ключ 'error', функция ничего не делает
+     * Иначе создает файл с именем "{$langCode}.js" в директории временных файлов и записывает в него переменную 
+     * JavaScript `window.LANG_VARS` с языковыми данными.
+     * В случае ошибок записи или пустого файла, логирует их с помощью класса `ErrorLogger`
+     * Логика работы:
+     * - Если файл уже существует или обнаружена ошибка в массиве $lang, завершить выполнение
+     * - Иначе создать содержимое JS-файла и записать его.
+     * - Проверить результат записи: если произошла ошибка или размер файла 0 байт, записать ошибку в лог
+     * @return void
+     */
+    public static function checkLangVars(string $langCode, array $lang): void {
+        $langJsPath = ENV_TMP_PATH . $langCode . '.js';
+        if (file_exists($langJsPath) || !empty($lang['error'])) {
+            return;
+        }
+        $global = [
+            'ENV_SITE_NAME' => ENV_SITE_NAME,            
+            'ENV_DOMEN_NAME' => ENV_DOMEN_NAME,            
+            'ENV_URL_SITE' => ENV_URL_SITE,            
+            'ENV_SITE_PATH' => ENV_SITE_PATH,            
+            'ENV_LOGS_PATH' => ENV_LOGS_PATH,            
+            'ENV_DEF_LANG' => ENV_DEF_LANG,            
+            'ENV_COMPRESS_HTML' => ENV_COMPRESS_HTML
+        ];
+        $jsContent = "window.LANG_VARS = " . json_encode(array_merge($lang, $global), JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) . ";";
+        $result = file_put_contents($langJsPath, $jsContent);
+        if ($result === false) {
+            new ErrorLogger("Не удалось записать файл: $langJsPath", __FUNCTION__, 'lang');
+        } elseif ($result === 0) {
+            new ErrorLogger("Файл записан, но его размер равен 0 байт: $langJsPath", __FUNCTION__, 'lang');
+        }
+    }
+
+    /**
      * Проверяет подключение к базе данных и наличие таблицы с указанным префиксом.
      * @param string $host Хост базы данных. По умолчанию значение константы ENV_DB_HOST.
      * @param string $user Имя пользователя базы данных. По умолчанию значение константы ENV_DB_USER.
@@ -1044,7 +1083,7 @@ class SysClass {
                 $add_trace = '<hr/><b>Полный стек вызовов:</b> ' . print_r($formattedTrace, true);
             }
             $caller = $trace[1];
-            echo (isset($caller['file']) ? $caller['file'] : '') . ' ' . (isset($caller['line']) ? $caller['line'] : '') . ' ' . $caller['function'] . PHP_EOL
+            echo (isset($caller['file']) ? $caller['file'] : '') . ' Line: ' . (isset($caller['line']) ? $caller['line'] : '') . ' Func: ' . $caller['function'] . PHP_EOL
             . '<br/><pre style="width: max-content; background: blue; border-radius: 5px; color: white; font-size: 16px; padding: 2%;">';
             echo htmlentities(var_export($val, true), ENT_QUOTES);
             echo $add_trace;
@@ -1066,7 +1105,7 @@ class SysClass {
         if (ENV_LOG) {
             $logsPath = ENV_LOGS_PATH . $subFolder;
             if (!file_exists($logsPath)) {
-                mkdir($logsPath, 0777, true);
+                mkdir($logsPath, 0755, true);
             }
             $trace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
             $formattedTrace = [];
@@ -1654,12 +1693,12 @@ class SysClass {
      * сравнивая хост из заголовка `HTTP_REFERER` с текущим хостом
      * @return bool
      */
-    public static function isAjaxRequestFromSameSite(): bool {
+    public static function isAjaxRequestFromSameSite(): bool {        
         $isAjax = !empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest';
         $referer = !empty($_SERVER['HTTP_REFERER']) ? parse_url($_SERVER['HTTP_REFERER']) : null;
         $currentHost = $_SERVER['HTTP_HOST'];
         $isSameSite = $referer && $referer['host'] == $currentHost;
-        return $isAjax && $isSameSite;
+        return $isAjax && $isSameSite && !empty(ENV_SITE);
     }
 
     /**
@@ -1677,7 +1716,7 @@ class SysClass {
             return false;
         }
         include_once($filePath);
-        if (class_exists($className)) {            
+        if (class_exists($className)) {
             return new $className($params);
         }
         return false;
@@ -1717,6 +1756,5 @@ class SysClass {
     public static function deleteOption(string $key): bool {
         SafeMySQL::gi()->query("DELETE FROM ?n WHERE option_key = ?s", Constants::GLOBAL_OPTIONS, $key);
         return true;
-    }    
-
+    }
 }

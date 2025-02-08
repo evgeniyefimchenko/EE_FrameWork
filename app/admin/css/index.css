@@ -2203,3 +2203,40 @@ body {
 .bs-tooltip-auto {
     z-index: 65535;
 }
+
+/* Центрирование модального окна по вертикали и горизонтали */
+.modal-dialog {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100% - 1rem);
+  box-shadow: none!important;
+}
+
+/* Использовано для cropera при вставке изображений в редактор summernote */
+.modal-content {
+  width: 100%;
+  max-width: 500px;
+}
+
+.note-image-controls-wrapper {
+  width: 100%; /* Растягиваем блок на всю ширину контейнера */
+  margin-top: 10px; /* Добавляем отступ сверху */
+  background-color: #f8f9fa; /* Задаем цвет фона (опционально) */
+  padding: 5px 0; /* Добавляем отступы сверху и снизу */
+}
+
+.note-image-controls {
+  text-align: center;
+}
+
+.note-image-controls .btn {
+  margin: 0 5px;
+}
+
+/* Полный экран summernote */
+.note-editor.note-frame.card.fullscreen {
+    top: 56px;
+    left: 227px;
+    width: 87%!important;
+}

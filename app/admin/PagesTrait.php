@@ -27,7 +27,7 @@ trait PagesTrait {
         $this->view->set('body_view', $this->view->read('v_pages'));
         $this->html = $this->view->read('v_dashboard');
         $this->parameters_layout["layout_content"] = $this->html;
-        $this->parameters_layout["layout"] = 'dashboard';        
+        $this->parameters_layout["layout"] = 'dashboard';
         $this->parameters_layout["title"] = ENV_SITE_NAME . ' - ' . $this->lang['sys.pages'];
         $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION . ' - ' . $this->lang['sys.pages'];
         $this->parameters_layout["canonical_href"] = ENV_URL_SITE . '/admin';
@@ -55,7 +55,7 @@ trait PagesTrait {
             'created_at' => false,
             'updated_at' => false,
             'category_title' => '',
-            'type_name' => '',            
+            'type_name' => '',
         ];
         /* model */
         $this->loadModel('m_pages');
@@ -69,7 +69,7 @@ trait PagesTrait {
             if ($keyId !== false && isset($params[$keyId + 1])) {
                 $pageId = filter_var($params[$keyId + 1], FILTER_VALIDATE_INT);
             } else {
-                $pageId = 0; 
+                $pageId = 0;
             }
             if (isset($postData['title']) && $postData['title']) {
                 $new_id = $this->models['m_pages']->updatePageData($postData);
@@ -78,21 +78,21 @@ trait PagesTrait {
                 } else {
                     $pageId = $new_id;
                 }
-                $this->saveFileProperty($postData);         
+                $this->saveFileProperty($postData);
                 // Сохранение свойств
                 if (isset($postData['property_data']) && is_array($postData['property_data']) && !empty($postData['property_data_changed'])) {
                     $this->processPropertyData($postData['property_data']);
                 }
             }
-            $getPageData = (int)$pageId ? $this->models['m_pages']->getPageData($pageId) : $default_data;
+            $getPageData = (int) $pageId ? $this->models['m_pages']->getPageData($pageId) : $default_data;
             $getPageData = $getPageData ? $getPageData : $default_data;
         } else { // Не передан ключевой параметр id
             SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/user_edit/id/' . $this->logged_in);
         }
         $getAllTypes = $this->models['m_categories_types']->getAllTypes();
-        $result = array_reduce($getAllTypes, function($carry, $item) {
-          $carry[$item['type_id']] = $item;
-          return $carry;
+        $result = array_reduce($getAllTypes, function ($carry, $item) {
+            $carry[$item['type_id']] = $item;
+            return $carry;
         }, []);
         $getAllTypes = $result;
         unset($result);
@@ -101,7 +101,7 @@ trait PagesTrait {
         $getAllProperties = $this->getPropertiesByCategoryId($getPageData['category_id'], $pageId);
         foreach (Constants::ALL_STATUS as $key => $value) {
             $allStatus[$key] = $this->lang['sys.' . $value];
-        }        
+        }
         /* view */
         $this->view->set('pageData', $getPageData);
         $this->view->set('allType', $getAllTypes);
@@ -113,7 +113,7 @@ trait PagesTrait {
         $this->view->set('body_view', $this->view->read('v_edit_page'));
         $this->html = $this->view->read('v_dashboard');
         /* layouts */
-        $this->add_editor_to_layout();
+        $this->addEditorToLayout();
         $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/func_properties.js" type="text/javascript" /></script>';
         $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/edit_pages.js" type="text/javascript" /></script>';
         $this->parameters_layout["layout_content"] = $this->html;
@@ -121,19 +121,19 @@ trait PagesTrait {
         $this->parameters_layout["title"] = 'Редактирование Сущности';
         $this->showLayout($this->parameters_layout);
     }
-    
+
     private function getPropertiesByCategoryId(int $categoryId, int $pageId): array {
         $categoryTypeId = $this->models['m_categories']->getCategoryTypeId($categoryId);
         $getCategoriesTypeSets = $this->models['m_categories_types']->getCategoriesTypeSetsData($categoryTypeId);
         // $getCategoriesTypeSetsData = $this->processPageProperties($getCategoriesTypeSets, $pageId);
         $getCategoriesTypeSetsData = $this->formattingEntityProperties($getCategoriesTypeSets, $pageId, 'page', $pageId);
         return $getCategoriesTypeSetsData;
-    }    
-    
+    }
+
     /**
      * Удаление сущности
      */
-    public function pageDell($params = []) {        
+    public function pageDell($params = []) {
         $this->access = [Constants::ADMIN, Constants::MODERATOR];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect();
@@ -146,16 +146,16 @@ trait PagesTrait {
             if ($keyId !== false && isset($params[$keyId + 1])) {
                 $id = filter_var($params[$keyId + 1], FILTER_VALIDATE_INT);
             } else {
-                $id = 0; 
+                $id = 0;
             }
             $res = $this->models['m_pages']->deletePage($id);
             if (is_object($res)) {
-                ClassNotifications::addNotificationUser($this->logged_in, ['text' => $res->result['error_message'], 'status' => 'danger']);                
+                ClassNotifications::addNotificationUser($this->logged_in, ['text' => $res->result['error_message'], 'status' => 'danger']);
             }
         }
-        SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/pages');        
+        SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/pages');
     }
-    
+
     /**
      * Вернёт таблицу страниц
      */
@@ -230,7 +230,7 @@ trait PagesTrait {
         foreach (Constants::ALL_STATUS as $key => $value) {
             $statuses[] = ['value' => $key, 'label' => $this->lang['sys.' . $value]];
             $statuses_text[$key] = $this->lang['sys.' . $value];
-        }        
+        }
         $filters = [
             'title' => [
                 'type' => 'text',
@@ -295,11 +295,11 @@ trait PagesTrait {
                 . 'class="btn btn-danger me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.delete'] . '"><i class="fas fa-trash"></i></a>'
             ];
         }
-        $data_table['total_rows'] = $arrPages['total_count'];        
-        if ($postData) {            
+        $data_table['total_rows'] = $arrPages['total_count'];
+        if ($postData) {
             echo Plugins::ee_show_table('pages_table', $data_table, 'getPagesDataTable', $filters, $postData["page"], $postData["rows_per_page"], $selected_sorting);
             die;
-        } else {            
+        } else {
             return Plugins::ee_show_table('pages_table', $data_table, 'getPagesDataTable', $filters);
         }
     }

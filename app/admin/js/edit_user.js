@@ -11,21 +11,19 @@ $(document).ready(function () {
         if (parseInt($("#id_user").data('id')) > 0) {
             add = '/id/' + $("#id_user").data('id');
         }
-        $.ajax({
-            type: 'POST',
-            url: '/admin/ajax_user_edit' + add,
-            dataType: 'json',
-            data: data,
-            beforeSend: function () {
-                notify = actions.showNotification('Please wait data is saved.', 'primary');
-            },
-            success: function (data) {
+        notify = actions.showNotification('Please wait, data is being saved.', 'primary');
+        AppCore.sendAjaxRequest(
+            '/admin/ajax_user_edit' + add,
+            data,
+            'POST',
+            'json',
+            function (data) {
                 notify.close();
                 if (data.error !== 'no') {
                     console.log('error', data);
-                    notify = actions.showNotification('ERROR', 'danger');
+                    actions.showNotification('ERROR', 'danger');
                 } else {
-                    notify = actions.showNotification('UPDATE SUCCESS', 'primary');
+                    actions.showNotification('UPDATE SUCCESS', 'primary');
                     if (data.new == 1) {
                         window.location = "/admin/users";
                     } else {
@@ -33,12 +31,13 @@ $(document).ready(function () {
                     }
                 }
             },
-            error: function (xhr, ajaxOptions, thrownError) {
+            function (jqXHR, textStatus, errorThrown) {
                 notify.close();
-                notify = actions.showNotification('ERROR', 'danger');
-                console.log(xhr.status, xhr.responseText, thrownError, ajaxOptions);
+                actions.showNotification('ERROR', 'danger');
+                console.error("AJAX request failed:", textStatus, errorThrown);
+                console.error("Response details:", jqXHR.status, jqXHR.responseText);
             }
-        });
+        );
     });
 
     $('#new_pass_conf, #new_pass').on('input', function () {

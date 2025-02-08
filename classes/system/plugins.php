@@ -12,41 +12,41 @@ class Plugins {
      * Загрузка библиотеки SortableJS на страницу
      */
     private static $sortableJS = false;
-
+    
     function __construct() {
         throw new Exception('Static only.');
     }
 
     /**
      * Создаёт таблицу с возможностью пагинации, фильтрации и сортировки.
-     * @param string $id_table Идентификатор таблицы.
-     * @param array $data_table Данные для таблицы.
-     * @param str $callback_function Функция AJAX обработки таблицы.
+     * @param string $idTable Идентификатор таблицы.
+     * @param array $dataTable Данные для таблицы.
+     * @param str $callbackFunction Функция AJAX обработки таблицы.
      * @param int $page Текущая страница пагинации.
-     * @param int $current_rows_per_page Текущее количество записей на странице.
+     * @param int $currentRowsPerPage Текущее количество записей на странице.
      * @param array $filters Установленные фильтры для таблицы.
      * @param array $selected_sorting Уже выбранная сортировка.
      * @param str $add_class Дополнительный класс таблицы.
      * @param int $max_buttons Максимальное количество кнопок на странице пагинации.
      * @return string HTML таблицы.
      */
-    public static function ee_show_table($id_table = 'test_table', $data_table = [], $callback_function = '', $filters = [], $page = 1, $current_rows_per_page = 25, $selected_sorting = [], $add_class = 'table-striped', $max_buttons = 5) {
-        if (!is_array($data_table)) {
+    public static function ee_show_table($idTable = 'test_table', $dataTable = [], $callbackFunction = '', $filters = [], $page = 1, $currentRowsPerPage = 25, $selected_sorting = [], $add_class = 'table-striped', $max_buttons = 5) {
+        if (!is_array($dataTable)) {
             return '<div class="alert alert-danger text-center">Ошибка формата данных</div>';
         }
         if (!is_string($add_class)) {
             $add_class = 'table-striped';
         }
-        $html = '<div class="mb-3" data-tableID="' . $id_table . '" id="' . $id_table . '_content_tables">';
-        $html .= '<input type="hidden" id="' . $id_table . '_callback_function" value="' . $callback_function . '">';
-        $html .= self::generateFilterSection($id_table, $data_table, $filters);
-        $html .= '<table id="' . $id_table . '" class="table ' . $add_class . '">';
-        $html .= self::generateTableHeader($id_table, $data_table['columns'], $selected_sorting);
-        $html .= self::generateTableBody($data_table, $id_table);
+        $html = '<div class="mb-3" data-tableID="' . $idTable . '" id="' . $idTable . '_content_tables">';
+        $html .= '<input type="hidden" id="' . $idTable . '_callback_function" value="' . $callbackFunction . '">';
+        $html .= self::generateFilterSection($idTable, $dataTable, $filters);
+        $html .= '<table id="' . $idTable . '" class="table ' . $add_class . '">';
+        $html .= self::generateTableHeader($idTable, $dataTable['columns'], $selected_sorting);
+        $html .= self::generateTableBody($dataTable, $idTable);
         $html .= '</table>';  // закрыть таблицу
-        $html .= self::generatePagination($id_table, (int) $page, $data_table, (int) $current_rows_per_page, (int) $max_buttons);
-        $html .= self::generateRowsPerPageSection($id_table, $data_table, $current_rows_per_page);
-        if (!isset($_SERVER['HTTP_X_REQUESTED_WITH']) || strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) != 'xmlhttprequest') {
+        $html .= self::generatePagination($idTable, (int) $page, $dataTable, (int) $currentRowsPerPage, (int) $max_buttons);
+        $html .= self::generateRowsPerPageSection($idTable, $dataTable, $currentRowsPerPage);
+        if (!SysClass::isAjaxRequestFromSameSite()) { // Не подгружаем если AJAX запрос
             $html .= '<script src="' . ENV_URL_SITE . '/classes/system/js/plugins/ee_show_table.js" type="text/javascript"></script>';
         }
         return $html . '</div>';
@@ -54,38 +54,37 @@ class Plugins {
 
     /**
      * Генерирует HTML раздел фильтрации для таблицы на основе предоставленных данных.
-     * @param string $id_table   Идентификатор таблицы, для которой создаются фильтры.
-     * @param array  $data_table Массив данных таблицы, содержит информацию о колонках, их заголовках и фильтруемости.
+     * @param string $idTable   Идентификатор таблицы, для которой создаются фильтры.
+     * @param array  $dataTable Массив данных таблицы, содержит информацию о колонках, их заголовках и фильтруемости.
      * @param array  $filters    Массив фильтров, каждый элемент которого содержит информацию о типе фильтра,
      *                           его идентификаторе, значении и других атрибутах.
      * @return string Возвращает HTML-код раздела фильтрации.
      */
-    private static function generateFilterSection($id_table, $data_table, $filters) {
-        global $globalLang;
+    private static function generateFilterSection($idTable, $dataTable, $filters) {
+        $globalLang = Lang::init(Session::get('lang'));
         $html = '';
-        $html .= '<button class="btn btn-primary mb-2" type="button" data-table="' . $id_table . '" data-bs-toggle="collapse" data-bs-target="#' . $id_table . '_filtersCollapse"'
-                . 'aria-expanded="false" id="' . $id_table . '_button_filtersCollapse" aria-controls="' . $id_table . '_filtersCollapse"><i class="fa-solid fa-filter"'
-                . 'data-bs-toggle="tooltip" data-bs-placement="top" id="' . $id_table . '_icon_filtersCollapse" title="' . $globalLang['sys.filtres'] . '"></i></button>';
+        $html .= '<button class="btn btn-primary mb-2" type="button" data-table="' . $idTable . '" data-bs-toggle="collapse" data-bs-target="#' . $idTable . '_filtersCollapse"'
+                . 'aria-expanded="false" id="' . $idTable . '_button_filtersCollapse" aria-controls="' . $idTable . '_filtersCollapse"><i class="fa-solid fa-filter"'
+                . 'data-bs-toggle="tooltip" data-bs-placement="top" id="' . $idTable . '_icon_filtersCollapse" title="' . $globalLang['sys.filtres'] . '"></i></button>';
         // Начало блока collapse
-        $html .= '<div class="collapse" id="' . $id_table . '_filtersCollapse">';
+        $html .= '<div class="collapse" id="' . $idTable . '_filtersCollapse">';
         $html .= '<div class="card card-body">';
         // Раздел фильтрации
         if (!is_array($filters) || empty($filters)) {
             $filters = [];
-            foreach ($data_table['columns'] as $column) {
+            foreach ($dataTable['columns'] as $column) {
                 if ($column['filterable']) {
                     $filters[$column['field']] = [
                         'type' => 'text',
-                        'id' => $id_table . "_filter_" . $column['field'],
+                        'id' => $idTable . "_filter_" . $column['field'],
                         'value' => '',
                         'label' => $column['title']  // Значение по умолчанию для label
                     ];
                 }
             }
         }
-
         $filterableColumnsCount = 0;
-        foreach ($data_table['columns'] as $column) {
+        foreach ($dataTable['columns'] as $column) {
             if (isset($column['filterable']) && $column['filterable'] === true) { // Подсчет колонок с 'filterable' => true
                 $filterableColumnsCount++;
             }
@@ -95,19 +94,19 @@ class Plugins {
             $count_filters = 0;
             $html .= '<div class="alert alert-danger text-center">Ошибка: количество переданных фильтров не совпадает с количеством колонок для фильтрации!</div>';
         }
-        $html .= '<form class="mb-3 ' . (!$count_filters ? 'd-none' : '') . '" id="' . $id_table . '_filters">';
-        $html .= '<input type="hidden" name="' . $id_table . '_table_name" value="' . $id_table . '">';
+        $html .= '<form class="mb-3 ' . (!$count_filters ? 'd-none' : '') . '" id="' . $idTable . '_filters">';
+        $html .= '<input type="hidden" name="' . $idTable . '_table_name" value="' . $idTable . '">';
         // Добавим префикс при его отсутствии
         foreach ($filters as $key => $filter) {
-            if (strpos($filter['id'], $id_table . '_filter_') === false) {
-                $filters[$key]['id'] = $id_table . '_filter_' . $filters[$key]['id'];
+            if (strpos($filter['id'], $idTable . '_filter_') === false) {
+                $filters[$key]['id'] = $idTable . '_filter_' . $filters[$key]['id'];
             }
         }
-        $html .= '<input type="hidden" name="' . $id_table . '_old_filters" value="' . htmlspecialchars(json_encode($filters), ENT_QUOTES, 'UTF-8') . '">';
+        $html .= '<input type="hidden" name="' . $idTable . '_old_filters" value="' . htmlspecialchars(json_encode($filters), ENT_QUOTES, 'UTF-8') . '">';
         $html .= '<div class="row justify-content-center">';
         foreach ($filters as $key => $filter) {
             $html .= '<div class="col-6 col-sm-3 text-center">';
-            $filterId = $filter['id'] ?? $id_table . '_filter_' . $key;
+            $filterId = $filter['id'] ?? $idTable . '_filter_' . $key;
             $filterValue = $filter['value'] ?? "";
             $filterLabel = $filter['label'] ? $filter['label'] : 'Unknown';
             $html .= '<label for="' . $filterId . '">' . $filterLabel . '</label>';
@@ -143,8 +142,8 @@ class Plugins {
             }
             $html .= '</div>';
         }
-        $html .= '</div><div class="w-100 text-center"><button type="submit" class="btn btn-primary" form="' . $id_table . '_filters">Применить фильтры</button>
-		<button type="reset" id="' . $id_table . '_filters_reset" class="btn btn-secondary" form="' . $id_table . '_filters">Сбросить</button></div>';
+        $html .= '</div><div class="w-100 text-center"><button type="submit" class="btn btn-primary" form="' . $idTable . '_filters">Применить фильтры</button>
+		<button type="reset" id="' . $idTable . '_filters_reset" class="btn btn-secondary" form="' . $idTable . '_filters">Сбросить</button></div>';
         // Закрываем форму и блок collapse
         $html .= '</form>';
         $html .= '</div></div>'; // Закрываем .card-body и .collapse
@@ -153,17 +152,17 @@ class Plugins {
 
     /**
      * Генерирует HTML раздел заголовка таблицы на основе предоставленных данных.
-     * @param string $id_table   Идентификатор таблицы, для которой создается заголовок.
+     * @param string $idTable   Идентификатор таблицы, для которой создается заголовок.
      * @param array $columns Массив колонок.
      * @return string Возвращает HTML-код заголовка таблицы.
      */
-    private static function generateTableHeader($id_table, $columns, $selected_sorting = []) {
+    private static function generateTableHeader($idTable, $columns, $selected_sorting = []) {
         if (!is_array($selected_sorting))
             $selected_sorting = [];
         $html = '<thead>';
         if (!$columns) {
             $html .= '<th>';
-            $html .= 'Нет данных';
+            $html .= Lang::get('sys.no_data');
             $html .= '</th>';
         }
         foreach ($columns as $column) {
@@ -178,7 +177,7 @@ class Plugins {
             if ($current_sorting) {
                 $current_sorting = $current_sorting == 'ASC' ? 'ASC' : 'DESC';
                 $sortedIcon = $current_sorting == 'ASC' ? '<i class="fas fa-sort-up"></i>' : '<i class="fas fa-sort-down"></i>';
-                $sortedIndicator = '<a href="#" data-current-sort="' . $current_sorting . '" id="' . $id_table . '_column_' . $column['field'] . '_' . $current_sorting . '">' . $sortedIcon . '</a>';
+                $sortedIndicator = '<a href="#" data-current-sort="' . $current_sorting . '" id="' . $idTable . '_column_' . $column['field'] . '_' . $current_sorting . '">' . $sortedIcon . '</a>';
             }
             // Проверяем, установлено ли значение ширины для этой колонки
             $widthStyle = isset($column['width']) ? ' style="width:' . (int) $column['width'] . '%;"' : ' style="width:auto;"';
@@ -194,7 +193,7 @@ class Plugins {
     /**
      * Генерирует HTML для тела таблицы, включая вложенные таблицы, если они предоставлены.
      *
-     * @param array $data_table Ассоциативный массив, содержащий данные для таблицы. Массив должен иметь следующую структуру:
+     * @param array $dataTable Ассоциативный массив, содержащий данные для таблицы. Массив должен иметь следующую структуру:
      *      [
      *          'total_rows' => (int) Общее количество строк в таблице,
      *          'columns' => (array) Массив ассоциативных массивов, каждый из которых представляет собой столбец в таблице. Каждый массив столбца должен иметь следующие ключи:
@@ -202,27 +201,27 @@ class Plugins {
      *              'align' => (string, optional) Выравнивание текста для этого столбца. Должно быть 'left', 'right' или 'center'.
      *              'width' => (int, optional) Ширина столбца в процентах. Если параметр не передан, используется значение 'auto'.
      *          'rows' => (array) Массив ассоциативных массивов, каждый из которых представляет собой строку в таблице. Каждый массив строк должен иметь ключи, соответствующие значениям 'field' массива столбцов.
-     *              'nested_table' => (array, optional) Ассоциативный массив, представляющий вложенную таблицу. Этот массив должен иметь ту же структуру, что и массив $data_table.
+     *              'nested_table' => (array, optional) Ассоциативный массив, представляющий вложенную таблицу. Этот массив должен иметь ту же структуру, что и массив $dataTable.
      *      ]
-     * @param int $id_table ID таблицы
+     * @param int $idTable ID таблицы
      * @return string HTML для тела таблицы.
      */
-    private static function generateTableBody($data_table, $id_table) {
+    private static function generateTableBody($dataTable, $idTable) {
         $html = '<tbody>';
-        if ($data_table['total_rows'] == 0 || count($data_table['rows']) == 0) { // Если записей нет
-            $html .= '<tr><td colspan="' . count($data_table['columns']) . '" class="text-center">Нет записей</td></tr>';
+        if ($dataTable['total_rows'] == 0 || count($dataTable['rows']) == 0) { // Если записей нет
+            $html .= '<tr><td colspan="' . count($dataTable['columns']) . '" class="text-center">Нет записей</td></tr>';
         } else {
             $count_row = 1;
-            foreach ($data_table['rows'] as $row) {
+            foreach ($dataTable['rows'] as $row) {
                 $html .= '<tr>';
                 $firstColumn = true;  // Флаг для отслеживания первой колонки
-                foreach ($data_table['columns'] as $column) {
+                foreach ($dataTable['columns'] as $column) {
                     $value = $row[$column['field']];
                     $textAlignStyle = isset($column['align']) ? ' style="text-align:' . $column['align'] . ';"' : '';
                     $html .= '<td' . $textAlignStyle . '>';
                     $html .= $value;
                     if ($firstColumn && isset($row['nested_table'])) {
-                        $html .= '<div class="expand_nested_table" data-nested_table="#' . $id_table . '_nested_table_' . $count_row . '">' .
+                        $html .= '<div class="expand_nested_table" data-nested_table="#' . $idTable . '_nested_table_' . $count_row . '">' .
                                 '<i class="fa fa-plus" style="right: 8px; position: relative;"></i></div>';  // Кнопка "плюс" в первой колонке
                     }
                     $html .= '</td>';
@@ -231,8 +230,8 @@ class Plugins {
                 $html .= '</tr>';
                 if (isset($row['nested_table'])) {
                     $nested_table = $row['nested_table'];
-                    $colspan = count($data_table['columns']);
-                    $html .= '<tr class="tr_nested_table" id="' . $id_table . '_nested_table_' . $count_row . '"><td colspan="' . $colspan . '">';
+                    $colspan = count($dataTable['columns']);
+                    $html .= '<tr class="tr_nested_table" id="' . $idTable . '_nested_table_' . $count_row . '"><td colspan="' . $colspan . '">';
                     $html .= '<table class="nested_table">';
                     // Заголовок вложенной таблицы
                     $html .= '<thead><tr>';
@@ -264,16 +263,16 @@ class Plugins {
 
     /**
      * Генерирует HTML раздел пагинации для таблицы.
-     * @param string $id_table Идентификатор таблицы.
+     * @param string $idTable Идентификатор таблицы.
      * @param int $page Текущая страница.
-     * @param array $data_table Массив данных таблицы.
-     * @param int $current_rows_per_page Текущее количество строк на странице.
+     * @param array $dataTable Массив данных таблицы.
+     * @param int $currentRowsPerPage Текущее количество строк на странице.
      * @param int $max_buttons Максимальное количество кнопок пагинации.
      * @return string Возвращает HTML-код пагинации.
      */
-    private static function generatePagination($id_table, $page, $data_table, $current_rows_per_page, $max_buttons) {
+    private static function generatePagination($idTable, $page, $dataTable, $currentRowsPerPage, $max_buttons) {
         $html = '';
-        $total_pages = ceil($data_table['total_rows'] / $current_rows_per_page);
+        $total_pages = ceil($dataTable['total_rows'] / $currentRowsPerPage);
         if ($total_pages > 1) {
             $max_buttons = min($max_buttons, $total_pages);
             $start_page = max(1, $page - floor($max_buttons / 2));
@@ -303,28 +302,28 @@ class Plugins {
 
     /**
      * Генерирует HTML раздел для выбора количества строк на странице.
-     * @param string $id_table Идентификатор таблицы.
-     * @param array $data_table Массив данных таблицы.
-     * @param int $current_rows_per_page Текущее количество строк на странице.
+     * @param string $idTable Идентификатор таблицы.
+     * @param array $dataTable Массив данных таблицы.
+     * @param int $currentRowsPerPage Текущее количество строк на странице.
      * @return string Возвращает HTML-код раздела для выбора количества строк.
      */
-    private static function generateRowsPerPageSection($id_table, $data_table, $current_rows_per_page) {
+    private static function generateRowsPerPageSection($idTable, $dataTable, $currentRowsPerPage) {
         // Возможные значения строк на странице
         $possible_rows = [10, 25, 50, 100];
-        $count_row = isset($data_table['rows']) && is_array($data_table['rows']) ? count($data_table['rows']) : 0;
+        $count_row = isset($dataTable['rows']) && is_array($dataTable['rows']) ? count($dataTable['rows']) : 0;
         $html = '<div class="rows-per-page-section">';
-        $html .= '<label for="' . $id_table . '-rows-per-page">Количество строк:&nbsp;</label>';
-        $html .= '<select id="' . $id_table . '-rows-per-page" class="form-select form-select-sm d-inline-block" style="width: auto; cursor: pointer;">';
+        $html .= '<label for="' . $idTable . '-rows-per-page">Количество строк:&nbsp;</label>';
+        $html .= '<select id="' . $idTable . '-rows-per-page" class="form-select form-select-sm d-inline-block" style="width: auto; cursor: pointer;">';
 
         foreach ($possible_rows as $value) {
-            $selected = ($value == $current_rows_per_page) ? ' selected="selected"' : '';
+            $selected = ($value == $currentRowsPerPage) ? ' selected="selected"' : '';
             $html .= '<option value="' . $value . '"' . $selected . '>' . $value . '</option>';
         }
-        if (!$data_table['total_rows'])
-            $data_table['total_rows'] = 0;
+        if (!$dataTable['total_rows'])
+            $dataTable['total_rows'] = 0;
         $html .= '</select>';
         $html .= '<div class="pagination-info float-end">';
-        $html .= 'Записей на странице: <span class="current-page-count">' . $count_row . '</span> из <span class="total-count">' . $data_table['total_rows'] . '</span>';
+        $html .= 'Записей на странице: <span class="current-page-count">' . $count_row . '</span> из <span class="total-count">' . $dataTable['total_rows'] . '</span>';
         $html .= '</div>';
         $html .= '</div>';
 
@@ -640,7 +639,7 @@ class Plugins {
      * @return string
      */
     public static function renderPropertyHtmlFields(mixed $fields, mixed $default = []): string {
-        global $globalLang;
+        $globalLang = Lang::init(Session::get('lang'));
         $count = 0;
         $result = '';
         if (!is_array($fields) && is_string($fields)) {
@@ -684,7 +683,7 @@ class Plugins {
      * @return string HTML-код аккордеона
      */
     public static function renderPropertiesSetsAccordion($entitySetsData, $entityId, $typeEntity = 'category') {
-        global $globalLang;
+        $globalLang = Lang::init(Session::get('lang'));
         $html = '';
         foreach ($entitySetsData as $entityName => $entitySet) {
             foreach ($entitySet as $propertySet) {
@@ -731,14 +730,6 @@ class Plugins {
                     $html .= '<div id="collapse-' . $propertyId . '" class="collapse" aria-labelledby="heading-'
                             . $propertyId . '" data-bs-parent="#accordion-' . $propertyId . '">';
                     $html .= '<div class="card-body">';
-                    /* Убрал для облегчения понимания структуры
-                      $html .= '<div><label>Is Multiple:</label>';
-                      $html .= '<input class="ms-1" type="checkbox" disabled ';
-                      $html .= ($property['is_multiple'] == 1 ? 'checked' : '') . '>';
-                      $html .= '&nbsp;&nbsp;<label>Is Required:</label>';
-                      $html .= '<input class="ms-1" type="checkbox" disabled ';
-                      $html .= ($property['is_required'] == 1 ? 'checked' : '') . '></div>';
-                     */
                     $html .= self::renderPropertyHtmlFieldsByAdmin($property, $entityId, $typeEntity);
                     $html .= '</div>'; // Закрытие .card-body
                     $html .= '</div>'; // Закрытие #collapse-[id]
@@ -753,10 +744,106 @@ class Plugins {
         }
         return $html;
     }
+    
+    /**
+    * Генерирует HTML-код для вкладок (табов) с наборами свойств сущности
+    * @param array $entitySetsData Данные о наборах свойств сущности
+    * @param int $entityId ID сущности, для которой рендерятся вкладки
+    * @param string $typeEntity Тип сущности, по умолчанию 'category'. Используется для фильтрации свойств
+    * @param int|null $activeTabIndex ID активного таба, если null, активируется первый доступный
+    * @return string Возвращает HTML-код для рендеринга вкладок с наборами свойств
+    */
+   public static function renderPropertiesSetsTabs($entitySetsData, $entityId, $typeEntity = 'category', $activeTabIndex = null) {       
+       $globalLang = Lang::init(Session::get('lang'));
+       $html = '';
+
+       // Начало контейнера для табов
+       $html .= '<ul class="nav nav-tabs" id="propertiesTab" role="tablist">';
+       $tabContentHtml = '<div class="tab-content" id="propertiesTabContent">';
+
+       $visibleTabsCount = 0; // Счетчик видимых табов
+       $targetTabIndex = $activeTabIndex !== null ? (int)$activeTabIndex : 0;
+       $hasVisibleTabs = false;
+
+       foreach ($entitySetsData as $entityName => $entitySet) {
+           foreach ($entitySet as $propertySet) {
+               // Фильтрация свойств по типу сущности
+               foreach ($propertySet['properties'] as $kp => $property) {
+                   if ($property['property_entity_type'] != $typeEntity && $property['property_entity_type'] != 'all') {
+                       unset($propertySet['properties'][$kp]);
+                   }
+               }
+
+               $showSet = count($propertySet['properties']) > 0;
+               if (!$showSet) continue; // Пропускаем скрытые наборы
+
+               $isActive = ($visibleTabsCount === $targetTabIndex);
+               $tabNumber = $visibleTabsCount; // Используем порядковый номер
+
+               // Добавляем таб
+               $html .= '<li class="nav-item" role="presentation">';
+               $html .= '<button class="nav-link' . ($isActive ? ' active' : '') . 
+                       '" id="tab-' . $tabNumber . '" data-bs-toggle="tab" data-bs-target="#content-' . $tabNumber . 
+                       '" type="button" role="tab" aria-controls="content-' . $tabNumber . 
+                       '" aria-selected="' . ($isActive ? 'true' : 'false') . '">';
+               $html .= htmlspecialchars($propertySet['name']);
+               $html .= '</button>';
+               $html .= '</li>';
+
+               // Добавляем контент для таба
+               $tabContentHtml .= '<div class="tab-pane fade' . ($isActive ? ' show active' : '') . 
+                                '" id="content-' . $tabNumber . '" role="tabpanel" aria-labelledby="tab-' . $tabNumber . '">';
+               $tabContentHtml .= '<div class="card-body">';
+
+               if (!empty($propertySet['description'])) {
+                   $tabContentHtml .= '<h5>' . htmlspecialchars($globalLang['sys.description']) . '</h5><p>' . htmlspecialchars($propertySet['description']) . '</p>';
+               }
+               $tabContentHtml .= '<h6>' . htmlspecialchars($globalLang['sys.properties']) . '</h6>';
+
+               if (empty($propertySet['properties'])) {
+                   $tabContentHtml .= '---';
+               } else {
+                   foreach ($propertySet['properties'] as $property) {
+                       $propertyId = hash('crc32', $propertySet['set_id'] . $property['property_id'] . $property['value_id']);
+                       $tabContentHtml .= '<div class="accordion my-3" id="accordion-' . $propertyId . '">';
+                       $tabContentHtml .= '<div class="card">';
+                       $tabContentHtml .= '<div class="card-header" id="heading-' . $propertyId . '">';
+                       $tabContentHtml .= '<h2 class="mb-0">';
+                       $tabContentHtml .= '<button class="btn btn-link" type="button" data-bs-toggle="collapse" data-propertyId="' . $property['property_id'] . '"'
+                               . ' data-bs-target="#collapse-' . $propertyId . '"'
+                               . ' aria-expanded="true" aria-controls="collapse-' . $propertyId . '">';
+                       $tabContentHtml .= htmlspecialchars($property['sort']) . ' ' . htmlspecialchars($property['name']);
+                       $tabContentHtml .= '</button></h2></div>';
+                       $tabContentHtml .= '<div id="collapse-' . $propertyId . '" class="collapse" aria-labelledby="heading-' . $propertyId . '" data-bs-parent="#accordion-' . $propertyId . '">';
+                       $tabContentHtml .= '<div class="card-body">';
+                       $tabContentHtml .= self::renderPropertyHtmlFieldsByAdmin($property, $entityId, $typeEntity);
+                       $tabContentHtml .= '</div></div></div></div>';
+                   }
+               }
+               $tabContentHtml .= '</div></div>';
+
+               $visibleTabsCount++;
+               $hasVisibleTabs = true;
+           }
+       }
+
+       // Автокоррекция если запрошенный индекс больше количества табов
+       if ($hasVisibleTabs && $targetTabIndex >= $visibleTabsCount) {
+           $html = preg_replace('/(<button class="nav-link)(.*?)(active)/', '$1$2', $html); // Удаляем все active
+           $html = preg_replace('/(<button class="nav-link)/', '$1 active', $html, 1); // Добавляем первому
+
+           $tabContentHtml = preg_replace('/(<div class="tab-pane fade)(.*?)(show active)/', '$1$2', $tabContentHtml); // Удаляем все active
+           $tabContentHtml = preg_replace('/(<div class="tab-pane fade)/', '$1 show active', $tabContentHtml, 1); // Добавляем первому
+       }
+
+       $html .= '</ul>' . $tabContentHtml;
+
+       return $html;
+   }
 
     /**
      * Вывод свойства у страниц и категорий для сохранения значений
-     * @param array $values
+     * @param array $arrValue
      * @param int $entityId ID сущности
      * @param string $entity_type Тип сущности
      */
@@ -798,7 +885,7 @@ class Plugins {
      * @return string
      */
     private static function renderFieldsProperty($value, $type, $valueName, $area) {
-        global $globalLang;
+        $globalLang = Lang::init(Session::get('lang'));
         $result = '';
         $multipleChoice = true;
         $multiple = !empty($value['multiple']) ? true : false;
@@ -1053,7 +1140,7 @@ class Plugins {
     * ```
     */
     public static function ee_uploader(array $params = []): string {
-        global $globalLang;
+        $globalLang = Lang::init(Session::get('lang'));
         $defaultParams = [
             'name' => 'ee_upload_file_' . md5(SysClass::ee_generate_uuid()),
             'id' => 'upload_id_' . md5(SysClass::ee_generate_uuid()),
@@ -1076,9 +1163,9 @@ class Plugins {
         $multipleAttribute = $params['multiple'] ? 'multiple' : '';
         $requiredAttribute = $params['required'] ? 'data-required="1"' : '';
         if (!self::$sortableJS) {
-            $html = '<link rel="stylesheet" href="' . ENV_URL_SITE . '/classes/system/css/ee_uploader.css" type="text/css" />';
-            $html .= '<script src="' . ENV_URL_SITE . '/classes/system/js/plugins/Sortable.min.js" type="text/javascript"></script>';
-            $html .= '<script src="' . ENV_URL_SITE . '/classes/system/js/plugins/ee_uploader.js" type="text/javascript"></script>';
+            $html = '<link rel="stylesheet" href="' . ENV_URL_SITE . '/assets/js/plugins/ee_uploader.css" type="text/css" />';
+            $html .= '<script src="' . ENV_URL_SITE . '/assets/js/plugins/Sortable.min.js" type="text/javascript"></script>';
+            $html .= '<script src="' . ENV_URL_SITE . '/assets/js/plugins/ee_uploader.js" type="text/javascript"></script>';
             self::$sortableJS = true;
         } else {
             $html = '';
@@ -1178,22 +1265,19 @@ class Plugins {
      * @param int $level Текущий уровень иерархии. Используется для добавления отступов дочерним элементам. По умолчанию равен 0 для корневого уровня
      * @return string Строка с HTML кодом опций для элемента <select>
      */
-    public static function showTypeCategogyForSelect($types, $selectedTypeId = null, $parentTypeId = 0, $level = 0) {
+    public static function showTypeCategogyForSelect($types, $selectedTypeId = null, $parentTypeId = null, $level = 0) {
         $html = '';
         foreach ($types as $type) {
-            // Проверяем совпадение parent_type_id
-            if ($type['parent_type_id'] == $parentTypeId) {
+            // Если parentTypeId не указан или совпадает с parent_type_id, добавляем элемент
+            if ($parentTypeId === null || $type['parent_type_id'] == $parentTypeId) {
                 $indent = str_repeat("&nbsp;&nbsp;&nbsp;", $level);
                 $symbol = $level > 0 ? '↳ ' : '';
                 $selected = $selectedTypeId == $type['type_id'] ? ' selected' : '';
                 $html .= '<option value="' . htmlspecialchars($type['type_id']) . '"' . $selected . '>' . $indent . $symbol . htmlspecialchars($type['name']) . '</option>';
-                // Рекурсивный вызов для дочерних элементов, если они есть
-                if (isset($type['children']) && is_array($type['children'])) {
-                    $html .= self::showTypeCategogyForSelect($type['children'], $selectedTypeId, $type['type_id'], $level + 1);
-                }
-            } else {
-                $selected = $selectedTypeId == $type['type_id'] ? ' selected' : '';
-                $html .= '<option value="' . htmlspecialchars($type['type_id']) . '"' . $selected . '>' . htmlspecialchars($type['name']) . '</option>';                
+            }
+            // Рекурсивный вызов для дочерних элементов, если они есть
+            if (isset($type['children']) && is_array($type['children'])) {
+                $html .= self::showTypeCategogyForSelect($type['children'], $selectedTypeId, $type['type_id'], $level + 1);
             }
         }
         return $html;
@@ -1206,7 +1290,7 @@ class Plugins {
      * @return string Сгенерированный HTML код
      */
     public static function renderPropertySets($propertySetsData, $categoriesTypeSetsData) {
-        global $globalLang;
+        $globalLang = Lang::init(Session::get('lang'));
         $html = '';
         if (count($categoriesTypeSetsData)) {
             foreach ($categoriesTypeSetsData as $item_ctsd) {

@@ -54,7 +54,7 @@
             <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" integrity="sha512-Kc323vGBEqzTmouAECnVceyQqyqdsSiqLQISBL29aUW4U/M7pSPA/gEUZQqv1cwx4OnYxTxve5UMg5GT6L4JJg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
         <?php } ?>
         <!-- Wizard -->
-        <link rel="stylesheet" href="<?= ENV_URL_SITE ?>/classes/system/css/ee_wizard.css" type="text/css" />
+        <link rel="stylesheet" href="<?= ENV_URL_SITE ?>/assets/js/plugins/ee_wizard.css" type="text/css" />
         <!-- General Styles -->
         <link rel="stylesheet" href="<?= ENV_URL_SITE . '/' . ENV_APP_DIRECTORY ?>/admin/css/index.css" type="text/css" />				
         <!-- canonical -->
@@ -91,9 +91,10 @@
         <?php } ?>
         <script src="<?= ENV_URL_SITE ?>/assets/js/plugins/notify.js" type="text/javascript"></script>
         <!-- Wizard -->
-        <script src="<?= ENV_URL_SITE ?>/classes/system/js/plugins/ee_wizard.js" type="text/javascript"></script>
+        <script src="<?= ENV_URL_SITE ?>/assets/js/plugins/ee_wizard.js" type="text/javascript"></script>
         <!-- core -->
-        <script src="<?= ENV_URL_SITE ?>/classes/system/js/core.js" type="text/javascript"></script>
+        <script src="<?= ENV_URL_SITE ?>/uploads/tmp/<?=\classes\system\Session::get('lang')?>.js" type="text/javascript"></script>
+        <script src="<?= ENV_URL_SITE ?>/assets/js/core.js" type="text/javascript"></script>
         <script src="<?= ENV_URL_SITE ?>/app/admin/js/dashboard.js" type="text/javascript"></script>
 
         <script src="<?= ENV_URL_SITE ?>/assets/js/plugins/helium.js" type="text/javascript"></script>

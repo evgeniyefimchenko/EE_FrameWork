@@ -19,32 +19,38 @@ class ModelUserEdit {
     }
 
     /**
-     * Получает данные ролей пользователей из таблицы ролей.
-     * @param string $order Строка для указания порядка сортировки (например, 'id ASC'). По умолчанию 'id ASC'.
-     * @param string|null $where Опциональная строка для условия WHERE в SQL запросе.
-     * @param int $start Начальный индекс для LIMIT в SQL запросе. По умолчанию 0.
-     * @param int $limit Количество записей для получения. По умолчанию 100.
+     * Получает данные ролей пользователей из таблицы ролей
+     * @param string $order Строка для указания порядка сортировки (например, 'role_id ASC'). По умолчанию 'role_id ASC'
+     * @param string|null $where Опциональная строка для условия WHERE в SQL запросе
+     * @param int $start Начальный индекс для LIMIT в SQL запросе. По умолчанию 0
+     * @param int $limit Количество записей для получения. По умолчанию 100
      * @return array Возвращает массив с двумя ключами:
      *               - 'data': массив объектов данных ролей,
-     *               - 'total_count': общее количество ролей в таблице.
+     *               - 'total_count': общее количество ролей в таблице
      */
-    public function get_users_roles_data($order = 'role_id ASC', $where = NULL, $start = 0, $limit = 100, $language_code = ENV_DEF_LANG) {
+    public function get_users_roles_data($order = 'role_id ASC', $where = null, $start = 0, $limit = 100) {
         $orderString = $order ? $order : 'role_id ASC';
-        $whereString = $where ? $where . 'AND language_code = ?s' : 'WHERE language_code = ?s';
+        $whereString = $where ? $where : ''; // Убрано условие с language_code
         $start = $start ? $start : 0;
+
+        // Формируем SQL-запрос для получения role_id
         if ($orderString) {
             $sql_roles = "SELECT role_id FROM ?n $whereString ORDER BY $orderString LIMIT ?i, ?i";
         } else {
             $sql_roles = "SELECT role_id FROM ?n $whereString LIMIT ?i, ?i";
         }
-        $res_array = SafeMySQL::gi()->getAll($sql_roles, Constants::USERS_ROLES_TABLE, $language_code, $start, $limit);
+
+        // Выполняем запрос и получаем данные
+        $res_array = SafeMySQL::gi()->getAll($sql_roles, Constants::USERS_ROLES_TABLE, $start, $limit);
         $res = [];
         foreach ($res_array as $role) {
             $res[] = $this->get_users_role_data($role['role_id']);
         }
+
         // Получаем общее количество записей
         $sql_count = "SELECT COUNT(*) as total_count FROM ?n $whereString";
-        $total_count = SafeMySQL::gi()->getOne($sql_count, Constants::USERS_ROLES_TABLE, $language_code);
+        $total_count = SafeMySQL::gi()->getOne($sql_count, Constants::USERS_ROLES_TABLE);
+
         return [
             'data' => $res,
             'total_count' => $total_count
@@ -67,46 +73,68 @@ class ModelUserEdit {
         return $role_data;
     }
 
-    public function update_users_role_data(array $users_role_data = [], $language_code = ENV_DEF_LANG) {
-        $users_role_data = SafeMySQL::gi()->filterArray($users_role_data, SysClass::ee_getFieldsTable(Constants::USERS_ROLES_TABLE));
-        $users_role_data = array_map('trim', $users_role_data);
-        $users_role_data = SysClass::ee_convertArrayValuesToNumbers($users_role_data);
-        $users_role_data['language_code'] = $language_code;
-        if (!isset($users_role_data['name'])) {
+    /**
+     * Обновляет или создает запись о роли пользователя в базе данных
+     * @param array $usersRoleData Ассоциативный массив данных роли пользователя
+     *     - role_id (int, необязательно): Идентификатор роли, если требуется обновление
+     *     - name (string): Название роли пользователя (обязательно для создания или обновления)
+     *     - другие поля соответствуют структуре таблицы Constants::USERS_ROLES_TABLE
+     * @param string $language_code Код языка, используемый при сохранении роли (по умолчанию — ENV_DEF_LANG)
+     * @return int|false Идентификатор роли при успешном создании или обновлении, либо false при ошибке
+     * Процесс работы:
+     * - Фильтрует входные данные через SafeMySQL::filterArray().
+     * - Обрезает лишние пробелы в строковых значениях.
+     * - Конвертирует числовые значения в нужные типы.
+     * - Если передан 'role_id', пытается обновить существующую запись.
+     * - Если 'role_id' не передан или равен 0, создает новую запись.
+     * - При ошибке SQL логирует её через ErrorLogger.
+     */
+    public function update_users_role_data(array $usersRoleData = [], $language_code = ENV_DEF_LANG) {
+        $usersRoleData = SafeMySQL::gi()->filterArray($usersRoleData, SysClass::ee_getFieldsTable(Constants::USERS_ROLES_TABLE));
+        $usersRoleData = array_map('trim', $usersRoleData);
+        $usersRoleData = SysClass::ee_convertArrayValuesToNumbers($usersRoleData);
+        $usersRoleData['language_code'] = $language_code;
+        if (!isset($usersRoleData['name'])) {
             return false;
         }
-        if (!empty($users_role_data['role_id']) && $users_role_data['role_id'] != 0) {
-            $role_id = $users_role_data['role_id'];
-            unset($users_role_data['role_id']);
+        if (!empty($usersRoleData['role_id']) && $usersRoleData['role_id'] != 0) {
+            $role_id = $usersRoleData['role_id'];
+            unset($usersRoleData['role_id']);
             $sql = "UPDATE ?n SET ?u WHERE role_id = ?i AND language_code = ?s";
-            $result = SafeMySQL::gi()->query($sql, Constants::USERS_ROLES_TABLE, $users_role_data, $role_id, $language_code);
+            $result = SafeMySQL::gi()->query($sql, Constants::USERS_ROLES_TABLE, $usersRoleData, $role_id, $language_code);
             if (!$result) {
-                SysClass::preFile('errors', 'update_users_role_data', 'error SQL ' . SafeMySQL::gi()->parse($sql, Constants::USERS_ROLES_TABLE, $users_role_data, $role_id, $language_code));
+                $message = 'error SQL';
+                new \classes\system\ErrorLogger($message, __FUNCTION__, 'user_role_edit', SafeMySQL::gi()->parse($sql, Constants::USERS_ROLES_TABLE, $usersRoleData, $role_id, $language_code));
             }
             return $result ? $role_id : false;
         } else {
-            unset($users_role_data['role_id']);
+            unset($usersRoleData['role_id']);
         }
-                $sql = "INSERT INTO ?n SET ?u";
-        $result = SafeMySQL::gi()->query($sql, Constants::USERS_ROLES_TABLE, $category_data);
+        $sql = "INSERT INTO ?n SET ?u";
+        $result = SafeMySQL::gi()->query($sql, Constants::USERS_ROLES_TABLE, $usersRoleData);
         if (!$result) {
-            SysClass::preFile('errors', 'update_users_role_data', 'error SQL ' . SafeMySQL::gi()->parse($sql, Constants::USERS_ROLES_TABLE, $category_data));
+            $message = 'error SQL';
+            new \classes\system\ErrorLogger($message, __FUNCTION__, 'user_role_edit', SafeMySQL::gi()->parse($sql, Constants::USERS_ROLES_TABLE, $usersRoleData));
         }
         return $result ? SafeMySQL::gi()->insertId() : false;
     }
-    
-    public function users_role_dell($role_id) {
+
+    /**
+     * Удаляет роль пользователя из базы данных
+     * @param int $role_id Идентификатор роли пользователя, которую необходимо удалить
+     * @return void
+     */
+    public function users_role_dell(int $role_id): void {
         $sql_role = 'DELETE FROM ?n WHERE role_id = ?i';
         SafeMySQL::gi()->query($sql_role, Constants::USERS_ROLES_TABLE, $role_id);
     }
- 
+
     /**
      * 	Удаление пользователя, присвоит флаг удалённый 
      * 	@param user_id - user_id пользователя
      */
-    public function delete_user($user_id) {
+    public function delete_user(int $user_id) {
         $sql = "UPDATE ?n SET deleted = 1 WHERE user_id = ?i";
         return SafeMySQL::gi()->query($sql, Constants::USERS_TABLE, $user_id);
-    }    
-    
+    }
 }

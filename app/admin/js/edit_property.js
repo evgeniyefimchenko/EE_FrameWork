@@ -18,7 +18,7 @@ $(document).ready(function () {
             $(this).val(previousValue);
         } else {
             $(this).data('previous', currentSelectedValue);
-            sendAjaxRequest('/admin/getPropertyData',
+            AppCore.sendAjaxRequest('/admin/getPropertyData',
                     {
                         type_id: currentSelectedValue
                     },
