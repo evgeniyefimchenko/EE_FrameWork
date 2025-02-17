@@ -18,7 +18,7 @@ class ErrorLogger {
      * @param string $prefix Префикс для логирования
      * @param string $details Дополнительные детали
      */
-    public function __construct(string $errorMessage, string $functionName, string $prefix = '', string $details = ''): void {
+    public function __construct(string $errorMessage, string $functionName, string $prefix = '',  mixed $details = '') {
         $this->errorMessage = $errorMessage;
         $this->functionName = $functionName;
         $this->logError($prefix, $details);
@@ -30,7 +30,7 @@ class ErrorLogger {
      * @param string $prefix Префикс для логирования
      * @param string $details Дополнительные детали
      */
-    private function logError(string $prefix = '', string $details = ''): void {
+    private function logError(string $prefix = '',  mixed $details = ''): void {
         $prefix = empty($prefix) ? 'ee_' : $prefix . '_';
         SysClass::preFile($prefix . 'errors', $this->functionName, $this->errorMessage, $details);
     }

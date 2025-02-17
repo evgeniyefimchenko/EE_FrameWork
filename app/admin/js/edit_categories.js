@@ -55,7 +55,8 @@ $(document).ready(function () {
     var parts = currentPage.split('/').filter(part => part !== '');
 
     if (parts[1] === 'category_edit') {
-        console.log(AppCore.summernoteParams);
         $('#description-input').summernote(AppCore.summernoteParams);
     }
+    AppCore.setupTabEventListeners();
+    AppCore.handleTabsFromUrl();    
 });

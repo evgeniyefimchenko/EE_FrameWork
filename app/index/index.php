@@ -25,7 +25,7 @@ class ControllerIndex Extends ControllerBase {
      */
     public function index($params = NULL) {
         if ($params) {
-            SysClass::pre($params);
+            SysClass::pre($params); // TODO
             SysClass::handleRedirect();
         }
         /* view */

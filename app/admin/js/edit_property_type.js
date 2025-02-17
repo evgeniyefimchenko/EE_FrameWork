@@ -12,6 +12,8 @@ $(document).ready(function () {
     $(document).on('click', '.remove-field-btn', function(e){
         e.preventDefault();
         $(this).closest('.row').remove();
-    });    
+    });
+    AppCore.setupTabEventListeners();
+    AppCore.handleTabsFromUrl();    
 });
 

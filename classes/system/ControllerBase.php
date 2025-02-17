@@ -59,7 +59,7 @@ abstract class ControllerBase {
      * Содержит начальные папраметры макета(layout) определённого в контроллере
      */
     protected $parameters_layout = ['description' => '', 'keywords' => '', 'add_script' => '', 'add_style' => '', 'canonical_href' => ENV_URL_SITE, 'layout' => 'index', 'imagePage' => '/favicon.png'];
-
+    
     /**
      * Конструктор класса принимает экземпляр класса представления из /classes/system/Router.php
      * Проверяет сессию пользователя и записывает id в logged_in
@@ -183,10 +183,15 @@ abstract class ControllerBase {
 
     /**
      * Вернёт URL путь к папке контроллера
+     * @param bool $killApp Убрать /app из результата
      */
-    public function getPathController() {
-        $stack_dir = dirname(ENV_CONTROLLER_PATH);
-        return ENV_URL_SITE . substr($stack_dir, strpos($stack_dir, ENV_DIRSEP . ENV_APP_DIRECTORY));
+    public function getPathController($killApp = false): string {
+        $stackDir = dirname(ENV_CONTROLLER_PATH);
+        $result = ENV_URL_SITE . substr($stackDir, strpos($stackDir, ENV_DIRSEP . ENV_APP_DIRECTORY));
+        if ($killApp) {
+            return str_replace('/app', '', $result);
+        }
+        return $result;
     }
 
     /**

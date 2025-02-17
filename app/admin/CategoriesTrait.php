@@ -63,17 +63,19 @@ trait CategoriesTrait {
         ];
         /* model */
         $this->loadModel('m_categories_types');
-        $this->loadModel('m_categories');        
+        $this->loadModel('m_categories');
         $postData = SysClass::ee_cleanArray($_POST);        
         if (in_array('id', $params)) {
             $keyId = array_search('id', $params);
             if ($keyId !== false && isset($params[$keyId + 1])) {                
                 $categoryId = filter_var($params[$keyId + 1], FILTER_VALIDATE_INT);                
             } else {
-                $categoryId = 0;
-            }            
+                $categoryId = 0;                
+            }
+            $newEntity = empty($categoryId) ? true : false;
             if (isset($postData['title']) && $postData['title']) {
                 // Сохранение основных данных
+                $postData['description'] = \classes\system\FileSystem::extractBase64Images($postData['description']);
                 if (!$new_id = $this->models['m_categories']->updateCategoryData($postData)) {
                     ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
                 } else {
@@ -84,11 +86,12 @@ trait CategoriesTrait {
                 if (isset($postData['property_data']) && is_array($postData['property_data']) && !empty($postData['property_data_changed'])) {
                     $this->processPropertyData($postData['property_data']);
                 }
-            }
+            }           
+            $this->processPostParams($postData, $newEntity, $categoryId);
             $getCategoryData = ((int) $categoryId ? $this->models['m_categories']->getCategoryData($categoryId) : null) ?: $defaultData;            
         } else { // Не передан ключевой параметр id
             SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/category_edit/id/');
-        }        
+        }
         $categories_tree = $this->models['m_categories']->getCategoriesTree($categoryId);
         $fullCategoriesTree = $this->models['m_categories']->getCategoriesTree();
         $categoryPages = $this->models['m_categories']->getCategoryPages($categoryId);
@@ -127,6 +130,23 @@ trait CategoriesTrait {
         $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/edit_categories.js" type="text/javascript" /></script>';
         $this->parameters_layout["title"] = $this->lang['sys.categories_edit'];
         $this->showLayout($this->parameters_layout);
+    }
+
+    /**
+     * Обрабатывает POST-данные и выполняет редирект на чистую страницу, чтобы избежать повторной отправки данных при обновлении страницы (F5)
+     * Если POST-данные не пусты, функция выполняет редирект:
+     * - Если $newEntity равно false, редирект происходит на текущий URI
+     * - Если $newEntity равно true, редирект происходит на путь контроллера с добавлением действия и идентификатора сущности
+     * @param array $postData Массив POST-данных, которые необходимо обработать
+     * @param bool $newEntity Флаг, указывающий, создается ли новая сущность (true) или редактируется существующая (false)
+     * @param int $entityId Идентификатор сущности, который будет добавлен в URL при редиректе (если $newEntity равно true)
+     * @return void
+     */
+    public function processPostParams(array $postData, bool $newEntity, int $entityId): void {
+        if (!empty($postData)) {
+            !$newEntity ? SysClass::handleRedirect(200, __REQUEST['_SERVER']['REQUEST_URI']) :
+                            SysClass::handleRedirect(200, $this->getPathController(true) . '/' . ENV_CONTROLLER_ACTION . '/id/' . $entityId);
+        }
     }
 
     /**

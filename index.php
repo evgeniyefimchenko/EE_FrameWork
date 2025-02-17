@@ -1,6 +1,6 @@
 <?php
 
-define('USE_APDEX_INDEX', true);
+define('USE_APDEX_INDEX', false);
 
 if (USE_APDEX_INDEX) {
     $start_time = microtime(true);
@@ -15,7 +15,7 @@ $debug = 1;
 if ($debug) { // Повреждает некоторые AJAX запросы
     ini_set('display_errors', 1);
     ini_set('display_startup_errors', 1);
-    error_reporting(E_ALL);  
+    error_reporting(E_ALL);
 }
 
 if ($debug && isset($_GET['phpinfo'])) {
@@ -23,9 +23,9 @@ if ($debug && isset($_GET['phpinfo'])) {
     die;
 }
 
-function ee_startUp() {    
-    require_once('inc/configuration.php');     
-    require_once ('inc/startup.php');    
+function ee_startUp() {
+    require_once('inc/configuration.php');
+    require_once ('inc/startup.php');
     AutoloadManager::init(); // Необходимо для hooks.php
     require_once ('inc/hooks.php');
 }
@@ -34,9 +34,9 @@ if (function_exists('opcache_get_status')) {
     $opcache_status = opcache_get_status(); // Основные классы и автолоадер должны быть загружены в память из файла /inc/preloader.php
     if (empty($opcache_status['preload_statistics'])) {
         // Предзагрузка не используется
-        ee_startUp();        
+        ee_startUp();
     }
-} else {    
+} else {
     // OPcache недоступен
     ee_startUp();
 }
@@ -54,4 +54,14 @@ if (USE_APDEX_INDEX) {
     $response_time = $end_time - $start_time;
     $url = $_SERVER['REQUEST_URI'];
     \classes\system\SysClass::preFile('apdex', 'USE_APDEX_INDEX', $url, $response_time);
+}
+
+if ($debug) {
+    echo '<div style="z-index: 100000;
+    position: absolute;
+    width: 100%;
+    text-align: center;">';
+    echo "Текущее использование памяти: " . (memory_get_usage(true) / 1024 / 1024) . " MB<br/>";
+    echo "Пиковое использование памяти: " . (memory_get_peak_usage(true) / 1024 / 1024) . " MB<br/>";
+    echo '</div>';
 }

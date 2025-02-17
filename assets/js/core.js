@@ -127,9 +127,135 @@ const AppCore = (function () {
         getUrlVars: function () {
             var vars = {};
             window.location.href.replace(/[?&]+([^=&]+)=([^&]*)/gi, function (m, key, value) {
-                vars[key] = value;
+                key = decodeURIComponent(key);
+                value = decodeURIComponent(value);
+                if (vars[key]) {
+                    if (Array.isArray(vars[key])) {
+                        vars[key].push(value);
+                    } else {
+                        vars[key] = [vars[key], value];
+                    }
+                } else {
+                    vars[key] = value;
+                }
             });
             return vars;
+        },
+        handleTabsFromUrl: function () {
+            let getParams = AppCore.getUrlVars();
+            let tabs = [];
+            if (getParams['tabs[]']) {
+                if (Array.isArray(getParams['tabs[]'])) {
+                    tabs = tabs.concat(getParams['tabs[]'].map(tab => decodeURIComponent(tab)));
+                } else {
+                    tabs.push(decodeURIComponent(getParams['tabs[]']));
+                }
+            }
+            // Обрабатываем collapse[]
+            let collapses = [];
+            if (getParams['collapse[]']) {
+                if (Array.isArray(getParams['collapse[]'])) {
+                    collapses = collapses.concat(getParams['collapse[]'].map(collapse => decodeURIComponent(collapse)));
+                } else {
+                    collapses.push(decodeURIComponent(getParams['collapse[]']));
+                }
+            }
+            const clickTabsSequentially = (tabs, index = 0) => {
+                if (index >= tabs.length) return;
+                const tabId = tabs[index];
+                if (tabId) {
+                    let tabElement = $('#' + tabId);
+                    if (tabElement.length) {
+                        tabElement.click();
+                        setTimeout(() => {
+                            clickTabsSequentially(tabs, index + 1);
+                        }, 100);
+                    } else {
+                        console.warn('Элемент с ID ' + tabId + ' не найден.');
+                        clickTabsSequentially(tabs, index + 1);
+                    }
+                }
+            };
+            const handleCollapses = (collapses, index = 0) => {
+                if (index >= collapses.length) return;
+                const collapseId = collapses[index];
+                if (collapseId) {
+                    let collapseElement = $('#' + collapseId);
+                    if (collapseElement.length) {
+                        collapseElement.click();
+                        setTimeout(() => {
+                            handleCollapses(collapses, index + 1);
+                        }, 100);
+                    } else {
+                        console.warn('Элемент с ID ' + collapseId + ' не найден.');
+                        handleCollapses(collapses, index + 1);
+                    }
+                }
+            };
+            clickTabsSequentially(tabs);
+            handleCollapses(collapses);
+        },
+        setupTabEventListeners: function () {
+            // Обрабатываем элементы с data-bs-toggle="tab"
+            const tabElements = document.querySelectorAll('[data-bs-toggle="tab"]');
+            tabElements.forEach(tabElement => {
+                tabElement.addEventListener('click', function (event) {
+                    event.preventDefault();
+                    const tabId = this.id;
+                    if (tabId) {
+                        const parentUl = this.closest('ul.nav.nav-tabs');
+                        const url = new URL(window.location.href);
+                        const searchParams = url.searchParams;
+                        let tabArray = searchParams.getAll('tabs[]');
+                        if (parentUl) {
+                            parentUl.querySelectorAll('[data-bs-toggle="tab"]').forEach(tab => {
+                                const siblingTabId = tab.id;
+                                if (siblingTabId && tabArray.includes(siblingTabId)) {
+                                    const index = tabArray.indexOf(siblingTabId);
+                                    if (index > -1) {
+                                        tabArray.splice(index, 1);
+                                    }
+                                }
+                            });
+                        }
+                        if (!tabArray.includes(tabId)) {
+                            tabArray.push(tabId);
+                        }
+                        searchParams.delete('tabs[]');
+                        tabArray.forEach(tabValue => {
+                            searchParams.append('tabs[]', tabValue);
+                        });
+                        const urlString = `${url.origin}${url.pathname}?${searchParams.toString().replace(/%5B%5D/g, '[]')}`;
+                        window.history.pushState({}, '', urlString);
+                    } else {
+                        console.warn('Элемент вкладки не имеет ID.');
+                    }
+                });
+            });
+            // Обрабатываем элементы с data-bs-toggle="collapse"
+            const collapseElements = document.querySelectorAll('[data-bs-toggle="collapse"]');
+            collapseElements.forEach(collapseElement => {
+                collapseElement.addEventListener('click', function (event) {
+                    event.preventDefault();
+                    const collapseId = this.id;
+                    if (collapseId) {
+                        const url = new URL(window.location.href);
+                        const searchParams = url.searchParams;
+                        let collapseArray = searchParams.getAll('collapse[]');
+                        if (!collapseArray.includes(collapseId)) {
+                            collapseArray.push(collapseId);
+                        }
+                        searchParams.delete('collapse[]');
+                        collapseArray.forEach(collapseValue => {
+                            searchParams.append('collapse[]', collapseValue);
+                        });
+                        const urlString = `${url.origin}${url.pathname}?${searchParams.toString().replace(/%5B%5D/g, '[]')}`;
+                        window.history.pushState({}, '', urlString);
+                    } else {
+                        console.warn('Элемент аккордиона не имеет ID.');
+                    }
+                });
+            });
         },
         preloader: preloader,
         summernoteParams: {}

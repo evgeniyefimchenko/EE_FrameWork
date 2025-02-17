@@ -650,7 +650,7 @@ class Users {
             $createSearchContentsTable = "CREATE TABLE IF NOT EXISTS ?n (
                         search_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                         entity_id INT UNSIGNED NOT NULL,
-                        entity_type_table VARCHAR(255) NOT NULL,
+                        entity_type VARCHAR(255) NOT NULL,
                         area CHAR(1) NOT NULL DEFAULT 'A' COMMENT 'Локация поиска A-админпанель, C-клиетская часть',
                         full_search_content TEXT NOT NULL,
                         short_search_content TEXT NOT NULL,
@@ -658,7 +658,7 @@ class Users {
                         relevance_score TINYINT UNSIGNED DEFAULT 0,
                         last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                         FULLTEXT(full_search_content, short_search_content),
-                        INDEX (entity_id, entity_type_table, area, language_code)
+                        INDEX (entity_id, entity_type, area, language_code)
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для глобального поиска по сайту';";
             SafeMySQL::gi()->query($createSearchContentsTable, Constants::SEARCH_CONTENTS_TABLE);
             // Для файлов загруженных на страницах проекта
@@ -671,10 +671,10 @@ class Users {
                                     mime_type VARCHAR(50) NOT NULL,
                                     size BIGINT UNSIGNED NOT NULL,
                                     image_size ENUM('small', 'medium', 'large') DEFAULT NULL,
-                                    uploaded_at DATETIME NOT NULL,
-                                    updated_at DATETIME DEFAULT NULL,
                                     user_id INT UNSIGNED NULL,
                                     file_hash CHAR(32) NOT NULL COMMENT 'MD5 хеш файла для проверки уникальности',
+                                    uploaded_at DATETIME NOT NULL,
+                                    updated_at DATETIME DEFAULT NULL,
                                     UNIQUE KEY unique_file_hash (file_hash),                                 
                                     FOREIGN KEY (user_id) REFERENCES ?n(user_id)
                                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8

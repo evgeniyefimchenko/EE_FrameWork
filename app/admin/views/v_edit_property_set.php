@@ -5,7 +5,7 @@ use classes\system\Plugins;
 ?>
 <!-- Редактирование набора свойства -->
 <main>    
-    <form id="edit_entity" action="/admin/edit_property_set/id/<?= $property_set_data['set_id'] ?>" method="POST" enctype="multipart/form-data">
+    <form id="edit_entity" method="POST" enctype="multipart/form-data" novalidate>
         <input type="hidden" name="fake" value="1" />
         <div class="container-fluid px-4">
             <a href="/admin/edit_property_set/id" data-bs-toggle="tooltip" data-bs-placement="top" title="<?= $lang['sys.add'] ?>" type="button"
@@ -27,7 +27,7 @@ use classes\system\Plugins;
                             <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic-tab-pane" type="button" role="tab" aria-controls="basic-tab-pane" aria-selected="true"><?= $lang['sys.basics'] ?></button>
                         </li>
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="basic-tab" data-bs-toggle="tab" data-bs-target="#properties-tab-pane" type="button" role="tab" aria-controls="properties-tab-pane" aria-selected="true"><?= $lang['sys.properties'] ?></button>
+                            <button class="nav-link" id="properties-tab" data-bs-toggle="tab" data-bs-target="#properties-tab-pane" type="button" role="tab" aria-controls="properties-tab-pane" aria-selected="true"><?= $lang['sys.properties'] ?></button>
                         </li>
                     </ul>
                     <div class="tab-content" id="eeTabContent">
@@ -50,11 +50,11 @@ use classes\system\Plugins;
                             <div class="row mb-3">
                                 <div class="col-3">
                                     <label for="registration-date-input"><?= $lang['sys.date_create'] ?>:</label>
-                                    <input type="text" disabled  class="form-control" value="<?= $property_set_data['created_at'] ?>">
+                                    <input type="text" disabled  class="form-control" value="<?= $property_set_data['created_at'] ?>" id="registration-date-input">
                                 </div>
                                 <div class="col-3">
                                     <label for="update-date-input"><?= $lang['sys.date_update'] ?>:</label>
-                                    <input type="text" disabled class="form-control" value="<?= $property_set_data['updated_at'] ?>">
+                                    <input type="text" disabled class="form-control" value="<?= $property_set_data['updated_at'] ?>" id="update-date-input">
                                 </div>
                             </div>                            
                         </div>                       

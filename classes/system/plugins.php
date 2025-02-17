@@ -47,7 +47,7 @@ class Plugins {
         $html .= self::generatePagination($idTable, (int) $page, $dataTable, (int) $currentRowsPerPage, (int) $max_buttons);
         $html .= self::generateRowsPerPageSection($idTable, $dataTable, $currentRowsPerPage);
         if (!SysClass::isAjaxRequestFromSameSite()) { // Не подгружаем если AJAX запрос
-            $html .= '<script src="' . ENV_URL_SITE . '/classes/system/js/plugins/ee_show_table.js" type="text/javascript"></script>';
+            $html .= '<script src="' . ENV_URL_SITE . '/assets/js/plugins/ee_show_table.js" type="text/javascript"></script>';
         }
         return $html . '</div>';
     }
@@ -773,13 +773,10 @@ class Plugins {
                        unset($propertySet['properties'][$kp]);
                    }
                }
-
                $showSet = count($propertySet['properties']) > 0;
                if (!$showSet) continue; // Пропускаем скрытые наборы
-
                $isActive = ($visibleTabsCount === $targetTabIndex);
                $tabNumber = $visibleTabsCount; // Используем порядковый номер
-
                // Добавляем таб
                $html .= '<li class="nav-item" role="presentation">';
                $html .= '<button class="nav-link' . ($isActive ? ' active' : '') . 
@@ -789,17 +786,14 @@ class Plugins {
                $html .= htmlspecialchars($propertySet['name']);
                $html .= '</button>';
                $html .= '</li>';
-
                // Добавляем контент для таба
                $tabContentHtml .= '<div class="tab-pane fade' . ($isActive ? ' show active' : '') . 
                                 '" id="content-' . $tabNumber . '" role="tabpanel" aria-labelledby="tab-' . $tabNumber . '">';
                $tabContentHtml .= '<div class="card-body">';
-
                if (!empty($propertySet['description'])) {
                    $tabContentHtml .= '<h5>' . htmlspecialchars($globalLang['sys.description']) . '</h5><p>' . htmlspecialchars($propertySet['description']) . '</p>';
                }
                $tabContentHtml .= '<h6>' . htmlspecialchars($globalLang['sys.properties']) . '</h6>';
-
                if (empty($propertySet['properties'])) {
                    $tabContentHtml .= '---';
                } else {
@@ -810,7 +804,7 @@ class Plugins {
                        $tabContentHtml .= '<div class="card-header" id="heading-' . $propertyId . '">';
                        $tabContentHtml .= '<h2 class="mb-0">';
                        $tabContentHtml .= '<button class="btn btn-link" type="button" data-bs-toggle="collapse" data-propertyId="' . $property['property_id'] . '"'
-                               . ' data-bs-target="#collapse-' . $propertyId . '"'
+                               . ' data-bs-target="#collapse-' . $propertyId . '" id="button_collapse-' . $propertyId . '"'
                                . ' aria-expanded="true" aria-controls="collapse-' . $propertyId . '">';
                        $tabContentHtml .= htmlspecialchars($property['sort']) . ' ' . htmlspecialchars($property['name']);
                        $tabContentHtml .= '</button></h2></div>';
@@ -821,7 +815,6 @@ class Plugins {
                    }
                }
                $tabContentHtml .= '</div></div>';
-
                $visibleTabsCount++;
                $hasVisibleTabs = true;
            }
