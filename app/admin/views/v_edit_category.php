@@ -11,7 +11,7 @@ $countPages = count($categoryPages);
 ?>
 <!-- Редактирование категории -->
 <main>    
-    <form id="edit_category" action="/admin/category_edit/id/<?= $categoryData['category_id'] ?>" method="POST" enctype="multipart/form-data">
+    <form id="edit_category" action="/admin/category_edit/id/<?= $categoryData['category_id'] ?>" method="POST" enctype="multipart/form-data" novalidate>
         <input type="hidden" name="fake" value="1" />
         <input type="hidden" id="count_pages" value="<?=$countPages?>" />
         <div class="container-fluid px-4">
@@ -32,16 +32,16 @@ $countPages = count($categoryPages);
                     <ul class="nav nav-tabs" id="eeTab" role="tablist">
                         <li class="nav-item" role="presentation">
                             <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic-tab-pane" type="button" role="tab" 
-                                    aria-controls="basic-tab-pane" aria-selected="true"><?=$lang['sys.basics']?></button>
+                                    aria-controls="basic-tab-pane" aria-selected="true"><?= $lang['sys.basics'] ?></button>
                         </li>
                         <?php if ($categoryData['category_id']) { ?>
                         <li class="nav-item" role="presentation">
                             <button class="nav-link<?=(!$countPages ? ' text-danger' : '')?>" id="pages-tab" data-bs-toggle="tab" data-bs-target="#pages-tab-pane"
-                                    type="button" role="tab" aria-controls="pages-tab-pane" aria-selected="false"><?=$lang['sys.category_pages']?></button>
+                                    type="button" role="tab" aria-controls="pages-tab-pane" aria-selected="false"><?= $lang['sys.category_pages'] ?></button>
                         </li>
                         <li class="nav-item" role="presentation">
                             <button class="nav-link<?=(!count($categoriesTypeSetsData) ? ' text-danger' : '')?>" id="property_sets-tab" data-bs-toggle="tab" data-bs-target="#property_sets-tab-pane"
-                                    type="button" role="tab" aria-controls="property_sets-tab-pane" aria-selected="false"><?=$lang['sys.property_sets']?></button>
+                                    type="button" role="tab" aria-controls="property_sets-tab-pane" aria-selected="false"><?= $lang['sys.property_sets'] ?></button>
                         </li>
                         <?php } ?>
                     </ul>
@@ -50,7 +50,7 @@ $countPages = count($categoryPages);
                         <div class="tab-pane show active mt-3" id="basic-tab-pane" role="tabpanel" aria-labelledby="basic-tab">
                             <div class="row mb-3">
                                 <div class="col-6 col-sm-3">
-                                    <label for="title-input"><?=$lang['sys.title']?>:</label>
+                                    <label for="title-input"><?= $lang['sys.title'] ?>:</label>
                                     <div role="group" class="input-group">
                                         <input type="text" id="title-input" name="title" class="form-control" placeholder="Введите название..." value="<?= $categoryData['title'] ?>">
                                         <span role="button" class="input-group-text btn-info" data-bs-toggle="tooltip" data-bs-placement="top" title="Название должно быть уникально в рамках одного типа">
@@ -62,7 +62,7 @@ $countPages = count($categoryPages);
                                     <label for="type_id-input">Тип:</label>
                                     <div role="group" class="input-group">
                                         <select id="type_id-input" name="type_id" class="form-control">
-                                            <?=Plugins::showTypeCategogyForSelect($allType, $categoryData['type_id']); ?>
+                                            <?= Plugins::showTypeCategogyForSelect($allType, $categoryData['type_id']); ?>
                                         </select>
                                         <?php                                        
                                         if (isset($categoryData['parent_id'])) {

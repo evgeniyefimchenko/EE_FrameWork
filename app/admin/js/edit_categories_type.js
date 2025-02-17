@@ -34,4 +34,6 @@ $(document).ready(function () {
         }
     });
     $('#type_id-input').change();
+    AppCore.setupTabEventListeners();
+    AppCore.handleTabsFromUrl();    
 });

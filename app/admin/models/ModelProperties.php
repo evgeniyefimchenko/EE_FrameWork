@@ -107,6 +107,15 @@ class ModelProperties {
     }
 
     /**
+     * Вернёт type_id свойства по его property_id
+     * @param int $propertyId
+     * @return int|null
+     */
+    public function getTypeIdByPropertyId(int $propertyId): ?int {
+        return SafeMySQL::gi()->getOne('SELECT type_id FROM ?n WHERE property_id = ?i', Constants::PROPERTIES_TABLE, $propertyId);
+    }
+    
+    /**
      * Обновляет данные свойства в таблице свойств
      * @param array $propertyData Ассоциативный массив с данными свойства для обновления
      * @param string $languageCode Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG
@@ -124,7 +133,7 @@ class ModelProperties {
         $propertyData['is_required'] = isset($propertyData['is_required']) && ($propertyData['is_required'] == 'on' || $propertyData['is_required'] == 1) ? 1 : 0;
         $propertyData['language_code'] = $languageCode;  // добавлено
         if (empty($propertyData['name']) || !isset($propertyData['type_id'])) {
-            $message = 'Error: property_data';
+            $message = 'Error: property_data name or type_id';
             new \classes\system\ErrorLogger($message, __FUNCTION__, 'property', $propertyData);
             return false;
         }

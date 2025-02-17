@@ -38,7 +38,7 @@ class Constants {
             PROPERTY_SET_TO_PROPERTIES_TABLE_FIELDS = [],
             SEARCH_CONTENTS_TABLE = ENV_DB_PREF . 'search_contents',
             SEARCH_CONTENTS_TABLE_FIELDS = [],
-            FILES_TABLE = ENV_DB_PREF . 'files_table',
+            FILES_TABLE = ENV_DB_PREF . 'files',
             FILES_TABLE_FIELDS = [],
             GLOBAL_OPTIONS = ENV_DB_PREF . 'global_options',
             GLOBAL_OPTIONS_FIELDS = [],            

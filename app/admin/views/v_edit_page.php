@@ -5,7 +5,7 @@ use classes\system\Plugins;
 <!-- Редактирование страницы -->
 <?php if (!$allType) SysClass::handleRedirect(200, '/admin/type_categories');?> 
 <main>    
-    <form id="edit_page" action="/admin/page_edit/id/<?= $pageData['page_id'] ?>" method="POST" enctype="multipart/form-data" novalidate>
+    <form id="edit_page" method="POST" enctype="multipart/form-data" novalidate>
         <input type="hidden" name="fake" value="1" />
         <div class="container-fluid px-4">
             <a href="/admin/page_edit/id" data-bs-toggle="tooltip" data-bs-placement="top" title="<?= $lang['sys.add'] ?>" type="button"
@@ -28,11 +28,11 @@ use classes\system\Plugins;
                             <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic-tab-pane" type="button" role="tab"
                                     aria-controls="basic-tab-pane" aria-selected="true"><?=$lang['sys.basics']?></button>
                         </li>
-                        <?php if ($pageData['page_id']) { ?>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="features-tab" data-bs-toggle="tab" data-bs-target="#features-tab-pane" type="button" role="tab"
-                                    aria-controls="features-tab-pane"><?=$lang['sys.properties']?></button>
-                        </li>
+                        <?php if (!empty($pageData['page_id'])) { ?>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link<?=(!count($allProperties) ? ' text-danger' : '')?>" id="features-tab" data-bs-toggle="tab" data-bs-target="#features-tab-pane" type="button" role="tab"
+                                        aria-controls="features-tab-pane"><?=$lang['sys.properties']?></button>
+                            </li>
                         <?php } ?>
                     </ul>
                     <div class="tab-content" id="ee_TabContent">

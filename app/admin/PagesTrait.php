@@ -72,6 +72,7 @@ trait PagesTrait {
                 $pageId = 0;
             }
             if (isset($postData['title']) && $postData['title']) {
+                $postData['description'] = \classes\system\FileSystem::extractBase64Images($postData['description']);
                 $new_id = $this->models['m_pages']->updatePageData($postData);
                 if (!is_numeric($new_id)) {
                     ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.db_registration_error'] . ' ' . var_export($new_id, true), 'status' => 'danger']);
@@ -84,6 +85,8 @@ trait PagesTrait {
                     $this->processPropertyData($postData['property_data']);
                 }
             }
+            $newEntity = empty($pageId) ? true : false;
+            $this->processPostParams($postData, $newEntity, $pageId);            
             $getPageData = (int) $pageId ? $this->models['m_pages']->getPageData($pageId) : $default_data;
             $getPageData = $getPageData ? $getPageData : $default_data;
         } else { // Не передан ключевой параметр id

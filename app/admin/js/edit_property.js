@@ -29,4 +29,6 @@ $(document).ready(function () {
                     });
         }
     }).data('previous', $('#type_id-input').val());
+    AppCore.setupTabEventListeners();
+    AppCore.handleTabsFromUrl();    
 });

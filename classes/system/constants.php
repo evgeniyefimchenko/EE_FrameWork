@@ -25,9 +25,9 @@ class Constants {
             PAGES_TABLE = ENV_DB_PREF . 'pages',
             PAGES_TABLE_FIELDS = ['page_id','parent_page_id','category_id','status','title','short_description','description','created_at','updated_at','language_code'],
             PROPERTY_TYPES_TABLE = ENV_DB_PREF . 'property_types',
-            PROPERTY_TYPES_TABLE_FIELDS = ['type_id','name','status','fields','description','created_at','updated_at','language_code'],
+            PROPERTY_TYPES_TABLE_FIELDS = [],
             PROPERTIES_TABLE = ENV_DB_PREF . 'properties',
-            PROPERTIES_TABLE_FIELDS = ['property_id','type_id','name','status','sort','default_values','is_multiple','is_required','description','entity_type','created_at','updated_at','language_code'],
+            PROPERTIES_TABLE_FIELDS = [],
             PROPERTY_VALUES_TABLE = ENV_DB_PREF . 'property_values',
             PROPERTY_VALUES_TABLE_FIELDS = ['value_id','entity_id','set_id','property_id','entity_type','property_values','created_at','updated_at','language_code'],
             PROPERTY_SETS_TABLE = ENV_DB_PREF . 'property_sets',
@@ -35,13 +35,13 @@ class Constants {
             CATEGORY_TYPE_TO_PROPERTY_SET_TABLE = ENV_DB_PREF . 'category_type_to_property_set',
             CATEGORY_TYPE_TO_PROPERTY_SET_TABLE_FIELDS = [],
             PROPERTY_SET_TO_PROPERTIES_TABLE = ENV_DB_PREF . 'property_set_to_properties',
-            PROPERTY_SET_TO_PROPERTIES_TABLE_FIELDS = ['property_id','type_id','name','status','sort','default_values','is_multiple','is_required','description','entity_type','created_at','updated_at','language_code'],
+            PROPERTY_SET_TO_PROPERTIES_TABLE_FIELDS = [],
             SEARCH_CONTENTS_TABLE = ENV_DB_PREF . 'search_contents',
             SEARCH_CONTENTS_TABLE_FIELDS = [],
-            FILES_TABLE = ENV_DB_PREF . 'files_table',
+            FILES_TABLE = ENV_DB_PREF . 'files',
             FILES_TABLE_FIELDS = [],
             GLOBAL_OPTIONS = ENV_DB_PREF . 'global_options',
-            GLOBAL_OPTIONS_FIELDS = [],
+            GLOBAL_OPTIONS_FIELDS = [],            
             ALL_STATUS = ['active' => 'active', 'hidden' => 'hidden', 'disabled' => 'disabled'], // Ручное заполнение
             ALL_ENTITY_TYPE = ['category' => 'sys.categories', 'page' => 'sys.pages', 'all' => 'sys.all'], // Ручное заполнение
             USERS_STATUS = [1 => 'sys.not_confirmed', 2 => 'sys.active', 3 => 'sys.blocked'],  // Ручное заполнение

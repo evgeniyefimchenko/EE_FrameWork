@@ -1,7 +1,7 @@
 <!-- Редактирование свойства -->
 <?php if (!$allPropertyTypes) \classes\system\SysClass::handleRedirect(200, '/admin/types_properties');?> 
 <main>    
-    <form id="edit_entity" action="/admin/edit_property/id/<?= $propertyData['property_id'] ?>" method="POST" enctype="multipart/form-data">
+    <form id="edit_entity" action="/admin/edit_property/id/<?= $propertyData['property_id'] ?>" method="POST" enctype="multipart/form-data" novalidate>
         <input type="hidden" name="fake" value="1" />
         <div class="container-fluid px-4">
             <a href="/admin/edit_property/id" data-bs-toggle="tooltip" data-bs-placement="top" title="<?= $lang['sys.add'] ?>" type="button"

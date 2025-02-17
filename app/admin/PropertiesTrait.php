@@ -316,7 +316,9 @@ trait PropertiesTrait {
                         $typeId = $new_id;
                     }
                 }
-            }            
+            }
+            $newEntity = empty($typeId) ? true : false;
+            $this->processPostParams($postData, $newEntity, $typeId);
             $propertyTypeData = (int) $typeId ? $this->models['m_properties']->getTypePropertyData($typeId) : $default_data;            
             $propertyTypeData = !$propertyTypeData ? $default_data : $propertyTypeData;
             $propertyTypeData['fields'] = isset($propertyTypeData['fields']) ? json_decode($propertyTypeData['fields'], true) : [];
@@ -351,6 +353,21 @@ trait PropertiesTrait {
             SysClass::handleRedirect();
             exit();
         }
+        $defaultData = [
+            'property_id' => 0,
+            'type_id' => 0,
+            'name' => '',
+            'status' => 'active',
+            'sort' => '100',
+            'default_values' => '[]',
+            'is_multiple' => '0',
+            'is_required' => '0',
+            'description' => '',
+            'entity_type' => 'all',
+            'fields' => '[]',
+            'created_at' => false,
+            'updated_at' => false 
+        ];        
         /* model */
         $this->loadModel('m_properties');
         $postData = SysClass::ee_cleanArray($_POST);
@@ -360,28 +377,13 @@ trait PropertiesTrait {
                 $propertyId = filter_var($params[$keyId + 1], FILTER_VALIDATE_INT);
             } else {
                 $propertyId = 0;
-                $defaultData = [
-                    'property_id' => 0,
-                    'type_id' => 0,
-                    'name' => '',
-                    'status' => 'active',
-                    'sort' => '100',
-                    'default_values' => '[]',
-                    'is_multiple' => '0',
-                    'is_required' => '0',
-                    'description' => '',
-                    'entity_type' => 'all',
-                    'fields' => '[]',
-                    'created_at' => false,
-                    'updated_at' => false 
-                ];
             }
             $isExistSetsWithProperty = $this->models['m_properties']->isExistSetsWithProperty($propertyId);
             if (isset($postData['name']) && $postData['name']) {
                 $this->saveFileProperty($postData);
                 $postData['default_values'] = isset($postData['property_data']) ? $this->prepareDefaultValuesProperty($postData['property_data'], $propertyId) : [];                
                 if ($isExistSetsWithProperty) {
-                    unset($postData['type_id']);
+                    $postData['type_id'] = $this->models['m_properties']->getTypeIdByPropertyId($propertyId);
                 }
                 if (!$new_id = $this->models['m_properties']->updatePropertyData($postData)) {
                     ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
@@ -390,6 +392,8 @@ trait PropertiesTrait {
                     ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.success'], 'status' => 'info']);
                 }
             }
+            $newEntity = empty($propertyId) ? true : false;
+            $this->processPostParams($postData, $newEntity, $propertyId);
             $getPropertyData = !empty($propertyId) ? $this->getPropertyData($propertyId) : $defaultData;
         } else { // Не передан ключевой параметр id
             SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/user_edit/id/' . $this->logged_in);
@@ -475,7 +479,7 @@ trait PropertiesTrait {
                             // Применяем трансформации (если указаны)
                             if (isset($dataFile['transformations'])) {
                                 FileSystem::applyImageTransformations($file['tmp_name'], $dataFile['transformations']);
-                            }                   
+                            }
                             if (!$fileData = FileSystem::safeMoveUploadedFile($file)) {
                                 $message = 'Файл не сохранён ' . $file['name'];
                                 new \classes\system\ErrorLogger($message . ': `' . var_export([$file, $fileData], true) . '`', __FUNCTION__);
@@ -484,7 +488,6 @@ trait PropertiesTrait {
                             } else { // Сохраняем данные файла в таблицу
                                 $originalName = isset($dataFile['original_name']) && !empty($dataFile['original_name']) ? $dataFile['original_name'] : $file['name'];
                                 $fileData['original_name'] = $originalName;
-                                $fileData['image_size'] = ''; // задел на будущее
                                 $fileData['user_id'] = SysClass::getCurrentUserId();
                                 if ($fileId = FileSystem::saveFileInfo($fileData)) {
                                     $changed = true;
@@ -930,6 +933,8 @@ trait PropertiesTrait {
                 // Добавить выбранные свойства в таблицу
                 $this->models['m_properties']->addPropertiesToSet($setId, $postData['selected_properties']);
             }
+            $newEntity = empty($setId) ? true : false;
+            $this->processPostParams($postData, $newEntity, $setId);            
             $propertySetData = (int) $setId ? $this->models['m_properties']->getPropertySetData($setId) : $default_data;
             $propertySetData = $propertySetData ? $propertySetData : $default_data;
         } else { // Не передан ключевой параметр id

@@ -11,4 +11,7 @@ $(document).ready(function () {
     $('input[name^=property_data]').change(function() {
         $('input[name=property_data_changed]').val(1);
     });
+    $('#description-input').summernote(AppCore.summernoteParams);
+    AppCore.setupTabEventListeners();
+    AppCore.handleTabsFromUrl();    
 });

@@ -937,10 +937,9 @@ class SysClass {
         $global = [
             'ENV_SITE_NAME' => ENV_SITE_NAME,            
             'ENV_DOMEN_NAME' => ENV_DOMEN_NAME,            
-            'ENV_URL_SITE' => ENV_URL_SITE,            
-            'ENV_SITE_PATH' => ENV_SITE_PATH,            
-            'ENV_LOGS_PATH' => ENV_LOGS_PATH,            
-            'ENV_DEF_LANG' => ENV_DEF_LANG,            
+            'ENV_URL_SITE' => ENV_URL_SITE,
+            'ENV_DEF_LANG' => ENV_DEF_LANG,
+            'ENV_VERSION_CORE' => ENV_VERSION_CORE,
             'ENV_COMPRESS_HTML' => ENV_COMPRESS_HTML
         ];
         $jsContent = "window.LANG_VARS = " . json_encode(array_merge($lang, $global), JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) . ";";
@@ -1152,6 +1151,29 @@ class SysClass {
             return false;
         }
         return true;
+    }
+
+    /**
+     * Удаляет содержимое папки (файлы и подпапки)
+     * @param string $path Путь к папке
+     * @param bool $delete_self Удалять ли саму папку после очистки
+     * @return void
+     */
+    public static function ee_removeDir(string $path, bool $delete_self = false): void {
+        $path = rtrim($path, '/');
+        $glob = glob("$path/{,.}[!.,!..]*", GLOB_BRACE);
+        if (is_array($glob)) {
+            foreach ($glob as $file) {
+                if (is_dir($file)) {
+                    ee_removeDir($file, true);
+                } else {
+                    @unlink($file);
+                }
+            }
+        }
+        if ($delete_self) {
+            @rmdir($path);
+        }
     }
 
     /**
