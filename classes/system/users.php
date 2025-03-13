@@ -689,7 +689,32 @@ class Users {
                                             updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Дата обновления записи',
                                             UNIQUE KEY (option_key) COMMENT 'Уникальность ключа опции'
                                         ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения глобальных опций';";
-            SafeMySQL::gi()->query($createGlobalOptionsTable, Constants::GLOBAL_OPTIONS);            
+            SafeMySQL::gi()->query($createGlobalOptionsTable, Constants::GLOBAL_OPTIONS);
+            /* Таблица почтовых шаблонов */
+            $createEmailTemplatesTable = "CREATE TABLE IF NOT EXISTS ?n (
+                template_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(255) NOT NULL COMMENT 'Название шаблона',
+                subject VARCHAR(255) NOT NULL COMMENT 'Тема письма',
+                body LONGTEXT NOT NULL COMMENT 'HTML тело письма',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                language_code CHAR(2) NOT NULL DEFAULT 'RU' COMMENT 'Код языка по ISO 3166-2',
+                description VARCHAR(1000) NULL COMMENT 'Описание шаблона',
+                UNIQUE KEY (name, language_code)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения почтовых шаблонов';";
+            SafeMySQL::gi()->query($createEmailTemplatesTable, Constants::EMAIL_TEMPLATES_TABLE);
+            /* Таблица сниппетов */
+            $createEmailSnippetsTable = "CREATE TABLE IF NOT EXISTS ?n (
+                snippet_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(255) NOT NULL COMMENT 'Уникальное имя сниппета',
+                content TEXT NOT NULL COMMENT 'HTML содержимое сниппета',
+                description VARCHAR(1000) NULL COMMENT 'Описание сниппета',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                language_code CHAR(2) NOT NULL DEFAULT 'RU' COMMENT 'Код языка по ISO 3166-2',
+                UNIQUE KEY (name, language_code)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения HTML сниппетов';";
+            SafeMySQL::gi()->query($createEmailSnippetsTable, Constants::EMAIL_SNIPPETS_TABLE);            
             // Запись предварительных данных в БД  
             // Добавление основных типов категорий
             $types = [

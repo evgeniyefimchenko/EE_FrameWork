@@ -42,6 +42,10 @@ class Constants {
             FILES_TABLE_FIELDS = [],
             GLOBAL_OPTIONS = ENV_DB_PREF . 'global_options',
             GLOBAL_OPTIONS_FIELDS = [],            
+            EMAIL_TEMPLATES_TABLE = ENV_DB_PREF . 'email_templates',
+            EMAIL_TEMPLATES_TABLE_FIELDS = [],            
+            EMAIL_SNIPPETS_TABLE = ENV_DB_PREF . 'email_snippets',
+            EMAIL_SNIPPETS_TABLE_FIELDS = [],            
             ALL_STATUS = ['active' => 'active', 'hidden' => 'hidden', 'disabled' => 'disabled'], // Ручное заполнение
             ALL_ENTITY_TYPE = ['category' => 'sys.categories', 'page' => 'sys.pages', 'all' => 'sys.all'], // Ручное заполнение
             USERS_STATUS = [1 => 'sys.not_confirmed', 2 => 'sys.active', 3 => 'sys.blocked'],  // Ручное заполнение
@@ -62,6 +66,18 @@ class Constants {
                 "checkbox" => "Checkbox",
                 "radio" => "Radio Button"
             ],
+            PUBLIC_CONSTANTS = [ // Константы доступные публично для шаблонов писем и т.д.
+                'ENV_SITE_NAME' => ENV_SITE_NAME,            
+                'ENV_DOMEN_NAME' => ENV_DOMEN_NAME,            
+                'ENV_URL_SITE' => ENV_URL_SITE,
+                'ENV_SITE_DESCRIPTION' => ENV_SITE_DESCRIPTION,
+                'ENV_VERSION_CORE' => ENV_VERSION_CORE,
+                'ENV_SITE_AUTHOR' => ENV_SITE_AUTHOR,
+                'ENV_DOMEN_NAME' => ENV_DOMEN_NAME,
+                'ENV_SITE_EMAIL' => ENV_SITE_EMAIL,
+                'ENV_ADMIN_EMAIL' => ENV_ADMIN_EMAIL,
+                'ENV_SUPPORT_EMAIL' => ENV_SUPPORT_EMAIL
+            ],            
             // Роли пользователей
             ALL = 777, // Все
             ALL_AUTH = 100, // Все зарегистрированные пользователи

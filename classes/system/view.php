@@ -162,7 +162,7 @@ class View {
                     } elseif (!$content) { // Cached block or not use cache
                         include_once($path . '.php');
                     }
-                } catch (Throwable $e) {
+                } catch (\Throwable $e) {
                     ob_end_clean();
                     throw $e;
                 }

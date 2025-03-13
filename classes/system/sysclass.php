@@ -16,7 +16,13 @@ class SysClass {
      * @var bool|null Кэшированный результат проверки подключения и наличия таблицы
      */
     private static $cacheDB = null;
-
+    
+    /**
+     * Кеширует подключенные модели для экономии памяти
+     * @var array|null
+     */
+    private static $cacheModel = null;
+    
     // Массив исключений - слова, которые не будут включены в ключевые слова
     private const ARRAY_EXCEPTIONS = [
         "и", "в", "не", "на", "я", "с", "что", "а", "по", "он", "она", "оно", "из", "у", "к", "ко", "за", "от", "до", "без", "для", "о", "об", "под", "про", "над", "через", "при"
@@ -1165,7 +1171,7 @@ class SysClass {
         if (is_array($glob)) {
             foreach ($glob as $file) {
                 if (is_dir($file)) {
-                    ee_removeDir($file, true);
+                    self::ee_removeDir($file, true);
                 } else {
                     @unlink($file);
                 }
@@ -1733,13 +1739,18 @@ class SysClass {
     public static function getModelObject(string $area, string $modelName, array $params = []): object|false {
         $parts = explode('_', substr($modelName, 2));
         $className = 'Model' . implode('', array_map('ucfirst', $parts));
+        if (is_array(self::$cacheModel) && !empty(self::$cacheModel[$className])) {
+            return self::$cacheModel[$className];
+        }                
         $filePath = ENV_SITE_PATH . ENV_APP_DIRECTORY . ENV_DIRSEP . $area . ENV_DIRSEP . 'models' . ENV_DIRSEP . $className . '.php';
         if (!file_exists($filePath)) {
             return false;
         }
         include_once($filePath);
         if (class_exists($className)) {
-            return new $className($params);
+            $classObject = new $className($params);
+            self::$cacheModel[$className] = $classObject;
+            return $classObject;
         }
         return false;
     }

@@ -54,7 +54,7 @@
         <?php if (!ENV_FONT_AWESOME_CDN) { ?>
             <link rel="stylesheet" href="<?= ENV_URL_SITE ?>/assets/fontawesome/css/all.css" type="text/css" />
         <?php } else { ?>
-            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" integrity="sha512-Kc323vGBEqzTmouAECnVceyQqyqdsSiqLQISBL29aUW4U/M7pSPA/gEUZQqv1cwx4OnYxTxve5UMg5GT6L4JJg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
         <?php } ?>
         <!-- General Styles -->
         <link rel="stylesheet" type="text/css" href="<?= ENV_URL_SITE . '/' . ENV_APP_DIRECTORY ?>/index/css/index.css" />

@@ -277,7 +277,6 @@ AppCore.summernoteParams = {
         ['height', ['height']],
         ['table', ['table']],
         ['insert', ['imagePlugin', 'link', 'hr']],
-        ['view', ['fullscreen', 'codeview']],
-        ['help', ['help']]
+        ['view', ['fullscreen', 'codeview']]
     ]
 };
