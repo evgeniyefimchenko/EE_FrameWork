@@ -19,14 +19,14 @@ $(document).ready(function () {
         } else {
             $(this).data('previous', currentSelectedValue);
             AppCore.sendAjaxRequest('/admin/getPropertyData',
-                    {
-                        type_id: currentSelectedValue
-                    },
-                    'POST',
-                    'json',
-                    function (response) {
-                        $('#fields_contents').html(response.html);
-                    });
+                {
+                    type_id: currentSelectedValue
+                },
+                'POST',
+                'json',
+                function (response) {
+                    $('#fields_contents').html(response.html);
+                });
         }
     }).data('previous', $('#type_id-input').val());
     AppCore.setupTabEventListeners();

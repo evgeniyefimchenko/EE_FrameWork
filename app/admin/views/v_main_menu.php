@@ -8,14 +8,14 @@ use classes\system\Plugins;
 $menuItems = [
     'menuItems' => [
         'headings' => [
-            'Основное' => [
+            $lang['sys.basics'] => [
                 [
                     'title' => $lang['sys.review'],
                     'link' => '/admin',
                     'icon' => 'fa-tachometer-alt',
                 ],
             ],
-            'Сущности' => [
+            $lang['sys.entities'] => [
                 [
                     'title' => $lang['sys.users'],
                     'link' => '#',
@@ -24,12 +24,12 @@ $menuItems = [
                         ['title' => $lang['sys.list'], 'link' => '/admin/users', 'icon' => 'fa-sharp fa-solid fa-list'],
                         ['title' => $lang['sys.roles'], 'link' => '/admin/users_roles', 'icon' => 'fa-solid fa-users-between-lines'],
                         ['title' => $lang['sys.deleted_users'], 'link' => '/admin/deleted_users', 'icon' => 'fa-solid fa-trash',
-                            'attributes' => 'data-bs-toggle="tooltip" data-bs-placement="top" title="Архив"'],
+                            'attributes' => 'data-bs-toggle="tooltip" data-bs-placement="top" title="' . $lang['sys.archive'] . '"'],
                     ],
                 ],
             // ... другие пункты и подпункты
             ],
-            'Контент' => [
+            $lang['sys.content'] => [
                 [
                     'title' => $lang['sys.categories'],
                     'link' => '#',
@@ -56,21 +56,18 @@ $menuItems = [
                         ['title' => $lang['sys.types'], 'link' => '/admin/types_properties', 'icon' => 'fa-sharp fa-solid fa-marker'],
                         ['title' => $lang['sys.property_sets'], 'link' => '/admin/properties_sets', 'icon' => 'fa-sharp fa-solid fa-sliders'],
                     ],                    
-                ],/*
+                ],
                 [
-                    'title' => 'Комментарии',
-                    'link' => '/admin/comments',
-                    'icon' => 'fa-regular fa-comment',
-                ],*/
-            ],
-            'Аналитика' => [
-                [
-                    'title' => '.....',
-                    'link' => '/admin/#',
-                    'icon' => 'fa-solid fa-question',
+                    'title' => $lang['sys.email_templates'],
+                    'link' => '#',
+                    'icon' => 'fa-solid fa-envelopes-bulk',
+                    'subItems' => [
+                        ['title' => $lang['sys.list'], 'link' => '/admin/email_templates', 'icon' => 'fa-sharp fa-solid fa-list'],
+                        ['title' => $lang['sys.snippets'], 'link' => '/admin/email_snippets', 'icon' => 'fa-solid fa-file-fragment'],
+                    ],                    
                 ],
             ],
-            'Система' => [
+            $lang['sys.system'] => [
                 [
                     'title' => $lang['sys.tools'],
                     'link' => '#',

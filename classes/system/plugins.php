@@ -522,7 +522,7 @@ class Plugins {
      *                   - 'footerTitle' => Заголовок для нижнего раздела меню
      * @return string Сгенерированный HTML-код для вертикального меню
      */
-    public static function generateVerticalMenu($data) {
+    public static function generateVerticalMenu(array $data): string {
         $menuItems = $data['menuItems'];
         $footerTitle = $data['footerTitle'];
         $html = '<div id="layoutSidenav_nav"><nav class="sb-sidenav accordion sb-sidenav-dark" id="sidenavAccordion"><div class="sb-sidenav-menu"><div class="nav">';
@@ -531,16 +531,17 @@ class Plugins {
             foreach ($items as $item) {
                 $attributes = isset($item['attributes']) ? ' ' . $item['attributes'] : '';
                 if (isset($item['subItems'])) {
+                    $collapseId = preg_replace('/\s+/u', '_', $item['title']);
                     $html .= '<a class="nav-link collapsed" href="' . ($item['link'] ?: '#') . '" data-bs-toggle="collapse"' .
-                            'data-bs-target="#collapse_' . $item['title'] . '" aria-expanded="false" aria-controls="collapse_' . $item['title'] . '"' . $attributes . '>' .
+                            'data-bs-target="#collapse_' . $collapseId . '" aria-expanded="false" aria-controls="collapse_' . $collapseId . '"' . $attributes . '>' .
                             '<div class="sb-nav-link-icon"><i class="fas ' . $item['icon'] . '"></i></div>' . $item['title'] .
                             '<div class="sb-sidenav-collapse-arrow"><i class="fas fa-angle-down"></i></div></a>' .
-                            '<div class="collapse" id="collapse_' . $item['title'] . '" aria-labelledby="headingOne" data-bs-parent="#sidenavAccordion">' .
+                            '<div class="collapse" id="collapse_' . $collapseId . '" aria-labelledby="headingOne" data-bs-parent="#sidenavAccordion">' .
                             '<nav class="sb-sidenav-menu-nested nav">';
                     foreach ($item['subItems'] as $subItem) {
                         $subAttributes = isset($subItem['attributes']) ? ' ' . $subItem['attributes'] : '';
                         if ($subItem['link']) {
-                            $html .= '<a class="nav-link" href="' . $subItem['link'] . '" data-parent-bs-target="#collapse_' . $item['title'] . '"' . $subAttributes . '>
+                            $html .= '<a class="nav-link" href="' . $subItem['link'] . '" data-parent-bs-target="#collapse_' . $collapseId . '"' . $subAttributes . '>
                                     <div class="sb-nav-link-icon"><i class="fas ' . $subItem['icon'] . '"></i></div>' . $subItem['title'] .
                                     '</a>';
                         } else {
@@ -572,6 +573,7 @@ class Plugins {
             }
         }
         $html .= '</div></nav></div>';
+        // TODO что тут делает скрипт?!!!
         $script = '<script>$(document).ready(function() {
         var isOpen = false;
         $(\'.sb-sidenav-footer\').click(function() {

@@ -294,6 +294,24 @@ trait SystemsTrait {
             exit();
         }
         $this->loadModel('m_systems');
+        // Удаление временных и загруженных файлов
+        SysClass::ee_removeDir(ENV_TMP_PATH);
+        SysClass::ee_removeDir(ENV_SITE_PATH . 'cache');
+        SysClass::ee_removeDir(ENV_SITE_PATH . 'logs');
+        SysClass::ee_removeDir(ENV_SITE_PATH . 'uploads' . ENV_DIRSEP . 'files');
+        // Перезапись файла Constants.php содержимым Constants_clean.php
+        $constantsCleanPath = ENV_SITE_PATH . 'classes' . ENV_DIRSEP . 'system' . ENV_DIRSEP . 'Constants_clean.php';
+        $constantsPath = ENV_SITE_PATH . 'classes' . ENV_DIRSEP . 'system' . ENV_DIRSEP . 'Constants.php';
+        if (file_exists($constantsCleanPath)) {
+            $constantsCleanContent = file_get_contents($constantsCleanPath);
+            if (file_put_contents($constantsPath, $constantsCleanContent) === false) {
+                ClassNotifications::add_notification_user($this->logged_in, ['text' => 'Failed to overwrite Constants.php.', 'status' => 'danger']);
+                return false;
+            }
+        } else {
+            ClassNotifications::add_notification_user($this->logged_in, ['text' => 'Constants_clean.php not found.', 'status' => 'danger']);
+            return false;
+        }        
         $this->models['m_systems']->killDB($this->logged_in);
         SysClass::handleRedirect(200, '/admin');
     }

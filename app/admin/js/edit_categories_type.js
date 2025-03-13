@@ -14,22 +14,22 @@ $(document).ready(function () {
         var type_id = $(this).val();
         if (type_id) {
             AppCore.sendAjaxRequest('/admin/getParentCategoriesType',
-                    {
-                        type_id: type_id
-                    },
-                    'POST',
-                    'json',
-                    function (response) {
-                        if (typeof event.originalEvent !== 'undefined')
-                            checkBoxs.prop('checked', false).prop('disabled', false);
-                        if (response.all_sets_ids) {
-                            checkBoxs.each(function () {
-                                if (response.all_sets_ids.includes($(this).val())) {
-                                    $(this).prop('checked', true).prop('disabled', true);
-                                }
-                            });
-                        }
+                {
+                    type_id: type_id
+                },
+                'POST',
+                'json',
+                function (response) {
+                    if (typeof event.originalEvent !== 'undefined')
+                        checkBoxs.prop('checked', false).prop('disabled', false);
+                    if (response.all_sets_ids) {
+                        checkBoxs.each(function () {
+                            if (response.all_sets_ids.includes($(this).val())) {
+                                $(this).prop('checked', true).prop('disabled', true);
+                            }
+                        });
                     }
+                }
             );
         }
     });

@@ -19,19 +19,19 @@ class Constants {
             USERS_ACTIVATION_TABLE = ENV_DB_PREF . 'users_activation',
             USERS_ACTIVATION_TABLE_FIELDS = [],
             CATEGORIES_TABLE = ENV_DB_PREF . 'categories',
-            CATEGORIES_TABLE_FIELDS = ['category_id','type_id','title','description','short_description','parent_id','status','created_at','updated_at','language_code'],
+            CATEGORIES_TABLE_FIELDS = [],
             CATEGORIES_TYPES_TABLE = ENV_DB_PREF . 'categories_types',
-            CATEGORIES_TYPES_TABLE_FIELDS = ['type_id','parent_type_id','name','description','created_at','updated_at','language_code'],
+            CATEGORIES_TYPES_TABLE_FIELDS = [],
             PAGES_TABLE = ENV_DB_PREF . 'pages',
-            PAGES_TABLE_FIELDS = ['page_id','parent_page_id','category_id','status','title','short_description','description','created_at','updated_at','language_code'],
+            PAGES_TABLE_FIELDS = [],
             PROPERTY_TYPES_TABLE = ENV_DB_PREF . 'property_types',
             PROPERTY_TYPES_TABLE_FIELDS = [],
             PROPERTIES_TABLE = ENV_DB_PREF . 'properties',
             PROPERTIES_TABLE_FIELDS = [],
             PROPERTY_VALUES_TABLE = ENV_DB_PREF . 'property_values',
-            PROPERTY_VALUES_TABLE_FIELDS = ['value_id','entity_id','set_id','property_id','entity_type','property_values','created_at','updated_at','language_code'],
+            PROPERTY_VALUES_TABLE_FIELDS = [],
             PROPERTY_SETS_TABLE = ENV_DB_PREF . 'property_sets',
-            PROPERTY_SETS_TABLE_FIELDS = ['set_id','name','description','created_at','updated_at','language_code'],
+            PROPERTY_SETS_TABLE_FIELDS = [],
             CATEGORY_TYPE_TO_PROPERTY_SET_TABLE = ENV_DB_PREF . 'category_type_to_property_set',
             CATEGORY_TYPE_TO_PROPERTY_SET_TABLE_FIELDS = [],
             PROPERTY_SET_TO_PROPERTIES_TABLE = ENV_DB_PREF . 'property_set_to_properties',
@@ -42,6 +42,10 @@ class Constants {
             FILES_TABLE_FIELDS = [],
             GLOBAL_OPTIONS = ENV_DB_PREF . 'global_options',
             GLOBAL_OPTIONS_FIELDS = [],            
+            EMAIL_TEMPLATES_TABLE = ENV_DB_PREF . 'email_templates',
+            EMAIL_TEMPLATES_TABLE_FIELDS = ['template_id','name','subject','body','created_at','updated_at','language_code','description'],            
+            EMAIL_SNIPPETS_TABLE = ENV_DB_PREF . 'email_snippets',
+            EMAIL_SNIPPETS_TABLE_FIELDS = [],            
             ALL_STATUS = ['active' => 'active', 'hidden' => 'hidden', 'disabled' => 'disabled'], // Ручное заполнение
             ALL_ENTITY_TYPE = ['category' => 'sys.categories', 'page' => 'sys.pages', 'all' => 'sys.all'], // Ручное заполнение
             USERS_STATUS = [1 => 'sys.not_confirmed', 2 => 'sys.active', 3 => 'sys.blocked'],  // Ручное заполнение
@@ -61,6 +65,18 @@ class Constants {
                 "image" => "Image",
                 "checkbox" => "Checkbox",
                 "radio" => "Radio Button"
+            ],
+            PUBLIC_CONSTANTS = [ // Константы доступные публично для шаблонов писем и т.д.
+                'ENV_SITE_NAME' => ENV_SITE_NAME,            
+                'ENV_DOMEN_NAME' => ENV_DOMEN_NAME,            
+                'ENV_URL_SITE' => ENV_URL_SITE,
+                'ENV_SITE_DESCRIPTION' => ENV_SITE_DESCRIPTION,
+                'ENV_VERSION_CORE' => ENV_VERSION_CORE,
+                'ENV_SITE_AUTHOR' => ENV_SITE_AUTHOR,
+                'ENV_DOMEN_NAME' => ENV_DOMEN_NAME,
+                'ENV_SITE_EMAIL' => ENV_SITE_EMAIL,
+                'ENV_ADMIN_EMAIL' => ENV_ADMIN_EMAIL,
+                'ENV_SUPPORT_EMAIL' => ENV_SUPPORT_EMAIL
             ],
             // Роли пользователей
             ALL = 777, // Все
