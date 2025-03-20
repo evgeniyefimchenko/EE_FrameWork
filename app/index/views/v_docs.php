@@ -1,3 +1,4 @@
+<?php if (!defined('ENV_SITE')) exit(header("Location: http://" . $_SERVER['HTTP_HOST'], true, 301)); ?>
 <div class="container mt-3">
     <a href="<?= ENV_URL_SITE ?>" data-bs-toggle="tooltip" data-bs-placement="top" title="<?= $lang['sys.general'] ?>" type="button"
        class="btn btn-info mx-1 float-end">

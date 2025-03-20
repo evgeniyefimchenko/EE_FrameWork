@@ -1,11 +1,4 @@
-<?php
-if (ENV_SITE !== 1) {
-    header("HTTP/1.1 301 Moved Permanently");
-    header("Location: http://" . $_SERVER['HTTP_HOST']);
-    exit();
-}
-?>
-
+<?php if (!defined('ENV_SITE')) exit(header("Location: http://" . $_SERVER['HTTP_HOST'], true, 301)); ?>
 <!-- Таблица категорий -->
 <main>
     <div class="container-fluid px-4">

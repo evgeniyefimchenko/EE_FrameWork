@@ -1,7 +1,4 @@
-<?php
-use classes\system\SysClass;
-use classes\system\Constants;
-?>
+<?php if (!defined('ENV_SITE')) exit(header("Location: http://" . $_SERVER['HTTP_HOST'], true, 301)); ?>
 <!-- Редактирование типа свойств сущности -->
 <main>    
     <form id="edit_entity" action="/admin/type_properties_edit/id/<?= $property_type_data['type_id'] ?>" method="POST">
@@ -85,7 +82,7 @@ use classes\system\Constants;
                                             <?php if (!$usedByProperties) { ?>
                                                 <select required class="form-select me-2" name="fields[]">
                                                     <option disabled><?= $lang['sys.select'] . ' ' . $lang['sys.field_type'] ?></option>
-                                                    <?php foreach (Constants::ALL_TYPE_PROPERTY_TYPES_FIELDS as $k => $v) { ?>
+                                                    <?php foreach (classes\system\Constants::ALL_TYPE_PROPERTY_TYPES_FIELDS as $k => $v) { ?>
                                                         <option <?= $item == $k ? 'selected ' : ''?>value="<?=$k?>"><?=$v?></option>
                                                     <?php } ?>
                                                 </select>

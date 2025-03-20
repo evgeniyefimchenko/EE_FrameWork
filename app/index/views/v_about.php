@@ -1,3 +1,4 @@
+<?php if (!defined('ENV_SITE')) exit(header("Location: http://" . $_SERVER['HTTP_HOST'], true, 301)); ?>
 <div style="width: 100%; text-align: center;">
     <h1>Проект является Open source PHP фреймворком ориентированном на middle программистов</h1>
     <h2>Автор проекта <a href="https://efimchenko.com" target="_blank">efimchenko.com</a></h2>

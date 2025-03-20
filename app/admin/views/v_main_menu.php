@@ -1,6 +1,4 @@
-<?php
-use classes\system\Plugins;
-
+<?php if (!defined('ENV_SITE')) exit(header("Location: http://" . $_SERVER['HTTP_HOST'], true, 301));
 /**
  * Главное меню админ-панели
  * Настраивается опционально по данным массива
@@ -114,4 +112,4 @@ $menuItems = [
     'footerTitle' => $lang['sys.project_development'],
 ];
 
-echo Plugins::generateVerticalMenu($menuItems);
+echo classes\system\Plugins::generateVerticalMenu($menuItems);

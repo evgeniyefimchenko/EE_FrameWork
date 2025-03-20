@@ -1,3 +1,4 @@
+<?php if (!defined('ENV_SITE')) exit(header("Location: http://" . $_SERVER['HTTP_HOST'], true, 301)); ?>
 <!-- Таблица свойств -->
 <?php if (!$all_property_types) classes\system\SysClass::handleRedirect(200, '/admin/types_properties');?> 
 <main>

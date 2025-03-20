@@ -1,8 +1,4 @@
-<?php
-if (!ENV_SITE) {
-	http_response_code(404); die;
-}
-?>
+<?php if (!defined('ENV_SITE')) exit(header("Location: http://" . $_SERVER['HTTP_HOST'], true, 301)); ?>
 <div class="text-center">
 <?php
 if (isset($user_id)) {

@@ -7,8 +7,7 @@ use classes\system\ErrorLogger;
 
 /**
  * Class ModelEmailTemplates
- *
- * Модель для работы с почтовыми шаблонами и сниппетами.
+ * Модель для работы с почтовыми шаблонами и сниппетами
  */
 class ModelEmailTemplates {
 

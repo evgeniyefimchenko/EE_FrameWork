@@ -20,8 +20,8 @@ use classes\helpers\ClassMessages;
  * Админ-панель
  */
 class ControllerIndex Extends ControllerBase {
-    /* Подключение traits */
 
+    /* Подключение traits */
     use MessagesTrait,
         NotificationsTrait,
         SystemsTrait,
@@ -34,7 +34,7 @@ class ControllerIndex Extends ControllerBase {
     /**
      * Главная страница админ-панели
      */
-    public function index($params = []) {
+    public function index($params = []): void {
         $this->access = [Constants::ALL_AUTH];    
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect(200, '/show_login_form?return=admin');
@@ -342,12 +342,6 @@ class ControllerIndex Extends ControllerBase {
         /* layouts */
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
-        $this->parameters_layout["add_style"] .= '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@ckeditor/ckeditor5-build-classic@latest/build/ckeditor.css">';
-        $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/elfinder/2.1.9/css/elfinder.min.css">' .
-                '<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/elfinder/2.1.9/css/theme.css">';
-        $this->parameters_layout["add_script"] .= '<script src="https://cdn.jsdelivr.net/npm/@ckeditor/ckeditor5-build-classic@latest/build/ckeditor.js"></script>';
-        $this->parameters_layout["add_script"] .= '<script src="https://cdn.ckeditor.com/ckeditor5/41.1.0/classic/translations/ru.js"></script>';
-        $this->parameters_layout["add_script"] .= '<script src="https://cdnjs.cloudflare.com/ajax/libs/elfinder/2.1.9/js/elfinder.min.js"></script>';
         $this->parameters_layout["add_script"] .= '<script src="' . ENV_URL_SITE . '/assets/js/plugins/JQ_mask.js" type="text/javascript" /></script>';
         $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/edit_user.js" type="text/javascript" /></script>';
         $this->parameters_layout["title"] = $this->lang['sys.user_edit'];

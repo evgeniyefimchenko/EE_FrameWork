@@ -1,3 +1,4 @@
+<?php if (!defined('ENV_SITE')) exit(header("Location: http://" . $_SERVER['HTTP_HOST'], true, 301)); ?>
 <!-- Таблица сущностей -->
 <main>
     <div class="container-fluid px-4">

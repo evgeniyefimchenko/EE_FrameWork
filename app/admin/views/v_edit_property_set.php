@@ -1,8 +1,4 @@
-<?php
-use classes\system\SysClass;
-use classes\helpers\ClassNotifications;
-use classes\system\Plugins;
-?>
+<?php if (!defined('ENV_SITE')) exit(header("Location: http://" . $_SERVER['HTTP_HOST'], true, 301)); ?>
 <!-- Редактирование набора свойства -->
 <main>    
     <form id="edit_entity" method="POST" enctype="multipart/form-data" novalidate>

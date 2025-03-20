@@ -1,3 +1,4 @@
+<?php if (!defined('ENV_SITE')) exit(header("Location: http://" . $_SERVER['HTTP_HOST'], true, 301)); ?>
 <?php
 $subject = rawurlencode("Сообщение автору EE_FrameWork v." . ENV_VERSION_CORE);
 $body = rawurlencode("Опишите какую именно помощь я могу Вам оказать?");
