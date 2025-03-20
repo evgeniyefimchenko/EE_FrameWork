@@ -1,8 +1,4 @@
-<?php
-use classes\system\SysClass;
-use classes\helpers\ClassNotifications;
-use classes\system\Plugins;
-?>
+<?php if (!defined('ENV_SITE')) exit(header("Location: http://" . $_SERVER['HTTP_HOST'], true, 301)); ?>
 <!-- Редактирование типа категории -->
 <main>
     <form id="type_edit" action="/admin/categories_type_edit/id/<?= $type_data['type_id'] ?>" method="POST">
@@ -43,7 +39,7 @@ use classes\system\Plugins;
                                     <div role="group" class="input-group">
                                         <select id="type_id-input" name="parent_type_id" class="form-control">
                                             <option value="0">---</option>
-                                            <?=Plugins::showTypeCategogyForSelect($all_types, $type_data['parent_type_id']); ?>
+                                            <?= classes\system\Plugins::showTypeCategogyForSelect($all_types, $type_data['parent_type_id']); ?>
                                         </select>                                                                              
                                     </div>
                                 </div>
@@ -67,7 +63,7 @@ use classes\system\Plugins;
                         </div>
                         <!-- Наборы свойств -->
                         <div class="tab-pane fade show mt-3" id="features-tab-pane" role="tabpanel" aria-labelledby="features-tab">
-                            <?=Plugins::renderPropertySets($propertySetsData, $categoriesTypeSetsData)?>
+                            <?= classes\system\Plugins::renderPropertySets($propertySetsData, $categoriesTypeSetsData) ?>
                         </div>                        
                     </div>
                 </div>

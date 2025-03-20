@@ -59,13 +59,13 @@ class ClassMail {
      */
     private function send(mixed $to, string $subject = '', array $fields = [], string|false $template = false): bool {
         try {
-            $email = $this->resolveEmail($to);            
+            $email = $this->resolveEmail($to);
             if ($template) {
                 list($body, $subjectTemplate) = $this->processTemplate($template, $fields);
                 if (!$body) {
                     return false;
                 }
-            } elseif(!empty($fields)) {
+            } elseif (!empty($fields)) {
                 $body = var_export($fields, true);
             }
             if (!SysClass::validEmail($email)) {
@@ -81,7 +81,7 @@ class ClassMail {
             return false;
         }
     }
-    
+
     /**
      * Обрабатывает HTML-шаблон, заменяя указанные плейсхолдеры на значения из массива данных
      * Плейсхолдеры в шаблоне должны быть обозначены двойными фигурными скобками, например, {{placeholder}}
@@ -109,7 +109,7 @@ class ClassMail {
         }
         return [$body, $subject];
     }
-    
+
     /**
      * Метод для отправки писем
      * @param string $to Адрес электронной почты получателя или ID пользователя
@@ -166,16 +166,28 @@ class ClassMail {
      */
     public function replaceCodeAndSnippets(string $body): string {
         $objectModelEmailTemplates = SysClass::getModelObject('admin', 'm_email_templates');
-        $result = $objectModelEmailTemplates->replaceSnippets(htmlspecialchars_decode($body));
-        preg_match_all('/\{\{([^}]+)\}\}/', $result, $matches);
-        if (isset($matches[1]) && count($matches[1]) > 0) {
-            foreach ($matches[1] as $constant) {
-                 if (isset(Constants::PUBLIC_CONSTANTS[$constant]) && defined($constant)) {
-                     $result = str_replace('{{' . $constant . '}}', constant($constant), $result);
-                 }
-            }            
-        }
-        return $result;
-    }    
-    
+        $maxIterations = 10; // Ограничиваем количество итераций для вложенных сниппетов
+        $iteration = 0;
+        do {
+            $previousBody = $body;
+            $body = $objectModelEmailTemplates->replaceSnippets($body);
+            preg_match_all('/\{\{([^}]+)\}\}/', $body, $matches);
+            if (!empty($matches[1])) {
+                foreach ($matches[1] as $constant) {
+                    if (isset(Constants::PUBLIC_CONSTANTS[$constant]) && defined($constant)) {
+                        $constantValue = constant($constant);
+                        if ($constantValue !== '{{' . $constant . '}}') { // Защита от бесконечной замены
+                            $body = str_replace('{{' . $constant . '}}', $constantValue, $body);
+                        }
+                    }
+                }
+            }
+            $iteration++;
+            if ($iteration >= $maxIterations) {
+                break;
+            }
+        } while ($body !== $previousBody);
+
+        return htmlspecialchars_decode($body);
+    }
 }

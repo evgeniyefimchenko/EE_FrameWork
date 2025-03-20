@@ -1,8 +1,4 @@
-<?php
-use classes\system\SysClass;
-use classes\helpers\ClassNotifications;
-use classes\system\Plugins;
-?>
+<?php if (!defined('ENV_SITE')) exit(header("Location: http://" . $_SERVER['HTTP_HOST'], true, 301)); ?>
 <!-- Редактирование пользователя сайта -->
 <main>
     <form id="edit_users">
@@ -74,15 +70,15 @@ use classes\system\Plugins;
                             <div class="row mb-3">
                                 <div class="col-md-4">
                                     <label for="registration-date-input"><?= $lang['sys.date_create'] ?>:</label>
-                                    <input type="text" disabled  class="form-control" value="<?= $user_context['created_at'] ?>">
+                                    <input type="text" disabled id="registration-date-input" class="form-control" value="<?= $user_context['created_at'] ?>">
                                 </div>
                                 <div class="col-md-4">
                                     <label for="update-date-input"><?= $lang['sys.date_update'] ?>:</label>
-                                    <input type="text" disabled class="form-control" value="<?= $user_context['updated_at'] ?>">
+                                    <input type="text" disabled id="update-date-input" class="form-control" value="<?= $user_context['updated_at'] ?>">
                                 </div>
                                 <div class="col-md-4">
-                                    <label for="update-date-input"><?= $lang['sys.date_activity'] ?>:</label>
-                                    <input type="text" disabled class="form-control" value="<?= $user_context['last_activ'] ?>">
+                                    <label for="update-date-input2"><?= $lang['sys.date_activity'] ?>:</label>
+                                    <input type="text" disabled id="update-date-input2" class="form-control" value="<?= $user_context['last_activ'] ?>">
                                 </div>
                             </div>
                             <div class="mb-3">

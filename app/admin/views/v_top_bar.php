@@ -1,8 +1,4 @@
-<?php
-
-use classes\system\SysClass;
-use classes\system\Plugins;
-
+<?php if (!defined('ENV_SITE')) exit(header("Location: http://" . $_SERVER['HTTP_HOST'], true, 301));
 // Разбор текущего URI для получения пути без параметров запроса.
 $uri = parse_url(__REQUEST['_SERVER']['REQUEST_URI'])['path'];
 // Подготовка данных для верхней панели. Включает в себя бренд и меню пользователя.
@@ -59,7 +55,7 @@ if (isset($messages) && is_array($messages)) {
             }
             // Добавление уведомления в данные верхней панели
             $topbarData['notifications'][] = [
-                'text' => SysClass::truncateString($message['message_text'], 33), // Текст уведомления с обрезкой до 33 символов
+                'text' => classes\system\SysClass::truncateString($message['message_text'], 33), // Текст уведомления с обрезкой до 33 символов
                 'url' => '/admin/messages', // Ссылка на страницу уведомлений
                 'icon' => $icon, // Иконка уведомления
                 'color' => $color // Цвет иконки
@@ -68,4 +64,4 @@ if (isset($messages) && is_array($messages)) {
     }
 }
 // Генерация HTML верхней панели с использованием подготовленных данных
-echo Plugins::generate_topbar($topbarData);
+echo classes\system\Plugins::generate_topbar($topbarData);

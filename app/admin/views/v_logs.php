@@ -1,3 +1,4 @@
+<?php if (!defined('ENV_SITE')) exit(header("Location: http://" . $_SERVER['HTTP_HOST'], true, 301)); ?>
 <!-- Страница просмотра логов -->
 <div class="page-wrapper">
     <div class="container-fluid">

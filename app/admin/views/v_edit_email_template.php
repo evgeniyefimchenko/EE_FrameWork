@@ -1,3 +1,4 @@
+<?php if (!defined('ENV_SITE')) exit(header("Location: http://" . $_SERVER['HTTP_HOST'], true, 301)); ?>
 <!-- Редактирование почтового шаблона -->
 <main>
     <form id="edit_email_template" action="/admin/edit_email_template/id/<?= $templateData['template_id'] ?>" method="POST" enctype="multipart/form-data">
@@ -6,13 +7,13 @@
             <div class="d-flex justify-content-between align-items-center">
                 <h1 class="mt-4"><?= !$templateData['template_id'] ? $lang['sys.add_email_template'] : $lang['sys.edit_email_template'] ?></h1>
                 <div>
-                    <button type="submit" class="btn btn-primary mx-1"><?=$lang['sys.save']?></button>
+                    <button type="submit" class="btn btn-primary mx-1"><?= $lang['sys.save'] ?></button>
                 </div>
             </div>
 
             <ol class="breadcrumb mb-4">
                 <li>
-                    <span id="template_id" data-id="<?= $templateData['template_id'] ?>">id = <?php echo !$templateData['template_id'] ? $lang['sys.not_assigned'] : $templateData['template_id'] ?></span>
+                    <span id="template_id" data-id="<?= $templateData['template_id'] ?>">id = <?php echo!$templateData['template_id'] ? $lang['sys.not_assigned'] : $templateData['template_id'] ?></span>
                     <input type="hidden" name="template_id" class="form-control" value="<?= !empty($templateData['template_id']) ? $templateData['template_id'] : 0 ?>">
                 </li>
             </ol>
@@ -52,10 +53,10 @@
                             <div class="row mb-3">
                                 <div class="col-12">
                                     <label><?= $lang['sys.snippets'] ?>:</label>
-                                    <?php foreach($codeSnippet as $name => $content) { ?>
+                                    <?php foreach ($codeSnippet as $name => $content) { ?>
                                         <button type="button" class="btn btn-sm btn-outline-secondary insert-snippet m-1" data-snippet="{{<?= $name ?>}}"
                                                 title="<?= $content ?>" data-bs-toggle="tooltip" data-bs-placement="bottom">
-                                            <?= $name ?>
+                                                    <?= $name ?>
                                         </button>
                                     <?php } ?>
                                 </div>
@@ -63,10 +64,10 @@
                             <div class="row mb-3">
                                 <div class="col-12">
                                     <label><?= $lang['sys.vars'] ?>:</label>
-                                    <?php foreach($codeVars as $name => $content) { ?>
+                                    <?php foreach ($codeVars as $name => $content) { ?>
                                         <button type="button" class="btn btn-sm btn-outline-secondary insert-snippet m-1" data-snippet="{{<?= $name ?>}}"
                                                 title="<?= $content ?>" data-bs-toggle="tooltip" data-bs-placement="bottom">
-                                            <?= $name ?>
+                                                    <?= $name ?>
                                         </button>
                                     <?php } ?>
                                 </div>

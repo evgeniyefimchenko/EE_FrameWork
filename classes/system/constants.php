@@ -45,7 +45,7 @@ class Constants {
             EMAIL_TEMPLATES_TABLE = ENV_DB_PREF . 'email_templates',
             EMAIL_TEMPLATES_TABLE_FIELDS = ['template_id','name','subject','body','created_at','updated_at','language_code','description'],            
             EMAIL_SNIPPETS_TABLE = ENV_DB_PREF . 'email_snippets',
-            EMAIL_SNIPPETS_TABLE_FIELDS = [],            
+            EMAIL_SNIPPETS_TABLE_FIELDS = ['snippet_id','name','content','description','created_at','updated_at','language_code'],            
             ALL_STATUS = ['active' => 'active', 'hidden' => 'hidden', 'disabled' => 'disabled'], // Ручное заполнение
             ALL_ENTITY_TYPE = ['category' => 'sys.categories', 'page' => 'sys.pages', 'all' => 'sys.all'], // Ручное заполнение
             USERS_STATUS = [1 => 'sys.not_confirmed', 2 => 'sys.active', 3 => 'sys.blocked'],  // Ручное заполнение

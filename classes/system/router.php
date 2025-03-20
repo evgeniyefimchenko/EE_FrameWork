@@ -70,7 +70,7 @@ class Router {
             if (ENV_CACHE_REDIS) {
                 return $this->redis->get($key);
             } else {
-                $cacheFile = ENV_CACHE_PATH . md5($key) . '.cache';
+                $cacheFile = ENV_CACHE_PATH . ENV_DIRSEP . 'route' . ENV_DIRSEP . $key . '.cache';
                 if (file_exists($cacheFile)) {
                     return file_get_contents($cacheFile);
                 }
@@ -89,7 +89,8 @@ class Router {
             if (ENV_CACHE_REDIS) {
                 $this->redis->set($key, $data);
             } else {
-                $cacheFile = ENV_CACHE_PATH . md5($key) . '.cache';
+                $cacheFile = ENV_CACHE_PATH . ENV_DIRSEP . 'route' . ENV_DIRSEP . $key . '.cache';
+                SysClass::createDirectoriesForFile($cacheFile);
                 file_put_contents($cacheFile, $data);
             }
         }
@@ -103,7 +104,7 @@ class Router {
      * @param array|null $args Массив параметров для функции класса контроллера
      */
     private function getController(?string &$file, ?string &$controller, ?string &$action, ?array &$args): void {
-        $cacheKey = 'route_' . md5($_GET['route'] ?? 'index');
+        $cacheKey = md5($_GET['route'] ?? 'index');
         $cachedData = $this->getCache($cacheKey);
         if ($cachedData) {
             $data = json_decode($cachedData, true);

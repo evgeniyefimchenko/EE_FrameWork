@@ -1,9 +1,6 @@
-<?php
-use classes\system\SysClass;
-use classes\system\Plugins;
-?>
+<?php if (!defined('ENV_SITE')) exit(header("Location: http://" . $_SERVER['HTTP_HOST'], true, 301));
+if (!$allType) classes\system\SysClass::handleRedirect(200, '/admin/type_categories');?>
 <!-- Редактирование страницы -->
-<?php if (!$allType) SysClass::handleRedirect(200, '/admin/type_categories');?> 
 <main>    
     <form id="edit_page" method="POST" enctype="multipart/form-data" novalidate>
         <input type="hidden" name="fake" value="1" />
@@ -48,7 +45,7 @@ use classes\system\Plugins;
                                     <div role="group" class="input-group">
                                         <select required <?=$pageData['parent_page_id'] ? "readonly " : ""?>type="text" id="category_id-input"
                                                 name="category_id" class="form-control">
-                                            <?php echo !$pageData['parent_page_id'] ? Plugins::showCategogyForSelect($allCategories, $pageData['category_id']) :
+                                            <?php echo !$pageData['parent_page_id'] ? classes\system\Plugins::showCategogyForSelect($allCategories, $pageData['category_id']) :
                                                 '<option value="' . $pageData['category_id'] . '">' . $pageData['category_title'] . '</option>'?>
                                         </select>
                                         <?php if (!$pageData['parent_page_id']) { ?>
@@ -56,7 +53,7 @@ use classes\system\Plugins;
                                               data-bs-placement="top" role="button" class="input-group-text btn-primary">
                                             <i class="fas fa-tree" data-bs-toggle="modal" data-bs-target="#categories_modal"></i><!-- Иконка со знаком вопроса -->
                                         </span>
-                                            <?= Plugins::ee_generateModal('categories_modal', $lang['sys.categories'], Plugins::renderCategoryTree($allCategories))?>
+                                            <?= classes\system\Plugins::ee_generateModal('categories_modal', $lang['sys.categories'], classes\system\Plugins::renderCategoryTree($allCategories))?>
                                         <?php } ?>
                                     </div>
                                 </div>
@@ -122,7 +119,7 @@ use classes\system\Plugins;
                             <div class="row">
                                 <div class="col">
                                     <div id="renderPropertiesSetsAccordion">
-                                        <?= Plugins::renderPropertiesSetsTabs($allProperties, $pageData['page_id'], 'page') ?>
+                                        <?= classes\system\Plugins::renderPropertiesSetsTabs($allProperties, $pageData['page_id'], 'page') ?>
                                     </div>                                    
                                 </div>
                             </div>

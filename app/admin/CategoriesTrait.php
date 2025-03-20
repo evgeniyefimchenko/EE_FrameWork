@@ -64,13 +64,13 @@ trait CategoriesTrait {
         /* model */
         $this->loadModel('m_categories_types');
         $this->loadModel('m_categories');
-        $postData = SysClass::ee_cleanArray($_POST);        
+        $postData = SysClass::ee_cleanArray($_POST);
         if (in_array('id', $params)) {
             $keyId = array_search('id', $params);
-            if ($keyId !== false && isset($params[$keyId + 1])) {                
-                $categoryId = filter_var($params[$keyId + 1], FILTER_VALIDATE_INT);                
+            if ($keyId !== false && isset($params[$keyId + 1])) {
+                $categoryId = filter_var($params[$keyId + 1], FILTER_VALIDATE_INT);
             } else {
-                $categoryId = 0;                
+                $categoryId = 0;
             }
             $newEntity = empty($categoryId) ? true : false;
             if (isset($postData['title']) && $postData['title']) {
@@ -80,30 +80,30 @@ trait CategoriesTrait {
                     ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
                 } else {
                     $categoryId = $new_id;
-                }            
-                $this->saveFileProperty($postData);         
+                }
+                $this->saveFileProperty($postData);
                 // Сохранение свойств для категории
                 if (isset($postData['property_data']) && is_array($postData['property_data']) && !empty($postData['property_data_changed'])) {
                     $this->processPropertyData($postData['property_data']);
                 }
-            }           
+            }
             $this->processPostParams($postData, $newEntity, $categoryId);
-            $getCategoryData = ((int) $categoryId ? $this->models['m_categories']->getCategoryData($categoryId) : null) ?: $defaultData;            
+            $getCategoryData = ((int) $categoryId ? $this->models['m_categories']->getCategoryData($categoryId) : null) ?: $defaultData;
         } else { // Не передан ключевой параметр id
             SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/category_edit/id/');
         }
         $categories_tree = $this->models['m_categories']->getCategoriesTree($categoryId);
         $fullCategoriesTree = $this->models['m_categories']->getCategoriesTree();
         $categoryPages = $this->models['m_categories']->getCategoryPages($categoryId);
-        $getCategoriesTypeSets = $this->models['m_categories_types']->getCategoriesTypeSetsData($getCategoryData['type_id']);        
+        $getCategoriesTypeSets = $this->models['m_categories_types']->getCategoriesTypeSetsData($getCategoryData['type_id']);
         $getAllTypes = [];
         if (isset($getCategoryData['parent_id']) && $getCategoryData['parent_id']) {
             // Есть родитель, можно выбрать только его тип или подчинённый
             $parentTypeId = $this->models['m_categories']->getCategoryTypeId($getCategoryData['parent_id']);
-            $getAllTypes = $this->models['m_categories_types']->getAllTypes(false, false, $parentTypeId);            
+            $getAllTypes = $this->models['m_categories_types']->getAllTypes(false, false, $parentTypeId);
         } elseif (isset($getCategoryData['type_id']) && $getCategoryData['type_id']) {
             // Если нет родителя то можно выбрать любой тип категории
-            $getAllTypes = $this->models['m_categories_types']->getAllTypes(false, false);            
+            $getAllTypes = $this->models['m_categories_types']->getAllTypes(false, false);
         } else {
             $getAllTypes = $this->models['m_categories_types']->getAllTypes(false, false);
         }
@@ -111,15 +111,15 @@ trait CategoriesTrait {
         if (count($getCategoriesTypeSets) && $getCategoryData) {
             $getCategoriesTypeSetsData = $this->formattingEntityProperties($getCategoriesTypeSets, $categoryId, 'category', $getCategoryData['title']);
         }
-        
+
         /* view */
-        $this->view->set('categoryData', $getCategoryData);        
+        $this->view->set('categoryData', $getCategoryData);
         $this->view->set('categories_tree', $categories_tree);
         $this->view->set('fullCategoriesTree', $fullCategoriesTree);
         $this->view->set('categoryPages', $categoryPages);
         $this->view->set('categoriesTypeSetsData', $getCategoriesTypeSetsData);
-        $this->view->set('allType', $getAllTypes);        
-        $this->getStandardViews();        
+        $this->view->set('allType', $getAllTypes);
+        $this->getStandardViews();
         $this->view->set('body_view', $this->view->read('v_edit_category'));
         $this->html = $this->view->read('v_dashboard');
         /* layouts */
@@ -165,7 +165,7 @@ trait CategoriesTrait {
             $this->loadModel('m_categories');
             $this->loadModel('m_categories_types');
             $postData = SysClass::ee_cleanArray($_POST);
-            if (!empty($postData['parent_id'])) {                
+            if (!empty($postData['parent_id'])) {
                 $typeId = $this->models['m_categories']->getCategoryTypeId($postData['parent_id']);
                 $oldTypeId = $this->models['m_categories']->getCategoryTypeId($postData['category_id']);
                 $getAllTypes = $this->models['m_categories_types']->getAllTypes(false, false, $typeId);
@@ -203,7 +203,7 @@ trait CategoriesTrait {
             $postData = SysClass::ee_cleanArray($_POST);
             $this->loadModel('m_categories_types');
             $getCategoriesTypeSets = $this->models['m_categories_types']->getCategoriesTypeSetsData($postData['type_id']);
-            $categoryId = $postData['category_id'];                                    
+            $categoryId = $postData['category_id'];
             $getCategoriesTypeSetsData = $this->formattingEntityProperties($getCategoriesTypeSets, $categoryId, 'category', $postData['title']);
             echo json_encode(['html' => Plugins::renderPropertiesSetsAccordion($getCategoriesTypeSetsData, $categoryId),
                 'get_categories_type_sets' => $getCategoriesTypeSets, 'category_id' => $categoryId]);
@@ -235,7 +235,7 @@ trait CategoriesTrait {
             } else {
                 $this->loadModel('m_properties');
                 $this->models['m_properties']->deleteAllpropertiesValuesEntity($categoryId, 'category');
-                ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Удалено', 'status' => 'success']);
+                ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.removed'], 'status' => 'success']);
             }
         }
         SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/categories');
@@ -244,7 +244,7 @@ trait CategoriesTrait {
     /**
      * Вернёт таблицу категоий
      */
-    public function getCategoriesDataTable() {
+    public function getCategoriesDataTable(array $params = []): string {
         $this->access = [Constants::ADMIN, Constants::MODERATOR];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect();

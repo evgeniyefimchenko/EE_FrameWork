@@ -1,11 +1,7 @@
-<?php
-use classes\system\SysClass;
-use classes\helpers\ClassNotifications;
-use classes\system\Plugins;
-
+<?php if (!defined('ENV_SITE')) exit(header("Location: http://" . $_SERVER['HTTP_HOST'], true, 301));
 if (!count($allType)) {
-   ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Необходимо создать хотя бы один тип категории!', 'status' => 'info']);
-   SysClass::handleRedirect(200, '/admin/types_categories');
+   classes\helpers\ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Необходимо создать хотя бы один тип категории!', 'status' => 'info']);
+   classes\system\SysClass::handleRedirect(200, '/admin/types_categories');
 }
 $countPages = count($categoryPages);
 ?>
@@ -62,7 +58,7 @@ $countPages = count($categoryPages);
                                     <label for="type_id-input">Тип:</label>
                                     <div role="group" class="input-group">
                                         <select id="type_id-input" name="type_id" class="form-control">
-                                            <?= Plugins::showTypeCategogyForSelect($allType, $categoryData['type_id']); ?>
+                                            <?= classes\system\Plugins::showTypeCategogyForSelect($allType, $categoryData['type_id']); ?>
                                         </select>
                                         <?php                                        
                                         if (isset($categoryData['parent_id'])) {
@@ -80,7 +76,7 @@ $countPages = count($categoryPages);
                                     <label for="parent_id-input"><?=$lang['sys.parent']?>:</label>
                                     <div role="group" class="input-group">
                                         <select id="parent_id-input" name="parent_id" class="form-control">
-                                            <?php echo Plugins::showCategogyForSelect($categories_tree, $categoryData['parent_id']); ?>
+                                            <?php echo classes\system\Plugins::showCategogyForSelect($categories_tree, $categoryData['parent_id']); ?>
                                         </select>
                                         <input type="hidden" id="oldParentId" value="<?=$categoryData['parent_id']?>">
                                         <span title="<?=$categoryData['category_path_text']?>" data-bs-toggle="tooltip" data-bs-placement="top" role="button"
@@ -88,7 +84,7 @@ $countPages = count($categoryPages);
                                             <i class="fas fa-tree" data-bs-toggle="modal" data-bs-target="#parents_modal"></i><!-- Иконка со знаком вопроса -->
                                         </span>
                                     </div>
-                                    <?= Plugins::ee_generateModal('parents_modal', $lang['sys.categories'], Plugins::renderCategoryTree($fullCategoriesTree))?>
+                                    <?= classes\system\Plugins::ee_generateModal('parents_modal', $lang['sys.categories'], classes\system\Plugins::renderCategoryTree($fullCategoriesTree))?>
                                 </div>
                                 <div class="row mb-3">
                                     <div class="col-6 col-sm-3">
@@ -157,7 +153,7 @@ $countPages = count($categoryPages);
                             <div class="row">
                                 <div class="col">
                                     <div id="renderPropertiesSetsAccordion">
-                                        <?=Plugins::renderPropertiesSetsAccordion($categoriesTypeSetsData, $categoryData['category_id']);?>
+                                        <?= classes\system\Plugins::renderPropertiesSetsAccordion($categoriesTypeSetsData, $categoryData['category_id']); ?>
                                     </div>
                                 </div>
                             </div>
