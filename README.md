@@ -52,7 +52,29 @@ EE_FRAMEWORK построен на основе MVC-подобной архит�
 
 ## 📂 Структура проекта
 
-ee_framework/ ├── index.php (точка входа приложения) ├── error.php (страница обработки ошибок) ├── inc/ │ ├── configuration.php (конфигурация окружения) │ ├── startup.php (инициализация приложения) │ └── hooks.php (система хуков) ├── classes/ │ ├── system/ (системные классы) │ ├── helpers/ (вспомогательные классы) │ └── plugins/ (сторонние библиотеки) ├── app/ │ └── admin/ (панель администратора) │ ├── CategoriesTrait.php │ ├── EmailsTrait.php │ ├── PagesTrait.php │ └── другие Traits... ├── assets/ │ ├── js/ (JavaScript файлы) │ └── css/ (CSS стили) ├── uploads/ (загруженные файлы пользователей) ├── cache/ (кешированные данные) └── logs/ (логи ошибок и событий)
+ee_framework/  
+├── app/  
+│   └── admin/ (панель администратора)  
+│       ├── CategoriesTrait.php  
+│       ├── EmailsTrait.php  
+│       ├── PagesTrait.php  
+│       └── другие Traits...  
+├── assets/  
+│   ├── css/ (CSS стили)  
+│   └── js/ (JavaScript файлы)  
+├── cache/ (кешированные данные)  
+├── classes/  
+│   ├── helpers/ (вспомогательные классы)  
+│   ├── plugins/ (сторонние библиотеки)  
+│   └── system/ (системные классы)  
+├── inc/  
+│   ├── configuration.php (конфигурация окружения)  
+│   ├── hooks.php (система хуков)  
+│   └── startup.php (инициализация приложения)  
+├── logs/ (логи ошибок и событий)  
+├── uploads/ (загруженные файлы пользователей)  
+├── error.php (страница обработки ошибок)  
+└── index.php (точка входа приложения)  
 
 ---
 
