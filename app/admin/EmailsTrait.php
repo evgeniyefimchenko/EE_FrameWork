@@ -10,8 +10,8 @@ use classes\system\Plugins;
  * Функции работы с письмами
  */
 trait EmailsTrait {
+    
     /* Список шаблонов писем */
-
     public function email_templates(array $params = []): void {
         $this->access = [Constants::ADMIN, Constants::MODERATOR];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
@@ -320,11 +320,10 @@ trait EmailsTrait {
         $this->view->set('body_view', $this->view->read('v_edit_email_template'));
         $this->html = $this->view->read('v_dashboard');
         /* layouts */
-        $this->addEditorToLayout();
+        $this->addEditorToLayout();        
         $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/edit_email_templates.js" type="text/javascript" /></script>';
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
-        $this->addEditorToLayout(); // Добавляем редактор, если необходимо
         $this->parameters_layout["title"] = 'Emails Templates Edit';
         $this->showLayout($this->parameters_layout);
     }
@@ -390,9 +389,8 @@ trait EmailsTrait {
         $this->view->set('body_view', $this->view->read('v_edit_email_snippet')); // Предполагается, что есть такой шаблон
         $this->html = $this->view->read('v_dashboard');
         /* layouts */
-        $this->addEditorToLayout(); // Добавляем текстовый редактор
+        $this->addCodeMirror();        
         $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/edit_email_snippets.js" type="text/javascript" /></script>';
-        $this->addEditorToLayout();
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
         $this->parameters_layout["title"] = $this->lang['sys.edit_email_template']; // Можно заменить на 'Edit Email Snippet'
@@ -407,7 +405,7 @@ trait EmailsTrait {
         $is_ajax = SysClass::isAjaxRequestFromSameSite();
         if ($is_ajax && empty($params)) {
             $postData = SysClass::ee_cleanArray($_POST);
-            if (\classes\helpers\ClassMail::send_mail($postData['email_test'], '', $postData['template_id'])) {
+            if (\classes\helpers\ClassMail::sendMail($postData['email_test'], '', $postData['template_id'])) {
                 die(json_encode(['status' => $this->lang['sys.success']]));
             } else {
                 die(json_encode(['status' => $this->lang['sys.error']]));

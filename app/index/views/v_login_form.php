@@ -79,5 +79,5 @@
             </div>
         </div>
     </div>
-    <form id="return_general" method="get" action="/admin" accept-charset="UTF-8" ></form>
+    <form id="return_general" method="get" action="/" accept-charset="UTF-8" ></form>
 </div>

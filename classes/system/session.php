@@ -1,4 +1,5 @@
 <?php
+
 namespace classes\system;
 
 /**
@@ -75,8 +76,8 @@ class Session {
             return $_SESSION[$key];
         } elseif ($key === null) {
             return implode(', ', array_map(function ($v, $k) {
-                return sprintf("%s = '%s'", $k, $v);
-            }, $_SESSION, array_keys($_SESSION)));
+                        return sprintf("%s = '%s'", $k, $v);
+                    }, $_SESSION, array_keys($_SESSION)));
         }
         return null;
     }
@@ -103,5 +104,61 @@ class Session {
         self::init();
         session_unset();
         session_destroy();
+    }
+
+    /**
+     * Очищает ключи сессии, соответствующие заданным строковым шаблонам
+     * Поддерживает шаблоны в стиле SQL: '%text' (заканчивается на text), 'text%' (начинается с text), '%text%' (содержит text)
+     * @param string|array $patterns Один шаблон или массив шаблонов для поиска ключей
+     * @return int Количество удалённых ключей
+     */
+    public static function clearKeysByPattern(string|array $patterns): int {
+        self::init();
+        // Приводим входной параметр к массиву, если передана строка
+        $patterns = (array) $patterns;
+        if (empty($patterns)) {
+            return 0;
+        }
+        // Подготовка регулярных выражений для каждого шаблона
+        $regexPatterns = [];
+        foreach ($patterns as $pattern) {
+            $pattern = trim($pattern);
+            if (empty($pattern)) {
+                continue;
+            }
+            // Экранируем специальные символы, кроме % и букв/цифр
+            $pattern = preg_quote($pattern, '/');
+            // Заменяем % на соответствующие части регулярного выражения
+            $pattern = str_replace(['\%'], ['.*'], $pattern);
+
+            // Определяем начало и конец шаблона
+            if (str_starts_with($pattern, '.*') && str_ends_with($pattern, '.*')) {
+                $regex = '/' . substr($pattern, 2, -2) . '/i'; // Содержит (без ^ и $)
+            } elseif (str_starts_with($pattern, '.*')) {
+                $regex = '/' . substr($pattern, 2) . '$/i'; // Заканчивается
+            } elseif (str_ends_with($pattern, '.*')) {
+                $regex = '/^' . substr($pattern, 0, -2) . '/i'; // Начинается
+            } else {
+                $regex = '/^' . $pattern . '$/i'; // Точное совпадение
+            }
+            $regexPatterns[] = $regex;
+        }
+        if (empty($regexPatterns)) {
+            return 0;
+        }
+        $deletedCount = 0;
+        $deletedKeys = [];
+        // Проверяем все ключи сессии
+        foreach (array_keys($_SESSION) as $key) {
+            foreach ($regexPatterns as $regex) {
+                if (preg_match($regex, $key)) {
+                    unset($_SESSION[$key]);
+                    $deletedKeys[] = $key;
+                    $deletedCount++;
+                    break; // Переходим к следующему ключу после удаления
+                }
+            }
+        }
+        return $deletedCount;
     }
 }

@@ -4,7 +4,9 @@ use classes\system\ControllerBase;
 use classes\system\SysClass;
 use classes\system\Session;
 use classes\system\Cookies;
+use classes\system\Constants;
 use classes\helpers\ClassMail;
+use classes\plugins\SafeMySQL;
 
 /**
  * Класс контроллера главной страницы сайта
@@ -25,7 +27,6 @@ class ControllerIndex Extends ControllerBase {
      */
     public function index($params = NULL) {
         if ($params) {
-            SysClass::pre($params); // TODO
             SysClass::handleRedirect();
         }
         /* view */
@@ -150,7 +151,7 @@ class ControllerIndex Extends ControllerBase {
      * Авторизация пользователя AJAX
      */
     public function login($params = null) {
-        if ($params || !SysClass::isAjaxRequestFromSameSite() || empty(ENV_SITE)) {
+        if ($params || !SysClass::isAjaxRequestFromSameSite()) {
             die(json_encode(array('error' => 'it`s a lie')));
         }
         if (!SysClass::checkDatabaseConnection()) {
@@ -186,16 +187,11 @@ class ControllerIndex Extends ControllerBase {
      * Регистрация пользователя после заполнения формы AJAX
      */
     public function register($params = null) {
-        if ($params || !SysClass::isAjaxRequestFromSameSite() || empty(ENV_SITE)) {
+        if ($params || !SysClass::isAjaxRequestFromSameSite()) {
             die(json_encode(array('error' => 'it`s a lie')));
         }
         $json = [];
         $json['error'] = '';
-        if (!SysClass::checkDatabaseConnection()) {
-            $json['error'] = $this->lang['sys.no_connection_to_db'];
-            echo json_encode($json, JSON_UNESCAPED_UNICODE);
-            die();
-        }
         $postData = SysClass::ee_cleanArray($_POST);
         $email = trim($postData['email']);
         $pass = trim($postData['password']);
@@ -206,24 +202,21 @@ class ControllerIndex Extends ControllerBase {
         if ($pass !== $conf_pass) {
             $json['error'] .= $this->lang['sys.password_mismatch'];
         }
-
-        if (!$json['error'] && $this->users->get_email_exist($email)) {
+        if (!$json['error'] && $this->users->getEmailExist($email)) {
             $json['error'] .= $this->lang['sys.the_mail_is_already_busy'];
         }
-
         if (!$json['error'] && !$this->users->registrationUsers($email, $pass)) {
             $json['error'] .= $this->lang['sys.db_registration_error'];
         }
-
         $json['error'] = $json['error'] ? $json['error'] : '';
-
         if ($json['error'] != '') {
             SysClass::preFile('index_error', 'register', 'Ошибка регистрации', ['error' => $json['error'], 'email' => $email]);
+        } else {
+            ClassMail::sendMail($email, '', 'user_registration');
         }
-
         if ($json['error'] === '') {
             if (ENV_CONFIRM_EMAIL == 1) {
-                $json['error'] = $this->users->send_register_code($email) ? '' : $this->lang['sys.email_sending_error'];
+                $json['error'] = $this->users->sendRegistrationCode($email) ? $this->lang['sys.welcome'] : $this->lang['sys.email_sending_error'];
             } else {
                 $this->users->confirmUser($email, '', true); /* Автологин */
             }
@@ -233,31 +226,96 @@ class ControllerIndex Extends ControllerBase {
 
     /**
      * Активация пользователя по ссылке из письма
-     * @params array $params - $params[1] - почта $params[0] - Код
+     * Проверяет код активации, активирует пользователя и выполняет автологин при успехе
+     * @param array $params Массив параметров, где $params[0] — код активации
      */
-    public function activation($params) {
-        if ($this->users->get_email_exist($params[1])) {
-            $active = $this->users->get_user_stat($this->users->get_user_id_by_email($params[1]));
-            if ($active == 1) {
-                if (password_verify($params[1], base64_decode($params[0]))) {
-                    if ($this->users->dell_activation_code($params[1], $params[0])) {
-                        ClassMail::send_mail($email, 'Спасибо за активацию', ['EMAIL' => $email], 'account_activated');
-                        $this->users->confirmUser($params[1], '', true); /* Автологин */
-                        $this->parameters_layout["layout_content"] = $this->lang['sys.successfully_activated'] . ' <meta http-equiv="refresh" content="7;URL=' . ENV_URL_SITE . '">';
-                    } else {
-                        $this->parameters_layout["layout_content"] = $this->lang['sys.activation_error'] . ' <meta http-equiv="refresh" content="7;URL=' . ENV_URL_SITE . '">';
-                        SysClass::preFile('index_error', 'activation', 'Ошибка удаления активационного кода', ['code' => $params[0], 'email' => $params[1]]);
-                    }
-                } else {
-                    SysClass::handleRedirect();
-                }
-            } elseif ($active == 2) {
-                $this->parameters_layout["layout_content"] = $this->lang['sys.account_is_already_active'] . ' <meta http-equiv="refresh" content="7;URL=' . ENV_URL_SITE . '">';
-            } elseif ($active == 3) {
-                $this->parameters_layout["layout_content"] = $this->lang['sys.you_were_blocked'] . ' <meta http-equiv="refresh" content="7;URL=' . ENV_URL_SITE . '">';
+    public function activation($params = []): void {
+        if (empty($params[0])) {
+            $this->parameters_layout["layout_content"] = $this->lang['sys.activation_error'] . ' <meta http-equiv="refresh" content="7;URL=' . ENV_URL_SITE . '">';
+            new \classes\system\ErrorLogger(
+                    'Код активации отсутствует',
+                    __FUNCTION__,
+                    'activation_error',
+                    ['params' => $params]
+            );
+            $this->showLayout($this->parameters_layout);
+            return;
+        }
+        $activationCode = $params[0];
+        try {
+            $db = SafeMySQL::gi();
+            $activationData = $db->getRow(
+                    'SELECT user_id, email, stop_time FROM ?n WHERE code = ?s AND stop_time > NOW()',
+                    Constants::USERS_ACTIVATION_TABLE,
+                    $activationCode
+            );
+            if (!$activationData) {
+                $this->parameters_layout["layout_content"] = $this->lang['sys.activation_error'] . ' <meta http-equiv="refresh" content="7;URL=' . ENV_URL_SITE . '">';
+                new \classes\system\ErrorLogger(
+                        'Недействительный или истёкший код активации',
+                        __FUNCTION__,
+                        'activation_error',
+                        ['code' => $activationCode]
+                );
+                $this->showLayout($this->parameters_layout);
+                return;
             }
-        } else {
-            $this->parameters_layout["layout_content"] = $this->lang['sys.email_not_registered'] . ' <meta http-equiv="refresh" content="7;URL=' . ENV_URL_SITE . '">';
+            $userId = (int) $activationData['user_id'];
+            $email = $activationData['email'];
+            $active = $this->users->getUserStatus($userId);
+            if ($active == 1) { // Неактивированный пользователь
+                if ($this->users->dellActivationCode($email, $activationCode)) {
+                    $this->users->confirmUser($email, '', true); // Автологин
+                    ClassMail::sendMail($email, '', 'account_activated');
+                    $this->parameters_layout["layout_content"] = $this->lang['sys.successfully_activated'] . ' <meta http-equiv="refresh" content="7;URL=' . ENV_URL_SITE . '">';
+                    new \classes\system\ErrorLogger(
+                            'Пользователь успешно активирован',
+                            __FUNCTION__,
+                            'activation_info',
+                            ['user_id' => $userId, 'email' => $email, 'code' => $activationCode]
+                    );
+                } else {
+                    $this->parameters_layout["layout_content"] = $this->lang['sys.activation_error'] . ' <meta http-equiv="refresh" content="7;URL=' . ENV_URL_SITE . '">';
+                    new \classes\system\ErrorLogger(
+                            'Ошибка удаления кода активации',
+                            __FUNCTION__,
+                            'activation_error',
+                            ['user_id' => $userId, 'email' => $email, 'code' => $activationCode]
+                    );
+                }
+            } elseif ($active == 2) { // Уже активирован
+                $this->parameters_layout["layout_content"] = $this->lang['sys.account_is_already_active'] . ' <meta http-equiv="refresh" content="7;URL=' . ENV_URL_SITE . '">';
+                new \classes\system\ErrorLogger(
+                        'Попытка активации уже активного аккаунта',
+                        __FUNCTION__,
+                        'activation_info',
+                        ['user_id' => $userId, 'email' => $email, 'code' => $activationCode]
+                );
+            } elseif ($active == 3) { // Заблокирован
+                $this->parameters_layout["layout_content"] = $this->lang['sys.you_were_blocked'] . ' <meta http-equiv="refresh" content="7;URL=' . ENV_URL_SITE . '">';
+                new \classes\system\ErrorLogger(
+                        'Попытка активации заблокированного аккаунта',
+                        __FUNCTION__,
+                        'activation_info',
+                        ['user_id' => $userId, 'email' => $email, 'code' => $activationCode]
+                );
+            } else {
+                $this->parameters_layout["layout_content"] = $this->lang['sys.activation_error'] . ' <meta http-equiv="refresh" content="7;URL=' . ENV_URL_SITE . '">';
+                new \classes\system\ErrorLogger(
+                        'Неизвестный статус пользователя',
+                        __FUNCTION__,
+                        'activation_error',
+                        ['user_id' => $userId, 'email' => $email, 'active' => $active, 'code' => $activationCode]
+                );
+            }
+        } catch (\Exception $e) {
+            $this->parameters_layout["layout_content"] = $this->lang['sys.activation_error'] . ' <meta http-equiv="refresh" content="7;URL=' . ENV_URL_SITE . '">';
+            new \classes\system\ErrorLogger(
+                    'Ошибка активации: ' . $e->getMessage(),
+                    __FUNCTION__,
+                    'activation_error',
+                    ['code' => $activationCode, 'trace' => $e->getTraceAsString()]
+            );
         }
         $this->showLayout($this->parameters_layout);
     }
@@ -266,7 +324,7 @@ class ControllerIndex Extends ControllerBase {
      * Восстановление пароля AJAX
      */
     public function recovery_password() {
-        if (!SysClass::isAjaxRequestFromSameSite() || empty(ENV_SITE)) {
+        if (!SysClass::isAjaxRequestFromSameSite()) {
             die(json_encode(array('error' => 'it`s a lie')));
         }
         die('in development');

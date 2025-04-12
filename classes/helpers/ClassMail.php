@@ -118,7 +118,7 @@ class ClassMail {
      * @param string|false $template Имя файла шаблона (без расширения), если требуется использовать шаблон
      * @return bool Возвращает true в случае успеха
      */
-    public static function send_mail(mixed $to, string $subject = '', string|false $template = false, array $fields = []): bool {
+    public static function sendMail(mixed $to, string $subject = '', string|false $template = false, array $fields = []): bool {
         $mailer = new self();
         return $mailer->send($to, $subject, $fields, $template);
     }

@@ -6,8 +6,6 @@ $(document).ready(function () {
         $('#body-input').summernote('insertText', snippet);
     });
     $('#body-input').summernote(AppCore.summernoteParams);
-    AppCore.setupTabEventListeners();
-    AppCore.handleTabsFromUrl();
     $('#send_test_email').click(function () {
         var template_id = $('#template_id').attr('data-id');
         if (parseInt(template_id)) {

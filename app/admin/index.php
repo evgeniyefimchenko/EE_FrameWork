@@ -20,22 +20,22 @@ use classes\helpers\ClassMessages;
  * Админ-панель
  */
 class ControllerIndex Extends ControllerBase {
-
     /* Подключение traits */
-    use MessagesTrait,
-        NotificationsTrait,
-        SystemsTrait,
-        EmailsTrait,
-        CategoriesTrait,
-        CategoriesTypesTrait,
-        PagesTrait,
-        PropertiesTrait;
+
+use MessagesTrait,
+    NotificationsTrait,
+    SystemsTrait,
+    EmailsTrait,
+    CategoriesTrait,
+    CategoriesTypesTrait,
+    PagesTrait,
+    PropertiesTrait;
 
     /**
      * Главная страница админ-панели
      */
     public function index($params = []): void {
-        $this->access = [Constants::ALL_AUTH];    
+        $this->access = [Constants::ALL_AUTH];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect(200, '/show_login_form?return=admin');
         }
@@ -66,7 +66,7 @@ class ControllerIndex Extends ControllerBase {
      * Формируем данные для таблицы дашборда администратора
      */
     public function get_admin_dashboard_data_table($params = []) {
-        $this->access = [Constants::ADMIN]; 
+        $this->access = [Constants::ADMIN];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect(200, '/show_login_form?return=admin');
         }
@@ -247,7 +247,7 @@ class ControllerIndex Extends ControllerBase {
         Hook::run('A_beforeGetStandardViews', $this->view);
         $this->view->set('top_bar', $this->view->read('v_top_bar'));
         $this->view->set('main_menu', $this->view->read('v_main_menu'));
-        $this->view->set('page_footer', /*$this->view->read('v_footer')*/''); // TODO        
+        $this->view->set('page_footer', /* $this->view->read('v_footer') */ ''); // TODO        
         Hook::run('A_afterGetStandardViews', $this->view);
     }
 
@@ -951,8 +951,24 @@ class ControllerIndex Extends ControllerBase {
         if (ENV_DEF_LANG == 'RU') {
             $this->parameters_layout["add_script"] .= '<script src="' . ENV_URL_SITE . '/assets/editor/summernote/lang/summernote-ru-RU.min.js" type="text/javascript"></script>';
         } else {
-            $this->parameters_layout["add_script"] .= '<script src="' . ENV_URL_SITE . '/assets/editor/summernote/lang/summernote-en-US.min.js" type="text/javascript"></script>';            
-        }
+            $this->parameters_layout["add_script"] .= '<script src="' . ENV_URL_SITE . '/assets/editor/summernote/lang/summernote-en-US.min.js" type="text/javascript"></script>';
+        }       
     }
+    
+    /**
+     * Подключает стили и скрипты CodeMirror (v5.65.10)
+     */
+    private function addCodeMirror() {
+        // Подключение стилей CodeMirror
+        $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.10/codemirror.css">';
+        $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.10/theme/monokai.css">';
 
+        // Подключение скриптов CodeMirror
+        $this->parameters_layout["add_script"] .= '<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.10/codemirror.js"></script>';
+        $this->parameters_layout["add_script"] .= '<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.10/mode/xml/xml.js"></script>';
+        $this->parameters_layout["add_script"] .= '<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.10/mode/javascript/javascript.js"></script>';
+        $this->parameters_layout["add_script"] .= '<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.10/mode/css/css.js"></script>';
+        $this->parameters_layout["add_script"] .= '<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.10/mode/htmlmixed/htmlmixed.js"></script>';
+    }   
+    
 }

@@ -89,8 +89,6 @@ $(document).ready(function () {
         backdrop: 'static',
         keyboard: false
     });
-
-    // Реакция кнопок
     $('#close_button').click(() => {
         if (urlReturn === '/') {
             document.location.href = '/';
@@ -112,11 +110,8 @@ $(document).ready(function () {
     $("#log_form").submit(async function (e) {
         e.preventDefault();
         const formData = $(this).serialize();
-
-        // Получение параметра 'return' из URL
         const urlParams = new URLSearchParams(window.location.search);
         const returnUrl = urlParams.get('return');
-
         await performAjaxRequest('/login', formData, async function (data) {
             if (data.error !== "") {
                 await shakeOrFadeModal(data['error']);
@@ -135,7 +130,8 @@ $(document).ready(function () {
             if (data.error !== "") {
                 shakeOrFadeModal(data['error']);
                 if (data.error === AppCore.getLangVar('sys.welcome')) {
-                    $('#return_general').submit();
+                    setTimeout($('#return_general').submit(), 5000);
+                    return false;
                 }
             } else {
                 shakeOrFadeModal(AppCore.getLangVar('sys.verify_email'), true);
