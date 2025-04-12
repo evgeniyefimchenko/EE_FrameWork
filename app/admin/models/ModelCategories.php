@@ -256,13 +256,13 @@ class ModelCategories {
     /**
      * Обновляет существующую запись категории или создает новую в базе данных
      * @param array $categoryData Ассоциативный массив с данными категории. Может включать следующие ключи:
-     *                             - 'category_id' (int, optional) - ID категории для обновления. Если не указан, будет создана новая запись
-     *                             - 'type_id' (int) - ID типа, к которому относится категория
-     *                             - 'title' (string) - Заголовок категории
-     *                             - 'description' (string, optional) - Полное описание категории. Если не указан, используется значение 'title'
-     *                             - 'short_description' (string, optional) - Краткое описание категории.
-     *                             - 'parent_id' (int, optional) - ID родительской категории.
-     *                             - 'status' (string) - Статус категории ('active', 'hidden', 'disabled')
+     * - 'category_id' (int, optional) - ID категории для обновления. Если не указан, будет создана новая запись
+     * - 'type_id' (int) - ID типа, к которому относится категория
+     * - 'title' (string) - Заголовок категории
+     * - 'description' (string, optional) - Полное описание категории. Если не указан, используется значение 'title'
+     * - 'short_description' (string, optional) - Краткое описание категории.
+     * - 'parent_id' (int, optional) - ID родительской категории.
+     * - 'status' (string) - Статус категории ('active', 'hidden', 'disabled')
      * @param string $languageCode Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG
      * @return mixed Возвращает ID обновленной или созданной записи в случае успеха, иначе false
      * @throws Exception В случае ошибки в запросе к базе данных

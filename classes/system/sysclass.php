@@ -40,21 +40,51 @@ class SysClass {
     }
 
     /**
-     * Получает реальный IP-адрес пользователя, учитывая возможность наличия прокси-серверов
-     * @return string Реальный IP-адрес пользователя
+     * Получает реальный IP-адрес пользователя, учитывая прокси-серверы и заголовки
+     * Проверяет различные HTTP-заголовки, такие как HTTP_CLIENT_IP, HTTP_X_FORWARDED_FOR,
+     * и возвращает наиболее достоверный IP-адрес. В случае некорректных данных возвращает "unknown".
+     * @return string Реальный IP-адрес пользователя или "unknown", если IP определить не удалось
      */
-    public static function client_ip() {
-        $client = $_SERVER['HTTP_CLIENT_IP'] ?? false;
-        $forward = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? false;
-        $remote = $_SERVER['REMOTE_ADDR'] ?? false;
-        if ($client && filter_var($client, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
-            $ip = $client;
-        } elseif ($forward && filter_var($forward, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
-            $ip = $forward;
-        } else {
-            $ip = $remote;
+    public static function getClientIp(): string {
+        // Возможные источники IP-адреса
+        $ipSources = [
+            'HTTP_CLIENT_IP' => $_SERVER['HTTP_CLIENT_IP'] ?? null,        // IP от клиента через прокси
+            'HTTP_X_FORWARDED_FOR' => $_SERVER['HTTP_X_FORWARDED_FOR'] ?? null, // IP через заголовок X-Forwarded-For
+            'REMOTE_ADDR' => $_SERVER['REMOTE_ADDR'] ?? null              // Прямой IP клиента
+        ];
+
+        // Фильтры для проверки IP
+        $ipFilterOptions = FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE; // Исключаем частные и зарезервированные диапазоны
+
+        // Проверяем каждый источник IP
+        foreach ($ipSources as $header => $value) {
+            if (empty($value)) {
+                continue; // Пропускаем пустые значения
+            }
+
+            // Если в X-Forwarded-For несколько IP, берём первый (реальный клиентский IP)
+            if ($header === 'HTTP_X_FORWARDED_FOR') {
+                $ipList = explode(',', $value);
+                $value = trim($ipList[0]); // Первый IP в цепочке
+            }
+
+            // Проверяем валидность IP
+            if (filter_var($value, FILTER_VALIDATE_IP, $ipFilterOptions)) {
+                return (string) $value; // Возвращаем первый валидный IP
+            }
         }
-        return (string) $ip;
+
+        // Если ни один IP не прошёл проверку
+        new \classes\system\ErrorLogger(
+            'Не удалось определить реальный IP-адрес пользователя',
+            __FUNCTION__,
+            'system',
+            [
+                'ip_sources' => $ipSources,
+                'server_data' => array_intersect_key($_SERVER, array_flip(['HTTP_CLIENT_IP', 'HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR']))
+            ]
+        );
+        return 'unknown'; // Возвращаем "unknown" как значение по умолчанию
     }
 
     /**
@@ -893,7 +923,7 @@ class SysClass {
      * @throws Exception Возможное исключение, если соединение с базой данных не установлено или настройки проекта не произведены
      */
     public static function checkInstall(): bool {
-        $cacheFilePath = ENV_TMP_PATH . 'checkInstall.txt';
+        $cacheFilePath = ENV_CACHE_PATH . 'checkInstall.txt';
         if (file_exists($cacheFilePath)) {
             return true;
         }

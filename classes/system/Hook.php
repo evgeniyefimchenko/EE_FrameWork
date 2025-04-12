@@ -1,4 +1,5 @@
 <?php
+
 namespace classes\system;
 
 class Hook {

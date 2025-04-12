@@ -4,7 +4,7 @@ namespace classes\system;
 
 /**
  * Класс констант для оперативной работы
- * Может быть дописан из статического класса SysClass::ee_getFieldsTable($tableName)
+ * Может быть дописан автоматически из статического класса функцией SysClass::ee_getFieldsTable($tableName)
  */
 class Constants {
 
@@ -41,34 +41,36 @@ class Constants {
             FILES_TABLE = ENV_DB_PREF . 'files',
             FILES_TABLE_FIELDS = [],
             GLOBAL_OPTIONS = ENV_DB_PREF . 'global_options',
-            GLOBAL_OPTIONS_FIELDS = [],            
+            GLOBAL_OPTIONS_FIELDS = [],
             EMAIL_TEMPLATES_TABLE = ENV_DB_PREF . 'email_templates',
-            EMAIL_TEMPLATES_TABLE_FIELDS = [],            
+            EMAIL_TEMPLATES_TABLE_FIELDS = [],
             EMAIL_SNIPPETS_TABLE = ENV_DB_PREF . 'email_snippets',
-            EMAIL_SNIPPETS_TABLE_FIELDS = [],            
+            EMAIL_SNIPPETS_TABLE_FIELDS = [],
+            IP_BLACKLIST_TABLE = ENV_DB_PREF . 'ip_blacklist',
+            IP_BLACKLIST_TABLE_FIELDS = [],
             ALL_STATUS = ['active' => 'active', 'hidden' => 'hidden', 'disabled' => 'disabled'], // Ручное заполнение
             ALL_ENTITY_TYPE = ['category' => 'sys.categories', 'page' => 'sys.pages', 'all' => 'sys.all'], // Ручное заполнение
-            USERS_STATUS = [1 => 'sys.not_confirmed', 2 => 'sys.active', 3 => 'sys.blocked'],  // Ручное заполнение
+            USERS_STATUS = [1 => 'sys.not_confirmed', 2 => 'sys.active', 3 => 'sys.blocked'], // Ручное заполнение
             ALL_TYPE_PROPERTY_TYPES_FIELDS = [ // Типы полей свойств, ручное заполнение
-                "text" => "Text",
-                "number" => "Number",
-                "date" => "Date",
-                "time" => "Time",
-                "datetime-local" => "DateTime",
-                "hidden" => "Hidden",
-                "password" => "Password",
-                "file" => "File",
-                "email" => "Email",
-                "phone" => "Phone",
-                "select" => "Select",
-                "textarea" => "Textarea",
-                "image" => "Image",
-                "checkbox" => "Checkbox",
-                "radio" => "Radio Button"
+            "text" => "Text",
+            "number" => "Number",
+            "date" => "Date",
+            "time" => "Time",
+            "datetime-local" => "DateTime",
+            "hidden" => "Hidden",
+            "password" => "Password",
+            "file" => "File",
+            "email" => "Email",
+            "phone" => "Phone",
+            "select" => "Select",
+            "textarea" => "Textarea",
+            "image" => "Image",
+            "checkbox" => "Checkbox",
+            "radio" => "Radio Button"
             ],
             PUBLIC_CONSTANTS = [ // Константы доступные публично для шаблонов писем и т.д.
-                'ENV_SITE_NAME' => ENV_SITE_NAME,            
-                'ENV_DOMEN_NAME' => ENV_DOMEN_NAME,            
+                'ENV_SITE_NAME' => ENV_SITE_NAME,
+                'ENV_DOMEN_NAME' => ENV_DOMEN_NAME,
                 'ENV_URL_SITE' => ENV_URL_SITE,
                 'ENV_SITE_DESCRIPTION' => ENV_SITE_DESCRIPTION,
                 'ENV_VERSION_CORE' => ENV_VERSION_CORE,
@@ -77,7 +79,7 @@ class Constants {
                 'ENV_SITE_EMAIL' => ENV_SITE_EMAIL,
                 'ENV_ADMIN_EMAIL' => ENV_ADMIN_EMAIL,
                 'ENV_SUPPORT_EMAIL' => ENV_SUPPORT_EMAIL
-            ],            
+            ],
             // Роли пользователей
             ALL = 777, // Все
             ALL_AUTH = 100, // Все зарегистрированные пользователи
@@ -87,4 +89,6 @@ class Constants {
             USER = 4, // Пользователь
             SYSTEM = 8 // Системный пользователь
             ;
-}
+            }
+
+    

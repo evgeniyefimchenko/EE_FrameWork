@@ -72,7 +72,7 @@ abstract class ControllerBase {
         if ($session) {
             $this->logged_in = $this->logged_in ?? $this->getUsersSessionData($session);
         } else {
-            Session::destroy();
+            Session::un_set('user_session');
             Cookies::clear('user_session');
         }
         $this->users = new Users($this->logged_in);
@@ -108,6 +108,7 @@ abstract class ControllerBase {
         Session::set('lang', $langCode);
         SysClass::checkLangVars($langCode, $this->lang);
         $this->view->set('lang', $this->lang);
+        $this->users->lang = $this->lang;
     }
 
     /**
@@ -202,7 +203,7 @@ abstract class ControllerBase {
     private function getUsersSessionData($session) {
         $sql = 'SELECT user_id, last_ip FROM ?n WHERE session = ?s';
         $userData = SafeMySQL::gi()->getRow($sql, ENV_DB_PREF . 'users', $session);
-        if (ENV_ONE_IP_ONE_USER && $userData['last_ip'] !== SysClass::client_ip()) {
+        if (ENV_ONE_IP_ONE_USER && $userData['last_ip'] !== SysClass::getClientIp()) {
             return false;
         } else {
             if (isset($userData['user_id'])) {

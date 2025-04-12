@@ -258,7 +258,8 @@ const AppCore = (function () {
             });
         },
         preloader: preloader,
-        summernoteParams: {}
+        summernoteParams: {},
+        codeMirrorParams: {}
     };
 })();
 
@@ -266,7 +267,7 @@ const AppCore = (function () {
 AppCore.init();
 AppCore.summernoteParams = {
     height: 300,
-    lang: AppCore.getLangVar('ENV_DEF_LANG') === 'RU' ? 'ru-RU' : 'en-US',
+    lang: AppCore.getLangVar('ENV_DEF_LANG') === 'RU' ? 'ru-RU' : 'en-US',  
     toolbar: [
         ['custom', ['textManipulator']],
         ['style', ['style']],
@@ -279,4 +280,15 @@ AppCore.summernoteParams = {
         ['insert', ['imagePlugin', 'link', 'hr']],
         ['view', ['fullscreen', 'codeview']]
     ]
+};
+// Параметры для CodeMirror (отдельная инициализация)
+AppCore.codeMirrorParams = {
+    theme: 'monokai',
+    mode: 'htmlmixed',
+    lineNumbers: true,
+    lineWrapping: true,
+    indentUnit: 4,
+    tabSize: 4,
+    autoCloseTags: false,
+    firstLineNumber: 0
 };
