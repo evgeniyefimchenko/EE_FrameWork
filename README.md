@@ -59,7 +59,8 @@ ee_framework/
 │       ├── EmailsTrait.php          # Трейт для управления email-шаблонами  
 │       ├── PagesTrait.php           # Трейт для управления страницами  
 │       ├── PropertiesTrait.php      # Трейт для управления свойствами  
-│       ├── SystemsTrait.php         # Трейт для системных настроек  
+│       ├── SystemsTrait.php         # Трейт для системных настроек
+│       ├── ... т.д.
 │       └── index.php                # Основной контроллер панели администратора  
 ├── assets/                          # Статические ресурсы  
 │   ├── css/                         # CSS стили  
@@ -71,8 +72,10 @@ ee_framework/
 │   │   ├── ClassMessages.php        # Класс для управления сообщениями  
 │   │   └── ClassNotifications.php   # Класс для управления уведомлениями  
 │   ├── plugins/                     # Сторонние библиотеки и плагины  
-│   │   ├── Smarty.php               # Шаблонизатор Smarty  
-│   │   └── Twig.php                 # Шаблонизатор Twig  
+│   │   ├── PHPMailer/
+│   │   ├── HTTPRequester.php
+│   │   ├── SafeMySQL.php
+│   │   └── SafePostgreSQL.php
 │   └── system/                      # Системные классы (ядро фреймворка)  
 │       ├── AutoloadManager.php      # Автозагрузчик классов  
 │       ├── ControllerBase.php       # Базовый класс для контроллеров  
@@ -98,7 +101,7 @@ ee_framework/
 ## ⚙️ Установка и запуск проекта
 
 1. Клонируйте репозиторий:
-git clone https://github.com/your_username/EE_framework.git
+git clone https://github.com/evgeniyefimchenko/EE_framework.git
 
 2. Настройте файл конфигурации (`inc/configuration.php`) под своё окружение.
 

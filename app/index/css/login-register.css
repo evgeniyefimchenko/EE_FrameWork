@@ -320,3 +320,7 @@
 :-ms-input-placeholder {  
    text-align: center; 
 }
+
+.modal-title {
+	color: black;
+}

@@ -19,7 +19,7 @@ use classes\helpers\ClassMessages;
 /*
  * Админ-панель
  */
-class ControllerIndex Extends ControllerBase {
+class ControllerAdmin Extends ControllerBase {
     /* Подключение traits */
 
 use MessagesTrait,

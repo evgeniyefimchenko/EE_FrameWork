@@ -1,6 +1,10 @@
 /*
 * css index page
 */
+
+/* Импортирование шрифта Montserrat из Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap');
+
 .preloader {
     position: fixed;
     top: 0;
@@ -12,4 +16,170 @@
     display: flex;
     justify-content: center;
     align-items: center;
+}
+
+/* Сброс отступов для заголовков и установка начального веса шрифта */
+h1, h2, h3, h4, h5, h6 {
+	margin: 0; /* Удалить стандартные отступы */
+	font-weight: 400; /* Установить вес шрифта */
+}
+
+/* Стили для тела страницы */
+body {
+	background: #0D0931; /* Установка темного фона */
+	color: #fff; /* Установка белого цвета текста */
+	font-family: "Montserrat", sans-serif; /* Применение импортированного шрифта */
+	font-weight: 300; /* Установка более легкого веса шрифта */
+}
+
+/* Стили для радиальных фонов */
+.blue-radial:first-child,
+.blue-radial:nth-child(2),
+.pink-radial {
+	position: fixed; /* Фиксированное положение для оставления на заднем плане */
+	border-radius: 50%; /* Сделать их круглыми */
+	z-index: -10; /* Отправить их на задний план */
+	width: 1000px; /* Ширина по умолчанию */
+	height: 1000px; /* Высота по умолчанию */
+}
+
+/* Первый радиальный фон синего цвета */
+.blue-radial:first-child {
+	bottom: -500px; /* Размещение в нижнем правом углу */
+	right: -500px;
+	background: radial-gradient(circle at 50% 50%, #223f9e 0%, transparent 50%); /* Синий градиент */
+}
+
+/* Второй радиальный фон синего цвета */
+.blue-radial:nth-child(2) {
+	width: 1200px; /* Установка большей ширины */
+	height: 1200px; /* Установка большей высоты */
+	top: -20%; /* Размещение в верхней части */
+	left: 0;
+	background: radial-gradient(circle at 50% 50%, #223f9e 0%, transparent 50%); /* Синий градиент */
+}
+
+/* Радиальный фон розового цвета */
+.pink-radial {
+	width: 1200px; /* Установка ширины */
+	height: 1200px; /* Установка высоты */
+	top: -10%; /* Размещение в верхней части */
+	left: 5%;
+	background: radial-gradient(circle at 50% 50%, #56093B 0%, transparent 50%); /* Розовый градиент */
+}
+
+/* Стили для секций с фоновыми изображениями */
+#experience, #services, #integrations {
+	position: relative; /* Установка позиции для контекста наложения */
+	z-index: -2; /* Размещение выше радиальных фонов */
+	width: 100%; /* Полная ширина */
+}
+
+/* Фоновое изображение для секции опыта */
+#experience {
+	background: url("/uploads/images/6gsJ8-pn11CR6x6MdSOth.webp") no-repeat center / cover;
+}
+
+/* Фоновое изображение для секции услуг */
+#services {
+	background: url("/uploads/images/c_GDFbwp92mDlfrhqssno.webp") no-repeat center / cover;
+}
+
+/* Фоновое изображение для секции интеграций */
+#integrations {
+	background: url("/uploads/images/IpakN6jy11Wx1z0ojLQ0p.webp") no-repeat center / cover;
+}
+
+/* Накладка для секций, чтобы затемнить фоновые изображения */
+#experience::after, #services::after, #integrations::after {
+	z-index: -1; /* Размещение позади контента секции */
+	content: ''; /* Создание псевдоэлемента */
+	position: absolute; /* Абсолютное позиционирование */
+	top: 0; left: 0; right: 0; bottom: 0; /* Растянуть, чтобы покрыть */
+	background: rgba(0, 0, 0, 0.75); /* Темная накладка */
+}
+
+/* Стили для других секций */
+#portfolio, #security, #individual-development, #nav {
+	background: rgba(0, 0, 0, 0.05); /* Светлый полупрозрачный фон */
+	backdrop-filter: blur(20px); /* Размытие фона */
+}
+
+/* Стили для секции навыков */
+#skills {
+	background: rgba(137, 103, 255, 0.3); /* Светлый пурпурный фон */
+	backdrop-filter: blur(20px) saturate(170%); /* Размытие и насыщение */
+}
+
+/* Стили для пурпурного блока */
+.purple-block {
+	border: 1px solid #4a2c85ff; /* Граница вокруг блока */
+	background: linear-gradient(121deg, #3c136dff 10%, #26136cff 90%); /* Градиентный фон */
+}
+
+/* Стили для кнопок */
+.btn {
+	background: linear-gradient(121deg, #9251e1ff 10%, #7052e0ff 90%); /* Градиентный фон кнопки */
+	padding: 10px 20px; /* Отступы внутри кнопки */
+	font-weight: bold; /* Жирный текст */
+	border: none; /* Удаление границы */
+	box-sizing: border-box; /* Учет отступов в общей ширине/высоте */
+}
+
+/* Удаление контура фокуса у кнопки переключателя */
+.navbar-toggler:focus {
+	outline: none; /* Удалить стандартный контур */
+	box-shadow: none; /* Опционально: удалить любую тень */
+}
+
+#login_button:hover, #callback_button:hover, #modal_close:hover, a.btn:hover {
+  box-shadow: inset 0 100px 0 0 #D80286;
+}
+
+.modal {
+	color: black;
+}
+
+.toast-body {
+	background-color: #0d6efdb8;
+}
+
+.toast-header {
+	background-color: transparent;
+}
+
+.nav-link {
+	border-radius: 15px;
+}
+
+.nav-link:hover {
+	background: #D80286;
+}
+
+strong {
+	font-weight: revert;
+}
+
+.row p {
+	font-size: larger;
+	margin-top: 15px;
+}
+
+.card {
+    background-color: rgba(255, 255, 255, 0.1); /* Полупрозрачный белый */
+    color: #fff; /* Белый текст для темного фона */
+}
+
+.card-footer .btn {
+    background-color: #6f42c1; /* Цвет, сочетающийся с основным фоном */
+    border: none;
+}
+
+.card:hover {
+    transform: scale(1.05);
+    transition: transform 0.3s ease;
+}
+
+.card-img-top {
+    filter: brightness(0.7);
 }

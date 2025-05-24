@@ -4,7 +4,7 @@ namespace classes\system;
 
 /**
  * Класс констант для оперативной работы
- * Может быть дописан автоматически из статического класса функцией SysClass::ee_getFieldsTable($tableName)
+ * Может быть дописан из статического класса SysClass::ee_getFieldsTable($tableName)
  */
 class Constants {
 

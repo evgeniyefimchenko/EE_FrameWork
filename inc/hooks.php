@@ -2,6 +2,8 @@
 
 use classes\system\SysClass;
 use classes\system\Hook;
+use classes\helpers\ClassSearchEngine;
+use classes\system\ErrorLogger;
 
 Hook::add('A_beforeGetStandardViews', 'beforeGetStandardViewsHandler');
 
@@ -24,7 +26,7 @@ Hook::add('postUpdateCategoriesTypeSetsData', 'updateCategoriesTypeSetsHandler')
  * @param array $propertyData - Набор данных
  * @param string $action - выполненное действие update или insert
  */
-Hook::add('postUpdatePropertiesValueEntities', 'updatePropertiesValueHandler');
+Hook::add('postUpdatePropertiesValueEntities', 'postUpdatePropertiesValueHandler');
 
 /**
  * Вызывается перед обновлением или добавлением значения свойства для сущностей
@@ -43,7 +45,7 @@ function beforeGetStandardViewsHandler(classes\system\View $view): void {
  * @param int|array $setIds Идентификаторы наборов свойств для связывания с указанным типом категории
  * @param array $allTypeIds - все подчинённые типы $type_id включая $type_id
  */
-function updateCategoriesTypeSetsHandler($typeId, $setIds, $allTypeIds) {    
+function updateCategoriesTypeSetsHandler($typeId, $setIds, $allTypeIds) {
     $objectModelCategoriesTypes = SysClass::getModelObject('admin', 'm_categories_types');
     $objectModelCategories = SysClass::getModelObject('admin', 'm_categories');
     $objectModelProperties = SysClass::getModelObject('admin', 'm_properties');
@@ -52,11 +54,11 @@ function updateCategoriesTypeSetsHandler($typeId, $setIds, $allTypeIds) {
     $allPages = $objectModelCategories->getCategoryPages($allCategoriesIds);
     $objects['objectModelProperties'] = $objectModelProperties;
     $objects['objectModelCategoriesTypes'] = $objectModelCategoriesTypes;
-    $objects['objectModelCategories'] = $objectModelCategories;    
+    $objects['objectModelCategories'] = $objectModelCategories;
     updatePropertiesForAnEntity($allCategoriesIds, $allPages, $allCategoriesSetIds, $objects);
 }
 
-function updatePropertiesValueHandler($value_id, $propertyData, $action) {
+function postUpdatePropertiesValueHandler($value_id, $propertyData, $action) {
     return;
 }
 
@@ -76,18 +78,20 @@ function afterUpdateCategoryDataHandler($categoryId, $categoryData, $method) {
             $objectModelCategories = SysClass::getModelObject('admin', 'm_categories');
             $objectModelCategoriesTypes = SysClass::getModelObject('admin', 'm_categories_types');
             $objectModelProperties = SysClass::getModelObject('admin', 'm_properties');
-            // Все типы с потомками
+            // Все типы с потомками для проверки дочерних категорий
             $allTypes = $objectModelCategoriesTypes->getAllTypes(false, true, $categoryData['type_id']);
-            $arrAllTypes = array_unique(array_map(function($item) {
-                return $item['type_id'];
-            }, $allTypes));
+            $arrAllTypes = array_unique(array_map(function ($item) {
+                        return $item['type_id'];
+                    }, $allTypes));
             // Получим все дочерние категории вместе с $categoryId
             $oldAllCategory = $objectModelCategories->getCategoryDescendantsShort($categoryId);
-            SysClass::pre([$allTypes, $arrAllTypes]);
             foreach ($oldAllCategory as $cat) {
-                if (!in_array($cat['type_id'], $arrAllTypes)) { // У дочерней категории нет новых типов, присваиваем родительский
-                    // Прямой запрос что бы не вызвать зацикливания хука
-                    \classes\plugins\SafeMySQL::gi()->query('UPDATE ?n SET type_id = ?i', \classes\system\Constants::CATEGORIES_TABLE, $categoryData['type_id']);                    
+                // У дочерней категории установлен не новый тип и не его потомки, присваиваем родительский
+                // Или это обновлённая категория
+                if (!in_array($cat['type_id'], $arrAllTypes) || $cat['category_id'] == $categoryId) {
+                    // Прямой запрос что бы не вызвать зацикливания хука                    
+                    \classes\plugins\SafeMySQL::gi()->query('UPDATE ?n SET type_id = ?i WHERE category_id = ?i',
+                            \classes\system\Constants::CATEGORIES_TABLE, $categoryData['type_id'], $cat['category_id']);
                     // Получили все значения свойств объектов                    
                     $allPages = $objectModelCategories->getCategoryPages($categoryData['category_id']);
                     $allCategoriesSetIds = $objectModelCategoriesTypes->getCategoriesTypeSetsData($categoryData['type_id']);
@@ -95,13 +99,15 @@ function afterUpdateCategoryDataHandler($categoryId, $categoryData, $method) {
                     $objects['objectModelCategoriesTypes'] = $objectModelCategoriesTypes;
                     $objects['objectModelCategories'] = $objectModelCategories;
                     // Перезаписываем значения свойств у категории и её страниц
-                    updatePropertiesForAnEntity($categoryData['category_id'], $allPages, $allCategoriesSetIds, $objects);
+                    // file_put_contents(__DIR__ . '/updateCategory_logs.txt', var_export($cat, true) . PHP_EOL, FILE_APPEND);                    
+                    updatePropertiesForAnEntity([$cat['category_id']], $allPages, $allCategoriesSetIds, $objects);
                 }
             }
         }
     }
 }
 
+// // file_put_contents(__DIR__ . '/logs.txt', var_export($cat, true) . PHP_EOL, FILE_APPEND);
 /**
  * Проверяет и синхронизирует наборы свойств для указанных категорий и их сущностей
  * 1. Получает все категории и сущности для указанных типов
@@ -110,8 +116,8 @@ function afterUpdateCategoryDataHandler($categoryId, $categoryData, $method) {
  * 4. Обновляет или добавляет новые значения свойств для категорий и сущностей на основе новых наборов
  */
 function updatePropertiesForAnEntity($allCategoriesIds, $allPages, $allCategoriesSetIds, $objects) {
-    $allPagesIds = [];
     $allNewSetIdsCategories = $allCategoriesSetIds;
+    $allPagesIds = [];
     foreach ($allPages as $page) {
         $allPagesIds[] = $page['page_id'];
     }
@@ -136,6 +142,7 @@ function updatePropertiesForAnEntity($allCategoriesIds, $allPages, $allCategorie
         }
     }
     if (count($killValueIds)) {
+        // file_put_contents(__DIR__ . '/killValueIds_logs.txt', var_export($killValueIds, true) . PHP_EOL, FILE_APPEND);
         $objects['objectModelProperties']->deletePropertyValues($killValueIds);
     }
     // Получить существующие свойства новых сетов с дефолтными настройками
@@ -168,6 +175,7 @@ function updatePropertiesForAnEntity($allCategoriesIds, $allPages, $allCategorie
                             'fields' => $p_item['default_values'],
                             'set_id' => $c_item['set_id'],
                         ];
+                        // file_put_contents(__DIR__ . '/updateProperties_logs.txt', var_export($fields, true) . PHP_EOL, FILE_APPEND);
                         $objects['objectModelProperties']->updatePropertiesValueEntities($fields);
                     }
                 }
@@ -180,5 +188,52 @@ function updatePropertiesForAnEntity($allCategoriesIds, $allPages, $allCategorie
                 $updateProperties($c_item['page_id'], 'page');
             }
         }
+    }
+}
+
+Hook::add('afterUpdateCategoryData', 'createSearchIndexCategory');
+
+/**
+ * Обработчик хука для индексации категории после сохранения
+ * @param int $categoryId ID сохраненной категории
+ * @param array $categoryData Данные, переданные в метод сохранения
+ * @param string $method Метод ('insert' или 'update')
+ * @return void
+ */
+function createSearchIndexCategory(int $categoryId, array $categoryData, string $method): void {
+    if ($categoryId <= 0)
+        return;
+    try {
+        $searchEngine = new ClassSearchEngine();
+        if (!isset($categoryData['status']) || $categoryData['status'] !== 'active') {
+            $searchEngine->removeIndexEntry('category', $categoryId);
+            return;
+        }
+        $entityType = 'category';
+        $languageCode = $categoryData['language_code'] ?? ENV_DEF_LANG;
+        $title = ClassSearchEngine::prepareTitle($categoryData['title'] ?? '');
+        $contentParts = [];
+        $contentParts[] = $categoryData['title'] ?? '';
+        $contentParts[] = $categoryData['short_description'] ?? ($categoryData['description'] ?? '');
+        $contentParts[] = $categoryData['description'] ?? '';
+        $contentFull = ClassSearchEngine::prepareContent(implode(' ', $contentParts));
+        if (empty($title) && empty($contentFull)) {
+            $searchEngine->removeIndexEntry($entityType, $categoryId);
+            return;
+        }
+        $url = '';
+        $indexData = [
+            'entity_id' => $categoryId,
+            'entity_type' => $entityType,
+            'language_code' => $languageCode,
+            'title' => $title,
+            'content_full' => $contentFull,
+            'url' => $url
+        ];
+        $searchEngine->updateIndexEntry($indexData);
+    } catch (\Throwable $e) { // Ловим Throwable
+        new ErrorLogger('Hook error (createSearchIndexCategory): ' . $e->getMessage(), __FUNCTION__, 'hook_error', [
+            'category_id' => $categoryId, 'method' => $method, 'trace' => $e->getTraceAsString()
+        ]);
     }
 }

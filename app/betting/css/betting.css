@@ -1,0 +1,88 @@
+/* Общие стили для сервиса ставок */
+.betting-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* Стили для формы запуска */
+#start-betting-form {
+    background-color: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+#start-betting-form .form-group {
+    margin-bottom: 15px;
+}
+
+#start-betting-form label {
+    font-weight: 600;
+}
+
+#start-betting-form .btn-primary {
+    width: 100%;
+    padding: 10px;
+    font-size: 1.1em;
+}
+
+/* Стили для дашборда */
+.betting-dashboard h2 {
+    color: #343a40;
+    margin-bottom: 20px;
+}
+
+.betting-dashboard .balance {
+    font-size: 1.5em;
+    font-weight: bold;
+    color: #28a745;
+}
+
+.betting-dashboard .table {
+    margin-bottom: 20px;
+}
+
+.betting-dashboard .table th {
+    background-color: #007bff;
+    color: white;
+}
+
+.betting-dashboard .table td {
+    vertical-align: middle;
+}
+
+.betting-dashboard .btn-secondary,
+.betting-dashboard .btn-danger {
+    margin-right: 10px;
+    padding: 8px 15px;
+}
+
+/* Стили для графика */
+#balanceChart {
+    max-height: 400px;
+    margin-bottom: 20px;
+}
+
+/* Иконки FontAwesome */
+.fa-chart-line {
+    margin-right: 5px;
+}
+
+.fa-download,
+.fa-trash {
+    margin-right: 5px;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .betting-container {
+        padding: 10px;
+    }
+
+    .betting-dashboard .btn-secondary,
+    .betting-dashboard .btn-danger {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+}
