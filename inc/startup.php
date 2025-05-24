@@ -7,9 +7,8 @@
  */
 class AutoloadManager {
 
-    
     private static $initialized = false;
-    
+
     /**
      * @var array Карта классов для автозагрузки.
      */
@@ -28,6 +27,7 @@ class AutoloadManager {
         self::addClassMap('classes\plugins\HTTPRequester', ENV_SITE_PATH . 'classes' . ENV_DIRSEP . 'plugins' . ENV_DIRSEP . 'HTTPRequester.php');
         self::addClassMap('classes\plugins\SafeMySQL', ENV_SITE_PATH . 'classes' . ENV_DIRSEP . 'plugins' . ENV_DIRSEP . 'SafeMySQL.php');
         self::addNamespace('classes\helpers', ENV_SITE_PATH . 'classes' . ENV_DIRSEP . 'helpers' . ENV_DIRSEP);
+        // Для возможности использования trait в классе ControllerAdmin
         self::addNamespace('app\admin', ENV_SITE_PATH . ENV_APP_DIRECTORY . ENV_DIRSEP . 'admin' . ENV_DIRSEP, true,
                 [ENV_SITE_PATH . ENV_APP_DIRECTORY . ENV_DIRSEP . 'admin' . ENV_DIRSEP . 'views']);
     }
@@ -38,7 +38,7 @@ class AutoloadManager {
     public static function init() {
         if (self::$initialized) {
             return; // Если автозагрузчик уже инициализирован, выходим
-        }        
+        }
         // Все дополнительные классы плагинов и расширений должны быть подключены тут
         AutoloadManager::addPluginFromComposerJson(ENV_SITE_PATH . 'classes' . ENV_DIRSEP . 'plugins' . ENV_DIRSEP . 'PHPMailer');
         // Далее подключаются системные классы
@@ -58,7 +58,7 @@ class AutoloadManager {
      */
     public static function addNamespace(string $namespace, string $path, bool $recursive = true, array $excludeDirs = []): void {
         if (!is_dir($path)) {
-            throw new Exception("Directory not found: $path");
+            die("Directory not found: $path");
         }
         $directoryIterator = new RecursiveDirectoryIterator($path, RecursiveDirectoryIterator::SKIP_DOTS);
         $filterIterator = new RecursiveCallbackFilterIterator($directoryIterator, function ($current, $key, $iterator) use ($excludeDirs) {
@@ -87,20 +87,20 @@ class AutoloadManager {
     }
 
     /**
-     * Добавляет класс и его путь в карту автозагрузки, если такой путь ещё не был зарегистрирован
-     * Этот метод проверяет уникальность пути к файлу перед добавлением в карту классов
-     * Если указанный путь уже зарегистрирован для любого пространства имен, 
-     * новое пространство имен с тем же путем не будет добавлено, чтобы избежать дублирования
-     * Это помогает предотвратить конфликты при попытке зарегистрировать разные пространства имен,
-     * ссылающиеся на один и тот же файл класса
-     * @param string $namespace Пространство имен класса, которое нужно зарегистрировать
-     * @param string $path Путь к файлу класса. Проверяется на уникальность перед добавлением
+     * Добавляет класс и его путь в карту автозагрузки
+     * Позволяет перезаписывать существующие ключи, если путь отличается (с предупреждением)
+     * @param string $className Полное имя класса (ключ)
+     * @param string $path      Абсолютный путь к файлу (значение)
+     * @return void
      */
-    public static function addClassMap($namespace, $path) {
-        if (in_array($path, self::$classesMap)) {
+    public static function addClassMap(string $className, string $path): void {
+        if (isset(self::$classesMap[$className])) {
+            if (self::$classesMap[$className] !== $path) {
+                self::$classesMap[$className] = $path;
+            }
             return;
         }
-        self::$classesMap[$namespace] = $path;
+        self::$classesMap[$className] = $path;
     }
 
     /**
@@ -171,12 +171,9 @@ class AutoloadManager {
     }
 
     /**
-     * Выведет на экран всю карту загрузки
+     * Вернёт всю карту загрузки
      */
     public static function showClassMap() {
-        echo '<pre>';
-        var_export(self::$classesMap);
-        echo '</pre>';
-        die;
+        return self::$classesMap;
     }
 }
