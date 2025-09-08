@@ -1,10 +1,16 @@
 <?php
 
 /**
- * Конфигурационный файл настроек сайта
- * База данных, технические и индивидуальные настройки проекта
+ * Евгений Ефимченко, efimchenko.com
+ * Определяет основные настройки конфигурации для EE_FrameWork, включая параметры базы данных и сайта
+ * /inc/configuration.php
  */
+ 
+global $protoLang;
+$protoLang = 'EN';
+ 
 function loadConfig(): array {
+	global $protoLang;
     $config = [
         'ENV_VERSION_CORE' => '4.7.3',
         // Настройка базы данных
@@ -41,7 +47,11 @@ function loadConfig(): array {
         'ENV_FONT_AWESOME_CDN' => true,
         'ENV_BOOTSTRAP533_CDN' => true,
         'ENV_JQUERY_CDN' => true,
-        'ENV_CACHE_REDIS' => 0,
+		'ENV_GUARD_REDIS' => 0, // Использовать REDIS для класса BotGuard
+		'ENV_GUARD_RATE_LIMIT_COUNT' => 20, // количество запросов в период
+		'ENV_GUARD_RATE_LIMIT_WINDOW' => 30, // период в секундах
+		'ENV_GUARD_STRIKE_LIMIT' => 5, // Количество "страйков", после которых IP блокируется
+		'ENV_GUARD_STRIKE_TTL' => 30, // Время в секундах, в течение которого считаются страйки
         'ENV_REDIS_ADDRESS' => '127.0.0.1',
         'ENV_REDIS_PORT' => 6379,
         'ENV_MAX_FILE_SIZE' => 10 * 1024 * 1024,
@@ -49,7 +59,7 @@ function loadConfig(): array {
         // Персональные настройки сайта
         'ENV_APP_DIRECTORY' => 'app',
         'ENV_PATH_LANG' => 'inc' . DIRECTORY_SEPARATOR . 'langs' . DIRECTORY_SEPARATOR,
-        'ENV_PROTO_LANGUAGE' => 'EN',
+        'ENV_PROTO_LANGUAGE' => $protoLang,
         'ENV_SITE_EMAIL' => 'evgeniy@efimchenko.com',
         'ENV_ADMIN_EMAIL' => 'evgeniy@efimchenko.com',
         'ENV_SUPPORT_EMAIL' => 'evgeniy@efimchenko.com',
@@ -73,11 +83,13 @@ function loadConfig(): array {
     if ($config['ENV_DEF_LANG'] == 'RU') {
         date_default_timezone_set('Europe/Moscow');
     }
-
-    if ($config['ENV_CACHE_REDIS'] == 1 && !checkRedisConnection($config['ENV_REDIS_ADDRESS'], $config['ENV_REDIS_PORT'], $config)) {
-        $config['ENV_CACHE_REDIS'] = 0;
+    $isConnect = checkRedisConnection($config['ENV_REDIS_ADDRESS'], $config['ENV_REDIS_PORT'], $config);
+    if (!$isConnect) {
+        array_walk(
+            $config,
+            fn(&$value, $key) => in_array($key, ['ENV_CACHE_REDIS', 'ENV_GUARD_REDIS', 'ENV_ROUTING_CACHE']) ? $value = 0 : null
+        );
     }
-
     return $config;
 }
 
@@ -90,7 +102,10 @@ function loadConfig(): array {
  */
 function checkRedisConnection(string $address, int $port, array $config): bool {
     $cacheFile = $config['ENV_CACHE_PATH'] . 'redis_connection_check.cache';
-    if (file_exists($cacheFile)) {
+	if (!is_dir($cacheDir)) {
+		mkdir($cacheDir, 0755, true);
+	}    
+	if (file_exists($cacheFile)) {
         return (bool) file_get_contents($cacheFile);
     }
     try {
@@ -123,27 +138,23 @@ function checkRedisConnection(string $address, int $port, array $config): bool {
  * @return string|array Возвращает код предпочтительного языка (например, 'en') или массив языков с их весами, если установлен $getSortedList
  */
 function GetClientPreferedLanguage(bool $getSortedList = false, string|false $acceptedLanguages = false): string|array {
-    session_start();
-    if (isset($_SESSION['lang']) && !$getSortedList) {
-        return $_SESSION['lang'];
-    }
-    // Используем заголовок по умолчанию, если он не передан явно
+    global $protoLang;
     if ($acceptedLanguages === false) {
         $acceptedLanguages = $_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? '';
     }
     // Проверяем пустое значение и устанавливаем язык по умолчанию
     if (trim($acceptedLanguages) === '') {
-        return $getSortedList ? [] : 'EN';
+        return $getSortedList ? [] : $protoLang;
     }
     preg_match_all('/([a-z]{1,8}(-[a-z]{1,8})*)\s*(;\s*q\s*=\s*(1|0\.[0-9]+))?/i', $acceptedLanguages, $lang_parse);
     $langs = $lang_parse[1] ?? [];
     $ranks = $lang_parse[4] ?? [];
     if (empty($langs)) {
-        return $getSortedList ? [] : 'EN';
+        return $getSortedList ? [] : $protoLang;
     }
     $lang2pref = array_combine($langs, array_map(fn($rank) => (float)($rank ?? 1), $ranks));
     uksort($lang2pref, fn($a, $b) => $lang2pref[$b] <=> $lang2pref[$a] ?: strlen($b) <=> strlen($a));
-    return $getSortedList ? $lang2pref : (key($lang2pref) ?? 'en');
+    return $getSortedList ? $lang2pref : (key($lang2pref) ?? strtolower($protoLang));
 }
 
 foreach (loadConfig() as $name => $val) {

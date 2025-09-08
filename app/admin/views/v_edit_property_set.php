@@ -63,10 +63,13 @@
                                         <?php foreach ($all_properties_data as $property): ?>
                                             <?php if ($property['status'] === 'active'): ?>
                                                 <div class="form-check">
-                                                    <input<?=$isExistCategoryTypeWithSet ? ' disabled' : ''?> class="form-check-input" type="checkbox" name="selected_properties[]"
+                                                    <input class="form-check-input" type="checkbox" name="selected_properties[]"
                                                         <?php if (isset($property_set_data['properties'][$property['property_id']])) echo 'checked ';?>
                                                         value="<?php echo $property['property_id']; ?>" id="property-<?php echo $property['property_id']; ?>">
-                                                    <label class="form-check-label" for="property-<?php echo $property['property_id']; ?>">
+                                                    <label class="form-check-label<?=$isExistCategoryTypeWithSet ? ' text-primary' : ''?>"
+                                                           <?=$isExistCategoryTypeWithSet ? 'data-bs-toggle="tooltip" data-bs-placement="left"' : ''?>
+                                                           title="<?=$isExistCategoryTypeWithSet ? $lang['sys.used'] : ''?>"
+                                                           for="property-<?php echo $property['property_id']; ?>">
                                                         <?php echo htmlspecialchars($property['name']) . '(' . $lang['sys.' . $property['entity_type']] . ')'; ?>
                                                         <?php if (!empty($property['description'])): ?>
                                                             <br/><small class="text-muted">(<?php echo htmlspecialchars($property['description']); ?>)</small>

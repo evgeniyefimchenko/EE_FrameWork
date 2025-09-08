@@ -86,7 +86,7 @@ trait PagesTrait {
                 }
             }
             $newEntity = empty($pageId) ? true : false;
-            $this->processPostParams($postData, $newEntity, $pageId);            
+            $this->processPostParams($postData, $newEntity, $pageId);
             $getPageData = (int) $pageId ? $this->models['m_pages']->getPageData($pageId) : $default_data;
             $getPageData = $getPageData ? $getPageData : $default_data;
         } else { // Не передан ключевой параметр id
@@ -134,7 +134,7 @@ trait PagesTrait {
     }
 
     /**
-     * Удаление сущности
+     * Удаление страницы
      */
     public function pageDell($params = []) {
         $this->access = [Constants::ADMIN, Constants::MODERATOR];

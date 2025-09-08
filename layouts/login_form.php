@@ -1,3 +1,10 @@
+<?php
+/**
+ * Евгений Ефимченко, efimchenko.com
+ * Шаблон формы входа, содержит разметку для авторизации пользователей.
+ * /layouts/login_form.php
+ */
+?>
 <!DOCTYPE html>
 <html lang="ru">
     <head>
@@ -77,7 +84,7 @@
             <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" type="text/javascript"></script>
         <?php } ?>
         <!-- core -->
-        <script src="<?= ENV_URL_SITE ?>/uploads/tmp/<?=\classes\system\Session::get('lang')?>.js" type="text/javascript"></script>
+        <script src="<?= ENV_URL_SITE ?>/uploads/tmp/<?= \classes\system\Session::get('lang') ?>.js" type="text/javascript"></script>
         <script src="<?= ENV_URL_SITE ?>/assets/js/core.js" type="text/javascript"></script>
         <!-- end of non-relocatable JS scripts -->
         <!-- Добавленные скрипты из контроллера -->

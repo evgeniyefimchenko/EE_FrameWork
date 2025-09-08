@@ -3,48 +3,17 @@
 namespace classes\system;
 
 use classes\plugins\SafeMySQL;
+use classes\system\SysClass;
 
 class BotGuard {
 
-    // Список плохих ботов (по умолчанию)
-    private static $badBots = [
-        'BLEXBot', 'Semrush', 'DataForSeoBot', 'AhrefsBot', 'Barkrowler', 'MJ12bot', 'Serendeputy',
-        'netEstate NE Crawler', 'SeopultContentAnalyzer', 'CCBot', 'MegaIndex', 'Serpstatbot',
-        'ZoominfoBot', 'Linkfluence', 'NetcraftSurveyAgent', 'weborama', 'SeekportBot', 'SEOkicks',
-        'AwarioBot', 'Keys.so', 'GetIntent Crawler', 'Bytedance', 'ClaudeBot', 'Nmap', 'BuiltWith',
-        'Riddler', 'Screaming Frog SEO Spider', 'Go-http-client', 'PR-CY.RU', 'wp_is_mobile',
-        'ALittle Client', 'Apache-HttpClient', 'Linux Mozilla', 'paloaltonetworks', 'BackupLand',
-        'Scrapy', 'Hello, world', 'Nuclei', 'WellKnownBot', 'KOCMOHABT', 'AcademicBotRTU', 'Statdom',
-        'Turnitin', 'Amazonbot', 'Aboundex', '80legs', '360Spider', 'Cogentbot', 'Alexibot', 'asterias',
-        'attach', 'BackDoorBot', 'BackWeb', 'Bandit', 'BatchFTP', 'Bigfoot', 'Black.Hole', 'BlackWidow',
-        'BlowFish', 'BotALot', 'Buddy', 'BuiltBotTough', 'Bullseye', 'BunnySlippers', 'Cegbfeieh',
-        'CheeseBot', 'CherryPicker', 'ChinaClaw', 'Collector', 'Copier', 'CopyRightCheck', 'cosmos',
-        'Crescent', 'Custo', 'AIBOT', 'DISCo', 'DIIbot', 'DittoSpyder', 'Download Demon', 'Download Devil',
-        'Download Wonder', 'dragonfly', 'Drip', 'eCatch', 'EasyDL', 'ebingbong', 'EirGrabber', 'EmailCollector',
-        'EmailSiphon', 'EmailWolf', 'EroCrawler', 'Exabot', 'Express WebPictures', 'Extractor', 'EyeNetIE',
-        'Foobot', 'flunky', 'FrontPage', 'Go-Ahead-Got-It', 'gotit', 'GrabNet', 'Grafula', 'Harvest',
-        'hloader', 'HMView', 'HTTrack', 'humanlinks', 'IlseBot', 'Image Stripper', 'Image Sucker', 'Indy Library',
-        'InfoNavibot', 'InfoTekies', 'Intelliseek', 'InterGET', 'Internet Ninja', 'Iria', 'Jakarta', 'JennyBot',
-        'JetCar', 'JOC', 'JustView', 'Jyxobot', 'Kenjin.Spider', 'Keyword.Density', 'larbin', 'LexiBot',
-        'libWeb/clsHTTP', 'likse', 'LinkextractorPro', 'LinkScan/8.1a.Unix', 'LNSpiderguy', 'LinkWalker',
-        'lwp-trivial', 'LWP::Simple', 'Magnet', 'Mag-Net', 'MarkWatch', 'Mass Downloader', 'Mata.Hari',
-        'Microsoft.URL', 'Microsoft URL Control', 'MIDown tool', 'MIIxpc', 'Mirror', 'Missigua Locator',
-        'Mister PiX', 'moget', 'Mozilla/3.Mozilla/2.01', 'Mozilla.*NEWT', 'NAMEPROTECT', 'Navroad', 'NearSite',
-        'NetAnts', 'Netcraft', 'NetMechanic', 'NetSpider', 'Net Vampire', 'NetZIP', 'NextGenSearchBot',
-        'NICErsPRO', 'niki-bot', 'NimbleCrawler', 'Ninja', 'NPbot', 'Octopus', 'Offline Explorer',
-        'Offline Navigator', 'Openfind', 'OutfoxBot', 'PageGrabber', 'Papa Foto', 'pavuk', 'pcBrowser',
-        'PHP version tracker', 'Pockey', 'ProPowerBot/2.14', 'ProWebWalker', 'psbot', 'Pump', 'QueryN.Metasearch',
-        'RealDownload', 'Reaper', 'Recorder', 'ReGet', 'RepoMonkey', 'Siphon', 'SiteSnagger', 'SlySearch',
-        'SmartDownload', 'Snake', 'Snapbot', 'Snoopy', 'sogou', 'SpaceBison', 'SpankBot', 'spanner', 'Sqworm',
-        'Stripper', 'Sucker', 'SuperBot', 'SuperHTTP', 'Surfbot', 'suzuran', 'Szukacz/1.4', 'tAkeOut',
-        'Teleport', 'Telesoft', 'TurnitinBot/1.5', 'The.Intraformant', 'TheNomad', 'TightTwatBot', 'Titan',
-        'True_bot', 'turingos', 'TurnitinBot', 'URLy.Warning', 'Vacuum', 'VoidEYE', 'Web Image Collector',
-        'Web Sucker', 'WebAuto', 'WebBandit', 'Webclipping.com', 'WebCopier', 'WebEnhancer', 'WebFetch',
-        'WebGo IS', 'Web.Image.Collector', 'WebLeacher', 'WebmasterWorldForumBot', 'WebReaper', 'WebSauger',
-        'Website eXtractor', 'Website Quester', 'Webster', 'WebStripper', 'WebWhacker', 'WebZIP', 'Whacker',
-        'Widow', 'WISENutbot', 'WWWOFFLE', 'WWW-Collector-E', 'Xaldon', 'Zeus', 'ZmEu', 'Zyborg',
-        'archive.org_bot', 'bingbot', 'Wget', 'Acunetix', 'FHscan', 'Baiduspider', 'Slurp', 'DotBot'
-    ];
+    /**
+     * @var bool $useRedis Использовать ли Redis для кеширования
+     */
+    private static $useRedis = false;
+    private static ?\Redis $redisClient = null;
+    // Список плохих ботов
+    private static $badBots = [];
 
     // Приватные константы для типов проверок
     private const CHECK_MISSING_IP_OR_UA = 'missing_ip_or_ua';
@@ -52,6 +21,13 @@ class BotGuard {
     private const CHECK_SQL_INJECTION = 'sql_injection';
     private const CHECK_XSS = 'xss';
     private const CHECK_BLACKLISTED_IP = 'blacklisted_ip';
+
+    /** @var bool Флаг, чтобы не инициализировать класс несколько раз */
+    private static $isInitialized = false;
+
+    // Новые типы проверок
+    private const CHECK_RATE_LIMIT = 'rate_limit';
+    private const CHECK_HONEYPOT = 'honeypot';
     // Массив для управления проверками
     private const ENABLED_CHECKS = [
         self::CHECK_MISSING_IP_OR_UA => true,
@@ -59,57 +35,270 @@ class BotGuard {
         self::CHECK_SQL_INJECTION => true,
         self::CHECK_XSS => true,
         self::CHECK_BLACKLISTED_IP => true,
+        self::CHECK_RATE_LIMIT => true,
+        self::CHECK_HONEYPOT => true,
     ];
 
+    /** @var string Ключ в Redis для хранения набора заблокированных IP (Set) */
+    private static $redisKeyIpBlacklist = 'ee_ip_blacklist_set';
+
+    /** @var string Ключ-маркер, указывающий, что черный список загружен в Redis */
+    private static $redisKeyBlacklistMarker = 'ee_blacklist_loaded_marker';
+
     /**
-     * Основной метод для проверки и блокировки ботов
+     * Инициализирует класс: определяет доступность Redis и загружает списки ботов
+     * Выполняется один раз за запрос
      */
-    public static function guard() {
-        // Проверка на отсутствие REMOTE_ADDR и HTTP_USER_AGENT
-        if (self::ENABLED_CHECKS[self::CHECK_MISSING_IP_OR_UA] &&
-                (empty($_SERVER['REMOTE_ADDR']) || empty($_SERVER['HTTP_USER_AGENT']))) {
-            new \classes\system\ErrorLogger(
-                    'Отсутствует IP-адрес или User-Agent',
-                    __FUNCTION__,
-                    'botguard',
-                    ['REMOTE_ADDR' => $_SERVER['REMOTE_ADDR'] ?? 'N/A', 'HTTP_USER_AGENT' => $_SERVER['HTTP_USER_AGENT'] ?? 'N/A']
-            );
-            http_response_code(400);
-            exit('Bad Request');
+    private static function initialize() {
+        if (self::$isInitialized) {
+            return;
         }
-        // Проверка на плохих ботов
-        if (self::ENABLED_CHECKS[self::CHECK_BAD_BOT]) {
-            foreach (self::$badBots as $bot) {
-                if (stripos($_SERVER['HTTP_USER_AGENT'], $bot) !== false) {
-                    new \classes\system\ErrorLogger(
-                            'Обнаружен плохой бот',
-                            __FUNCTION__,
-                            'botguard',
-                            ['HTTP_USER_AGENT' => $_SERVER['HTTP_USER_AGENT']]
-                    );
-                    http_response_code(403);
-                    exit('Access Denied');
+        // 1. Определяем, доступен ли Redis, и сохраняем результат в статическое свойство
+        if (ENV_GUARD_REDIS) {
+            try {
+                $redis = new \Redis();
+                self::$redisClient = $redis->connect(ENV_REDIS_ADDRESS, ENV_REDIS_PORT);
+                if (self::$redisClient) {
+                    self::$useRedis = true;
+                }
+            } catch (\Exception $e) {
+                new ErrorLogger('Сбой подключения Redis в BotGuard: ' . $e->getMessage(), __FUNCTION__, 'botguard_redis');
+                self::$useRedis = false;
+            }
+        }
+        // 2. Логика загрузки списков ботов (с учетом доступности Redis)
+        $localFile = ENV_TMP_PATH . 'bad_bots.json';
+        $botsFromFile = [];
+        if (file_exists($localFile)) {
+            $decodedJson = json_decode(file_get_contents($localFile), true);
+            if (is_array($decodedJson)) {
+                $botsFromFile = $decodedJson;
+            }
+        } else {
+            new \classes\system\ErrorLogger(
+                    'Локальный файл со списком ботов не найден. Защита может быть неполной.',
+                    __FUNCTION__,
+                    'botguard_info', // Информационное сообщение, не ошибка
+                    ['path' => $localFile]
+            );
+        }
+        if (self::$useRedis) {
+            // Если Redis используется и маркер отсутствует, загружаем в него список
+            if (!self::$redisClient->exists('ee_bad_bots_loaded_marker')) {
+                self::$redisClient->del('ee_bad_bots_set');
+                if (!empty($botsFromFile)) {
+                    self::$redisClient->sAddArray('ee_bad_bots_set', $botsFromFile);
+                }
+                self::$redisClient->set('ee_bad_bots_loaded_marker', time(), 3600);
+            }
+        } else {
+            // Если Redis не используется, загружаем список в локальное свойство
+            self::$badBots = array_unique(array_merge(self::$badBots, $botsFromFile));
+        }
+
+        self::$isInitialized = true;
+    }
+
+    /**
+     * Проверяет все входящие переменные (GET, POST, COOKIE) на атаки.
+     * @return bool True, если атака обнаружена.
+     */
+    private static function inspectRequestVariables(array $inputs = []): bool {
+        $ip = SysClass::getClientIp();
+        foreach ($inputs as $type => $superglobal) {
+            foreach ($superglobal as $key => $value) {
+                $value = is_string($value) ? $value : ''; // Проверяем только строки
+                if (self::ENABLED_CHECKS[self::CHECK_SQL_INJECTION] && (self::containsSqlInjection($key) || self::containsSqlInjection($value))) {
+                    return true;
+                }
+                if (self::ENABLED_CHECKS[self::CHECK_XSS] && (self::containsXss($key) || self::containsXss($value))) {
+                    return true;
                 }
             }
         }
-        // Проверка на SQL-инъекции
-        if (self::ENABLED_CHECKS[self::CHECK_SQL_INJECTION] &&
-                self::containsSqlInjection($_SERVER['QUERY_STRING'] ?? '')) {
+        return false;
+    }
+
+    /**
+     * Проверяет, не превысил ли IP-адрес лимит запросов.
+     * Автоматически выбирает хранилище: Redis или БД.
+     * @param string $ip IP-адрес для проверки
+     * @return bool True, если лимит превышен
+     */
+    private static function isRateLimited(string $ip): bool {
+        if (self::$useRedis) {
+            return self::_rateLimitRedis($ip);
+        } else {
+            return self::_rateLimitDb($ip);
+        }
+    }
+
+    /**
+     * Реализация Rate Limit на Redis.
+     * @param string $ip
+     * @return bool
+     */
+    private static function _rateLimitRedis(string $ip): bool {
+        try {
+            $redis = (new \classes\system\CacheManager())->getRedisClient();
+            if (!$redis) {
+                return false;
+            }
+            $key = 'rate_limit:' . $ip;
+            $count = $redis->incr($key);
+            if ($count === 1) {
+                $redis->expire($key, ENV_GUARD_RATE_LIMIT_WINDOW);
+            }
+            if ($count > ENV_GUARD_RATE_LIMIT_COUNT) {
+                new \classes\system\ErrorLogger('Превышен лимит запросов (Redis)', __FUNCTION__, 'botguard', ['ip' => $ip, 'count' => $count]);
+                self::addIpToBlacklist($ip, 3600, 'Rate limit exceeded');
+                return true;
+            }
+            return false;
+        } catch (\Exception $e) {
+            new \classes\system\ErrorLogger('Ошибка Redis при Rate Limiting: ' . $e->getMessage(), __FUNCTION__, 'botguard_redis');
+            return false;
+        }
+    }
+
+    /**
+     * Реализация Rate Limit на Базе Данных (резервный механизм).
+     * @param string $ip
+     * @return bool
+     */
+    private static function _rateLimitDb(string $ip): bool {
+        try {
+            $db = SafeMySQL::gi();
+            $sql = "INSERT INTO ?n (ip, first_request_at) VALUES(?s, NOW())
+                    ON DUPLICATE KEY UPDATE request_count = IF(first_request_at < NOW() - INTERVAL ?i SECOND, 1, request_count + 1),
+                    first_request_at = IF(first_request_at < NOW() - INTERVAL ?i SECOND, NOW(), first_request_at)";
+            $db->query($sql, Constants::IP_REQUEST_LOGS_TABLE, $ip, ENV_GUARD_RATE_LIMIT_WINDOW, ENV_GUARD_RATE_LIMIT_WINDOW);
+            $count = $db->getOne("SELECT request_count FROM ?n WHERE ip = ?s", Constants::IP_REQUEST_LOGS_TABLE, $ip);
+            if ($count > ENV_GUARD_RATE_LIMIT_COUNT) {
+                new \classes\system\ErrorLogger('Превышен лимит запросов (DB)', __FUNCTION__, 'botguard', ['ip' => $ip, 'count' => $count]);
+                self::addIpToBlacklist($ip, 3600, 'Rate limit exceeded');
+                return true;
+            }
+            return false;
+        } catch (\Exception $e) {
+            new \classes\system\ErrorLogger('Ошибка DB при Rate Limiting: ' . $e->getMessage(), __FUNCTION__, 'botguard', ['ip' => $ip, 'trace' => $e->getTraceAsString()]);
+            return false;
+        }
+    }
+
+    /**
+     * Главный метод-файрвол, выполняющий многоуровневую проверку каждого запроса
+     * Блокирует известные угрозы и накапливает "нарушения" (страйки) для автоматической
+     * блокировки подозрительных IP-адресов
+     * Этот метод является основной точкой входа для системы безопасности и должен
+     * вызываться в самом начале выполнения скрипта
+     * ВАЖНО: В случае обнаружения угрозы, метод немедленно прерывает выполнение
+     * скрипта через exit() с соответствующим HTTP-кодом
+     * Логика проверок выстроена в следующем порядке для максимальной эффективности:
+     * 1. Проверка чёрного списка IP: Сначала выполняется быстрая проверка, не заблокирован
+     * ли IP-адрес уже. Если да, запрос немедленно отклоняетс
+     * 2. Проверки, генерирующие "страйки": Если IP не в чёрном списке,
+     * выполняется серия проверок (отсутствие User-Agent, Honeypot, плохой бот,
+     * Rate Limit, SQLi/XSS).
+     * 3. Накопление страйков: Если любая из проверок на шаге 2 провалена, счётчик
+     * нарушений для данного IP увеличивается
+     * 4. Автоматический бан: Если счётчик нарушений достигает лимита
+     * (ENV_GUARD_STRIKE_LIMIT), IP-адрес автоматически добавляется в чёрный список
+     * @see self::isIpBlacklisted()
+     * @see self::isRateLimited()
+     * @see self::incrementOffenseCounter()
+     * @return void Метод ничего не возвращает.
+     */
+    public static function guard() {
+        self::initialize();
+        $ip = SysClass::getClientIp();
+        if (empty($ip)) {
+            http_response_code(400);
+            exit('Bad Request');
+        }
+        // --- ШАГ 1: Приоритетная проверка чёрного списка ---
+        if (self::ENABLED_CHECKS[self::CHECK_BLACKLISTED_IP] && self::isIpBlacklisted($ip)) {
+            new ErrorLogger('Отклонен запрос от уже заблокированного IP', __FUNCTION__, 'botguard_blocked', ['ip' => $ip]);
             http_response_code(403);
             exit('Access Denied');
         }
-        // Проверка на XSS
-        if (self::ENABLED_CHECKS[self::CHECK_XSS] &&
-                self::containsXss($_SERVER['QUERY_STRING'] ?? '')) {
-            http_response_code(403);
-            exit('Access Denied');
+        // --- ШАГ 2: Проверки, генерирующие "страйки" или мгновенный бан ---
+        $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? '';
+        $rejectionReason = null;
+        $rejectionDetails = [];
+        $httpCode = 403;
+        $immediateBan = false;
+
+        $resVarInspect = self::inspectRequestVariables($inputs = ['GET' => $_GET, 'POST' => $_POST, 'COOKIE' => $_COOKIE]);
+        if ($resVarInspect) {
+            $rejectionReason = 'Обнаружена потенциальная атака (SQLi/XSS)';
+            $rejectionDetails = ['GET' => $_GET, 'POST' => $_POST, 'COOKIE' => $_COOKIE];
+            $immediateBan = true;
+        } elseif (self::ENABLED_CHECKS[self::CHECK_MISSING_IP_OR_UA] && empty($userAgent)) {
+            $rejectionReason = 'Отсутствует User-Agent';
+            $httpCode = 400;
+            $immediateBan = true;
+        } elseif (self::ENABLED_CHECKS[self::CHECK_HONEYPOT] && $_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['comment'])) {
+            $rejectionReason = 'Сработала ловушка-приманка (Honeypot)';
+            $rejectionDetails['Details'] = var_export(__REQUEST, true);
+            $immediateBan = true;
+        } elseif (self::ENABLED_CHECKS[self::CHECK_BAD_BOT] && self::isBadBot($userAgent)) {
+            $rejectionReason = 'Обнаружен плохой бот';
+            $rejectionDetails['HTTP_USER_AGENT'] = $userAgent;
+            $rejectionDetails['Details'] = var_export(__REQUEST, true);
+            $immediateBan = true;
+        } elseif (self::ENABLED_CHECKS[self::CHECK_RATE_LIMIT] && self::isRateLimited($ip)) {
+            $rejectionReason = 'Превышен лимит запросов (Rate Limit)';
+            $httpCode = 429;
         }
-        // Проверка IP-адреса в чёрном списке
-        if (self::ENABLED_CHECKS[self::CHECK_BLACKLISTED_IP] &&
-                self::isIpBlacklisted($_SERVER['REMOTE_ADDR'])) {
-            http_response_code(403);
-            exit('Access Denied');
+
+        // --- ШАГ 3: Принятие решения и накопление страйков ---
+        if ($rejectionReason !== null) {
+            $rejectionDetails['ip'] = $ip;
+            // Логируем общую причину блокировки
+            new ErrorLogger($rejectionReason, __FUNCTION__, 'botguard', $rejectionDetails);
+            if ($immediateBan) {
+                self::addIpToBlacklist($ip, 3600, $rejectionReason);
+                new ErrorLogger("IP заблокирован за попытку атаки", __FUNCTION__, 'botguard_ban', ['ip' => $ip]);
+            } else {
+                $strikeCount = self::incrementOffenseCounter($ip);
+                new ErrorLogger("Текущее количество страйков для IP", __FUNCTION__, 'botguard_debug', ['ip' => $ip, 'strikes' => $strikeCount]);
+                if ($strikeCount >= ENV_GUARD_STRIKE_LIMIT) {
+                    self::addIpToBlacklist($ip, 3600, "Exceeded strike limit ({$strikeCount} offenses)");
+                    new ErrorLogger("IP заблокирован после {$strikeCount} нарушений", __FUNCTION__, 'botguard_ban', ['ip' => $ip]);
+                }
+            }
+            http_response_code($httpCode);
+            exit($httpCode === 429 ? 'Too Many Requests' : 'Access Denied');
         }
+    }
+
+    /**
+     * Вспомогательный метод для проверки User-Agent (вынесен из guard).
+     * @param string $userAgent
+     * @return bool
+     */
+    private static function isBadBot(string $userAgent): bool {
+        $botList = [];
+        if (self::$useRedis) {
+            try {
+                if (self::$redisClient && self::$redisClient->exists('ee_bad_bots_set')) {
+                    $botList = self::$redisClient->sMembers('ee_bad_bots_set');
+                }
+            } catch (\Exception $e) { /* fallback */
+            }
+        }
+
+        if (empty($botList)) {
+            $botList = self::$badBots;
+        }
+
+        foreach ($botList as $bot) {
+            if (stripos($userAgent, $bot) !== false) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -138,30 +327,91 @@ class BotGuard {
     }
 
     /**
-     * Проверяет, находится ли IP-адрес в чёрном списке
-     * Удаляет записи, у которых истёк срок блокировки
+     * Главный метод проверки IP в чёрном списке.
+     * Автоматически выбирает хранилище: Redis или БД.
      * @param string $ip IP-адрес для проверки
-     * @return bool Возвращает true, если IP в чёрном списке, иначе false
+     * @return bool
      */
     private static function isIpBlacklisted(string $ip): bool {
+        if (self::$useRedis) {
+            $res = self::_isBlacklistedRedis($ip);
+            SysClass::preFile('debugs', 'isIpBlacklisted', [self::$useRedis, $res], '_isBlacklistedRedis'); // TODO test            
+            return $res;
+        } else {
+            $res = self::_isBlacklistedDb($ip);
+            SysClass::preFile('debugs', 'isIpBlacklisted', [self::$useRedis, $res], '_isBlacklistedDb'); // TODO test
+            return $res;
+        }
+    }
+
+    /**
+     * Проверяет IP по чёрному списку, кешированному в Redis.
+     * @param string $ip
+     * @return bool
+     */
+    private static function _isBlacklistedRedis(string $ip): bool {
+        try {
+            $redis = (new \classes\system\CacheManager())->getRedisClient();
+            if (!$redis) {
+                return false;
+            }
+            // Проверяем наличие маркера. Если его нет - данные в Redis устарели.
+            if (!$redis->exists(self::$redisKeyBlacklistMarker)) {
+                self::_syncBlacklistToRedis($redis);
+            }
+            // Получаем весь список из Redis Set и проверяем IP
+            $blacklist = $redis->sMembers(self::$redisKeyIpBlacklist);
+            foreach ($blacklist as $range) {
+                if (self::ipInRange($ip, $range)) {
+                    return true;
+                }
+            }
+            return false;
+        } catch (\Exception $e) {
+            new \classes\system\ErrorLogger('Ошибка Redis при проверке черного списка IP: ' . $e->getMessage(), __FUNCTION__, 'botguard_redis');
+            return false; // При сбое Redis лучше пропустить, чем заблокировать
+        }
+    }
+
+    /**
+     * Синхронизирует актуальный чёрный список из БД в Redis.
+     * @param \Redis $redis Экземпляр клиента Redis
+     */
+    private static function _syncBlacklistToRedis(\Redis $redis): void {
+        $db = SafeMySQL::gi();
+        // Удаляем истёкшие записи в самой БД
+        $db->query("DELETE FROM ?n WHERE block_until < NOW()", Constants::IP_BLACKLIST_TABLE);
+        // Получаем актуальный список
+        $blacklistedIps = $db->getCol("SELECT ip_range FROM ?n", Constants::IP_BLACKLIST_TABLE);
+        // Перезаписываем данные в Redis
+        $redis->del(self::$redisKeyIpBlacklist); // Удаляем старый набор
+        if (!empty($blacklistedIps)) {
+            $redis->sAddArray(self::$redisKeyIpBlacklist, $blacklistedIps);
+        }
+        // Ставим маркер на 5 минут. Это значит, что список будет обновляться из БД не чаще, чем раз в 5 минут.
+        $redis->set(self::$redisKeyBlacklistMarker, time(), 300);
+    }
+
+    /**
+     * Проверяет IP по чёрному списку в Базе Данных
+     * @param string $ip
+     * @return bool
+     */
+    private static function _isBlacklistedDb(string $ip): bool {
         try {
             $db = SafeMySQL::gi();
-            // Удаляем истёкшие записи
-            $sqlDelete = "DELETE FROM ?n WHERE block_until < NOW()";
-            $db->query($sqlDelete, Constants::IP_BLACKLIST_TABLE);
-            // Получаем актуальный список заблокированных IP
-            $sqlSelect = "SELECT ip_range FROM ?n WHERE block_until >= NOW()";
-            $blacklistedIps = $db->getCol($sqlSelect, Constants::IP_BLACKLIST_TABLE);
+            $db->query("DELETE FROM ?n WHERE block_until < NOW()", Constants::IP_BLACKLIST_TABLE);
+            $blacklistedIps = $db->getCol("SELECT ip_range FROM ?n", Constants::IP_BLACKLIST_TABLE);
             if (!empty($blacklistedIps)) {
+                $trimmedIp = trim($ip);
                 foreach ($blacklistedIps as $blacklistedIp) {
-                    if (self::ipInRange($ip, $blacklistedIp)) {
+                    if (self::ipInRange($trimmedIp, trim($blacklistedIp))) {
                         new \classes\system\ErrorLogger(
-                                'IP-адрес в чёрном списке',
+                                'IP-адрес найден в чёрном списке (DB)',
                                 __FUNCTION__,
-                                'botguard',
-                                ['ip' => $ip, 'blacklistedIp' => $blacklistedIp]
+                                'botguard_info',
+                                ['ip' => $ip, 'matched_range' => $blacklistedIp]
                         );
-                        \classes\system\Session::clearKeysByPattern('botguard_%');
                         return true;
                     }
                 }
@@ -169,7 +419,7 @@ class BotGuard {
             return false;
         } catch (\Exception $e) {
             new \classes\system\ErrorLogger(
-                    'Ошибка проверки чёрного списка IP: ' . $e->getMessage(),
+                    'Ошибка DB при проверке черного списка IP: ' . $e->getMessage(),
                     __FUNCTION__,
                     'botguard',
                     ['ip' => $ip, 'trace' => $e->getTraceAsString()]
@@ -185,21 +435,43 @@ class BotGuard {
      * @return bool Возвращает true, если IP принадлежит диапазону, иначе false
      */
     private static function ipInRange(string $ip, string $range): bool {
+        // 1. Преобразуем IP в число ОДИН РАЗ в начале и проверяем корректность
+        $ipAsLong = ip2long($ip);
+        if ($ipAsLong === false) {
+            return false; // Некорректный IP-адрес
+        }
+        // 2. Проверка диапазона "начало-конец"
         if (strpos($range, '-') !== false) {
             list($startIp, $endIp) = explode('-', $range, 2);
             $startIp = ip2long(trim($startIp));
             $endIp = ip2long(trim($endIp));
-            $ip = ip2long($ip);
-            return $ip >= $startIp && $ip <= $endIp;
+            // Проверяем, что диапазон корректен
+            if ($startIp === false || $endIp === false) {
+                return false;
+            }
+            return $ipAsLong >= $startIp && $ipAsLong <= $endIp;
         }
+        // 3. Проверка CIDR-диапазона
         if (strpos($range, '/') !== false) {
             list($subnet, $mask) = explode('/', $range, 2);
-            $subnet = ip2long($subnet);
-            $ip = ip2long($ip);
+            $subnet = ip2long(trim($subnet));
+            $mask = (int) $mask;
+            // Проверяем, что подсеть корректна
+            if ($subnet === false || $mask < 0 || $mask > 32) {
+                return false;
+            }
             $wildcard = (1 << (32 - $mask)) - 1;
             $netmask = ~$wildcard;
-            return ($ip & $netmask) === ($subnet & $netmask);
+            return ($ipAsLong & $netmask) === ($subnet & $netmask);
         }
+        // 4. Проверка на точное совпадение
+        // TODO test
+        new \classes\system\ErrorLogger(
+                'Результат сравнения',
+                __FUNCTION__,
+                'botguard_info',
+                ['ip_range' => $range, 'ip' => $ip, 'reason' => $ip === $range]
+        );
         return $ip === $range;
     }
 
@@ -252,27 +524,31 @@ class BotGuard {
     }
 
     /**
-     * Добавляет IP-адрес или диапазон в чёрный список, если он ещё не заблокирован
-     * @param string $ipRange IP-адрес или диапазон (например, "192.168.1.1" или "10.0.0.0/24")
-     * @param int $blockDuration Время блокировки в секундах (по умолчанию 24 часа)
-     * @param string|null $reason Причина блокировки (опционально)
-     * @return bool Возвращает true в случае успеха или если IP уже заблокирован, false при ошибке
+     * Добавляет IP-адрес или диапазон в чёрный список
+     * Теперь также немедленно обновляет кэш в Redis
+     * @param string $ipRange IP-адрес или диапазон
+     * @param int $blockDuration Время блокировки в секундах
+     * @param string|null $reason Причина блокировки
+     * @return bool
      */
     public static function addIpToBlacklist(string $ipRange, int $blockDuration = 86400, ?string $reason = null): bool {
         try {
             $db = SafeMySQL::gi();
-
             // Проверяем, существует ли активная запись для этого IP
             $sqlCheck = "SELECT COUNT(*) FROM ?n WHERE ip_range = ?s AND block_until > NOW()";
             $exists = $db->getOne($sqlCheck, Constants::IP_BLACKLIST_TABLE, $ipRange);
-
             if ($exists) {
-                return true; // IP уже заблокирован, считаем это успешным результатом
+                return true; // IP уже заблокирован
             }
-            // Добавляем новую запись
+            // Добавляем новую запись в БД
             $blockUntil = date('Y-m-d H:i:s', time() + $blockDuration);
             $sqlInsert = "INSERT INTO ?n (ip_range, block_until, reason) VALUES (?s, ?s, ?s)";
-            $db->query($sqlInsert, Constants::IP_BLACKLIST_TABLE, $ipRange, $blockUntil, $reason);
+            $resDb = $db->query($sqlInsert, Constants::IP_BLACKLIST_TABLE, $ipRange, $blockUntil, $reason);
+            // TODO TEST
+            SysClass::preFile('addIpToBlacklist', 'addIpToBlacklist', $db->parse($sqlInsert, Constants::IP_BLACKLIST_TABLE, $ipRange, $blockUntil, $reason), $resDb);
+            if (self::$useRedis && self::$redisClient) {
+                self::$redisClient->sAdd(self::$redisKeyIpBlacklist, $ipRange);
+            }
             new \classes\system\ErrorLogger(
                     'IP успешно добавлен в чёрный список',
                     __FUNCTION__,
@@ -288,6 +564,92 @@ class BotGuard {
                     ['ip_range' => $ipRange, 'trace' => $e->getTraceAsString()]
             );
             return false;
+        }
+    }
+
+    /**
+     * Скачивает и обновляет локальный JSON-файл со списком плохих ботов
+     * Этот метод предназначен для вызова по расписанию (cron) раз в сутки
+     * @return array Массив с результатом операции
+     */
+    public static function updateBadBotList(): array {
+        $sourceUrl = 'https://raw.githubusercontent.com/mitchellkrogza/nginx-ultimate-bad-bot-blocker/master/_generator_lists/bad-user-agents.list';
+        $destinationFile = ENV_TMP_PATH . 'bad_bots.json';
+        $options = ['http' => ['method' => 'GET', 'header' => 'User-Agent: BotGuard-Updater/1.0']];
+        $context = stream_context_create($options);
+        $content = @file_get_contents($sourceUrl, false, $context);
+        if ($content === false) {
+            $message = 'Не удалось скачать список ботов с GitHub.';
+            new \classes\system\ErrorLogger($message, __FUNCTION__, 'botguard_update');
+            return ['status' => 'error', 'message' => $message];
+        }
+        $lines = explode("\n", $content);
+        $badBotsArray = [];
+        foreach ($lines as $line) {
+            $trimmedLine = trim($line);
+            if (!empty($trimmedLine) && $trimmedLine[0] !== '#') {
+                $badBotsArray[] = $trimmedLine;
+            }
+        }
+        if (empty($badBotsArray)) {
+            $message = 'Не удалось обработать список, получен пустой массив.';
+            new \classes\system\ErrorLogger($message, __FUNCTION__, 'botguard_update');
+            return ['status' => 'error', 'message' => $message];
+        }
+        file_put_contents($destinationFile, json_encode(array_values($badBotsArray), JSON_PRETTY_PRINT));
+        return ['status' => 'success', 'count' => count($badBotsArray)];
+    }
+
+    /**
+     * Увеличивает счётчик нарушений для IP и возвращает текущее количество.
+     * @param string $ip
+     * @return int
+     */
+    private static function incrementOffenseCounter(string $ip): int {
+        if (self::$useRedis) {
+            return self::_incrementOffenseRedis($ip);
+        } else {
+            return self::_incrementOffenseDb($ip);
+        }
+    }
+
+    /**
+     * Увеличивает счётчик нарушений в Redis.
+     * @param string $ip
+     * @return int
+     */
+    private static function _incrementOffenseRedis(string $ip): int {
+        try {
+            $key = 'offense_count:' . $ip;
+            $count = self::$redisClient->incr($key);
+            // При первом нарушении устанавливаем время жизни счетчика
+            if ($count === 1) {
+                self::$redisClient->expire($key, ENV_GUARD_STRIKE_TTL);
+            }
+            return $count;
+        } catch (\Exception $e) {
+            return 1; // В случае сбоя не эскалируем
+        }
+    }
+
+    /**
+     * Увеличивает счётчик нарушений в БД.
+     * @param string $ip
+     * @return int
+     */
+    private static function _incrementOffenseDb(string $ip): int {
+        try {
+            $db = SafeMySQL::gi();
+            // Сбрасываем счетчик, если последняя попытка была давно
+            $sql = "INSERT INTO ?n (ip, last_offense_at) VALUES(?s, NOW())
+                    ON DUPLICATE KEY UPDATE 
+                    strike_count = IF(last_offense_at < NOW() - INTERVAL ?i SECOND, 1, strike_count + 1),
+                    last_offense_at = NOW()";
+            $db->query($sql, Constants::IP_OFFENSES_TABLE, $ip, ENV_GUARD_STRIKE_TTL);
+
+            return (int) $db->getOne("SELECT strike_count FROM ?n WHERE ip = ?s", Constants::IP_OFFENSES_TABLE, $ip);
+        } catch (\Exception $e) {
+            return 1; // В случае сбоя не эскалируем
         }
     }
 }

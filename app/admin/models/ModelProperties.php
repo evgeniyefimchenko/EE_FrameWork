@@ -4,6 +4,7 @@ use classes\plugins\SafeMySQL;
 use classes\system\Constants;
 use classes\system\SysClass;
 use classes\system\Hook;
+use classes\system\ErrorLogger;
 
 /**
  * Модель работы со свойствами
@@ -58,7 +59,7 @@ class ModelProperties {
             $sql_properties = "SELECT property_id FROM ?n WHERE $whereString ORDER BY $orderString LIMIT ?i, ?i";
         } else {
             $sql_properties = "SELECT property_id FROM ?n WHERE $whereString LIMIT ?i, ?i";
-        }        
+        }
         $res_array = SafeMySQL::gi()->getAll($sql_properties, Constants::PROPERTIES_TABLE, $languageCode, $start, $limit);
         $res = [];
         foreach ($res_array as $property) {
@@ -114,7 +115,7 @@ class ModelProperties {
     public function getTypeIdByPropertyId(int $propertyId): ?int {
         return SafeMySQL::gi()->getOne('SELECT type_id FROM ?n WHERE property_id = ?i', Constants::PROPERTIES_TABLE, $propertyId);
     }
-    
+
     /**
      * Обновляет данные свойства в таблице свойств
      * @param array $propertyData Ассоциативный массив с данными свойства для обновления
@@ -151,9 +152,9 @@ class ModelProperties {
         }
         // Проверяем уникальность имени в рамках одного типа и языка
         $existingProperty = SafeMySQL::gi()->getRow(
-                "SELECT property_id FROM ?n WHERE name = ?s AND type_id = ?i AND language_code = ?s",
-                Constants::PROPERTIES_TABLE,
-                $propertyData['name'], $propertyData['type_id'], $languageCode
+            "SELECT property_id FROM ?n WHERE name = ?s AND type_id = ?i AND language_code = ?s",
+            Constants::PROPERTIES_TABLE,
+            $propertyData['name'], $propertyData['type_id'], $languageCode
         );
         if ($existingProperty) {
             $message = 'Error: existingProperty';
@@ -226,7 +227,7 @@ class ModelProperties {
         }
         return $typeData;
     }
-    
+
     /**
      * Используется ли тип свойства у любого свойства
      * @param int $typeId
@@ -237,7 +238,7 @@ class ModelProperties {
         $result = SafeMySQL::gi()->getOne($sql, Constants::PROPERTIES_TABLE, $typeId) ? true : false;
         return $result;
     }
-    
+
     /**
      * Используется ли свойство в каком то наборе свойств
      * @param int $propertyId
@@ -248,7 +249,7 @@ class ModelProperties {
         $result = SafeMySQL::gi()->getOne($sql, Constants::PROPERTY_SET_TO_PROPERTIES_TABLE, $propertyId) ? true : false;
         return $result;
     }
-    
+
     /**
      * Используется ли набор свойств в любом типе категорий
      * @param int $setId
@@ -259,7 +260,7 @@ class ModelProperties {
         $result = SafeMySQL::gi()->getOne($sql, Constants::CATEGORY_TYPE_TO_PROPERTY_SET_TABLE, $setId) ? true : false;
         return $result;
     }
-    
+
     /**
      * Обновляет данные типа свойства в таблице типов свойств
      * @param array $propertyTypeData Ассоциативный массив с данными типа свойства для обновления
@@ -272,7 +273,7 @@ class ModelProperties {
         $propertyTypeData['language_code'] = $languageCode;  // добавлено
         if (empty($propertyTypeData['name'])) {
             return false;
-        }        
+        }
         if (!empty($propertyTypeData['type_id']) && $propertyTypeData['type_id'] != 0) {
             $typeId = $propertyTypeData['type_id'];
             if ($this->isExistPropertiesWithType($typeId) && !empty($propertyTypeData['fields'])) {
@@ -391,12 +392,12 @@ class ModelProperties {
      * @param int $setId ID набора свойств, для которого нужно получить данные
      * @return array|null Массив с данными набора свойств или NULL, если набор свойств не найден
      */
-    public function getPropertySetData(int $setId): bool|array {
+    public function getPropertySetData(int $setId, string $languageCode = ENV_DEF_LANG): bool|array {
         // Получаем основные данные набора свойств
         $sql_set = 'SELECT * FROM ?n WHERE set_id = ?i';
         $setData = SafeMySQL::gi()->getRow($sql_set, Constants::PROPERTY_SETS_TABLE, $setId);
         if (!$setData) {
-            return null;
+            return false;
         }
         // Получаем свойства, связанные с этим набором
         $sql_properties = '
@@ -416,7 +417,7 @@ class ModelProperties {
      * @param string $languageCode Код языка в формате ISO 3166-2. По умолчанию используется значение ENV_DEF_LANG
      * @return int|bool ID обновленного набора свойств или false в случае неудачи
      */
-    public function updatePropertySetData(array $propertySetData = [], string $languageCode = ENV_DEF_LANG): int|bool {
+    public function updatePropertySetData(array $propertySetData = [], string $languageCode = ENV_DEF_LANG): int|bool {        
         // Фильтруем данные по полям таблицы набора свойств
         $propertySetData = SafeMySQL::gi()->filterArray($propertySetData, SysClass::ee_getFieldsTable(Constants::PROPERTY_SETS_TABLE));
         $propertySetData = array_map('trim', $propertySetData);
@@ -445,7 +446,7 @@ class ModelProperties {
         );
         // Если такой набор уже существует, возвращаем false
         if ($existingSet) {
-            return false;
+            return new ErrorLogger('Набор уже существует, измените имя!', __FUNCTION__, 'PropertySet_validation', $existingSet);
         }
         // Вставляем новую запись
         $sql = "INSERT INTO ?n SET ?u";
@@ -511,6 +512,9 @@ class ModelProperties {
      * @param array $selectedProperties Массив с ID свойств
      */
     public function addPropertiesToSet(int $setId, array $selectedProperties): void {
+        if (empty($selectedProperties)) {
+            return;
+        }
         foreach ($selectedProperties as $propertyId) {
             $insertQuery = "INSERT INTO ?n (set_id, property_id) VALUES (?i, ?i)";
             SafeMySQL::gi()->query($insertQuery, Constants::PROPERTY_SET_TO_PROPERTIES_TABLE, $setId, $propertyId);
@@ -557,18 +561,38 @@ class ModelProperties {
     }
 
     /**
-     * Удалит все значения свойств сущности
-     * @param int $entityIds Идентификатор сущности, для которой требуется получить свойства
-     * @param string $entityType Тип сущности ('category', 'entity' и т.д.)
-     * @param string $languageCode Код языка, по умолчанию 'RU'
-     * @return array Возвращает массив значений свойств для сущности или пустой массив, если свойства не найдены
+     * Удаляет все значения свойств для указанных сущностей(и) одного типа и языка
+     * @param int|array $entityIds Идентификатор(ы) сущности
+     * @param string $entityType Тип сущности ('category', 'page' и тд)
+     * @param string $languageCode Код языка (по умолчанию ENV_DEF_LANG)
+     * @return array|ErrorLogger Возвращает пустой массив в случае успеха или объект ErrorLogger с информацией об ошибке
      */
-    public function deleteAllpropertiesValuesEntity(int|array $entityIds, string $entityType, string $languageCode = ENV_DEF_LANG): void {
+    public function deleteAllpropertiesValuesEntity(int|array $entityIds, string $entityType, string $languageCode = ENV_DEF_LANG): array|ErrorLogger {
         if (!is_array($entityIds)) {
             $entityIds = [$entityIds];
         }
-        $sql = 'DELETE FROM ?n WHERE entity_id IN (?a) AND entity_type = ?s AND language_code = ?s';
-        SafeMySQL::gi()->query($sql, Constants::PROPERTY_VALUES_TABLE, $entityIds, $entityType, $languageCode);
+        $entityIds = array_filter(array_map('intval', $entityIds), fn($id) => $id > 0);
+        if (empty($entityIds)) {
+            return new ErrorLogger('Не переданы валидные ID сущностей', __FUNCTION__, 'deleteProperties');
+        }
+        if (empty(trim($entityType))) {
+            return new ErrorLogger('Не указан тип сущности', __FUNCTION__, 'deleteProperties');
+        }
+        if (empty(trim($languageCode))) {
+            return new ErrorLogger('Не указан код языка', __FUNCTION__, 'deleteProperties');
+        }
+        try {
+            $sql = 'DELETE FROM ?n WHERE entity_id IN (?a) AND entity_type = ?s AND language_code = ?s';
+            $result = SafeMySQL::gi()->query($sql, Constants::PROPERTY_VALUES_TABLE, $entityIds, $entityType, $languageCode);
+            return [];
+        } catch (\Throwable $e) {
+            return new ErrorLogger('Исключение при удалении свойств: ' . $e->getMessage(), __FUNCTION__, 'deleteProperties', [
+                'entityIds' => $entityIds,
+                'entityType' => $entityType,
+                'languageCode' => $languageCode,
+                'exception' => $e
+            ]);
+        }
     }
 
     /**
@@ -583,12 +607,11 @@ class ModelProperties {
         $propertyData = SysClass::ee_trimArrayValues($propertyData);
         $propertyData['language_code'] = $languageCode;
         // Проверка наличия и валидность ключевых полей
-        if (empty($propertyData['entity_id']) || empty($propertyData['property_id']) || empty($propertyData['entity_type']) 
-                || empty($propertyData['property_values']) || empty($propertyData['set_id'])) {
+        if (empty($propertyData['entity_id']) || empty($propertyData['property_id']) || empty($propertyData['entity_type']) || empty($propertyData['property_values']) || empty($propertyData['set_id'])) {
             return false; // Все ключевые поля обязательны
-        }        
+        }
         // Если свойство не предназначено для типа сущности то выходим
-        $propEntityType = SafeMySQL::gi()->getOne('SELECT entity_type FROM ?n WHERE property_id = ?i', Constants::PROPERTIES_TABLE, $propertyData['property_id']); 
+        $propEntityType = SafeMySQL::gi()->getOne('SELECT entity_type FROM ?n WHERE property_id = ?i', Constants::PROPERTIES_TABLE, $propertyData['property_id']);
         if ($propertyData['entity_type'] !== $propEntityType && $propEntityType !== 'all') {
             return false;
         }
@@ -620,7 +643,7 @@ class ModelProperties {
         Hook::run('postUpdatePropertiesValueEntities', $valueId, $propertyData, $action);
         return !empty($valueId) ? $valueId : false;
     }
-    
+
     /**
      * Записывает дефолтные значения сущности в её текущие
      * @param string $entityType Тип сущности 'category', 'page'
@@ -647,6 +670,23 @@ class ModelProperties {
                     $this->updatePropertiesValueEntities($propertyData);
                 }
             }
-        }        
+        }
+    }
+
+    /**
+     * Удаляет связи между набором и конкретными свойствами
+     * @param int   $setId        ID набора свойств
+     * @param array $propertyIds  Массив ID свойств для удаления из набора
+     */
+    public function deletePropertiesFromSet(int $setId, array $propertyIds): void {
+        if (empty($propertyIds)) {
+            return;
+        }
+        SafeMySQL::gi()->query(
+                "DELETE FROM ?n WHERE set_id = ?i AND property_id IN (?a)",
+                Constants::PROPERTY_SET_TO_PROPERTIES_TABLE,
+                $setId,
+                $propertyIds
+        );
     }
 }

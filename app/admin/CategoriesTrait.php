@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * Евгений Ефимченко, efimchenko.com
+ * Обеспечивает функциональность админ-панели для управления категориями, включая операции CRUD и обработку AJAX.
+ * /app/admin/CategoriesTrait.php
+ */
+
 namespace app\admin;
 
 use classes\system\SysClass;
@@ -38,8 +44,10 @@ trait CategoriesTrait {
 
     /**
      * Добавить или редактировать категорию
+     * @param array $params
+     * @return void
      */
-    public function category_edit($params) {
+    public function category_edit($params = []) {
         $this->access = [Constants::ADMIN, Constants::MODERATOR];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect(200, '/show_login_form?return=admin/categories');
@@ -52,7 +60,7 @@ trait CategoriesTrait {
             'description' => '',
             'short_description' => '',
             'parent_id' => 0,
-            'status' => '',
+            'status' => 'active', // Устанавливаем активный по умолчанию для формы
             'created_at' => '',
             'updated_at' => '',
             'parent_title' => '',
@@ -61,58 +69,73 @@ trait CategoriesTrait {
             'category_path' => '',
             'category_path_text' => '',
         ];
-        /* model */
-        $this->loadModel('m_categories_types');
-        $this->loadModel('m_categories');
-        $postData = SysClass::ee_cleanArray($_POST);
+        $categoryId = 0;
         if (in_array('id', $params)) {
             $keyId = array_search('id', $params);
             if ($keyId !== false && isset($params[$keyId + 1])) {
                 $categoryId = filter_var($params[$keyId + 1], FILTER_VALIDATE_INT);
-            } else {
-                $categoryId = 0;
             }
-            $newEntity = empty($categoryId) ? true : false;
-            if (isset($postData['title']) && $postData['title']) {
-                // Сохранение основных данных
+        }
+        if (!$categoryId)
+            $categoryId = 0;
+        $newEntity = empty($categoryId);
+        $this->loadModel('m_categories_types');
+        $this->loadModel('m_categories');
+        $postData = SysClass::ee_cleanArray($_POST);
+        if (!empty($postData) && isset($postData['title'])) {
+            if (!$newEntity) {
+                $postData['category_id'] = $categoryId;
+            }
+            if (isset($postData['description'])) {
                 $postData['description'] = \classes\system\FileSystem::extractBase64Images($postData['description']);
-                if (!$new_id = $this->models['m_categories']->updateCategoryData($postData)) {
-                    ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
-                } else {
-                    $categoryId = $new_id;
-                }
+            }
+            $result = $this->models['m_categories']->updateCategoryData($postData, $postData['language_code'] ?? ENV_DEF_LANG);
+            if (is_object($result) && $result instanceof ErrorLogger) {
+                $errorMessage = $result->result['error_message'] ?? 'Ошибка сохранения категории';
+                ClassNotifications::addNotificationUser($this->logged_in, ['text' => $errorMessage, 'status' => 'danger']);
+            } else if (is_int($result) && $result > 0) {
+                $categoryId = $result;
+                $newEntity = false;
+                ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.saved'] ?? 'Категория сохранена', 'status' => 'success']);
+
                 $this->saveFileProperty($postData);
-                // Сохранение свойств для категории
                 if (isset($postData['property_data']) && is_array($postData['property_data']) && !empty($postData['property_data_changed'])) {
                     $this->processPropertyData($postData['property_data']);
                 }
+                $this->processPostParams($postData, $newEntity, $categoryId);
+            } else {
+                ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Произошла неизвестная ошибка при сохранении', 'status' => 'danger']);
+                new ErrorLogger('Неожиданный результат от ModelCategories::updateCategoryData', __FUNCTION__, 'category_edit', ['result' => $result]);
             }
-            $this->processPostParams($postData, $newEntity, $categoryId);
-            $getCategoryData = ((int) $categoryId ? $this->models['m_categories']->getCategoryData($categoryId) : null) ?: $defaultData;
-        } else { // Не передан ключевой параметр id
-            SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/category_edit/id/');
+        }
+        $getCategoryData = ($categoryId > 0 ? $this->models['m_categories']->getCategoryData($categoryId) : null) ?: $defaultData;
+        if (empty($this->models['m_categories'])) {
+            $this->loadModel('m_categories');
+        }
+        if (empty($this->models['m_categories_types'])) {
+            $this->loadModel('m_categories_types');
         }
         $categories_tree = $this->models['m_categories']->getCategoriesTree($categoryId);
         $fullCategoriesTree = $this->models['m_categories']->getCategoriesTree();
-        $categoryPages = $this->models['m_categories']->getCategoryPages($categoryId);
-        $getCategoriesTypeSets = $this->models['m_categories_types']->getCategoriesTypeSetsData($getCategoryData['type_id']);
+        $categoryPages = ($categoryId > 0) ? $this->models['m_categories']->getCategoryPages($categoryId) : [];
+        $currentTypeId = $getCategoryData['type_id'] ?? 0;
+        $parentCategoryId = $getCategoryData['parent_id'] ?? 0;
+        $getCategoriesTypeSets = ($currentTypeId > 0) ? $this->models['m_categories_types']->getCategoriesTypeSetsData($currentTypeId) : [];
         $getAllTypes = [];
-        if (isset($getCategoryData['parent_id']) && $getCategoryData['parent_id']) {
-            // Есть родитель, можно выбрать только его тип или подчинённый
-            $parentTypeId = $this->models['m_categories']->getCategoryTypeId($getCategoryData['parent_id']);
-            $getAllTypes = $this->models['m_categories_types']->getAllTypes(false, false, $parentTypeId);
-        } elseif (isset($getCategoryData['type_id']) && $getCategoryData['type_id']) {
-            // Если нет родителя то можно выбрать любой тип категории
-            $getAllTypes = $this->models['m_categories_types']->getAllTypes(false, false);
+        if ($parentCategoryId > 0) {
+            $parentTypeId = $this->models['m_categories']->getCategoryTypeId($parentCategoryId);
+            if (method_exists($this->models['m_categories_types'], 'getAllTypes')) {
+                $getAllTypes = $this->models['m_categories_types']->getAllTypes(false, false, $parentTypeId);
+            }
         } else {
-            $getAllTypes = $this->models['m_categories_types']->getAllTypes(false, false);
+            if (method_exists($this->models['m_categories_types'], 'getAllTypes')) {
+                $getAllTypes = $this->models['m_categories_types']->getAllTypes(false, false);
+            }
         }
         $getCategoriesTypeSetsData = [];
-        if (count($getCategoriesTypeSets) && $getCategoryData) {
-            $getCategoriesTypeSetsData = $this->formattingEntityProperties($getCategoriesTypeSets, $categoryId, 'category', $getCategoryData['title']);
+        if (!empty($getCategoriesTypeSets) && $categoryId > 0) {
+            $getCategoriesTypeSetsData = $this->formattingEntityProperties($getCategoriesTypeSets, $categoryId, 'category', $getCategoryData['title'] ?? '');
         }
-
-        /* view */
         $this->view->set('categoryData', $getCategoryData);
         $this->view->set('categories_tree', $categories_tree);
         $this->view->set('fullCategoriesTree', $fullCategoriesTree);
@@ -122,31 +145,13 @@ trait CategoriesTrait {
         $this->getStandardViews();
         $this->view->set('body_view', $this->view->read('v_edit_category'));
         $this->html = $this->view->read('v_dashboard');
-        /* layouts */
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
         $this->addEditorToLayout();
         $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/func_properties.js" type="text/javascript" /></script>';
         $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/edit_categories.js" type="text/javascript" /></script>';
-        $this->parameters_layout["title"] = $this->lang['sys.categories_edit'];
+        $this->parameters_layout["title"] = $getCategoryData['title'] ? ($this->lang['sys.category_edit'] ?? 'Редактирование категории' . ': ' . $getCategoryData['title']) : ($this->lang['sys.category_add'] ?? 'Добавление категории');
         $this->showLayout($this->parameters_layout);
-    }
-
-    /**
-     * Обрабатывает POST-данные и выполняет редирект на чистую страницу, чтобы избежать повторной отправки данных при обновлении страницы (F5)
-     * Если POST-данные не пусты, функция выполняет редирект:
-     * - Если $newEntity равно false, редирект происходит на текущий URI
-     * - Если $newEntity равно true, редирект происходит на путь контроллера с добавлением действия и идентификатора сущности
-     * @param array $postData Массив POST-данных, которые необходимо обработать
-     * @param bool $newEntity Флаг, указывающий, создается ли новая сущность (true) или редактируется существующая (false)
-     * @param int $entityId Идентификатор сущности, который будет добавлен в URL при редиректе (если $newEntity равно true)
-     * @return void
-     */
-    public function processPostParams(array $postData, bool $newEntity, int $entityId): void {
-        if (!empty($postData)) {
-            !$newEntity ? SysClass::handleRedirect(200, __REQUEST['_SERVER']['REQUEST_URI']) :
-                            SysClass::handleRedirect(200, $this->getPathController(true) . '/' . ENV_CONTROLLER_ACTION . '/id/' . $entityId);
-        }
     }
 
     /**
@@ -213,6 +218,8 @@ trait CategoriesTrait {
 
     /**
      * Удаление категории
+     * @param array $params
+     * @return void
      */
     public function category_delete($params = []) {
         $this->access = [Constants::ADMIN, Constants::MODERATOR];
@@ -220,23 +227,28 @@ trait CategoriesTrait {
             SysClass::handleRedirect();
             exit();
         }
-        /* model */
-        $this->loadModel('m_categories');
+        $categoryId = 0;
         if (in_array('id', $params)) {
             $keyId = array_search('id', $params);
             if ($keyId !== false && isset($params[$keyId + 1])) {
                 $categoryId = filter_var($params[$keyId + 1], FILTER_VALIDATE_INT);
-            } else {
-                $categoryId = 0;
             }
-            $res = $this->models['m_categories']->deleteСategory($categoryId);
-            if (isset($res['error'])) {
-                ClassNotifications::addNotificationUser($this->logged_in, ['text' => $res['error'], 'status' => 'danger']);
+        }
+        if ($categoryId > 0) {
+            $this->loadModel('m_categories');
+            if (empty($this->models['m_categories'])) {
+                ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Ошибка загрузки модели категорий', 'status' => 'danger']);
             } else {
-                $this->loadModel('m_properties');
-                $this->models['m_properties']->deleteAllpropertiesValuesEntity($categoryId, 'category');
-                ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.removed'], 'status' => 'success']);
+                $res = $this->models['m_categories']->deleteCategory($categoryId);
+                if (is_object($res) && $res instanceof ErrorLogger) {
+                    $errorMessage = $res->result['error_message'] ?? 'Произошла ошибка при удалении категории';
+                    ClassNotifications::addNotificationUser($this->logged_in, ['text' => $errorMessage, 'status' => 'danger']);
+                } else {
+                    ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.removed'] ?? 'Категория успешно удалена', 'status' => 'success']);
+                }
             }
+        } else {
+            ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Некорректный или отсутствующий ID категории', 'status' => 'warning']);
         }
         SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/categories');
     }

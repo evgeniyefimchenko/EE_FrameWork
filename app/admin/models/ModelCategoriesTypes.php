@@ -35,7 +35,7 @@ class ModelCategoriesTypes {
         } elseif ($excludeTypeID > 0) {
             // Исключаем указанный тип и его потомков
             $types = $this->excludeTypeAndDescendants($types, $excludeTypeID);
-        }        
+        }
         return $flatArray ? $types : $this->buildHierarchyType($types);
     }
 
@@ -242,7 +242,7 @@ class ModelCategoriesTypes {
      * @param string $languageCode Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG
      * @return int|bool ID нового или обновленного типа или false в случае ошибки
      */
-    public function updateCategoriesTypeData(array $typeData = [], string $languageCode = ENV_DEF_LANG):bool|int {
+    public function updateCategoriesTypeData(array $typeData = [], string $languageCode = ENV_DEF_LANG): bool|int {
         $typeData = SafeMySQL::gi()->filterArray($typeData, SysClass::ee_getFieldsTable(Constants::CATEGORIES_TYPES_TABLE));
         $typeData = array_map('trim', $typeData);
         $typeData['language_code'] = $languageCode;
@@ -297,7 +297,7 @@ class ModelCategoriesTypes {
      * @param int $type_id
      * @return string|bool
      */
-    public function getNameCategoriesType(int $type_id, string $languageCode = ENV_DEF_LANG):string|bool {
+    public function getNameCategoriesType(int $type_id, string $languageCode = ENV_DEF_LANG): string|bool {
         $sql = 'SELECT name FROM ?n WHERE type_id = ?i AND language_code = ?s';
         return SafeMySQL::gi()->getOne($sql, Constants::CATEGORIES_TYPES_TABLE, $type_id, $languageCode);
     }
@@ -307,11 +307,11 @@ class ModelCategoriesTypes {
      * @param string $name
      * @return string|bool
      */
-    public function getIdCategoriesTypeByName(string $name, string $languageCode = ENV_DEF_LANG):string|bool {
+    public function getIdCategoriesTypeByName(string $name, string $languageCode = ENV_DEF_LANG): string|bool {
         $sql = 'SELECT type_id FROM ?n WHERE name = ?s AND language_code = ?s';
-        return SafeMySQL::gi()->getOne($sql, Constants::CATEGORIES_TYPES_TABLE, $name, $languageCode);        
+        return SafeMySQL::gi()->getOne($sql, Constants::CATEGORIES_TYPES_TABLE, $name, $languageCode);
     }
-    
+
     /**
      * Вернёт все наборы свойств привязанные к типу категории
      * @param int $typeIds - Типы категорий
@@ -370,11 +370,11 @@ class ModelCategoriesTypes {
     }
 
     /**
-    * Получает список идентификаторов категорий по заданным идентификаторам типов
-    * @param int|array $typeIds Идентификатор типа или массив идентификаторов типов
-    * @param string $languageCode Код языка в формате ISO 3166-2. По умолчанию используется значение ENV_DEF_LANG
-    * @return array Массив идентификаторов категорий, соответствующих заданным типам и языку
-    */
+     * Получает список идентификаторов категорий по заданным идентификаторам типов
+     * @param int|array $typeIds Идентификатор типа или массив идентификаторов типов
+     * @param string $languageCode Код языка в формате ISO 3166-2. По умолчанию используется значение ENV_DEF_LANG
+     * @return array Массив идентификаторов категорий, соответствующих заданным типам и языку
+     */
     public function getAllCategoriesByType(int|array $typeIds, $languageCode = ENV_DEF_LANG): array {
         if (!is_array($typeIds)) {
             $typeIds = [$typeIds];
@@ -382,7 +382,7 @@ class ModelCategoriesTypes {
         $sql = 'SELECT category_id FROM ?n WHERE type_id IN (?a) AND language_code = ?s';
         return SafeMySQL::gi()->getCol($sql, Constants::CATEGORIES_TABLE, $typeIds, $languageCode);
     }
-    
+
     /**
      * Получает данные, связывающие категории, наборы свойств и страниц на основе заданных идентификаторов наборов свойств
      * @param array  $setIds Массив идентификаторов наборов свойств (set_id)
@@ -398,4 +398,14 @@ class ModelCategoriesTypes {
         return $result;
     }
 
+    /**
+     * Находит все типы категорий, которые используют указанный набор свойств
+     */
+    public function getCategoryTypeIdsBySet(int $setId): array {
+        return SafeMySQL::gi()->getCol(
+                        "SELECT type_id FROM ?n WHERE set_id = ?i",
+                        Constants::CATEGORY_TYPE_TO_PROPERTY_SET_TABLE,
+                        $setId
+                );
+    }
 }

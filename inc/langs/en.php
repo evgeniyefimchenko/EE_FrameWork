@@ -1,7 +1,10 @@
 <?php
+
 /**
-* System words
-*/
+ * Евгений Ефимченко, efimchenko.com
+ * Содержит языковые строки для английской локализации интерфейса EE_FrameWork.
+ * /inc/langs/EN.php
+ */
 $lang = [];
 $lang['sys.general'] = 'General';
 $lang['sys.email'] = 'Email';
@@ -70,6 +73,7 @@ $lang['sys.heading'] = 'Heading';
 $lang['sys.date'] = 'Date';
 $lang['sys.time'] = 'Time';
 $lang['sys.edit'] = 'Edit';
+$lang['sys.used'] = 'Used';
 $lang['sys.delete'] = 'Delete';
 $lang['sys.save'] = 'Save';
 $lang['sys.delete_all'] = 'Delete everything';
@@ -171,4 +175,13 @@ $lang['sys.enter_body'] = 'Enter body';
 $lang['sys.preview'] = 'Preview';
 $lang['sys.error'] = 'Error';
 $lang['sys.removed'] = 'Removed';
+
+$lang['search.title'] = 'Control Panel Search';
+$lang['search.breadcrumb_results'] = 'Search Results';
+$lang['search.you_searched_for'] = 'You searched for';
+$lang['search.results_found'] = 'Results found';
+$lang['search.results_list_title'] = 'List of Found Materials';
+$lang['search.result_relevance'] = 'Relevance';
+$lang['search.no_results_found'] = 'Nothing was found for your query. Try changing the wording.';
+$lang['search.enter_query'] = 'Please enter a search query in the form above.';
 return $lang;

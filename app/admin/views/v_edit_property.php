@@ -35,7 +35,7 @@
                                            value="<?= $propertyData['name'] ?>">                                    
                                 </div>
                                 <div class="col-3 col-sm-3">
-                                    <label for="type_id-input"><?=$lang['sys.type']?>:</label>
+                                    <label <?=$isExistSetsWithProperty ? '' : 'for="type_id-input"'?>><?=$lang['sys.type']?>:</label>
                                     <div role="group" class="input-group">
                                         <?php if (!$isExistSetsWithProperty) { ?>
                                         <select type="text" id="type_id-input" name="type_id" class="form-control">
