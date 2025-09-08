@@ -4,7 +4,7 @@ namespace classes\system;
 
 /**
  * Класс констант для оперативной работы
- * Может быть дописан из статического класса SysClass::ee_getFieldsTable($tableName)
+ * Может быть дописан автоматически из статического класса функцией SysClass::ee_getFieldsTable($tableName)
  */
 class Constants {
 
@@ -19,25 +19,29 @@ class Constants {
             USERS_ACTIVATION_TABLE = ENV_DB_PREF . 'users_activation',
             USERS_ACTIVATION_TABLE_FIELDS = [],
             CATEGORIES_TABLE = ENV_DB_PREF . 'categories',
-            CATEGORIES_TABLE_FIELDS = [],
+            CATEGORIES_TABLE_FIELDS = ['category_id','type_id','title','description','short_description','parent_id','status','created_at','updated_at','language_code'],
             CATEGORIES_TYPES_TABLE = ENV_DB_PREF . 'categories_types',
-            CATEGORIES_TYPES_TABLE_FIELDS = [],
+            CATEGORIES_TYPES_TABLE_FIELDS = ['type_id','parent_type_id','name','description','created_at','updated_at','language_code'],
             PAGES_TABLE = ENV_DB_PREF . 'pages',
-            PAGES_TABLE_FIELDS = [],
+            PAGES_TABLE_FIELDS = ['page_id','parent_page_id','category_id','status','title','short_description','description','created_at','updated_at','language_code'],
             PROPERTY_TYPES_TABLE = ENV_DB_PREF . 'property_types',
-            PROPERTY_TYPES_TABLE_FIELDS = [],
+            PROPERTY_TYPES_TABLE_FIELDS = ['type_id','name','status','fields','description','created_at','updated_at','language_code'],
             PROPERTIES_TABLE = ENV_DB_PREF . 'properties',
-            PROPERTIES_TABLE_FIELDS = [],
+            PROPERTIES_TABLE_FIELDS = ['property_id','type_id','name','status','sort','default_values','is_multiple','is_required','description','entity_type','created_at','updated_at','language_code'],
             PROPERTY_VALUES_TABLE = ENV_DB_PREF . 'property_values',
-            PROPERTY_VALUES_TABLE_FIELDS = [],
+            PROPERTY_VALUES_TABLE_FIELDS = ['value_id','entity_id','set_id','property_id','entity_type','property_values','created_at','updated_at','language_code'],
             PROPERTY_SETS_TABLE = ENV_DB_PREF . 'property_sets',
-            PROPERTY_SETS_TABLE_FIELDS = [],
+            PROPERTY_SETS_TABLE_FIELDS = ['set_id','name','description','created_at','updated_at','language_code'],
             CATEGORY_TYPE_TO_PROPERTY_SET_TABLE = ENV_DB_PREF . 'category_type_to_property_set',
             CATEGORY_TYPE_TO_PROPERTY_SET_TABLE_FIELDS = [],
             PROPERTY_SET_TO_PROPERTIES_TABLE = ENV_DB_PREF . 'property_set_to_properties',
-            PROPERTY_SET_TO_PROPERTIES_TABLE_FIELDS = [],
-            SEARCH_CONTENTS_TABLE = ENV_DB_PREF . 'search_contents',
-            SEARCH_CONTENTS_TABLE_FIELDS = [],
+            PROPERTY_SET_TO_PROPERTIES_TABLE_FIELDS = ['property_id','type_id','name','status','sort','default_values','is_multiple','is_required','description','entity_type','created_at','updated_at','language_code'],
+            SEARCH_INDEX_TABLE = ENV_DB_PREF . 'search_index',
+            SEARCH_INDEX_TABLE_FIELDS = ['search_id','entity_id','entity_type','language_code','title','content_full','url','static_rank','popularity_score','last_updated'],
+            SEARCH_NGRAMS_TABLE = ENV_DB_PREF . 'search_ngrams',
+            SEARCH_NGRAMS_TABLE_FIELDS = [],
+            SEARCH_LOG_TABLE = ENV_DB_PREF . 'search_log',
+            SEARCH_LOG_TABLE_FIELDS = [],
             FILES_TABLE = ENV_DB_PREF . 'files',
             FILES_TABLE_FIELDS = [],
             GLOBAL_OPTIONS = ENV_DB_PREF . 'global_options',
@@ -48,6 +52,10 @@ class Constants {
             EMAIL_SNIPPETS_TABLE_FIELDS = [],
             IP_BLACKLIST_TABLE = ENV_DB_PREF . 'ip_blacklist',
             IP_BLACKLIST_TABLE_FIELDS = [],
+            IP_REQUEST_LOGS_TABLE = ENV_DB_PREF . 'ip_request_logs',
+            IP_REQUEST_LOGS_TABLE_FIELDS = [],
+            IP_OFFENSES_TABLE = ENV_DB_PREF . 'ip_offenses',
+            IP_OFFENSES_TABLE_FIELDS = [],
             ALL_STATUS = ['active' => 'active', 'hidden' => 'hidden', 'disabled' => 'disabled'], // Ручное заполнение
             ALL_ENTITY_TYPE = ['category' => 'sys.categories', 'page' => 'sys.pages', 'all' => 'sys.all'], // Ручное заполнение
             USERS_STATUS = [1 => 'sys.not_confirmed', 2 => 'sys.active', 3 => 'sys.blocked'], // Ручное заполнение

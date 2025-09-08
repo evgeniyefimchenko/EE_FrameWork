@@ -121,12 +121,12 @@ class SysClass {
     }
 
     /**
-     * Прячет часть строки за символами, оставляя указанные количество символов в начале и в конце строки видимыми.
-     * @param string $str Строка, в которой хотим заменить часть букв на символы.
-     * @param int $first Количество символов, открытых в начале строки.
-     * @param int $last Количество символов, открытых в конце строки.
-     * @param string $symbol Символ, которым будем скрывать буквы.
-     * @return string Строка с замененными символами.
+     * Прячет часть строки за символами, оставляя указанные количество символов в начале и в конце строки видимыми
+     * @param string $str Строка, в которой хотим заменить часть букв на символы
+     * @param int $first Количество символов, открытых в начале строки
+     * @param int $last Количество символов, открытых в конце строки
+     * @param string $symbol Символ, которым будем скрывать буквы
+     * @return string Строка с замененными символами
      */
     public static function maskString($str, $first = 4, $last = 4, $symbol = '*') {
         $part_length = mb_strlen($str);
@@ -1578,7 +1578,24 @@ class SysClass {
         });
         return $array;
     }
-
+    
+    /**
+     * Возвращает слово в правильном склонении в зависимости от числа.
+     * @param int   $number Число, от которого зависит склонение.
+     * @param array $forms  Массив из трёх форм слова (например: ['товар', 'товара', 'товаров']).
+     * @return string Возвращает правильную форму слова.
+     */
+    public static function ee_decline(int $number, array $forms): string {
+        $case = [2, 0, 1, 1, 1, 2];
+        $n = abs($number);
+        
+        if ($n % 100 > 4 && $n % 100 < 20) {
+            return $forms[2];
+        }
+        
+        return $forms[$case[min($n % 10, 5)]];
+    }
+    
     /**
      * Очищает строковую переменную от специальных символов и обрезает пробелы с начала и конца строки
      * @param string $inputString Входная строка для очистки
@@ -1820,4 +1837,189 @@ class SysClass {
         SafeMySQL::gi()->query("DELETE FROM ?n WHERE option_key = ?s", Constants::GLOBAL_OPTIONS, $key);
         return true;
     }
+    
+    /**
+     * Создает структуру папок и базовые файлы для нового модуля в директории app
+     * @param string $moduleName Имя нового модуля (например, 'upSale', 'news', 'products')
+     * @param bool $toLowerCase Приводить ли имя модуля (и папки) к нижнему регистру (по умолчанию false)
+     * @return bool Возвращает true в случае успеха, false при ошибке
+     */
+    public static function createAppModule(string $moduleName, bool $toLowerCase = false): bool {
+        // 1. Валидация и определение имени/пути
+        if (empty(trim($moduleName)) || !preg_match('/^[a-zA-Z0-9_]+$/', $moduleName)) {
+            self::pre("Ошибка: Недопустимое имя модуля '{$moduleName}'. Используйте только латинские буквы, цифры и подчеркивание.");
+            return false;
+        }
+
+        $targetModuleName = $toLowerCase ? strtolower($moduleName) : $moduleName;
+        $controllerNamePart = ucfirst($targetModuleName); // Для имени класса Controller
+        $moduleTitle = ucfirst($moduleName); // Для комментариев и заголовков
+
+        $basePath = ENV_SITE_PATH . ENV_APP_DIRECTORY . ENV_DIRSEP . $targetModuleName;
+
+        // 2. Проверка существования
+        if (is_dir($basePath)) {
+            self::pre("Ошибка: Модуль (папка) '{$targetModuleName}' уже существует в " . ENV_APP_DIRECTORY);
+            return false;
+        }
+
+        // 3. Создание директорий
+        $dirs = [
+            $basePath,
+            $basePath . ENV_DIRSEP . 'css',
+            $basePath . ENV_DIRSEP . 'js',
+            $basePath . ENV_DIRSEP . 'models',
+            $basePath . ENV_DIRSEP . 'views'
+        ];
+
+        foreach ($dirs as $dir) {
+            if (!mkdir($dir, 0755, true)) {
+                self::pre("Ошибка: Не удалось создать директорию {$dir}");
+                // Попытка удалить уже созданные папки этого модуля (опционально)
+                self::ee_removeDir($basePath, true);
+                return false;
+            }
+        }
+
+        // 4. Генерация контента файлов
+        // Определяем пространство имен на основе пути
+        $moduleNamespace = 'app\\' . str_replace(ENV_DIRSEP, '\\', $targetModuleName);
+
+        // --- Контроллер (index.php) ---
+        $controllerContent = <<<PHP
+<?php
+namespace {$moduleNamespace};
+
+use classes\system\ControllerBase;
+use classes\system\SysClass;
+use classes\system\Constants;
+use classes\system\Users;
+
+/**
+ * Контроллер для модуля {$moduleTitle}
+ */
+class Controller{$controllerNamePart} Extends ControllerBase {
+
+    /**
+     * Загружает стандартные представления, CSS и JS для модуля
+     */
+    private function getStandardViews(): void {
+        // Устанавливаем переменные для макета
+        \$this->parameters_layout["title"] = ENV_SITE_NAME . ' - {$moduleTitle}';
+        \$this->parameters_layout["description"] = ENV_SITE_DESCRIPTION . ' - {$moduleTitle}';
+        // Подключаем CSS и JS модуля
+        \$this->parameters_layout["add_script"] .= '<script src="' . \$this->getPathController() . '/js/index.js" type="text/javascript"></script>';
+        \$this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="' . \$this->getPathController() . '/css/index.css"/>';
+    }
+
+    /**
+     * Главный метод (action) модуля
+     * @param array \$params Параметры из URL
+     * @return void
+     */
+    public function index(array \$params = []): void {
+        // --- Проверка доступа ---
+        \$this->access = [Constants::ALL]; // <<< Установите нужные права доступа! (ALL_AUTH для авторизованных, ADMIN и т.д.)
+        // if (!SysClass::getAccessUser(\$this->logged_in, \$this->access)) {
+        //     SysClass::handleRedirect(403); // Доступ запрещен
+        //     return;
+        // }
+        // --- Конец проверки доступа ---
+
+        // --- Загрузка моделей (если нужны) ---
+        // \$this->loadModel('m_index');
+
+        // --- Получение данных из моделей (пример) ---
+        // \$dataFromModel = \$this->models['m_index']->getSomeData();
+        // \$this->view->set('someData', \$dataFromModel);
+
+        // --- Подготовка и отображение представления ---
+        \$this->getStandardViews();
+
+        \$this->html = \$this->view->read('v_index'); // Загружаем v_index.php
+
+        \$this->parameters_layout["layout_content"] = \$this->html;
+        \$this->parameters_layout["layout"] = 'index'; // Используемый макет
+
+        \$this->showLayout(\$this->parameters_layout);
+    }
+
+    // --- Другие actions ---
+
+} // Конец класса Controller{$controllerNamePart}
+PHP;
+
+        // --- Модель (ModelIndex.php) ---
+        $modelContent = <<<PHP
+<?php
+namespace {$moduleNamespace}\models;
+
+use classes\plugins\SafeMySQL; // Или SafePostgreSQL
+use classes\system\SysClass;
+use classes\system\Constants;
+
+/**
+ * Модель для модуля {$moduleTitle}
+ */
+class ModelIndex {
+
+    /**
+     * Пример метода
+     * @return array
+     */
+    public function getSomeData(): array {
+        return ['message' => 'Данные из модели модуля {$moduleTitle}'];
+    }
+
+} // Конец класса ModelIndex
+PHP;
+
+        // --- Представление (v_index.php) ---
+        $viewContent = <<<PHP
+<?php if (!defined('ENV_SITE')) exit(header("Location: http://" . \$_SERVER['HTTP_HOST'], true, 301)); ?>
+<h1>Модуль {$moduleTitle}</h1>
+<p>Это главная страница модуля {$moduleTitle}.</p>
+<?php
+// Пример вывода данных
+// if (isset(\$someData)) {
+//     SysClass::pre(\$someData);
+// }
+?>
+PHP;
+
+        // --- CSS (index.css) ---
+        $cssContent = <<<CSS
+/* Стили для модуля {$moduleTitle} */
+CSS;
+
+        // --- JS (index.js) ---
+        $jsContent = <<<JS
+// JavaScript для модуля {$moduleTitle}
+\$(document).ready(function() {
+    // console.log('Модуль {$moduleTitle} загружен');
+    // Ваш код здесь
+});
+JS;
+
+        // 5. Запись файлов
+        $filesToWrite = [
+            $basePath . ENV_DIRSEP . 'index.php' => $controllerContent,
+            $basePath . ENV_DIRSEP . 'models' . ENV_DIRSEP . 'ModelIndex.php' => $modelContent,
+            $basePath . ENV_DIRSEP . 'views' . ENV_DIRSEP . 'v_index.php' => $viewContent,
+            $basePath . ENV_DIRSEP . 'css' . ENV_DIRSEP . 'index.css' => $cssContent,
+            $basePath . ENV_DIRSEP . 'js' . ENV_DIRSEP . 'index.js' => $jsContent,
+        ];
+
+        foreach ($filesToWrite as $filePath => $content) {
+            if (file_put_contents($filePath, $content) === false) {
+                self::pre("Ошибка: Не удалось записать файл {$filePath}");
+                // Попытка удалить уже созданные папки/файлы этого модуля
+                self::ee_removeDir($basePath, true);
+                return false;
+            }
+        }
+
+        self::pre("Модуль '{$targetModuleName}' успешно создан.", false); // Выводим сообщение без die()
+        return true;
+    }    
 }

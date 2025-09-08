@@ -76,7 +76,8 @@ class Cookies {
     public static function clear(string $name): void {
         $cookie_name = self::getName($name);
         setcookie($cookie_name, '', time() - self::$_expire);
-        if (isset($_COOKIE[$cookie_name])) unset($_COOKIE[$cookie_name]);
+        if (isset($_COOKIE[$cookie_name]))
+            unset($_COOKIE[$cookie_name]);
     }
 
     /**
@@ -171,7 +172,8 @@ class Cookies {
             $result .= chr(ord($string[$i]) ^ ($box[($box[$a] + $box[$j]) % 256]));
         }
         if ($operation == 'DECODE') {
-            if ((substr($result, 0, 10) == 0 || substr($result, 0, 10) - time() > 0) && substr($result, 10, 16) == substr(md5(substr($result, 26) . $keyb), 0, 16)) {
+            $timestamp = substr($result, 0, 10);
+            if (is_numeric($timestamp) && ((int) $timestamp == 0 || (int) $timestamp - time() > 0) && substr($result, 10, 16) == substr(md5(substr($result, 26) . $keyb), 0, 16)) {
                 return substr($result, 26);
             } else {
                 return '';

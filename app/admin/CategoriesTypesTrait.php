@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * Евгений Ефимченко, efimchenko.com
+ * Управляет типами категорий в админ-панели, поддерживает CRUD-операции и AJAX-запросы.
+ * /app/admin/CategoriesTypesTrait.php
+ */
+
 namespace app\admin;
 
 use classes\system\SysClass;
@@ -122,8 +128,8 @@ trait CategoriesTypesTrait {
             $data_table['rows'][] = [
                 'type_id' => $item['type_id'],
                 'name' => $item['name'],
-                'parent_type_id' => !empty($item['parent_type_id']) ? 
-                    '(' . $item['parent_type_id'] . ')' . $this->models['m_categories_types']->getNameCategoriesType($item['parent_type_id']) : '',
+                'parent_type_id' => !empty($item['parent_type_id']) ?
+                '(' . $item['parent_type_id'] . ')' . $this->models['m_categories_types']->getNameCategoriesType($item['parent_type_id']) : '',
                 'created_at' => date('d.m.Y', strtotime($item['created_at'])),
                 'updated_at' => $item['updated_at'] ? date('d.m.Y', strtotime($item['updated_at'])) : '',
                 'actions' => '<a href="/admin/categories_type_edit/id/' . $item['type_id'] . '" class="btn btn-primary me-2" data-bs-toggle="tooltip"'
@@ -169,7 +175,7 @@ trait CategoriesTypesTrait {
                 $typeId = filter_var($params[$keyId + 1], FILTER_VALIDATE_INT);
             } else {
                 $typeId = 0;
-            }            
+            }
             if (isset($postData['name']) && $postData['name'] && !empty($postData['property_set'])) {
                 if (!$typeId = $this->models['m_categories_types']->updateCategoriesTypeData($postData)) {
                     ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
@@ -177,7 +183,7 @@ trait CategoriesTypesTrait {
                 if (isset($postData['property_set']) && is_array($postData['property_set']) && count($postData['property_set']) &&
                         isset($postData['old_property_set']) && $postData['old_property_set'] != $postData['property_set']) {
                     // Изменения в наборе свойств
-                    $parentsTypesIds = $this->models['m_categories_types']->getAllTypeParentsIds($typeId);        
+                    $parentsTypesIds = $this->models['m_categories_types']->getAllTypeParentsIds($typeId);
                     $realSetsIds = array_unique(array_merge($this->models['m_categories_types']->getCategoriesTypeSetsData($parentsTypesIds), $postData['property_set']));
                     $this->models['m_categories_types']->updateCategoriesTypeSetsData($typeId, $realSetsIds);
                 }
@@ -274,6 +280,5 @@ trait CategoriesTypesTrait {
             ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Нет обязательного параметра id', 'status' => 'danger']);
         }
         SysClass::handleRedirect(200, '/admin/types_categories');
-    }   
-    
+    }
 }

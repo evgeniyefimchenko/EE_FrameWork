@@ -1,144 +1,54 @@
-/* --- Основной стиль для контента документации --- */
-#docs-content {
-    padding: 15px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    background-color: #f8f9fa;
+/* Файл: app\index\css\docs.css */
+
+/* Стиль для блока sticky-wrapper */
+#sticky-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
 }
 
-/* --- Стиль для блока кода внутри документации --- */
-#docs-content pre {
-    background: #ededed;
-    border-radius: 20px;
-    padding: 15px;
-    overflow-x: auto; /* Для предотвращения выхода кода за границы */
+/* Стиль для навигационного меню */
+.navbar {
+    width: 100%;
 }
 
-/* --- Общие стили для элементов меню --- */
-.list-group-item {
+/* Стиль для элементов меню */
+.nav-link {
     cursor: pointer;
     display: flex;
-    justify-content: space-between;
     align-items: center;
     padding: 10px;
-    border: none;
     color: #000;
     text-decoration: none;
     font-size: 1rem;
+    transition: background-color 0.3s;
+    white-space: nowrap;
 }
 
-.list-group-item:hover {
+.nav-link:hover {
     background-color: #e9ecef;
     border-radius: 5px;
 }
 
-/* --- Стиль для активного элемента меню --- */
-.list-group-item.active {
+/* Стиль для активного элемента меню */
+.nav-link.active {
     background-color: #007bff;
     color: white;
     border-radius: 5px;
 }
 
-/* --- Стиль для фиксированного меню при скроллинге --- */
-.doc-fix-menu {
-    position: relative;
-    z-index: 100;
-    padding: 10px;
-    background: #d1d1d1;
-    border-radius: 5px;
+/* Стиль для иконок в меню */
+.nav-link i {
+    margin-right: 10px;
 }
 
-/* --- Стиль для меню в закрепленном состоянии --- */
-.sticky-horizontal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    z-index: 1000;
-    border-bottom: 1px solid #ccc;
-    box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.2);
-}
+/* Стили для мобильных устройств */
+@media (max-width: 768px) {
+    .navbar-nav {
+        flex-direction: column;
+    }
 
-/* --- Стили для меню при горизонтальной раскладке (при закреплении) --- */
-.sticky-horizontal .list-group-item {
-    display: inline-block;
-    margin-right: 5px;
-    padding: 5px 10px;
-    white-space: nowrap;
-}
-
-/* --- Подменю: скрываем по умолчанию --- */
-.list-group-submenu {
-    display: none;
-    list-style: none; /* Убираем стандартные маркеры */
-    padding-left: 20px; /* Отступ для вложенности */
-    margin-top: 10px;
-}
-
-/* --- Подменю, которое появляется при клике --- */
-.list-group-submenu .list-group-item {
-    padding-left: 30px; /* Отступ для вложенных элементов */
-    background-color: transparent;
-    color: #007bff;
-}
-
-/* --- Стиль для активного подменю --- */
-.list-group-submenu .list-group-item.active {
-    background-color: #0056b3;
-    color: white;
-}
-
-/* --- Стиль для иконок раскрытия подменю (FontAwesome) --- */
-.list-group-item i {
-    font-family: 'Font Awesome 6 Free';
-    font-weight: 900;
-    transition: transform 0.3s ease;
-    margin-left: auto; /* Иконка вправо */
-}
-
-/* --- Плавный поворот иконки при раскрытии подменю --- */
-.list-group-item.expanded i {
-    transform: rotate(180deg);
-}
-
-/* --- Стиль для иконок в подменю (замена стандартных маркеров) --- */
-.list-group-submenu li {
-    position: relative;
-    padding-left: 25px; /* Оставляем место для иконки */
-    margin-bottom: 5px; /* Небольшой отступ между элементами */
-}
-
-/* Добавляем иконку вместо маркера */
-.list-group-submenu li::before {
-    content: '\f054'; /* Иконка FontAwesome (chevron-right) */
-    font-family: 'Font Awesome 6 Free';
-    font-weight: 900;
-    position: absolute;
-    left: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 0.8rem;
-    color: #6c757d;
-}
-
-/* --- Переопределение стилей для подменю второго уровня и ниже --- */
-.list-group-submenu .list-group-submenu {
-    padding-left: 15px; /* Дополнительный отступ для вложенности второго уровня */
-}
-
-.list-group-submenu .list-group-submenu li::before {
-    content: '\f105'; /* Иконка для более глубоких уровней вложенности */
-    font-size: 0.75rem; /* Уменьшенный размер иконки */
-}
-
-/* --- Переопределение стиля ссылок внутри вложенных подменю --- */
-.list-group-submenu li .list-group-item {
-    border: none;
-    padding-left: 0;
-    color: #007bff;
-}
-
-.list-group-submenu li .list-group-item:hover {
-    text-decoration: underline;
-    color: #0056b3;
+    .nav-link {
+        padding: 8px;
+    }
 }

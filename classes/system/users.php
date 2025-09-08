@@ -29,8 +29,13 @@ class Users {
         } else {
             $userId = (int) $params;
         }
+        if (empty($userId) && !$create_table) {
+            $user_lang = ENV_DEF_LANG;
+        } else {
+            $user_lang = Session::get('lang');
+        }
         $this->data = $this->getUserData($userId, $create_table);
-        $this->lang = !empty(Session::get('lang')) ? Lang::init(Session::get('lang')) : [];
+        $this->lang = !empty($user_lang) ? Lang::init($user_lang) : [];
     }
 
     /**
@@ -602,12 +607,16 @@ class Users {
             $this->createPropertyValuesTable();
             $this->createCategoryTypeToPropertySetTable();
             $this->createPropertySetToPropertiesTable();
-            $this->createSearchContentsTable();
             $this->createFilesTable();
             $this->createGlobalOptionsTable();
             $this->createEmailTemplatesTable();
             $this->createEmailSnippetsTable();
             $this->createIpBlacklistTable();
+            $this->createRequestLogsTable();
+            $this->createOffensesTable();
+            $this->createSearchIndexTable();
+            $this->createSearchNgramsTable();
+            $this->createSearchLogTable();
             // Вставка начальных данных
             $this->insertDefaultPropertyTypes();
             $this->insertDefaultEmailSnippets();
@@ -926,28 +935,73 @@ class Users {
     }
 
     /**
-     * Создаёт таблицу search_contents для глобального поиска по сайту
-     * @throws Exception Если запрос не удалось выполнить
+     * Создаёт таблицу search_index для поискового индекса сайта
+     * @return void
+     * @throws \Exception Если запрос не удалось выполнить
      */
-    private function createSearchContentsTable(): void {
+    private function createSearchIndexTable(): void {
         $sql = "CREATE TABLE IF NOT EXISTS ?n (
-        search_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-        entity_id INT UNSIGNED NOT NULL,
-        entity_type VARCHAR(50) NOT NULL,
-        area CHAR(1) NOT NULL DEFAULT 'A' COMMENT 'Локация поиска: A - админпанель, C - клиентская часть',
-        full_search_content TEXT NOT NULL,
-        short_search_content VARCHAR(255) NOT NULL,
-        language_code CHAR(2) NOT NULL DEFAULT 'RU' COMMENT 'Код языка по ISO 3166-2',
-        relevance_score TINYINT UNSIGNED NOT NULL DEFAULT 0,
-        last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        FULLTEXT idx_full_search (full_search_content, short_search_content),
-        INDEX idx_short_search (short_search_content(50)),
-        INDEX idx_area_entity (area, entity_type, entity_id)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci 
-    COMMENT='Таблица для глобального поиска по сайту';";
+            search_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            entity_id INT UNSIGNED NOT NULL COMMENT 'ID оригинальной сущности',
+            entity_type VARCHAR(50) NOT NULL COMMENT 'Тип сущности (page, category, user...)',
+            language_code CHAR(2) NOT NULL DEFAULT 'RU' COMMENT 'Код языка',
+            title VARCHAR(255) NOT NULL COMMENT 'Заголовок/имя для отображения и приоритетного поиска',
+            content_full MEDIUMTEXT NOT NULL COMMENT 'Полный очищенный текст для FULLTEXT',
+            url VARCHAR(1024) NULL COMMENT 'URL сущности',
+            static_rank TINYINT UNSIGNED NOT NULL DEFAULT 50 COMMENT 'Базовый ранг типа сущности',
+            popularity_score INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Динамический ранг популярности',
+            last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            UNIQUE INDEX uq_entity (entity_id, entity_type, language_code),
+            FULLTEXT idx_content (title, content_full) COMMENT 'Основной индекс для MATCH AGAINST',
+            INDEX idx_entity (entity_type, entity_id),
+            INDEX idx_lookup (language_code),
+            INDEX idx_rank (language_code, popularity_score DESC, static_rank DESC),
+            INDEX idx_title_prefix (title(50))
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        COMMENT='Централизованный поисковый индекс сайта';";
+        SafeMySQL::gi()->query($sql, Constants::SEARCH_INDEX_TABLE);
+        SysClass::preFile('sql_info', __FUNCTION__, 'Таблица search_index создана или уже существует', 'OK');
+    }
 
-        SafeMySQL::gi()->query($sql, Constants::SEARCH_CONTENTS_TABLE);
-        SysClass::preFile('sql_info', 'create_search_contents_table', 'Таблица для поиска по сайту создана', 'OK');
+    /**
+     * Создаёт таблицу search_ngrams для индекса N-грамм
+     * @return void
+     * @throws \Exception Если запрос не удалось выполнить
+     */
+    private function createSearchNgramsTable(): void {
+        $sql = "CREATE TABLE IF NOT EXISTS ?n (
+            ngram_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            ngram CHAR(3) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT 'Триграмма',
+            search_id INT UNSIGNED NOT NULL COMMENT 'Ссылка на search_indexsearch_id',
+            INDEX idx_ngram_search (ngram, search_id),
+            INDEX idx_search_id (search_id),
+            FOREIGN KEY fk_search_id(search_id) REFERENCES ?n(search_id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+        COMMENT='Индекс N-грамм (триграмм) для нечеткого поиска'";
+        SafeMySQL::gi()->query($sql, Constants::SEARCH_NGRAMS_TABLE, Constants::SEARCH_INDEX_TABLE);
+        SysClass::preFile('sql_info', __FUNCTION__, 'Таблица search_ngrams создана или уже существует', 'OK');
+    }
+
+    /**
+     * Создаёт таблицу search_log для логирования поисковых запросов
+     * @return void
+     * @throws \Exception Если запрос не удалось выполнить
+     */
+    private function createSearchLogTable(): void {
+        $sql = "CREATE TABLE IF NOT EXISTS ?n (
+            log_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            query_text VARCHAR(255) NOT NULL COMMENT 'Оригинальный текст запроса',
+            normalized_query VARCHAR(255) NOT NULL COMMENT 'Нормализованный запрос (lowercase, trim)',
+            area CHAR(1) NOT NULL,
+            language_code CHAR(2) NOT NULL,
+            hit_count INT UNSIGNED NOT NULL DEFAULT 1 COMMENT 'Количество таких запросов',
+            last_searched TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            UNIQUE INDEX uq_query (normalized_query, area, language_code),
+            INDEX idx_hits (hit_count DESC)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        COMMENT='Лог поисковых запросов и их частота'";
+        SafeMySQL::gi()->query($sql, Constants::SEARCH_LOG_TABLE);
+        SysClass::preFile('sql_info', __FUNCTION__, 'Таблица search_log создана или уже существует', 'OK');
     }
 
     /**
@@ -1046,6 +1100,34 @@ class Users {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения заблокированных IP-адресов и диапазонов';";
         SafeMySQL::gi()->query($sql, Constants::IP_BLACKLIST_TABLE);
         SysClass::preFile('sql_info', 'create_ip_blacklist_table', 'Таблица заблокированных IP-адресов создана', 'OK');
+    }
+
+    /**
+     * Создает таблицу для логов запросов (Rate Limiting)
+     */
+    private function createRequestLogsTable() {
+        $sql = "CREATE TABLE IF NOT EXISTS ?n (
+          `ip` VARCHAR(45) NOT NULL,
+          `request_count` INT UNSIGNED NOT NULL DEFAULT 1,
+          `first_request_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          PRIMARY KEY (`ip`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Счетчики запросов для Rate Limit';";
+        SafeMySQL::gi()->query($sql, Constants::IP_REQUEST_LOGS_TABLE);
+        SysClass::preFile('sql_info', 'create_request_logs_table', 'Таблица для Rate Limit создана', 'OK');
+    }
+
+    /**
+     * Создает таблицу для счётчика нарушений (страйков).
+     */
+    private function createOffensesTable() {
+        $sql = "CREATE TABLE IF NOT EXISTS ?n (
+          `ip` VARCHAR(45) NOT NULL,
+          `strike_count` INT UNSIGNED NOT NULL DEFAULT 1,
+          `last_offense_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          PRIMARY KEY (`ip`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Счетчики нарушений IP-адресов';";
+
+        SafeMySQL::gi()->query($sql, Constants::IP_OFFENSES_TABLE);
     }
 
     /**

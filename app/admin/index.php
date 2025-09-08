@@ -19,6 +19,7 @@ use classes\helpers\ClassMessages;
 /*
  * Админ-панель
  */
+
 class ControllerAdmin Extends ControllerBase {
     /* Подключение traits */
 
@@ -952,9 +953,9 @@ use MessagesTrait,
             $this->parameters_layout["add_script"] .= '<script src="' . ENV_URL_SITE . '/assets/editor/summernote/lang/summernote-ru-RU.min.js" type="text/javascript"></script>';
         } else {
             $this->parameters_layout["add_script"] .= '<script src="' . ENV_URL_SITE . '/assets/editor/summernote/lang/summernote-en-US.min.js" type="text/javascript"></script>';
-        }       
+        }
     }
-    
+
     /**
      * Подключает стили и скрипты CodeMirror (v5.65.10)
      */
@@ -962,13 +963,65 @@ use MessagesTrait,
         // Подключение стилей CodeMirror
         $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.10/codemirror.css">';
         $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.10/theme/monokai.css">';
-
         // Подключение скриптов CodeMirror
         $this->parameters_layout["add_script"] .= '<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.10/codemirror.js"></script>';
         $this->parameters_layout["add_script"] .= '<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.10/mode/xml/xml.js"></script>';
         $this->parameters_layout["add_script"] .= '<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.10/mode/javascript/javascript.js"></script>';
         $this->parameters_layout["add_script"] .= '<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.10/mode/css/css.js"></script>';
         $this->parameters_layout["add_script"] .= '<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.10/mode/htmlmixed/htmlmixed.js"></script>';
-    }   
-    
+    }
+
+    /**
+     * Поиск по админ-панели
+     */
+    public function search() {
+        $this->access = [Constants::ALL_AUTH];
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            // Вместо редиректа на 200 лучше использовать стандартный 302
+            SysClass::return_to('/admin/login_form');
+        }
+        // Получаем и очищаем поисковый запрос
+        $query = isset($_GET['q']) ? trim($_GET['q']) : null;
+        $searchResults = [];
+        $totalResults = 0;
+        if (!empty($query)) {
+            // 1. Правильное создание экземпляра класса
+            $searchEngine = new \classes\helpers\ClassSearchEngine();
+            // 2. Вызов метода search и получение структурированного результата
+            $searchData = $searchEngine->search($query);
+            // 3. Извлечение результатов и общего количества
+            $searchResults = $searchData['results'];
+            $totalResults = $searchData['total'];
+        }
+        /* Подготовка данных для view */
+        $this->getStandardViews();
+        $this->view->set('query', $query);
+        $this->view->set('searchResults', $searchResults);
+        $this->view->set('totalResults', $totalResults); // Передаем и общее количество
+        $this->view->set('body_view', $this->view->read('v_search_results'));
+        $this->html = $this->view->read('v_dashboard');
+        /* Формирование layout */
+        $this->parameters_layout["layout_content"] = $this->html;
+        $this->parameters_layout["layout"] = 'dashboard';
+        // Условие для заголовка
+        $this->parameters_layout["title"] = $query ? 'Результаты поиска: ' . htmlspecialchars($query) : 'Поиск';
+        $this->showLayout($this->parameters_layout);
+    }
+
+    /**
+     * Обрабатывает POST-данные и выполняет редирект на чистую страницу, чтобы избежать повторной отправки данных при обновлении страницы (F5)
+     * Если POST-данные не пусты, функция выполняет редирект:
+     * - Если $newEntity равно false, редирект происходит на текущий URI
+     * - Если $newEntity равно true, редирект происходит на путь контроллера с добавлением действия и идентификатора сущности
+     * @param array $postData Массив POST-данных, которые необходимо обработать
+     * @param bool $newEntity Флаг, указывающий, создается ли новая сущность (true) или редактируется существующая (false)
+     * @param int $entityId Идентификатор сущности, который будет добавлен в URL при редиректе (если $newEntity равно true)
+     * @return void
+     */
+    public function processPostParams(array $postData, bool $newEntity, int $entityId): void {
+        if (!empty($postData)) {
+            !$newEntity ? SysClass::handleRedirect(200, __REQUEST['_SERVER']['REQUEST_URI']) :
+                            SysClass::handleRedirect(200, $this->getPathController(true) . '/' . ENV_CONTROLLER_ACTION . '/id/' . $entityId);
+        }
+    }
 }

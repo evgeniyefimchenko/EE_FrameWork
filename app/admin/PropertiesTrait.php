@@ -303,6 +303,7 @@ trait PropertiesTrait {
             } else {
                $typeId = 0; 
             }
+            $newEntity = empty($typeId);
             $usedByProperties = $this->models['m_properties']->isExistPropertiesWithType($typeId);
             if (isset($postData['name']) && $postData['name']) {
                 if (!is_array($postData['fields']) || !count($postData['fields'])) {
@@ -317,8 +318,8 @@ trait PropertiesTrait {
                     }
                 }
             }
-            $newEntity = empty($typeId) ? true : false;
-            $this->processPostParams($postData, $newEntity, $typeId);
+            
+            if (isset($postData['name'])) $this->processPostParams($postData, $newEntity, $typeId);
             $propertyTypeData = (int) $typeId ? $this->models['m_properties']->getTypePropertyData($typeId) : $default_data;            
             $propertyTypeData = !$propertyTypeData ? $default_data : $propertyTypeData;
             $propertyTypeData['fields'] = isset($propertyTypeData['fields']) ? json_decode($propertyTypeData['fields'], true) : [];
@@ -378,22 +379,22 @@ trait PropertiesTrait {
             } else {
                 $propertyId = 0;
             }
+            $newEntity = empty($propertyId);
             $isExistSetsWithProperty = $this->models['m_properties']->isExistSetsWithProperty($propertyId);
             if (isset($postData['name']) && $postData['name']) {
-                $this->saveFileProperty($postData);
+                $this->saveFileProperty($postData);                
                 $postData['default_values'] = isset($postData['property_data']) ? $this->prepareDefaultValuesProperty($postData['property_data'], $propertyId) : [];                
                 if ($isExistSetsWithProperty) {
                     $postData['type_id'] = $this->models['m_properties']->getTypeIdByPropertyId($propertyId);
                 }
                 if (!$new_id = $this->models['m_properties']->updatePropertyData($postData)) {
                     ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
-                } else {
+                } else {                    
                     $propertyId = $new_id;
                     ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.success'], 'status' => 'info']);
                 }
-            }
-            $newEntity = empty($propertyId) ? true : false;
-            $this->processPostParams($postData, $newEntity, $propertyId);
+            }            
+            if (isset($postData['name'])) $this->processPostParams($postData, $newEntity, $propertyId);
             $getPropertyData = !empty($propertyId) ? $this->getPropertyData($propertyId) : $defaultData;
         } else { // Не передан ключевой параметр id
             SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/user_edit/id/' . $this->logged_in);
@@ -509,7 +510,7 @@ trait PropertiesTrait {
      * @param array $propertyData Массив данных свойств
      * @return void
      */
-    public function processPropertyData(array $propertyData): void {
+    public function processPropertyData(array $propertyData): void {        
         $arrValueProp = [];
         $this->loadModel('m_properties');
         foreach ($propertyData as $itemPropKey => $itemPropValue) {
@@ -663,7 +664,7 @@ trait PropertiesTrait {
      * @return array
      */
     private function prepareDefaultValuesProperty(array $propertyData, int $propertyId): array {
-        $prepared_data = [];        
+        $prepared_data = [];
         foreach ($propertyData as $key => $value) {
             // Извлекаем порядковый номер и тип из ключа
             if (preg_match('/([a-z\-]+)_([0-9]+)_?([a-z]*)/', $key, $matches)) {
@@ -913,33 +914,57 @@ trait PropertiesTrait {
             } else {
                 $setId = 0; 
             }
+            $newEntity = empty($setId);
             $isExistCategoryTypeWithSet = $this->models['m_properties']->isExistCategoryTypeWithSet($setId);
             // Обработка основных полей
             if (isset($postData['name']) && $postData['name']) {
                 if ($isExistCategoryTypeWithSet) {
-                    unset($postData['selected_properties']);
-                }
-                if (!$new_id = $this->models['m_properties']->updatePropertySetData($postData)) {
-                    ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
+                    // unset($postData['selected_properties']); Можно не обновлять если пытаемся изменить уже используемые наборы в категориях
+                }                
+                $new_id = $this->models['m_properties']->updatePropertySetData($postData);
+                if (is_object($new_id) && $new_id instanceof ErrorLogger) {
+                    $errorMessage = $result->result['error_message'] ?? 'Ошибка сохранения набора';
+                    ClassNotifications::addNotificationUser($this->logged_in, ['text' => $errorMessage, 'status' => 'danger']);
+                    $new_id = 0;
                 } else {
-                    $setId = $new_id;
-                    ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.success'], 'status' => 'info']);
+                    if (!$new_id) {
+                        ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
+                    } else {
+                        $setId = $new_id;
+                        ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.success'], 'status' => 'info']);
+                    }
+                }                
+            }
+            $postData['selected_properties'] ??= [];
+            if (!empty($postData['selected_properties'])) {
+                // Обработка добавления свойств
+                $propertySetData = $this->models['m_properties']->getPropertySetData($setId);
+                $oldPropertyIds = [];
+                if (isset($propertySetData['properties']) && is_array($propertySetData['properties'])) {
+                    $oldPropertyIds = array_keys($propertySetData['properties']);
+                }
+                $newPropertyIds = $postData['selected_properties'];
+                $propertiesToAdd    = array_diff($newPropertyIds, $oldPropertyIds);
+                $propertiesToDelete = array_diff($oldPropertyIds, $newPropertyIds);            
+                if (!empty($propertiesToDelete)) {
+                    SysClass::pre([$setId, $propertiesToDelete]);
+                    $this->models['m_properties']->deletePropertiesFromSet($setId, $propertiesToDelete);
+                }
+                if (!empty($propertiesToAdd)) {
+                    $this->models['m_properties']->addPropertiesToSet($setId, $propertiesToAdd);
+                }
+                if (!empty($propertiesToAdd) || !empty($propertiesToDelete)) {
+                    \classes\system\Hook::run('afterUpdatePropertySetComposition', $setId, $propertiesToAdd, $propertiesToDelete);
                 }
             }
-            // Обработка добавления свойств
-            if (isset($postData['selected_properties']) && is_array($postData['selected_properties'])) {
-                // Удалить все предыдущие свойства для этого набора
-                $this->models['m_properties']->deletePreviousProperties($setId);
-                // Добавить выбранные свойства в таблицу
-                $this->models['m_properties']->addPropertiesToSet($setId, $postData['selected_properties']);
-            }
-            $newEntity = empty($setId) ? true : false;
-            $this->processPostParams($postData, $newEntity, $setId);            
-            $propertySetData = (int) $setId ? $this->models['m_properties']->getPropertySetData($setId) : $default_data;
-            $propertySetData = $propertySetData ? $propertySetData : $default_data;
+            if (isset($postData['name'])) {
+                $this->processPostParams($postData, $newEntity, $setId);
+            }            
         } else { // Не передан ключевой параметр id
             SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/user_edit/id/' . $this->logged_in);
         }
+        $propertySetData = (int) $setId ? $this->models['m_properties']->getPropertySetData($setId) : $default_data;
+        $propertySetData ??= $default_data;        
         /* view */
         $this->getStandardViews();
         $this->view->set('property_set_data', $propertySetData);

@@ -36,8 +36,12 @@ class Constants {
             CATEGORY_TYPE_TO_PROPERTY_SET_TABLE_FIELDS = [],
             PROPERTY_SET_TO_PROPERTIES_TABLE = ENV_DB_PREF . 'property_set_to_properties',
             PROPERTY_SET_TO_PROPERTIES_TABLE_FIELDS = [],
-            SEARCH_CONTENTS_TABLE = ENV_DB_PREF . 'search_contents',
-            SEARCH_CONTENTS_TABLE_FIELDS = [],
+            SEARCH_INDEX_TABLE = ENV_DB_PREF . 'search_index',
+            SEARCH_INDEX_TABLE_FIELDS = [],
+            SEARCH_NGRAMS_TABLE = ENV_DB_PREF . 'search_ngrams',
+            SEARCH_NGRAMS_TABLE_FIELDS = [],
+            SEARCH_LOG_TABLE = ENV_DB_PREF . 'search_log',
+            SEARCH_LOG_TABLE_FIELDS = [],
             FILES_TABLE = ENV_DB_PREF . 'files',
             FILES_TABLE_FIELDS = [],
             GLOBAL_OPTIONS = ENV_DB_PREF . 'global_options',
@@ -48,6 +52,10 @@ class Constants {
             EMAIL_SNIPPETS_TABLE_FIELDS = [],
             IP_BLACKLIST_TABLE = ENV_DB_PREF . 'ip_blacklist',
             IP_BLACKLIST_TABLE_FIELDS = [],
+            IP_REQUEST_LOGS_TABLE = ENV_DB_PREF . 'ip_request_logs',
+            IP_REQUEST_LOGS_TABLE_FIELDS = [],
+            IP_OFFENSES_TABLE = ENV_DB_PREF . 'ip_offenses',
+            IP_OFFENSES_TABLE_FIELDS = [],
             ALL_STATUS = ['active' => 'active', 'hidden' => 'hidden', 'disabled' => 'disabled'], // Ручное заполнение
             ALL_ENTITY_TYPE = ['category' => 'sys.categories', 'page' => 'sys.pages', 'all' => 'sys.all'], // Ручное заполнение
             USERS_STATUS = [1 => 'sys.not_confirmed', 2 => 'sys.active', 3 => 'sys.blocked'], // Ручное заполнение

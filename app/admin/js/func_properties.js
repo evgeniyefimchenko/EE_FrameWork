@@ -19,28 +19,55 @@ $(document).ready(function () {
         var selectId = $(this).data('select-id');
         var defaultId = selectId + '_' + nameSuffix;
         var new_values = '';
-        $('#' + selectId).empty(); // Очистка select
+        var defaultCount = 0;
+        // Подсчитываем количество отмеченных чекбоксов "По умолчанию"
+        $('#options-container .option-field .is-default:checked').each(function () {
+            defaultCount++;
+        });        
+        var $select = $('#' + selectId);
+        $select.empty(); // Очистка select
+        // Установка или удаление атрибута multiple
+        if (defaultCount > 1) {
+            $select.attr('multiple', 'multiple');
+        } else {
+            $select.removeAttr('multiple');
+        }        
         $('#options-container .option-field').each(function () {
-            var key = $(this).find('.key').val();
-            var value = $(this).find('.value').val();
+            var key = $(this).find('.key').val();      // value из текстового поля
+            var value = $(this).find('.value').val();  // текст
+            var isDefault = $(this).find('.is-default').is(':checked'); // чекбокс
             if (key && value) {
-                $('#' + selectId).append(new Option(value, key)); // Добавление option в select
-                new_values = new_values + '{|}' + key + '=' + value;
+                // Экранируем value: убираем или заменяем спецсимволы
+                var safeValue = value.replace(/{\|}/g, '').replace(/{\*}/g, '');
+                var part = '{|}' + key + '=' + safeValue;
+                if (isDefault) {
+                    part += '{*}';
+                }
+                new_values += part;
+                // Создаём option
+                var $option = new Option(key, value);
+                if (isDefault) {
+                    $option.setAttribute('selected', 'selected');
+                }
+                $('#' + selectId).append($option);
             }
         });
         $('#' + defaultId).val(new_values);
-        $('#select_modal_' + selectId).modal('hide');
-        $('#select_modal_' + selectId).remove();
+        console.log('#' + defaultId, new_values);
+        let $selectModal = $('#select_modal_' + selectId);
+        $selectModal.modal('hide');
+    });
+
+    $(document).on('hidden.bs.modal', '[id^="select_modal_"]', function () {
+        const $modal = $(this);
+        setTimeout(() => {
+            $modal.remove();
+        }, 100);
     });
 
     // Удаление поля ввода
     $(document).on('click', '.removeOptionField', function () {
         $(this).closest('.option-field').remove();
-    });
-
-    // Удаление модального окна после его закрытия
-    $(document).on('hidden.bs.modal', '[id^="select_modal_"]', function () {
-        $(this).remove();
     });
 
     // Обработчик клика по кнопке добавления/удаления checkbox
@@ -111,7 +138,7 @@ $(document).ready(function () {
         }
     });
     // Обработка клика по ссылке "Добавить"
-    $(document).on('click', '.add-element', function (e) {
+    $(document).on('click', '.add-element', function (e) { 
         e.preventDefault();
         var defaultName = $(this).data(nameSuffix + '-name');
         var $defaultElement = $('input[name="' + defaultName + '"], textarea[name="' + defaultName + '"]').first();
@@ -155,15 +182,15 @@ $(document).ready(function () {
     });
     // Обработка клика по кнопке удаления
     $(document).on('click', '.remove-element', function () {
-        $(this).closest('.cloned-element').remove();     
-        $(this).closest('.field_container').remove();        
+        $(this).closest('.cloned-element').remove();
+        $(this).closest('.field_container').remove();
     });
     // Флаг изменения настроек для сохранения
     $('input[name^=property_data]').change(function () {
         $('input[name=property_data_changed]').val(1);
     });
     // Проверка полей required только у категорий и страниц
-    if (nameSuffix == 'value') {
+    if (nameSuffix === 'value') {
         // Находим родительскую форму элемента #renderPropertiesSetsAccordion
         var parentForm = $('#renderPropertiesSetsAccordion').closest('form');
         parentForm.on('submit', function (e) {
@@ -195,7 +222,6 @@ $(document).ready(function () {
         const $propertyContent = $(this).closest('.property_content');
         const $targetInput = $propertyContent.find('input[name^="' + baseName + '"], textarea[name^="' + baseName + '"]');
         const isChecked = $(this).is(':checked');
-
         if ($targetInput.length) {
             if (isChecked) {
                 $targetInput.attr('required', 'required');
@@ -208,7 +234,7 @@ $(document).ready(function () {
 
 function createModal(selectId) {
     var modalHtml = `
-        <div class="modal fade" id="select_modal_` + selectId + `" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+        <div class="modal fade" id="select_modal_` + selectId + `" tabindex="-1" aria-labelledby="exampleModalLabel">
             <div class="modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
@@ -229,26 +255,64 @@ function createModal(selectId) {
             </div>
         </div>`;
     $('body').append(modalHtml);
-    // Добавление существующих options в форму
-    $('#' + selectId + ' option').each(function () {
-        addOptionField($(this).val(), $(this).text());
-    });
+    
+    // Получаем данные из скрытого поля, а не из видимого select
+    var nameSuffix = window.location.href.includes('/edit_property/') ? 'default' : 'value';
+    var hiddenInputId = selectId + '_' + nameSuffix;
+    var rawValue = $('#' + hiddenInputId).val();
+    
+    if (rawValue && rawValue.startsWith('{|}')) {
+        // Разбираем строку, чтобы получить опции и их состояния
+        var optionsStr = rawValue.substring(3); // Убираем начальный '{|}'
+        var optionsArr = optionsStr.split('{|}');
+        
+        optionsArr.forEach(function(opt) {
+            if (opt) {
+                var isDefault = opt.endsWith('{*}');
+                var cleanOpt = isDefault ? opt.slice(0, -3) : opt;
+                var parts = cleanOpt.split('=');
+                var key = parts[0];
+                var value = parts.length > 1 ? parts[1] : '';
+                addOptionField(value, key, isDefault); // ВНИМАНИЕ: key и value поменялись местами согласно вашей логике в addOptionField
+            }
+        });
+    } else {
+        // Фоллбэк: если скрытое поле пустое, читаем из видимого select (для самого первого открытия)
+        $('#' + selectId + ' option').each(function () {
+            var value = $(this).text(); // текст, который видит пользователь
+            var key = $(this).val();     // значение option
+            var isDefault = $(this).is(':selected');
+            addOptionField(value, key, isDefault);
+        });
+    }
     // Отображение модального окна
-    $('#select_modal_' + selectId).modal('show');
+    let $modal = $('#select_modal_' + selectId);
+    // Показываем модальное окно
+    $modal.modal('show');
+    // Убедимся, что aria-hidden удалён, когда модальное окно открыто
+    $modal.removeAttr('aria-hidden');
     // Добавление нового поля по клику
     $('#addOptionField').click(function () {
         addOptionField();
     });
 }
 
-function addOptionField(key = '', value = '') {
+function addOptionField(key = '', value = '', isDefault = false) {
     var rand = Date.now();
     var fieldHtml = `
         <div class="option-field mb-2 d-flex align-items-center">
-            <label for="valueInput` + rand + `" class="me-2">` + AppCore.getLangVar('sys.name') + `:</label>
-            <input type="text" id="valueInput` + rand + `" class="form-control value me-2" placeholder="` + AppCore.getLangVar('sys.name') + `" value="${value}">    
-            <label for="keyInput` + rand + `" class="me-2">` + AppCore.getLangVar('sys.value') + `:</label>
-            <input type="text" id="keyInput` + rand + `" class="form-control key me-2" placeholder="` + AppCore.getLangVar('sys.value') + `" value="${key}">
+            <label for="keyInput${rand}" class="me-2">` + AppCore.getLangVar('sys.name') + `:</label>
+            <input type="text" id="keyInput${rand}" class="form-control key me-2" placeholder="` + AppCore.getLangVar('sys.name') + `" value="${value}">
+            
+            <label for="valueInput${rand}" class="me-2">` + AppCore.getLangVar('sys.value') + `:</label>
+            <input type="text" id="valueInput${rand}" class="form-control value me-2" placeholder="` + AppCore.getLangVar('sys.value') + `" value="${key}">
+            
+            <!-- Чекбокс "По умолчанию" -->
+            <div class="form-check me-2">
+                <input class="form-check-input is-default" type="checkbox" id="defaultInput${rand}" ${isDefault ? 'checked' : ''}>
+                <label class="form-check-label" for="defaultInput${rand}">` + AppCore.getLangVar('sys.default') + `</label>
+            </div>
+            
             <button class="btn btn-danger ms-2 removeOptionField" type="button">` + AppCore.getLangVar('sys.delete') + `</button>
         </div>`;
     $('#options-container').append(fieldHtml);

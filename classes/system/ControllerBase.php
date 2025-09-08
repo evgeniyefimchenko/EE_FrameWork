@@ -58,14 +58,16 @@ abstract class ControllerBase {
     /**
      * Содержит начальные папраметры макета(layout) определённого в контроллере
      */
-    protected $parameters_layout = ['description' => '', 'keywords' => '', 'add_script' => '', 'add_style' => '', 'canonical_href' => ENV_URL_SITE, 'layout' => 'index', 'imagePage' => '/favicon.png'];
+    protected $parameters_layout = ['description' => '', 'keywords' => '', 'add_script' => '',
+        'add_style' => '', 'canonical_href' => ENV_URL_SITE, 'layout' => 'index', 'imagePage' => '/favicon.png',
+        'json_ld' => ''];
     
     /**
      * Конструктор класса принимает экземпляр класса представления из /classes/system/Router.php
      * Проверяет сессию пользователя и записывает id в logged_in
      * @param mixed $view Экземпляр класса представления
      */
-    function __construct($view = null) {
+    function __construct($view = \null) {
         SysClass::checkInstall();
         $this->view = $view instanceof View ? $view : new View();
         $session = ENV_AUTH_USER === 2 ? Cookies::get('user_session') : Session::get('user_session');

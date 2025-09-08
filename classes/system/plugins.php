@@ -594,7 +594,8 @@ class Plugins {
         $html = '<nav class="sb-topnav navbar navbar-expand navbar-dark bg-dark" id="general_info">';
         $html .= '<a class="navbar-brand ps-3" href="' . $data['brand']['url'] . '" target="_BLANK">' . $data['brand']['name'] . '</a>';
         $html .= '<button class="btn btn-link btn-sm order-1 order-lg-0 me-4 me-lg-0" id="sidebarToggle" href="#!"><i class="fas fa-bars"></i></button>';
-        $html .= '<form class="d-none d-md-inline-block form-inline ms-auto me-0 me-md-3 my-2 my-md-0"><div class="input-group"><input class="form-control" type="text" placeholder="Поиск..." aria-label="Поиск..." aria-describedby="btnNavbarSearch" /><button class="btn btn-primary" id="btnNavbarSearch" type="button"><i class="fas fa-search"></i></button></div></form>';
+        //$html .= '<form action="/admin/search" method="GET" class="d-none d-md-inline-block form-inline ms-auto me-0 me-md-3 my-2 my-md-0"><div class="input-group"><input class="form-control" type="text" placeholder="Поиск..." aria-label="Поиск..." aria-describedby="btnNavbarSearch" /><button class="btn btn-primary" id="btnNavbarSearch" type="button"><i class="fas fa-search"></i></button></div></form>';
+        $html .= '<form action="/admin/search" method="GET" class="d-none d-md-inline-block form-inline ms-auto me-0 me-md-3 my-2 my-md-0"><div class="input-group"><input class="form-control" name="q" type="text" placeholder="Поиск..." aria-label="Поиск..." aria-describedby="btnNavbarSearch" value="' . htmlspecialchars($_GET['q'] ?? '') . '" /><button class="btn btn-primary" id="btnNavbarSearch" type="submit"><i class="fas fa-search"></i></button></div></form>';
         $html .= '<ul class="navbar-nav ms-auto ms-md-0 me-3 me-lg-4">';
         if (isset($data['notifications']) && !empty($data['notifications'])) {
             $notificationCount = count($data['notifications']);
@@ -654,6 +655,7 @@ class Plugins {
             if (!count($default) || empty($default[$count])) {
                 $default[$count] = ['title' => '', 'label' => '', 'default' => '', 'required' => 0, 'multiple' => 0, 'title' => ''];
             }
+            $default[$count]['label'] ??= '';
             $result .= $globalLang['sys.type'] . ' ' . ucfirst($type) . ': ';
             $result .= '<div class="row rounded-2 p-2 col-12 col-sm-12 mt-2 align-items-center property_content border">';
             if ($type !== 'checkbox' && $type !== 'radio') {
@@ -917,15 +919,23 @@ class Plugins {
                 break;
             case 'select':                    
                 $options = '';
+                $countSelected = 0;
                 if ($multiple && is_array($value['value'])) {
                     $countItemSelect = 0;
                     foreach ($value['value'] as $valueItem) {
+                        $options = '';
+                        $countSelected = 0;
                         if (is_array($arr_opt = explode('{|}', html_entity_decode($valueItem)))) {
-                            $options = '';
                             foreach ($arr_opt as $item) {
-                                if ($item) {
+                                if ($item) {                                    
                                     $arr_item = explode('=', $item);
-                                    $options .= '<option value="' . $arr_item[0] . '">' . $arr_item[1] . '</option>';
+                                    $selected = false;
+                                    if (mb_strpos($arr_item[1], '{*}') !== false) {
+                                        $selected = true;
+                                        $countSelected++;
+                                        $arr_item[1] = str_replace('{*}', '', $arr_item[1]);
+                                    }
+                                    $options .= '<option' . ($selected ? ' selected="selected" data-selected="true"' : '') . ' value="' . $arr_item[1] . '">' . $arr_item[0] . '</option>';
                                 }
                             }
                         }
@@ -935,6 +945,7 @@ class Plugins {
                                 . 'value="' . htmlentities($valueItem) . '"/>'
                                 . '<div class="input-group">'
                                 . '<select class="form-select" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $type . '"'
+                                . ($countSelected > 1 ? ' multiple ' : '')
                                 . 'id="' . $valueName  . '_' . $countItemSelect . '">' . $options . '</select>'
                                 . '<span data-select-id="' . $valueName . '_' . $countItemSelect . '" id="' . $valueName
                                 . '_default_add_select_values_' . $countItemSelect . '" role="button"'
@@ -944,12 +955,18 @@ class Plugins {
                         $result .= '</div>';
                         $countItemSelect++;
                     }
-                } else {
+                } else {                    
                     if ($value['value'] && is_array($arr_opt = explode('{|}', html_entity_decode($value['value'])))) {
                         foreach ($arr_opt as $item) {
                             if ($item) {
                                 $arr_item = explode('=', $item);
-                                $options .= '<option value="' . $arr_item[0] . '">' . $arr_item[1] . '</option>';
+                                $selected = false;
+                                if (mb_strpos($arr_item[1], '{*}') !== false) {
+                                    $selected = true;
+                                    $countSelected++;
+                                    $arr_item[1] = str_replace('{*}', '', $arr_item[1]);
+                                }
+                                $options .= '<option' . ($selected ? ' selected="selected" data-selected="true"' : '') . ' value="' . $arr_item[1] . '">' . $arr_item[0] . '</option>';
                             }
                         }
                     }
@@ -958,6 +975,7 @@ class Plugins {
                             . 'value="' . htmlentities($value['value']) . '"/>'
                             . '<div class="input-group">'
                             . '<select class="form-select" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $type . '"'
+                            . ($countSelected > 1 ? ' multiple ' : '')
                             . 'id="' . $valueName . '_0">' . $options . '</select>'
                             . '<span data-select-id="' . $valueName . '_0" id="' . $valueName. '_default_add_select_values_0" role="button"'
                             . 'class="input-group-text btn-primary openModal" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $globalLang['sys.separate_window'] . '">'

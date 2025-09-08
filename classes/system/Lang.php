@@ -2,6 +2,7 @@
 
 namespace classes\system;
 
+use classes\system\SysClass;
 /**
  * Класс для работы с языковыми переменными
  * Загружает языковые файлы и предоставляет методы для получения переменных
@@ -25,7 +26,7 @@ class Lang {
                 self::$lang = array_merge(self::$lang, $lang);
             }
         } else {
-            $errorLogger = new ErrorLogger('Языковой файл не найден: ' . $filePath, __FUNCTION__, 'lang');
+            $errorLogger = new ErrorLogger('Языковой файл не найден: ' . $filePath . ' Искал: ' . SysClass::detectClientBrowser() . ' IP: ' . SysClass::getClientIp(), __FUNCTION__, 'lang');
             self::$lang = $errorLogger->result;
         }
     }
@@ -34,10 +35,13 @@ class Lang {
      * Инициализирует класс и загружает языковой файл
      * @param string $langCode Код языка
      */
-    public static function init(string $langCode): array {
+    public static function init(string &$langCode): array {
         $langCode = strtoupper($langCode);
         if (empty(self::$lang)) {
             $langPath = ENV_SITE_PATH . ENV_PATH_LANG . $langCode . '.php';
+            if (!file_exists($langPath)) {
+                $langPath = ENV_SITE_PATH . ENV_PATH_LANG . ENV_PROTO_LANGUAGE . '.php';                
+            }
             self::loadLangFile($langPath);
         }
         return self::$lang;

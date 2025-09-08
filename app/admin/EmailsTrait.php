@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * Евгений Ефимченко, efimchenko.com
+ * Обеспечивает управление почтовыми шаблонами и сниппетами в админ-панели.
+ * /app/admin/EmailsTrait.php
+ */
+
 namespace app\admin;
 
 use classes\system\SysClass;
@@ -10,8 +16,8 @@ use classes\system\Plugins;
  * Функции работы с письмами
  */
 trait EmailsTrait {
-    
     /* Список шаблонов писем */
+
     public function email_templates(array $params = []): void {
         $this->access = [Constants::ADMIN, Constants::MODERATOR];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
@@ -320,7 +326,7 @@ trait EmailsTrait {
         $this->view->set('body_view', $this->view->read('v_edit_email_template'));
         $this->html = $this->view->read('v_dashboard');
         /* layouts */
-        $this->addEditorToLayout();        
+        $this->addEditorToLayout();
         $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/edit_email_templates.js" type="text/javascript" /></script>';
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
@@ -389,7 +395,7 @@ trait EmailsTrait {
         $this->view->set('body_view', $this->view->read('v_edit_email_snippet')); // Предполагается, что есть такой шаблон
         $this->html = $this->view->read('v_dashboard');
         /* layouts */
-        $this->addCodeMirror();        
+        $this->addCodeMirror();
         $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/edit_email_snippets.js" type="text/javascript" /></script>';
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';

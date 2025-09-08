@@ -1,7 +1,13 @@
+<?php
+/**
+ * Евгений Ефимченко, efimchenko.com
+ * Шаблон главной страницы, отображает базовую разметку и индикатор загрузки.
+ * /layouts/index.php
+ */
+?>
 <!DOCTYPE html>
 <html lang="ru">
     <head>
-		<meta name="yandex-verification" content="1a3f36d0c7ec8567" />
         <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
         <meta http-equiv="content-language" content="ru-RU">
         <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
@@ -26,20 +32,20 @@
         <meta name="home-url" content="<?= ENV_URL_SITE ?>" />
         <meta name="keywords" content='<?= $keywords ?>'/>
         <meta name="description" content="<?= $description ?>"/>
-        <meta name="image" content="<?=$imagePage?>">
+        <meta name="image" content="<?= $imagePage ?>">
         <!-- Мета теги соц. сетей -->
         <meta property="og:type" content="website" />
         <meta property="og:title" content="<?= $title ?>" />
         <meta property="og:description" content="<?= $description ?>" />
-        <meta property="og:image" content="<?=$imagePage?>" />
+        <meta property="og:image" content="<?= $imagePage ?>" />
         <meta property="og:image:width" content="1200" /> <!-- Ширина для Open Graph -->
         <meta property="og:image:height" content="630" />  <!-- Высота для Open Graph -->
         <meta property="og:url" content="<?= ENV_URL_SITE ?>">
         <meta name="twitter:site" content=""> <!-- аккаунт в Twitter -->
         <meta name="twitter:title" content="<?= $title ?>" />
         <meta name="twitter:description" content="<?= $description ?>" />
-        <meta name="twitter:image" content="<?=$imagePage?>" />
-        <meta name="twitter:card" content="<?=$imagePage?>" /> <!-- Для Twitter большого изображения -->
+        <meta name="twitter:image" content="<?= $imagePage ?>" />
+        <meta name="twitter:card" content="<?= $imagePage ?>" /> <!-- Для Twitter большого изображения -->
         <meta name="twitter:image:width" content="1200" /><!-- Ширина для Twitter -->
         <meta name="twitter:image:height" content="675" />  <!-- Высота для Twitter -->
         <!-- Стили -->
@@ -64,6 +70,9 @@
         <!-- Добавленные стили из контроллера-->
         <?= $add_style ?>
         <title><?= $title ?></title>
+        <!-- start of non-relocatable JS scripts -->
+        <?= $json_ld ?? '' ?>
+        <!-- end of non-relocatable JS scripts -->
     </head>
     <body>
         <!-- Preloader -->
@@ -87,13 +96,13 @@
             <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" type="text/javascript"></script>
         <?php } ?>
         <!-- core -->
-        <script src="<?= ENV_URL_SITE ?>/uploads/tmp/<?=\classes\system\Session::get('lang')?>.js" type="text/javascript"></script>
+        <script src="<?= ENV_URL_SITE ?>/uploads/tmp/<?= \classes\system\Session::get('lang') ?>.js" type="text/javascript"></script>
         <script src="<?= ENV_URL_SITE ?>/assets/js/core.js" type="text/javascript"></script>
         <!-- General scripts -->
         <script src="<?= ENV_URL_SITE . '/' . ENV_APP_DIRECTORY ?>/index/js/index.js" type="text/javascript" /></script>
-        <!-- end of non-relocatable JS scripts -->
-        <!-- Добавленные скрипты из контроллера -->
-        <?= $add_script ?>
-        <!-- ported scripts -->
+    <!-- end of non-relocatable JS scripts -->
+    <!-- Добавленные скрипты из контроллера -->
+    <?= $add_script ?>
+    <!-- ported scripts -->
 </body>
 </html>
