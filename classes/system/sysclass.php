@@ -1139,7 +1139,7 @@ class SysClass {
     public static function preFile(string $subFolder, string $initiator, mixed $result, mixed $details = ''): void {
         if (ENV_LOG) {
             $logsPath = ENV_LOGS_PATH . $subFolder;
-            if (!file_exists($logsPath)) {
+            if (!is_dir($logsPath)) {
                 mkdir($logsPath, 0755, true);
             }
             $trace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
@@ -1597,44 +1597,39 @@ class SysClass {
     }
     
     /**
-     * Очищает строковую переменную от специальных символов и обрезает пробелы с начала и конца строки
+     * Очищает строковую переменную для безопасного хранения, удаляя теги и пробелы.
      * @param string $inputString Входная строка для очистки
-     * @return string Очищенная строка
+     * @return string|false Очищенная строка
      */
     public static function ee_cleanString($inputString) {
         if (!is_string($inputString)) {
-            return false;  // Возвращает false, если входное значение не является строкой
+            return false;
         }
-        $inputString = htmlspecialchars($inputString, ENT_QUOTES, 'UTF-8');  // Преобразование специальных символов в HTML-сущности
-        $inputString = strip_tags($inputString);  // Удаление HTML и PHP-тегов из строки
-        $inputString = trim($inputString);  // Удаление пробелов с начала и конца строки
-        return $inputString;
+        $cleanedString = strip_tags($inputString);
+        $cleanedString = trim($cleanedString);        
+        return $cleanedString;
     }
-
+    
     /**
-     * Очищает входной массив или строку от специальных символов и обрезает пробелы с начала и конца строки.
-     * Если элемент массива является строкой, он будет очищен от специальных символов и обрезан.
-     * Если элемент массива является другим массивом, функция будет рекурсивно вызвана для этого массива.
-     * @param array|string $input Входной массив или строка для очистки.
-     * @return array|string|false Очищенный массив, строка или false, если входное значение не является строкой или массивом.
+     * Очищает входной массив или строку от специальных символов и обрезает пробелы.
+     * Рекурсивно обрабатывает вложенные массивы, очищая как ключи, так и значения.
+     * @param mixed $input Входной массив, строка или другое значение для очистки.
+     * @return mixed Очищенные данные.
      */
     public static function ee_cleanArray($input = []) {
         if (is_string($input)) {
-            // Если входное значение является строкой, очищаем его и возвращаем
             return self::ee_cleanString($input);
-        } elseif (is_array($input)) {
-            // Если входное значение является массивом, обрабатываем каждый элемент массива
-            foreach ($input as $key => $value) {
-                if (is_array($value)) {
-                    $input[$key] = self::ee_cleanArray($value);  // Рекурсивный вызов для вложенных массивов
-                } elseif (is_string($value)) {
-                    $input[$key] = self::ee_cleanString($value);  // Очистка строковых значений
-                }
-            }
-            return $input;
-        } else {
-            return false;  // Возвращает false для необработанных типов данных
         }
+        if (is_array($input)) {
+            $cleaned_array = [];
+            foreach ($input as $key => $value) {
+                $cleaned_key = is_string($key) ? trim($key) : $key;
+                $cleaned_value = self::ee_cleanArray($value);
+                $cleaned_array[$cleaned_key] = $cleaned_value;
+            }
+            return $cleaned_array;
+        }
+        return $input;
     }
 
     /**
@@ -1778,27 +1773,33 @@ class SysClass {
 
     /**
      * Получает объект модели на основе переданных области и имени модели
-     * @param string $area Название области, где находится модель
-     * @param string $modelName Имя модели в формате "Модель_Название"
+     * @param string $area Название области, где находится модель (admin, index ...)
+     * @param string $modelName Имя модели в формате "m_model"
      * @param array $params Параметры для модели
      * @return object|false Возвращает объект модели, если он существует, или false, если модель не найдена
      */
     public static function getModelObject(string $area, string $modelName, array $params = []): object|false {
         $parts = explode('_', substr($modelName, 2));
-        $className = 'Model' . implode('', array_map('ucfirst', $parts));
+        // Правильное имя класса без namespace
+        $className = trim('Model' . implode('', array_map('ucfirst', $parts)));
+
         if (is_array(self::$cacheModel) && !empty(self::$cacheModel[$className])) {
             return self::$cacheModel[$className];
-        }                
-        $filePath = ENV_SITE_PATH . ENV_APP_DIRECTORY . ENV_DIRSEP . $area . ENV_DIRSEP . 'models' . ENV_DIRSEP . $className . '.php';
+        }
+        
+        $filePath = trim(ENV_SITE_PATH . ENV_APP_DIRECTORY . ENV_DIRSEP . $area . ENV_DIRSEP . 'models' . ENV_DIRSEP . $className . '.php');
         if (!file_exists($filePath)) {
             return false;
         }
         include_once($filePath);
+        
+        // Правильная проверка на существование глобального класса
         if (class_exists($className)) {
             $classObject = new $className($params);
             self::$cacheModel[$className] = $classObject;
             return $classObject;
         }
+        
         return false;
     }
 

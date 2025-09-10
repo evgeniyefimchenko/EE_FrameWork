@@ -36,6 +36,8 @@ class Constants {
             CATEGORY_TYPE_TO_PROPERTY_SET_TABLE_FIELDS = [],
             PROPERTY_SET_TO_PROPERTIES_TABLE = ENV_DB_PREF . 'property_set_to_properties',
             PROPERTY_SET_TO_PROPERTIES_TABLE_FIELDS = [],
+            FILTERS_TABLE = ENV_DB_PREF . 'filters',
+            FILTERS_TABLE_FIELDS = [],
             SEARCH_INDEX_TABLE = ENV_DB_PREF . 'search_index',
             SEARCH_INDEX_TABLE_FIELDS = [],
             SEARCH_NGRAMS_TABLE = ENV_DB_PREF . 'search_ngrams',
