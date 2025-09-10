@@ -64,6 +64,11 @@ $menuItems = [
                         ['title' => $lang['sys.snippets'], 'link' => '/admin/email_snippets', 'icon' => 'fa-solid fa-file-fragment'],
                     ],                    
                 ],
+                [
+                    'title' => $lang['sys.filters_management'] ?? 'Управление фильтрами',
+                    'link' => '/admin/filters_panel',
+                    'icon' => 'fa-solid fa-filter-circle-dollar',
+                ],                
             ],
             $lang['sys.system'] => [
                 [

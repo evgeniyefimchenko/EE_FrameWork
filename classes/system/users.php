@@ -607,6 +607,7 @@ class Users {
             $this->createPropertyValuesTable();
             $this->createCategoryTypeToPropertySetTable();
             $this->createPropertySetToPropertiesTable();
+            $this->createFiltersTable();
             $this->createFilesTable();
             $this->createGlobalOptionsTable();
             $this->createEmailTemplatesTable();
@@ -932,6 +933,26 @@ class Users {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для связи наборов свойств и свойств';";
         SafeMySQL::gi()->query($sql, Constants::PROPERTY_SET_TO_PROPERTIES_TABLE, Constants::PROPERTY_SETS_TABLE, Constants::PROPERTIES_TABLE);
         SysClass::preFile('sql_info', 'create_property_set_to_properties_table', 'Таблица связи наборов свойств и свойств создана', 'OK');
+    }
+
+    /**
+     * Создаёт таблицу ee_filters для хранения предрасчитанных фильтров
+     * @throws Exception Если запрос не удалось выполнить
+     */
+    private function createFiltersTable() {
+        $createSql = "CREATE TABLE IF NOT EXISTS ?n (
+            filter_id INT AUTO_INCREMENT PRIMARY KEY,
+            entity_type VARCHAR(50) NOT NULL COMMENT 'Тип сущности: category или page',
+            entity_id INT NOT NULL COMMENT 'ID сущности (из ee_categories или ee_pages)',
+            property_id INT NOT NULL COMMENT 'ID свойства из ee_properties',
+            filter_options JSON NOT NULL COMMENT 'JSON-объект с данными и типом фильтра',
+            version INT NOT NULL DEFAULT 1 COMMENT 'Версия для контроля кеша',
+            language_code VARCHAR(5) NOT NULL COMMENT 'Код языка',
+            recalculated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Дата последнего пересчета',
+            UNIQUE KEY uq_filter (entity_type, entity_id, property_id, language_code)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Предварительно рассчитанные фильтры для сущностей';";
+        SafeMySQL::gi()->query($createSql, Constants::FILTERS_TABLE);
+        SysClass::preFile('sql_info', 'create_filters_table', 'Таблица ee_filters создана', 'OK');
     }
 
     /**

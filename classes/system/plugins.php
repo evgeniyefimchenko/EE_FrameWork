@@ -758,7 +758,8 @@ class Plugins {
     * @return string Возвращает HTML-код для рендеринга вкладок с наборами свойств
     */
    public static function renderPropertiesSetsTabs($entitySetsData, $entityId, $typeEntity = 'category', $activeTabIndex = null) {       
-       $globalLang = Lang::init(Session::get('lang'));
+       $langCode = Session::get('lang');
+       $globalLang = Lang::init($langCode);
        $html = '';
 
        // Начало контейнера для табов
@@ -881,8 +882,9 @@ class Plugins {
      * @param type $valueName
      * @return string
      */
-    private static function renderFieldsProperty($value, $type, $valueName, $area) {
-        $globalLang = Lang::init(Session::get('lang'));
+    private static function renderFieldsProperty($value, $type, $valueName, $area) {        
+        $langCode = Session::get('lang');
+        $globalLang = Lang::init($langCode);
         $result = '';
         $multipleChoice = true;
         $multiple = !empty($value['multiple']) ? true : false;
@@ -1153,7 +1155,8 @@ class Plugins {
     * ```
     */
     public static function ee_uploader(array $params = []): string {
-        $globalLang = Lang::init(Session::get('lang'));
+        $langCode = Session::get('lang');
+        $globalLang = Lang::init($langCode);
         $defaultParams = [
             'name' => 'ee_upload_file_' . md5(SysClass::ee_generate_uuid()),
             'id' => 'upload_id_' . md5(SysClass::ee_generate_uuid()),

@@ -3,15 +3,136 @@
 namespace app\admin;
 
 use classes\system\SysClass;
-use classes\plugins\SafeMySQL;
 use classes\system\Constants;
 use classes\helpers\ClassNotifications;
 use classes\system\Plugins;
+use classes\system\ErrorLogger;
 
 /**
  * Функции работы с логами
  */
 trait SystemsTrait {
+
+    /**
+     * Отображает панель управления фильтрами
+     * @param array $params
+     * @return void
+     */
+    public function filters_panel($params = []) {
+        $this->access = [Constants::ADMIN, Constants::MODERATOR];
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect(200, '/show_login_form?return=admin/systems/filters_panel');
+            exit();
+        }
+        $this->loadModel('m_categories');
+        $this->loadModel('m_filters');
+        $categoriesData = $this->models['m_categories']->getCategoriesData('title ASC', 'parent_id IS NULL OR parent_id = 0', 0, 1000);
+        $rootCategories = $categoriesData['data'];
+        $existingFilters = $this->models['m_filters']->getExistingFiltersSummary();
+        $this->view->set('categories', $rootCategories);
+        $this->view->set('existingFilters', $existingFilters); // Новые данные
+        $this->view->set('page_title', $this->lang['sys.filters_management'] ?? 'Управление фильтрами');
+        $this->getStandardViews();
+        $this->view->set('is_full_page_load', true);
+        $this->view->set('body_view', $this->view->read('v_filters'));
+        $this->html = $this->view->read('v_dashboard');
+        $this->parameters_layout["layout_content"] = $this->html;
+        $this->parameters_layout["layout"] = 'dashboard';
+        $this->parameters_layout["title"] = $this->lang['sys.filters_management'] ?? 'Управление фильтрами';
+        $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/filters_panel.js" type="text/javascript"></script>';
+        $this->showLayout($this->parameters_layout);
+    }
+
+    /**
+     * AJAX
+     * Запускает пересчет фильтров для указанной сущности и всех её потомков (ОТЛАДОЧНАЯ ВЕРСИЯ)
+     * @param array $params
+     * @return void
+     */
+    public function regenerate_filters($params = []) {
+        $is_ajax = SysClass::isAjaxRequestFromSameSite();
+        if ($is_ajax && !empty($_POST)) {
+            $this->access = [Constants::ADMIN, Constants::MODERATOR];
+            if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+                echo json_encode(['status' => 'error', 'message' => 'Access Denied']);
+                die;
+            }             
+
+            $postData = SysClass::ee_cleanArray($_POST);
+            $startEntityId = (int) ($postData['entity_id'] ?? 0);
+
+            if (!$startEntityId) {
+                echo json_encode(['status' => 'error', 'message' => 'Не указан ID стартовой категории']);
+                die;
+            }
+
+            if (empty($this->models['m_categories'])) {
+                $this->loadModel('m_categories');
+            }
+            $descendants = $this->models['m_categories']->getCategoryDescendantsShort($startEntityId);
+
+            $categoryIdsToProcess = [];
+            if (!empty($descendants)) {
+                foreach ($descendants as $category) {
+                    $categoryIdsToProcess[] = (int) $category['category_id'];
+                }
+            }
+
+            $filterService = new \classes\helpers\FilterService();
+            $processedCount = 0;
+
+            foreach ($categoryIdsToProcess as $categoryId) {
+                $filterService->regenerateFiltersForEntity('category', $categoryId);
+                $processedCount++;
+            }
+
+            $message = 'Фильтры для ' . $processedCount . ' категорий (ID ' . $startEntityId . ' и дочерние) успешно пересчитаны.';
+            echo json_encode(['status' => 'success', 'message' => $message]);
+        }
+        die;
+    }
+
+    /**
+     * AJAX
+     * Отдает HTML-код ТОЛЬКО таблицы с существующими фильтрами
+     * @param array $params
+     * @return void
+     */
+    public function get_filters_table($params = []) {
+        if (SysClass::isAjaxRequestFromSameSite()) {
+            if (empty($this->models['m_filters'])) {
+                $this->loadModel('m_filters');
+            }            
+            $this->view->set('existingFilters', $this->models['m_filters']->getExistingFiltersSummary());
+            $this->view->set('is_full_page_load', false);
+            echo $this->view->read('v_filters');
+        }
+        die;
+    }
+
+    /**
+     * AJAX
+     * Отдает JSON с деталями фильтров для указанной категории
+     * @param array $params
+     * @return void
+     */
+    public function get_filter_details($params = []) {
+        if (SysClass::isAjaxRequestFromSameSite()) {
+            $postData = SysClass::ee_cleanArray($_POST);
+            $entityId = (int) ($postData['entity_id'] ?? 0);
+
+            if ($entityId > 0) {
+                if (empty($this->models['m_filters'])) {
+                    $this->loadModel('m_filters');
+                }
+                $filterDetails = $this->models['m_filters']->getFiltersForEntity($entityId);
+                echo json_encode(['status' => 'success', 'data' => $filterDetails]);
+            } else {
+                echo json_encode(['status' => 'error', 'message' => 'Неверный ID категории']);
+            }
+        }
+        die;
+    }
 
     /**
      * Вывод страницы с логами
@@ -311,7 +432,7 @@ trait SystemsTrait {
         } else {
             ClassNotifications::add_notification_user($this->logged_in, ['text' => 'Constants_clean.php not found.', 'status' => 'danger']);
             return false;
-        }        
+        }
         $this->models['m_systems']->killDB($this->logged_in);
         SysClass::handleRedirect(200, '/admin');
     }
@@ -391,7 +512,7 @@ trait SystemsTrait {
             $prop = $this->generateTestProperties();
             $sets_prop = $this->generateTestSetsProp();
             $catsType = $this->generateTestCategoriesType();
-            $cats = $this->generateTestCategories();            
+            $cats = $this->generateTestCategories();
             $ent = $this->generateTestPages();
             $setLinksTypeToCats = $this->setLinksTypeToCats();
             if (!$users || !$cats || !$ent || !$prop || !$sets_prop || !$catsType) {
@@ -401,7 +522,7 @@ trait SystemsTrait {
                         . '<br/>generateTestCategoriesType<br/>' . var_export($catsType, true)
                         . '<br/>generateTestProperties<br/>' . var_export($prop, true);
                 $status = 'danger';
-            } else {                              
+            } else {
                 if (!SysClass::createDirectoriesForFile($flagFilePath) || !file_put_contents($flagFilePath, 'Test data created on ' . date('Y-m-d H:i:s'))) {
                     
                 }
@@ -570,7 +691,7 @@ trait SystemsTrait {
         ];
         return true;
     }
-    
+
     /**
      * Генерирует тестовые категории с случайной вложенностью
      * @param int $count Количество генерируемых категорий
@@ -604,7 +725,7 @@ trait SystemsTrait {
     private function generateTestPages($count = 200) {
         return true;
     }
-    
+
     /**
      * Присваиваем типам категорий наборы свойств
      * @return bool

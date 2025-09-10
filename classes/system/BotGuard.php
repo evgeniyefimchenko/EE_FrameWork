@@ -525,7 +525,6 @@ class BotGuard {
 
     /**
      * Добавляет IP-адрес или диапазон в чёрный список
-     * Теперь также немедленно обновляет кэш в Redis
      * @param string $ipRange IP-адрес или диапазон
      * @param int $blockDuration Время блокировки в секундах
      * @param string|null $reason Причина блокировки
@@ -540,12 +539,13 @@ class BotGuard {
             if ($exists) {
                 return true; // IP уже заблокирован
             }
-            // Добавляем новую запись в БД
-            $blockUntil = date('Y-m-d H:i:s', time() + $blockDuration);
-            $sqlInsert = "INSERT INTO ?n (ip_range, block_until, reason) VALUES (?s, ?s, ?s)";
-            $resDb = $db->query($sqlInsert, Constants::IP_BLACKLIST_TABLE, $ipRange, $blockUntil, $reason);
-            // TODO TEST
-            SysClass::preFile('addIpToBlacklist', 'addIpToBlacklist', $db->parse($sqlInsert, Constants::IP_BLACKLIST_TABLE, $ipRange, $blockUntil, $reason), $resDb);
+            // Используем NOW() и INTERVAL из MySQL вместо date() из PHP
+            $sqlInsert = "INSERT INTO ?n (ip_range, block_until, reason) VALUES (?s, NOW() + INTERVAL ?i SECOND, ?s)";
+            $resDb = $db->query($sqlInsert, Constants::IP_BLACKLIST_TABLE, $ipRange, $blockDuration, $reason);
+            // Для логгирования нам всё ещё нужно получить отформатированный запрос
+            $parsedQueryForLog = $db->parse($sqlInsert, Constants::IP_BLACKLIST_TABLE, $ipRange, $blockDuration, $reason);
+            SysClass::preFile('addIpToBlacklist', 'addIpToBlacklist', $parsedQueryForLog, $resDb);
+
             if (self::$useRedis && self::$redisClient) {
                 self::$redisClient->sAdd(self::$redisKeyIpBlacklist, $ipRange);
             }
@@ -553,7 +553,7 @@ class BotGuard {
                     'IP успешно добавлен в чёрный список',
                     __FUNCTION__,
                     'botguard_info',
-                    ['ip_range' => $ipRange, 'block_until' => $blockUntil, 'reason' => $reason]
+                    ['ip_range' => $ipRange, 'block_duration_sec' => $blockDuration, 'reason' => $reason]
             );
             return true;
         } catch (\Exception $e) {
