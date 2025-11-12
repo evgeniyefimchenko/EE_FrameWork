@@ -2,7 +2,7 @@
 
 /**
  * Евгений Ефимченко, efimchenko.com
- * Реализует обработчики хуков.
+ * Реализует обработчики хуков
  * /inc/hooks.php
  */
 use classes\system\SysClass;

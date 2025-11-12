@@ -1,5 +1,10 @@
 <?php
 
+/**
+ * Евгений Ефимченко, efimchenko.com
+ * Главная точка входа для приложения EE_FrameWork, инициализирует маршрутизацию и выводит отладочную информацию.
+ * /index.php
+ */
 define('USE_APDEX_INDEX', false);
 
 if (USE_APDEX_INDEX) {
@@ -10,7 +15,7 @@ if (version_compare(phpversion(), '8.0', '<') == true) {
     die('PHP - Нужна версия 8.0 или выше!');
 }
 
-$debug = 1;
+$debug = true;
 
 if ($debug) { // Повреждает некоторые AJAX запросы
     ini_set('display_errors', 1);
@@ -41,7 +46,8 @@ if (function_exists('opcache_get_status')) {
     ee_startUp();
 }
 
-// ВАЖНО: Всегда регистрируем автозагрузчик
+// ВАЖНО: Всегда регистрируем автозагрузчик, повторная инициализация не произойдёт из за кеширования.
+// Это нюанс работы с opcache
 AutoloadManager::init();
 
 \classes\system\BotGuard::guard();
@@ -56,12 +62,14 @@ if (USE_APDEX_INDEX) {
     \classes\system\SysClass::preFile('apdex', 'USE_APDEX_INDEX', $url, $response_time);
 }
 
-if ($debug) {
-    echo '<div style="z-index: 100000;
-    position: absolute;
-    width: 100%;
-    text-align: center;">';
+if ($debug && !empty($_GET['show_debug'])) {
+    echo '<div style="width: 100%; position: fixed; bottom: 0; text-align: center; z-index: 100000;"><div>';
     echo "Текущее использование памяти: " . (memory_get_usage(true) / 1024 / 1024) . " MB<br/>";
     echo "Пиковое использование памяти: " . (memory_get_peak_usage(true) / 1024 / 1024) . " MB<br/>";
-    echo '</div>';
+    echo 'ENV_CONTROLLER_PATH: ' . ENV_CONTROLLER_PATH . '<br/>';
+    echo 'ENV_CONTROLLER_NAME: ' . ENV_CONTROLLER_NAME . '<br/>';
+    echo 'ENV_CONTROLLER_ACTION: ' . ENV_CONTROLLER_ACTION . '<br/>';
+    echo 'ENV_CONTROLLER_ARGS: ' . var_export(ENV_CONTROLLER_ARGS, true) . '<br/>';
+    echo 'ENV_CONTROLLER_FOLDER: ' . ENV_CONTROLLER_FOLDER . '<br/>';
+    echo '</div></div>';
 }

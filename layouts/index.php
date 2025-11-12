@@ -100,9 +100,9 @@
         <script src="<?= ENV_URL_SITE ?>/assets/js/core.js" type="text/javascript"></script>
         <!-- General scripts -->
         <script src="<?= ENV_URL_SITE . '/' . ENV_APP_DIRECTORY ?>/index/js/index.js" type="text/javascript" /></script>
-    <!-- end of non-relocatable JS scripts -->
-    <!-- Добавленные скрипты из контроллера -->
-    <?= $add_script ?>
-    <!-- ported scripts -->
-</body>
+        <!-- end of non-relocatable JS scripts -->
+        <!-- Добавленные скрипты из контроллера -->
+        <?= $add_script ?>
+        <!-- ported scripts -->
+    </body>
 </html>

@@ -32,17 +32,22 @@
         <meta name="home-url" content="<?= ENV_URL_SITE ?>" />
         <meta name="keywords" content='<?= $keywords ?>'/>
         <meta name="description" content="<?= $description ?>"/>
+        <meta name="image" content="<?= $imagePage ?>">
         <!-- Мета теги соц. сетей -->
         <meta property="og:type" content="website" />
         <meta property="og:title" content="<?= $title ?>" />
-        <meta property="og:description" content="<?= $description ?>"/>
-        <meta property="og:image" content="<?= $image_social ?>"> <!-- URL-адрес изображения JPG, PNG и GIF min-size = 120х90 -->
+        <meta property="og:description" content="<?= $description ?>" />
+        <meta property="og:image" content="<?= $imagePage ?>" />
+        <meta property="og:image:width" content="1200" /> <!-- Ширина для Open Graph -->
+        <meta property="og:image:height" content="630" />  <!-- Высота для Open Graph -->
         <meta property="og:url" content="<?= ENV_URL_SITE ?>">
-        <meta name="twitter:card" content="summary">
         <meta name="twitter:site" content=""> <!-- аккаунт в Twitter -->
-        <meta name="twitter:title" content="<?= $title ?>">
-        <meta name="twitter:description" content="<?= $description ?>">
-        <meta name="twitter:image" content="<?= $image_twiter ?>"> <!-- URL-адрес изображения JPG, PNG и GIF min-size = 120×120 -->
+        <meta name="twitter:title" content="<?= $title ?>" />
+        <meta name="twitter:description" content="<?= $description ?>" />
+        <meta name="twitter:image" content="<?= $imagePage ?>" />
+        <meta name="twitter:card" content="<?= $imagePage ?>" /> <!-- Для Twitter большого изображения -->
+        <meta name="twitter:image:width" content="1200" /><!-- Ширина для Twitter -->
+        <meta name="twitter:image:height" content="675" />  <!-- Высота для Twitter -->
         <!-- Стили -->
         <link rel="apple-touch-icon" sizes="76x76" href="favicon.png">
         <link rel="icon" type="image/png" href="favicon.ico">

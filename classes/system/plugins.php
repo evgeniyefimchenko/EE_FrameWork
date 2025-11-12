@@ -61,7 +61,8 @@ class Plugins {
      * @return string Возвращает HTML-код раздела фильтрации.
      */
     private static function generateFilterSection($idTable, $dataTable, $filters) {
-        $globalLang = Lang::init(Session::get('lang'));
+        $langCode = Session::get('lang');
+        $globalLang = Lang::init($langCode);
         $html = '';
         $html .= '<button class="btn btn-primary mb-2" type="button" data-table="' . $idTable . '" data-bs-toggle="collapse" data-bs-target="#' . $idTable . '_filtersCollapse"'
                 . 'aria-expanded="false" id="' . $idTable . '_button_filtersCollapse" aria-controls="' . $idTable . '_filtersCollapse"><i class="fa-solid fa-filter"'
@@ -642,7 +643,8 @@ class Plugins {
      * @return string
      */
     public static function renderPropertyHtmlFields(mixed $fields, mixed $default = []): string {
-        $globalLang = Lang::init(Session::get('lang'));
+        $langCode = Session::get('lang');
+        $globalLang = Lang::init($langCode);
         $count = 0;
         $result = '';
         if (!is_array($fields) && is_string($fields)) {
@@ -687,7 +689,8 @@ class Plugins {
      * @return string HTML-код аккордеона
      */
     public static function renderPropertiesSetsAccordion($entitySetsData, $entityId, $typeEntity = 'category') {
-        $globalLang = Lang::init(Session::get('lang'));
+        $langCode = Session::get('lang');
+        $globalLang = Lang::init($langCode);
         $html = '';
         foreach ($entitySetsData as $entityName => $entitySet) {
             foreach ($entitySet as $propertySet) {
@@ -1306,7 +1309,8 @@ class Plugins {
      * @return string Сгенерированный HTML код
      */
     public static function renderPropertySets($propertySetsData, $categoriesTypeSetsData) {
-        $globalLang = Lang::init(Session::get('lang'));
+        $langCode = Session::get('lang');
+        $globalLang = Lang::init($langCode);
         $html = '';
         if (count($categoriesTypeSetsData)) {
             foreach ($categoriesTypeSetsData as $item_ctsd) {

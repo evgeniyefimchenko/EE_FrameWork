@@ -95,6 +95,7 @@ $lang['sys.categories'] = 'Categories';
 $lang['sys.category'] = 'Category';
 $lang['sys.pages'] = 'Pages';
 $lang['sys.page'] = 'Page';
+$lang['sys.filters_management'] = 'Filters management';
 $lang['sys.entities'] = 'Entities';
 $lang['sys.entity'] = 'Entity';
 $lang['sys.message'] = 'Message';

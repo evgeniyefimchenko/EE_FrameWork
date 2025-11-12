@@ -8,7 +8,6 @@ $(document).ready(function () {
     const logOutput = $('#log-output');
     const tableContainer = $('#filters-table-container');
     
-    // --- ГЛАВНОЕ ИСПРАВЛЕНИЕ: Инициализируем объект модального окна ОДИН РАЗ ---
     const modalInstance = new bootstrap.Modal(document.getElementById('filterDetailModal'));
     const modalTitle = $('#filterDetailModalLabel span');
     const modalBody = $('#filterDetailModal .modal-body');
@@ -89,7 +88,6 @@ $(document).ready(function () {
         updateFiltersTable();
     });
 
-    // --- ГЛАВНОЕ ИСПРАВЛЕНИЕ: Полностью ручное управление модальным окном ---
     $(document).on('click', '.view-filter-details', function() {
         const entityId = $(this).data('entity-id');
         const entityName = $(this).data('entity-name');

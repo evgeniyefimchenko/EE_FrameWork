@@ -94,6 +94,7 @@ $lang['sys.pages'] = 'Страницы';
 $lang['sys.page'] = 'Страница';
 $lang['sys.entities'] = 'Сущности';
 $lang['sys.entity'] = 'Сущность';
+$lang['sys.filters_management'] = 'Управление фильтрами';
 $lang['sys.message'] = 'Сообщение';
 $lang['sys.messages'] = 'Сообщения';
 $lang['sys.all'] = 'Все';
