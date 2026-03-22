@@ -30,6 +30,17 @@
 - единый владелец или единая группа для CLI и web-процесса;
 - для `logs/` и `cache/` желательно настроить наследование группы, чтобы фоновые задачи и веб не конфликтовали по правам.
 
+## Роль configuration.php и bootstrap.php
+
+- `inc/configuration.php` — только конфигурация проекта и значения по умолчанию.
+- `inc/bootstrap.php` — runtime-слой: вычисляет производные значения, определяет константы, подключает `startup.php`, включает core bootstrap и поднимает `custom/`.
+
+Практическое правило:
+
+- меняйте настройки в `inc/configuration.php`;
+- не добавляйте в него функции, shutdown-обработчики, probe-логику и side effects;
+- всё вычислительное и bootstrap-related должно жить в `inc/bootstrap.php`.
+
 ## Что происходит в index.php
 
 Последовательность входа в систему такая:
@@ -59,6 +70,7 @@ php -S 127.0.0.1:8080 -t /var/www/html
 
 - `http://127.0.0.1:8080/index.php`
 - `http://127.0.0.1:8080/index.php?show_debug=1`
+- `php /var/www/html/inc/cli.php help`
 
 Важно:
 
@@ -70,6 +82,7 @@ php -S 127.0.0.1:8080 -t /var/www/html
 Перед тем как проверять маршруты, убедитесь, что:
 
 - конфигурация БД в `inc/configuration.php` указывает на доступную базу;
+- `inc/configuration.php` содержит только настройки, а не project-specific логику;
 - веб-процесс действительно может писать в `logs/`, `cache/` и `uploads/`;
 - в окружении не осталось старых route/html cache после переноса проекта;
 - `show_debug=1` не отключён локально, если вы только начинаете разбираться с потоком запроса.
@@ -158,3 +171,4 @@ class ControllerHello extends ControllerBase {
 
 - идите в [Отладка](/docs/debug);
 - проверьте `error.php`, `logs/` и серверные логи PHP.
+- проверьте, что системный CLI тоже поднимается через `php inc/cli.php help`.

@@ -33,6 +33,9 @@
     <a href="/docs/cache" class="list-group-item list-group-item-action" data-doc="cache">
         <i class="fas fa-gauge-high"></i> Кэширование
     </a>
+    <a href="/docs/cron-agents" class="list-group-item list-group-item-action" data-doc="cron-agents">
+        <i class="fas fa-clock-rotate-left"></i> Cron-агенты
+    </a>
     <a href="/docs/debug" class="list-group-item list-group-item-action" data-doc="debug">
         <i class="fas fa-bug"></i> Отладка
     </a>

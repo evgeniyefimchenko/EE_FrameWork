@@ -10,6 +10,8 @@
     "content": "content-model",
     "imports-json": "imports",
     "search-filters": "cache",
+    "scheduler": "cron-agents",
+    "cron": "cron-agents",
     "deployment": "quick-start",
     "safepostgresql": "models",
     "api": "api-reference"
@@ -123,6 +125,15 @@
           "file": "07_Cache.md",
           "icon": "fa-gauge-high",
           "keywords": ["cache", "performance", "redis", "html cache", "router cache"]
+        },
+        {
+          "slug": "cron-agents",
+          "title": "Cron-агенты и scheduler",
+          "summary": "Один минутный cron runner, агенты в БД, блокировки и лимиты нагрузки.",
+          "description": "Как в EE_FrameWork устроены агентные фоновые задачи, админское управление и защита от перегрузки.",
+          "file": "11_CronAgents.md",
+          "icon": "fa-clock-rotate-left",
+          "keywords": ["cron", "agents", "scheduler", "cli", "background jobs", "locks"]
         },
         {
           "slug": "debug",

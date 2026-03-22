@@ -71,7 +71,11 @@ class Constants {
             IP_OFFENSES_TABLE = ENV_DB_PREF . 'ip_offenses',
             IP_OFFENSES_TABLE_FIELDS = [],
             IMPORT_SETTINGS_TABLE = ENV_DB_PREF . 'import_settings',
-            IMPORT_SETTINGS_TABLE_FIELDS = [],            
+            IMPORT_SETTINGS_TABLE_FIELDS = [],
+            CRON_AGENTS_TABLE = ENV_DB_PREF . 'cron_agents',
+            CRON_AGENTS_TABLE_FIELDS = [],
+            CRON_AGENT_RUNS_TABLE = ENV_DB_PREF . 'cron_agent_runs',
+            CRON_AGENT_RUNS_TABLE_FIELDS = [],
             ALL_STATUS = ['active' => 'active', 'hidden' => 'hidden', 'disabled' => 'disabled'], // Ручное заполнение
             ALL_ENTITY_TYPE = ['category' => 'sys.categories', 'page' => 'sys.pages', 'all' => 'sys.all'], // Ручное заполнение
             USERS_STATUS = [1 => 'sys.not_confirmed', 2 => 'sys.active', 3 => 'sys.blocked'], // Ручное заполнение

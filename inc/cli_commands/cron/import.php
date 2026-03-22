@@ -6,30 +6,23 @@
  * php inc/cli.php cron:import <job_id>
  */
 
+use classes\system\CronAgentRegistry;
+
 $job_id = $eeCliArgs[0] ?? null;
 if (!$job_id || !ctype_digit((string)$job_id)) {
     fwrite(STDERR, "Usage: php inc/cli.php cron:import <job_id>\n");
     return 1;
 }
 
-try {
-    require_once 'app/admin/index.php';
-} catch (\Throwable $e) {
-    die("Error loading admin controller definition: " . $e->getMessage() . "\n");
+$result = CronAgentRegistry::runHandler('import.profile', ['job_id' => (int) $job_id], ['trigger_source' => 'cli_direct']);
+$payload = [
+    'success' => !empty($result['success']),
+    'status' => $result['status'] ?? '',
+    'message' => $result['message'] ?? '',
+    'data' => $result['data'] ?? [],
+];
+echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . PHP_EOL;
+if (!empty($result['output'])) {
+    echo trim((string) $result['output']) . PHP_EOL;
 }
-
-try {
-    $view = new \classes\system\View();
-    $adminController = new \ControllerAdmin($view);
-} catch (\Throwable $e) {
-    die("Error initializing admin controller: " . $e->getMessage() . "\n");
-}
-
-if (!method_exists($adminController, 'run_wp_import')) {
-    die("Error: Method 'run_wp_import' not found in admin controller.\n");
-}
-
-echo "Running import job ID: {$job_id}\n";
-$adminController->run_wp_import([(int)$job_id]);
-echo "Import job {$job_id} finished.\n";
-return 0;
+return !empty($result['success']) ? 0 : 1;

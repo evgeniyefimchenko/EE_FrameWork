@@ -23,13 +23,15 @@ EE_FrameWork — это PHP-фреймворк с явным front controller, M
 8. [Импорт структуры](/docs/imports)
 9. [Auth и доступ](/docs/auth)
 10. [Кэширование](/docs/cache)
-11. [Отладка](/docs/debug)
-12. [API Reference](/docs/api-reference)
+11. [Cron-агенты и scheduler](/docs/cron-agents)
+12. [Отладка](/docs/debug)
+13. [API Reference](/docs/api-reference)
 
 ## Что важно понять про EE_FrameWork сразу
 
 - `index.php` — единая точка входа HTTP.
-- `inc/bootstrap.php` собирает runtime ядра и подключает `custom/`.
+- `inc/configuration.php` хранит только настройки проекта.
+- `inc/bootstrap.php` собирает runtime ядра, вычисляет производные константы и подключает `custom/`.
 - `Router` определяет контроллер, action и аргументы из URL.
 - контроллеры живут в `app/<module>/index.php` или `app/<module>/<controller>.php`.
 - `View` и layout-слой отвечают за вывод, а не за бизнес-логику.

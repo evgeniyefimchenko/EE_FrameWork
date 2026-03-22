@@ -48,6 +48,35 @@
 - admin logs viewer;
 - отдельные каналы по подсистемам вроде `router_error`, `cache_error`, `property_values`, `cron_error`.
 
+## CLI как инструмент диагностики
+
+Для ручной диагностики и служебных запусков используйте единый entrypoint:
+
+```bash
+php inc/cli.php help
+```
+
+Примеры:
+
+```bash
+php inc/cli.php ops:health-check
+php inc/cli.php diagnostics:file-system --json
+php inc/cli.php diagnostics:search-engine --query=hotel --json
+```
+
+Практическое правило:
+
+- `app/cron/` — только то, что реально ставится в scheduler;
+- ручные проверки, health-check и инженерные сценарии идут через `inc/cli.php`.
+
+Для production scheduler используется один минутный wrapper:
+
+```bash
+php app/cron/run.php
+```
+
+А сами периодические задания хранятся в БД как cron-агенты и настраиваются в админке.
+
 ## Что должно происходить при 404
 
 Если Router не нашёл контроллер, action или документ, ошибка должна идти через:
@@ -68,6 +97,14 @@
 3. Убедитесь, что файл контроллера существует.
 4. Очистите route cache.
 5. Посмотрите `router_error` в логах.
+
+## Чеклист: не исполняются cron-агенты
+
+1. Убедитесь, что системный cron реально запускает `php app/cron/run.php` каждую минуту.
+2. Откройте `/admin/cron_agents` и проверьте, есть ли due-агенты.
+3. Проверьте lock-статусы и лимиты `max_concurrent` / `max_weight_per_tick`.
+4. Посмотрите канал `cron_agents` в логах и историю запусков агента.
+5. Если агент завис, выполните recovery stale locks из админки.
 
 ## Чеклист: не сохраняется в БД
 

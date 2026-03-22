@@ -30,6 +30,14 @@ if (!function_exists('ee_cli_registry')) {
                 'file' => $base . 'cron/import.php',
                 'description' => 'Run import job by id: cron:import <job_id>',
             ],
+            'cron:run-agents' => [
+                'file' => $base . 'cron/run_agents.php',
+                'description' => 'Run due cron agents tick: cron:run-agents [--json]',
+            ],
+            'cron:run-agent' => [
+                'file' => $base . 'cron/run_agent.php',
+                'description' => 'Run one cron agent by id/code: cron:run-agent <id|code> [--json]',
+            ],
             'cron:lifecycle' => [
                 'file' => $base . 'cron/property_lifecycle.php',
                 'description' => 'Run property lifecycle job: cron:lifecycle <job_id|next>',
@@ -77,6 +85,9 @@ if (!function_exists('ee_cli_print_help')) {
         }
         echo "\n";
         echo "Scheduler examples:\n";
+        echo "  php app/cron/run.php\n";
+        echo "  php inc/cli.php cron:run-agents --json\n";
+        echo "  php inc/cli.php cron:run-agent property-lifecycle-next\n";
         echo "  php inc/cli.php cron:import 15\n";
         echo "  php inc/cli.php cron:lifecycle next\n";
         echo "  php inc/cli.php cron:search-popularity\n";

@@ -2,6 +2,20 @@
 
 Этот раздел — справочный снимок developer-facing API EE_FrameWork. Он не заменяет чтение исходников, но помогает быстро вспомнить ключевые сигнатуры.
 
+## Bootstrap
+
+### `ee_bootstrap_prepare_core(): array`
+
+Загружает `inc/configuration.php`, вычисляет runtime-константы, подключает `inc/startup.php` и применяет раннюю инициализацию ядра.
+
+### `ee_bootstrap_runtime(): void`
+
+Поднимает autoload, logger, core hooks и project-level слой `custom/`.
+
+### `ee_bootstrap_preload(): void`
+
+Готовит preload/runtime-контур для OPcache preload.
+
 ## ControllerBase
 
 ### `getPathController(bool $killApp = false): string`
@@ -166,6 +180,42 @@
 
 Очищает HTML, block и route cache проекта.
 
+## CronAgentService
+
+### `CronAgentService::getSummary(): array`
+
+Возвращает сводку по агентам, лимитам scheduler-а и команде минутного запуска.
+
+### `CronAgentService::getAgents(int $limit = 200): array`
+
+Возвращает список настроенных cron-агентов.
+
+### `CronAgentService::saveAgent(array $agentData): OperationResult`
+
+Создаёт или обновляет cron-агента.
+
+### `CronAgentService::runDueAgents(string $triggerSource = 'scheduler'): OperationResult`
+
+Выполняет один минутный проход scheduler-а.
+
+### `CronAgentService::runAgentNow(int|string $idOrCode, string $triggerSource = 'manual'): OperationResult`
+
+Запускает конкретный агент вручную.
+
+### `CronAgentService::recoverStaleAgents(): OperationResult`
+
+Снимает stale locks и переводит зависшие run-ы в failed.
+
+## CronAgentRegistry
+
+### `CronAgentRegistry::getHandlers(): array`
+
+Возвращает список встроенных handler-ов cron-агентов.
+
+### `CronAgentRegistry::runHandler(string $handler, array $payload = [], array $context = []): array`
+
+Выполняет встроенный handler cron-агента.
+
 ## Logger
 
 ### `Logger::bootstrap(): void`
@@ -252,6 +302,14 @@ Redirect и штатный error flow.
 - `ENV_AUTH_TRANSPORT`
 - `ENV_CUSTOM_PATH`
 - `ENV_DEF_LANG`
+
+## CLI команды, которые важно помнить
+
+- `php app/cron/run.php`
+- `php inc/cli.php cron:run-agents`
+- `php inc/cli.php cron:run-agent <id|code>`
+- `php inc/cli.php cron:import <job_id>`
+- `php inc/cli.php ops:health-check`
 
 ## Что читать после API Reference
 

@@ -4,6 +4,7 @@ $report = is_array($health_report ?? null) ? $health_report : [];
 $install = is_array($report['install'] ?? null) ? $report['install'] : [];
 $paths = is_array($report['paths'] ?? null) ? $report['paths'] : [];
 $cache = is_array($report['cache'] ?? null) ? $report['cache'] : [];
+$cron = is_array($report['cron'] ?? null) ? $report['cron'] : [];
 $lifecycle = is_array($report['lifecycle'] ?? null) ? $report['lifecycle'] : [];
 $media = is_array($report['media'] ?? null) ? $report['media'] : [];
 $search = is_array($report['search'] ?? null) ? $report['search'] : [];
@@ -34,6 +35,7 @@ $backups = is_array($report['backups'] ?? null) ? $report['backups'] : [];
                         <div class="h5 mb-1"><?= !empty($install['database_connected']) ? ($lang['sys.active'] ?? 'Активно') : ($lang['sys.error'] ?? 'Ошибка') ?></div>
                         <div class="small text-muted"><?= htmlspecialchars((string)($lang['sys.core_tables'] ?? 'Ключевые таблицы')) ?>: <strong><?= !empty($install['core_tables_ok']) ? ($lang['sys.yes'] ?? 'Да') : ($lang['sys.no'] ?? 'Нет') ?></strong></div>
                         <div class="small text-muted"><?= htmlspecialchars((string)($lang['sys.auth_infrastructure'] ?? 'Auth-инфраструктура')) ?>: <strong><?= !empty($install['auth_tables_ok']) ? ($lang['sys.yes'] ?? 'Да') : ($lang['sys.no'] ?? 'Нет') ?></strong></div>
+                        <div class="small text-muted"><?= htmlspecialchars((string)($lang['sys.cron_infrastructure'] ?? 'Cron-инфраструктура')) ?>: <strong><?= !empty($install['cron_tables_ok']) ? ($lang['sys.yes'] ?? 'Да') : ($lang['sys.no'] ?? 'Нет') ?></strong></div>
                     </div>
                 </div>
             </div>
@@ -44,6 +46,16 @@ $backups = is_array($report['backups'] ?? null) ? $report['backups'] : [];
                         <div class="h5 mb-1"><?= htmlspecialchars((string)($cache['backend'] ?? 'file')) ?></div>
                         <div class="small text-muted"><?= htmlspecialchars((string)($lang['sys.route_cache'] ?? 'Route-кэш')) ?>: <strong><?= !empty($cache['route_enabled']) ? ($lang['sys.yes'] ?? 'Да') : ($lang['sys.no'] ?? 'Нет') ?></strong></div>
                         <div class="small text-muted">Redis probe: <strong><?= !empty($cache['redis_probe_exists']) ? ($lang['sys.yes'] ?? 'Да') : ($lang['sys.no'] ?? 'Нет') ?></strong></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-md-6 col-xl-3">
+                <div class="card shadow-sm border h-100">
+                    <div class="card-body">
+                        <div class="small text-muted mb-1"><?= htmlspecialchars((string)($lang['sys.cron_agents'] ?? 'Cron-агенты')) ?></div>
+                        <div class="h5 mb-1"><?= (int) ($cron['due'] ?? 0) ?> / <?= (int) ($cron['locked'] ?? 0) ?></div>
+                        <div class="small text-muted"><?= htmlspecialchars((string)($lang['sys.cron_agent_status_due'] ?? 'Готовы к запуску')) ?> / <?= htmlspecialchars((string)($lang['sys.running'] ?? 'В работе')) ?></div>
+                        <div class="small text-muted"><?= htmlspecialchars((string)($lang['sys.failed'] ?? 'С ошибкой')) ?>: <strong><?= (int) ($cron['failed'] ?? 0) ?></strong></div>
                     </div>
                 </div>
             </div>
@@ -89,6 +101,10 @@ $backups = is_array($report['backups'] ?? null) ? $report['backups'] : [];
                                         <th><?= htmlspecialchars((string)($lang['sys.auth_infrastructure'] ?? 'Auth-инфраструктура')) ?></th>
                                         <td><?= !empty($install['auth_tables_ok']) ? ($lang['sys.yes'] ?? 'Да') : ($lang['sys.no'] ?? 'Нет') ?></td>
                                     </tr>
+                                    <tr>
+                                        <th><?= htmlspecialchars((string)($lang['sys.cron_infrastructure'] ?? 'Cron-инфраструктура')) ?></th>
+                                        <td><?= !empty($install['cron_tables_ok']) ? ($lang['sys.yes'] ?? 'Да') : ($lang['sys.no'] ?? 'Нет') ?></td>
+                                    </tr>
                                 </tbody>
                             </table>
                         </div>
@@ -118,6 +134,33 @@ $backups = is_array($report['backups'] ?? null) ? $report['backups'] : [];
                                             <td><?= !empty($pathItem['writable']) ? ($lang['sys.yes'] ?? 'Да') : ($lang['sys.no'] ?? 'Нет') ?></td>
                                         </tr>
                                     <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-xl-6">
+                <div class="card shadow-sm border h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <strong><?= htmlspecialchars((string)($lang['sys.cron_agents'] ?? 'Cron-агенты')) ?></strong>
+                        <a href="/admin/cron_agents" class="btn btn-sm btn-outline-secondary"><?= htmlspecialchars((string)($lang['sys.list'] ?? 'Список')) ?></a>
+                    </div>
+                    <div class="card-body">
+                        <div class="small text-muted mb-3"><?= htmlspecialchars((string)($lang['sys.cron_agent_scheduler_help'] ?? 'Настройте системный cron на запуск этого скрипта каждую минуту:')) ?> <code><?= htmlspecialchars((string) ($cron['scheduler_command'] ?? ('php ' . ENV_SITE_PATH . 'app/cron/run.php'))) ?></code></div>
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle">
+                                <tbody>
+                                    <tr><th><?= htmlspecialchars((string)($lang['sys.total'] ?? 'Всего')) ?></th><td><?= (int) ($cron['total'] ?? 0) ?></td></tr>
+                                    <tr><th><?= htmlspecialchars((string)($lang['sys.active'] ?? 'Активно')) ?></th><td><?= (int) ($cron['active'] ?? 0) ?></td></tr>
+                                    <tr><th><?= htmlspecialchars((string)($lang['sys.cron_agent_status_due'] ?? 'Готовы к запуску')) ?></th><td><?= (int) ($cron['due'] ?? 0) ?></td></tr>
+                                    <tr><th><?= htmlspecialchars((string)($lang['sys.running'] ?? 'В работе')) ?></th><td><?= (int) ($cron['locked'] ?? 0) ?></td></tr>
+                                    <tr><th><?= htmlspecialchars((string)($lang['sys.failed'] ?? 'С ошибкой')) ?></th><td><?= (int) ($cron['failed'] ?? 0) ?></td></tr>
+                                    <tr><th><?= htmlspecialchars((string)($lang['sys.last_update'] ?? 'Последнее обновление')) ?></th><td><?= htmlspecialchars((string) (($cron['last_run_at'] ?? '') ?: '-')) ?></td></tr>
+                                    <tr><th><?= htmlspecialchars((string)($lang['sys.cron_agent_max_per_tick'] ?? 'Лимит задач за тик')) ?></th><td><?= (int) ($cron['config']['max_agents_per_tick'] ?? 0) ?></td></tr>
+                                    <tr><th><?= htmlspecialchars((string)($lang['sys.cron_agent_max_weight'] ?? 'Лимит нагрузки')) ?></th><td><?= (int) ($cron['config']['max_weight_per_tick'] ?? 0) ?></td></tr>
+                                    <tr><th><?= htmlspecialchars((string)($lang['sys.cron_agent_max_concurrent'] ?? 'Лимит одновременных задач')) ?></th><td><?= (int) ($cron['config']['max_concurrent'] ?? 0) ?></td></tr>
                                 </tbody>
                             </table>
                         </div>

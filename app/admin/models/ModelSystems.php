@@ -4,6 +4,7 @@ use classes\plugins\SafeMySQL;
 use classes\system\AuthService;
 use classes\system\CacheManager;
 use classes\system\Constants;
+use classes\system\CronAgentService;
 use classes\system\FileSystem;
 use classes\system\Logger;
 use classes\system\OperationResult;
@@ -90,9 +91,13 @@ class ModelSystems {
             Constants::USERS_AUTH_IDENTITIES_TABLE,
             Constants::USERS_AUTH_CHALLENGES_TABLE,
         ];
+        $cronTables = [
+            Constants::CRON_AGENTS_TABLE,
+            Constants::CRON_AGENT_RUNS_TABLE,
+        ];
 
         $tablesState = [];
-        foreach (array_merge($coreTables, $authTables) as $tableName) {
+        foreach (array_merge($coreTables, $authTables, $cronTables) as $tableName) {
             $tablesState[$tableName] = $this->tableExists($tableName);
         }
 
@@ -116,6 +121,7 @@ class ModelSystems {
                 'database_connected' => SysClass::checkDatabaseConnection(),
                 'core_tables_ok' => count(array_filter(array_intersect_key($tablesState, array_flip($coreTables)))) === count($coreTables),
                 'auth_tables_ok' => count(array_filter(array_intersect_key($tablesState, array_flip($authTables)))) === count($authTables),
+                'cron_tables_ok' => count(array_filter(array_intersect_key($tablesState, array_flip($cronTables)))) === count($cronTables),
                 'tables' => $tablesState,
             ],
             'paths' => $paths,
@@ -127,6 +133,7 @@ class ModelSystems {
                 'route_backend' => defined('ENV_ROUTING_CACHE_BACKEND') ? (string) ENV_ROUTING_CACHE_BACKEND : 'file',
                 'redis_probe_exists' => is_file(ENV_CACHE_PATH . 'redis_connection_check.cache'),
             ],
+            'cron' => $this->getCronHealthSummary(),
             'lifecycle' => $this->getLifecycleHealthSummary(),
             'media' => $mediaDiagnostics['summary'] ?? [],
             'search' => [
@@ -224,7 +231,6 @@ class ModelSystems {
             $this->createZipFromPaths($filesArchive, [
                 ['path' => ENV_SITE_PATH . 'custom', 'alias' => 'custom'],
                 ['path' => ENV_SITE_PATH . 'uploads', 'alias' => 'uploads'],
-                ['path' => ENV_SITE_PATH . 'docs', 'alias' => 'docs'],
                 ['path' => ENV_SITE_PATH . '.htaccess', 'alias' => '.htaccess'],
                 ['path' => ENV_SITE_PATH . 'inc' . ENV_DIRSEP . 'configuration.php', 'alias' => 'inc/configuration.php'],
             ]);
@@ -985,6 +991,33 @@ class ModelSystems {
 
         $lifecycle = new ModelPropertyLifecycle();
         return $lifecycle->getLifecycleJobsSummary();
+    }
+
+    private function getCronHealthSummary(): array {
+        if (!$this->tableExists(Constants::CRON_AGENTS_TABLE) || !$this->tableExists(Constants::CRON_AGENT_RUNS_TABLE)) {
+            return [
+                'total' => 0,
+                'active' => 0,
+                'due' => 0,
+                'locked' => 0,
+                'failed' => 0,
+                'last_run_at' => '',
+                'scheduler_command' => 'php ' . ENV_SITE_PATH . 'app/cron/run.php',
+                'config' => [
+                    'max_agents_per_tick' => 0,
+                    'max_weight_per_tick' => 0,
+                    'max_concurrent' => 0,
+                ],
+            ];
+        }
+
+        $summary = CronAgentService::getSummary();
+        $summary['last_run_at'] = (string) (SafeMySQL::gi()->getOne(
+            'SELECT MAX(started_at) FROM ?n',
+            Constants::CRON_AGENT_RUNS_TABLE
+        ) ?? '');
+
+        return $summary;
     }
 
     private function tableExists(string $tableName): bool {

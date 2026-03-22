@@ -20,6 +20,7 @@
                                 <th style="width:70px;">ID</th>
                                 <th>Профиль</th>
                                 <th>Пакет</th>
+                                <th style="width:220px;"><?= htmlspecialchars((string)($lang['sys.cron_agents'] ?? 'Cron-агенты')) ?></th>
                                 <th style="width:180px;">Последний запуск</th>
                                 <th style="width:230px;">Действия</th>
                             </tr>
@@ -32,6 +33,7 @@
                                     $settings = [];
                                 }
                                 $packageName = trim((string)($settings['package_filename'] ?? ''));
+                                $cronAgent = is_array($job['cron_agent'] ?? null) ? $job['cron_agent'] : null;
                                 ?>
                                 <tr>
                                     <td><?= (int)$job['id'] ?></td>
@@ -47,6 +49,17 @@
                                         <?php endif; ?>
                                     </td>
                                     <td>
+                                        <?php if ($cronAgent): ?>
+                                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                                <span class="badge <?= htmlspecialchars((string) ($cronAgent['runtime_status_class'] ?? 'bg-secondary')) ?>"><?= htmlspecialchars((string) ($cronAgent['runtime_status_label'] ?? '')) ?></span>
+                                                <a href="/admin/cron_agent_edit/id/<?= (int) ($cronAgent['agent_id'] ?? 0) ?>" class="small text-decoration-none"><?= htmlspecialchars((string) ($cronAgent['code'] ?? '')) ?></a>
+                                            </div>
+                                            <div class="small text-muted mt-1"><?= htmlspecialchars((string) ($cronAgent['schedule_human'] ?? '')) ?></div>
+                                        <?php else: ?>
+                                            <span class="text-muted"><?= htmlspecialchars((string)($lang['sys.imports_cron_agent_missing'] ?? 'Связанный cron-агент пока не создан.')) ?></span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
                                         <?php if (!empty($job['last_run_at'])): ?>
                                             <?= date('d.m.Y H:i', strtotime((string)$job['last_run_at'])) ?>
                                         <?php else: ?>
@@ -56,6 +69,9 @@
                                     <td>
                                         <a href="/admin/edit_import_wp/id/<?= (int)$job['id'] ?>" class="btn btn-sm btn-primary">
                                             Открыть
+                                        </a>
+                                        <a href="/admin/sync_import_cron_agent/id/<?= (int)$job['id'] ?>" class="btn btn-sm btn-outline-secondary">
+                                            <?= htmlspecialchars((string)($lang['sys.imports_cron_agent_sync'] ?? 'Синхронизировать cron-агент')) ?>
                                         </a>
                                         <a href="/admin/delete_import_profile/id/<?= (int)$job['id'] ?>"
                                            class="btn btn-sm btn-danger"

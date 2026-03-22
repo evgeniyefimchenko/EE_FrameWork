@@ -113,6 +113,11 @@ $menuItems = [
                             'icon' => 'fa-solid fa-table-list',
                         ],
                         [
+                            'title' => $lang['sys.cron_agents'] ?? 'Cron-агенты',
+                            'link' => '/admin/cron_agents',
+                            'icon' => 'fa-solid fa-clock-rotate-left',
+                        ],
+                        [
                             'title' => $lang['sys.clear_html_cache'] ?? 'Очистить HTML-кэш',
                             'link' => '/admin/clear_html_cache',
                             'icon' => 'fa-solid fa-broom',

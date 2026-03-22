@@ -589,6 +589,7 @@ class Users {
             $this->createSearchNgramsTable();
             $this->createSearchLogTable();
             $this->createImportTable();
+            $this->createCronAgentsInfrastructure();
             // Вставка начальных данных            
             $this->insertDefaultEmailSnippets();
             $this->insertDefaultEmailTemplates();
@@ -656,6 +657,14 @@ class Users {
             `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         ) ENGINE=innodb DEFAULT CHARSET=utf8mb4 COMMENT='Профили настроек импорта';";
         SafeMySQL::gi()->query($sql, Constants::IMPORT_SETTINGS_TABLE);
+    }
+
+    /**
+     * Создаёт инфраструктуру минутного планировщика cron-агентов.
+     */
+    private function createCronAgentsInfrastructure(): void {
+        CronAgentService::ensureInfrastructure(true);
+        $this->logSqlInfo('create_cron_agents_infrastructure', 'Инфраструктура cron-агентов создана');
     }
 
     // Метод для создания таблицы пользователей

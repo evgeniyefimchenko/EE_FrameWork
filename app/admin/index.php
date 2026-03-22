@@ -16,6 +16,7 @@ use app\admin\CategoriesTypesTrait;
 use app\admin\PagesTrait;
 use app\admin\PropertiesTrait;
 use app\admin\ImportTrait;
+use app\admin\CronAgentsTrait;
 use classes\helpers\ClassMessages;
 
 /*
@@ -33,7 +34,8 @@ use MessagesTrait,
     CategoriesTypesTrait,
     PagesTrait,
     PropertiesTrait,
-    ImportTrait;
+    ImportTrait,
+    CronAgentsTrait;
 
     /**
      * Главная страница админ-панели

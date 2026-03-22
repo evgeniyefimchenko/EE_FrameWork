@@ -6,8 +6,11 @@ use classes\helpers\ClassNotifications;
 use classes\plugins\SafeMySQL;
 use classes\system\BaseImporter;
 use classes\system\Constants;
+use classes\system\CronAgentService;
 use classes\system\FileSystem;
 use classes\system\Hook;
+use classes\system\Logger;
+use classes\system\OperationResult;
 use classes\system\SysClass;
 use classes\system\WordpressImporter;
 
@@ -23,6 +26,7 @@ trait ImportTrait {
             'SELECT * FROM ?n ORDER BY `created_at` DESC',
             Constants::IMPORT_SETTINGS_TABLE
         );
+        $import_jobs = $this->decorateImportJobsWithCronAgents($import_jobs);
 
         $this->getStandardViews();
         $this->view->set('import_jobs', $import_jobs);
@@ -163,7 +167,22 @@ trait ImportTrait {
             $file_limit = $env_max > 0 ? $env_max : 2 * 1024 * 1024;
         }
 
-        $cron_command = 'php ' . ENV_SITE_PATH . 'app/cron/run_import.php ' . $job_id;
+        $cron_command = 'php ' . ENV_SITE_PATH . 'app/cron/run.php';
+        $cron_import_command = 'php ' . ENV_SITE_PATH . 'inc/cli.php cron:import ' . $job_id;
+        $cronAgentTitle = ($this->lang['sys.cron_handler_import_profile'] ?? 'Импорт профиля') . ' #' . $job_id;
+        $cronAgentDescription = ($this->lang['sys.cron_handler_import_profile_desc'] ?? 'Запускает профиль импорта по payload.job_id.') . ' #' . $job_id;
+        $cron_agent_create_link = '/admin/cron_agent_edit/id/0?handler=import.profile'
+            . '&code=' . urlencode('import-profile-' . $job_id)
+            . '&title=' . urlencode($cronAgentTitle)
+            . '&description=' . urlencode($cronAgentDescription)
+            . '&schedule_mode=manual'
+            . '&is_active=1'
+            . '&priority=70'
+            . '&weight=5'
+            . '&max_runtime_sec=1800'
+            . '&lock_ttl_sec=2100'
+            . '&retry_delay_sec=600'
+            . '&payload_json=' . urlencode(json_encode(['job_id' => $job_id], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
         $package_manifest = [];
         $source_catalog = ['category_types' => [], 'property_sets' => []];
         $current_type_map = [];
@@ -215,6 +234,9 @@ trait ImportTrait {
         $this->view->set('job_id', $job_id);
         $this->view->set('job', $job_settings);
         $this->view->set('cron_command', $cron_command);
+        $this->view->set('cron_import_command', $cron_import_command);
+        $this->view->set('cron_agent_create_link', $cron_agent_create_link);
+        $this->view->set('import_cron_agent', $this->getImportCronAgent($job_id));
         $this->view->set('max_file_size_bytes', $file_limit);
         $this->view->set('max_file_size_human', round($file_limit / 1024 / 1024, 1) . ' MB');
         $this->view->set('package_manifest', $package_manifest);
@@ -238,6 +260,68 @@ trait ImportTrait {
         $this->parameters_layout['add_script'] .=
             '<script src="' . $this->getPathController() . '/js/import_wp.js" type="text/javascript" /></script>';
         $this->showLayout($this->parameters_layout);
+    }
+
+    public function sync_import_cron_agent($params = []) {
+        $this->access = [Constants::ADMIN];
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect(200, '/show_login_form?return=admin/imports');
+            return;
+        }
+
+        $jobId = $this->extractImportJobIdFromParams($params);
+        if ($jobId <= 0) {
+            $this->notifyOperationResult(
+                OperationResult::failure('Не указан ID профиля импорта.', 'import_profile_missing_id'),
+                ['default_error_message' => 'Не указан ID профиля импорта.']
+            );
+            SysClass::handleRedirect(200, '/admin/imports');
+            return;
+        }
+
+        $result = $this->syncImportCronAgent($jobId);
+        $this->notifyOperationResult(
+            $result,
+            [
+                'success_message' => $this->lang['sys.imports_cron_agent_synced'] ?? 'Cron-агент профиля импорта синхронизирован.',
+                'default_error_message' => $this->lang['sys.error'] ?? 'Ошибка',
+            ]
+        );
+        SysClass::handleRedirect(200, '/admin/edit_import_wp/id/' . $jobId);
+    }
+
+    public function delete_import_cron_agent($params = []) {
+        $this->access = [Constants::ADMIN];
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect(200, '/show_login_form?return=admin/imports');
+            return;
+        }
+
+        $jobId = $this->extractImportJobIdFromParams($params);
+        if ($jobId <= 0) {
+            $this->notifyOperationResult(
+                OperationResult::failure('Не указан ID профиля импорта.', 'import_profile_missing_id'),
+                ['default_error_message' => 'Не указан ID профиля импорта.']
+            );
+            SysClass::handleRedirect(200, '/admin/imports');
+            return;
+        }
+
+        $agent = $this->getImportCronAgent($jobId);
+        $result = $agent
+            ? CronAgentService::deleteAgent((int) ($agent['agent_id'] ?? 0))
+            : OperationResult::success(['job_id' => $jobId], $this->lang['sys.imports_cron_agent_missing'] ?? 'Связанный cron-агент не найден.', 'noop');
+
+        $this->notifyOperationResult(
+            $result,
+            [
+                'success_message' => $result->isSuccess()
+                    ? $result->getMessage($this->lang['sys.imports_cron_agent_deleted'] ?? 'Cron-агент профиля импорта удалён.')
+                    : '',
+                'default_error_message' => $this->lang['sys.error'] ?? 'Ошибка',
+            ]
+        );
+        SysClass::handleRedirect(200, '/admin/edit_import_wp/id/' . $jobId);
     }
 
     public function save_import_wp() {
@@ -365,6 +449,20 @@ trait ImportTrait {
             } else {
                 SafeMySQL::gi()->query('INSERT INTO ?n SET ?u', Constants::IMPORT_SETTINGS_TABLE, $data_to_db);
                 $job_id = (int)SafeMySQL::gi()->insertId();
+            }
+
+            if ($this->getImportCronAgent($job_id)) {
+                $syncResult = $this->syncImportCronAgent($job_id);
+                if (!$syncResult->isSuccess()) {
+                    Logger::warning('import_profiles', 'Не удалось синхронизировать связанный cron-агент профиля импорта', [
+                        'job_id' => $job_id,
+                        'message' => $syncResult->getMessage(),
+                    ], [
+                        'initiator' => __METHOD__,
+                        'details' => 'Import profile cron agent sync failed after save',
+                        'include_trace' => false,
+                    ]);
+                }
             }
 
             echo json_encode([
@@ -826,6 +924,21 @@ trait ImportTrait {
             return;
         }
 
+        $linkedAgent = $this->getImportCronAgent($job_id);
+        if ($linkedAgent) {
+            $deleteAgentResult = CronAgentService::deleteAgent((int) ($linkedAgent['agent_id'] ?? 0));
+            if (!$deleteAgentResult->isSuccess()) {
+                $this->notifyOperationResult(
+                    $deleteAgentResult,
+                    [
+                        'default_error_message' => $this->lang['sys.error'] ?? 'Ошибка',
+                    ]
+                );
+                SysClass::handleRedirect(200, '/admin/edit_import_wp/id/' . $job_id);
+                return;
+            }
+        }
+
         $settings = json_decode((string)$job_data['settings_json'], true);
         if (!is_array($settings)) {
             $settings = [];
@@ -882,6 +995,106 @@ trait ImportTrait {
             'status' => 'success',
         ]);
         SysClass::handleRedirect(200, '/admin/imports');
+    }
+
+    private function extractImportJobIdFromParams(array $params): int {
+        if (in_array('id', $params, true)) {
+            $keyId = array_search('id', $params, true);
+            if ($keyId !== false && isset($params[$keyId + 1])) {
+                return (int) $params[$keyId + 1];
+            }
+        }
+        return 0;
+    }
+
+    private function decorateImportJobsWithCronAgents(array $jobs): array {
+        $result = [];
+        foreach ($jobs as $job) {
+            if (!is_array($job)) {
+                continue;
+            }
+            $jobId = (int) ($job['id'] ?? 0);
+            $job['cron_agent'] = $jobId > 0 ? $this->getImportCronAgent($jobId) : null;
+            $result[] = $job;
+        }
+        return $result;
+    }
+
+    private function getImportCronAgentCode(int $jobId): string {
+        return 'import-profile-' . max(0, $jobId);
+    }
+
+    private function getImportCronAgent(int $jobId): ?array {
+        if ($jobId <= 0) {
+            return null;
+        }
+        $agent = CronAgentService::getAgentByCode($this->getImportCronAgentCode($jobId));
+        if (!$agent) {
+            return null;
+        }
+
+        $status = (string) ($agent['runtime_status'] ?? 'idle');
+        $agent['runtime_status_label'] = match ($status) {
+            'running' => $this->lang['sys.running'] ?? 'В работе',
+            'disabled' => $this->lang['sys.disabled'] ?? 'Отключён',
+            'due' => $this->lang['sys.cron_agent_status_due'] ?? 'Готов к запуску',
+            'failed' => $this->lang['sys.failed'] ?? 'С ошибкой',
+            'cooldown' => $this->lang['sys.cron_agent_status_cooldown'] ?? 'Пауза после ошибки',
+            default => $this->lang['sys.cron_agent_status_idle'] ?? 'Ожидает',
+        };
+        $agent['runtime_status_class'] = match ($status) {
+            'running' => 'bg-primary',
+            'disabled' => 'bg-secondary',
+            'due' => 'bg-warning text-dark',
+            'failed' => 'bg-danger',
+            'cooldown' => 'bg-info text-dark',
+            default => 'bg-success',
+        };
+        $agent['schedule_human'] = match ((string) ($agent['schedule_mode'] ?? 'interval')) {
+            'cron' => (string) ($agent['cron_expression'] ?? ''),
+            'manual' => $this->lang['sys.cron_agent_schedule_manual'] ?? 'Только вручную',
+            default => (int) ($agent['interval_minutes'] ?? 0) . ' ' . ($this->lang['sys.cron_agent_interval_minutes'] ?? 'мин'),
+        };
+
+        return $agent;
+    }
+
+    private function syncImportCronAgent(int $jobId): OperationResult {
+        $jobData = SafeMySQL::gi()->getRow(
+            'SELECT * FROM ?n WHERE id = ?i',
+            Constants::IMPORT_SETTINGS_TABLE,
+            $jobId
+        );
+        if (!$jobData) {
+            return OperationResult::failure('Профиль импорта не найден.', 'import_profile_not_found', ['job_id' => $jobId]);
+        }
+
+        $existingAgent = $this->getImportCronAgent($jobId);
+        $title = trim((string) ($jobData['settings_name'] ?? ''));
+        if ($title === '') {
+            $title = ($this->lang['sys.cron_handler_import_profile'] ?? 'Импорт профиля') . ' #' . $jobId;
+        }
+
+        $agentData = [
+            'agent_id' => (int) ($existingAgent['agent_id'] ?? 0),
+            'code' => $this->getImportCronAgentCode($jobId),
+            'title' => $title,
+            'description' => $this->lang['sys.cron_handler_import_profile_desc'] ?? 'Запускает профиль импорта по payload.job_id.',
+            'handler' => 'import.profile',
+            'schedule_mode' => (string) ($existingAgent['schedule_mode'] ?? 'manual'),
+            'interval_minutes' => (int) ($existingAgent['interval_minutes'] ?? 60),
+            'cron_expression' => (string) ($existingAgent['cron_expression'] ?? ''),
+            'payload_json' => json_encode(['job_id' => $jobId], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            'is_active' => (int) ($existingAgent['is_active'] ?? 1),
+            'priority' => (int) ($existingAgent['priority'] ?? 70),
+            'weight' => (int) ($existingAgent['weight'] ?? 5),
+            'max_runtime_sec' => (int) ($existingAgent['max_runtime_sec'] ?? 1800),
+            'lock_ttl_sec' => (int) ($existingAgent['lock_ttl_sec'] ?? 2100),
+            'retry_delay_sec' => (int) ($existingAgent['retry_delay_sec'] ?? 600),
+            'next_run_at' => (string) ($existingAgent['next_run_at'] ?? ''),
+        ];
+
+        return CronAgentService::saveAgent($agentData);
     }
 
     private function getIniSizeInBytes($val): int {
