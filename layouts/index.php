@@ -8,6 +8,13 @@
 <!DOCTYPE html>
 <html lang="ru">
     <head>
+        <?php
+        $meta_subject = $meta_subject ?? ENV_SITE_NAME;
+        $meta_page_topic = $meta_page_topic ?? (ENV_SITE_NAME . ', ' . ENV_URL_SITE);
+        $meta_author = $meta_author ?? ENV_SITE_AUTHOR;
+        $meta_reply_to = $meta_reply_to ?? ENV_SITE_EMAIL;
+        $meta_copyright = $meta_copyright ?? ENV_SITE_AUTHOR;
+        ?>
         <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
         <meta http-equiv="content-language" content="ru-RU">
         <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
@@ -16,16 +23,16 @@
         <meta name="robots" content="<?= ENV_SITE_INDEX ?>" /><!-- Индексация роботами -->
         <meta name="distribution" content="Global" />
         <meta name="rating" content="General" />
-        <meta name="subject" content="<?= ENV_SITE_NAME ?>" /> <!-- Указывает тему страницы. По умолчанию берётся название сайта -->
+        <meta name="subject" content="<?= $meta_subject ?>" /> <!-- Указывает тему страницы. По умолчанию берётся название сайта -->
         <meta name="page-type" content="Текст" /> <!-- Указывает тип страницы. Например, "Текст" или "Графика" -->
-        <meta name="page-topic" content="<?= ENV_SITE_NAME ?>, <?= ENV_URL_SITE ?>" />
+        <meta name="page-topic" content="<?= $meta_page_topic ?>" />
         <meta name="site-created" content="<?= ENV_DATE_SITE_CREATE ?>" /> <!-- Дата создания сайта-->
         <meta name="document-state" content="Dynamic">
         <meta name="page-type" content="Текст" />
         <meta name="generator" content="efimchenko.com" /> <!-- Какой софт сгенерировал страницу-->
-        <meta name="author" content = "<?= ENV_SITE_AUTHOR ?>" /> <!-- Автор сайта-->
-        <meta name="reply-to" content = "<?= ENV_SITE_EMAIL ?>" /> <!-- Почта автора сайта-->
-        <meta name="copyright" content="<?= ENV_SITE_AUTHOR ?>" />
+        <meta name="author" content = "<?= $meta_author ?>" /> <!-- Автор сайта-->
+        <meta name="reply-to" content = "<?= $meta_reply_to ?>" /> <!-- Почта автора сайта-->
+        <meta name="copyright" content="<?= $meta_copyright ?>" />
         <meta name="address" content="<?= ENV_URL_SITE ?>" /> <!-- Указывает адрес автора или организации собственника страницы. -->
         <meta name="publisher-name" content="<?= ENV_URL_SITE ?>" /> <!-- Кто разместил сайт-->
         <meta name="publisher-type" content="Private" /> <!-- Тип владельца сайта "Private", "Company" -->
@@ -83,7 +90,7 @@
         </div>
         <!-- End Preloader -->
         <!-- Основной контент страниц -->
-        <?= $layout_content ?>
+        <?= $layout_content ?? '' ?>
         <!-- start of non-relocatable JS scripts -->
         <?php if (!ENV_JQUERY_CDN) { ?>
             <script src="<?= ENV_URL_SITE ?>/assets/js/plugins/jquery.min.js" type="text/javascript"></script>

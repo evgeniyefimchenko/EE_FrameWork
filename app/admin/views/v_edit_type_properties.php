@@ -1,4 +1,4 @@
-<?php if (!defined('ENV_SITE')) exit(header("Location: http://" . $_SERVER['HTTP_HOST'], true, 301)); ?>
+<?php if (!defined('ENV_SITE')) exit(header('Location: /', true, 301)); ?>
 <!-- Редактирование типа свойств сущности -->
 <main>    
     <form id="edit_entity" action="/admin/type_properties_edit/id/<?= $property_type_data['type_id'] ?>" method="POST">
@@ -8,6 +8,7 @@
                class="btn btn-info mx-1 float-end<?= empty($property_type_data['type_id']) ? " d-none" : "" ?>">
                 <i class="fa fa-plus-circle"></i>&nbsp;<?= $lang['sys.add'] ?>
             </a>
+            <button type="submit" name="lifecycle_preview" value="1" class="btn btn-outline-secondary float-end mx-1">Preview</button>
             <button type="submit" class="btn btn-primary float-end"><?=$lang['sys.save']?></button>
             <h1 class="mt-4"><?= empty($property_type_data['type_id']) ? $lang['sys.add'] : $lang['sys.edit'] . '(' . $property_type_data['name'] . ')' ?></h1>
             <ol class="breadcrumb mb-4">
@@ -16,6 +17,16 @@
                     <input type="hidden" name="type_id" class="form-control" value="<?= $property_type_data['type_id'] ? $property_type_data['type_id'] : 0 ?>">
                 </li>              
             </ol>
+            <?php if (!empty($propertyTypeImpact['properties_count'])) { ?>
+                <div class="alert alert-warning">
+                    <?= $lang['sys.used'] ?>:
+                    <?= (int) $propertyTypeImpact['properties_count'] ?> <?= $lang['sys.properties'] ?>,
+                    <?= (int) $propertyTypeImpact['values_count'] ?> values,
+                    <?= (int) $propertyTypeImpact['pages_count'] ?> page,
+                    <?= (int) $propertyTypeImpact['categories_count'] ?> category.
+                    После сохранения запустится пересчёт зависимостей.
+                </div>
+            <?php } ?>
             <div class="row">
                 <div class="col">
                     <ul class="nav nav-tabs" id="eeTab" role="tablist">
@@ -79,23 +90,19 @@
                                     <div class="row mb-3" id="fields-container">
                                         <div class="col-5 d-flex align-items-center">
                                             <label class="w-25 form-label"><?= $lang['sys.field_type'] ?>:</label>
-                                            <?php if (!$usedByProperties) { ?>
-                                                <select required class="form-select me-2" name="fields[]">
-                                                    <option disabled><?= $lang['sys.select'] . ' ' . $lang['sys.field_type'] ?></option>
-                                                    <?php foreach (classes\system\Constants::ALL_TYPE_PROPERTY_TYPES_FIELDS as $k => $v) { ?>
-                                                        <option <?= $item == $k ? 'selected ' : ''?>value="<?=$k?>"><?=$v?></option>
-                                                    <?php } ?>
-                                                </select>
-                                                <?php if ($count_fields && !$first) {
-                                                    echo '<button class="btn btn-danger remove-field-btn" type="button"><i class="fa fa-minus-circle"></i></button>';
-                                                } else {
-                                                    $first = false;
-                                                    echo '<button class="btn btn-primary add-field-btn" type="button"><i class="fa fa-plus-circle"></i></button>';
-                                                }
-                                            } else { ?>
-                                                <?=$item?>
-                                                <input type="hidden" name="fields[]" value="<?=$item?>">
-                                            <?php } ?>
+                                            <input type="hidden" name="field_uid[]" value="<?= htmlspecialchars((string) ($item['uid'] ?? ''), ENT_QUOTES) ?>">
+                                            <select required class="form-select me-2" name="fields[]">
+                                                <option disabled><?= $lang['sys.select'] . ' ' . $lang['sys.field_type'] ?></option>
+                                                <?php foreach (classes\system\Constants::ALL_TYPE_PROPERTY_TYPES_FIELDS as $k => $v) { ?>
+                                                    <option <?= (($item['type'] ?? $item) == $k ? 'selected ' : '') ?>value="<?=$k?>"><?=$v?></option>
+                                                <?php } ?>
+                                            </select>
+                                            <?php if ($count_fields && !$first) {
+                                                echo '<button class="btn btn-danger remove-field-btn" type="button"><i class="fa fa-minus-circle"></i></button>';
+                                            } else {
+                                                $first = false;
+                                                echo '<button class="btn btn-primary add-field-btn" type="button"><i class="fa fa-plus-circle"></i></button>';
+                                            } ?>
                                         </div>
                                     </div>                                                
                             <?php } ?>
@@ -105,6 +112,7 @@
             </div>
             <div class="row">
                 <div class="col">
+                    <button type="submit" name="lifecycle_preview" value="1" class="btn btn-outline-secondary my-3 me-2">Preview</button>
                     <button type="submit" class="btn btn-primary my-3"><?=$lang['sys.save']?></button>
                 </div>                    
             </div>             

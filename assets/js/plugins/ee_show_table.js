@@ -14,7 +14,7 @@ $(document).ready(function () {
         let currentPage = $("#" + tableId + "_content_tables .pagination .page-item.active .page-link").data('page');
         let pageInput = $("#" + tableId + "_filters input[name='page']");
         if (!pageInput.length) {
-            if (currentPage == 'undefined')
+            if (typeof currentPage === 'undefined' || currentPage === undefined)
                 currentPage = 1;
             $("#" + tableId + "_filters").append('<input type="hidden" name="page" value="' + currentPage + '">');
         }
@@ -34,10 +34,7 @@ $(document).ready(function () {
             let newSort = (currentSort.toUpperCase() === "ASC") ? "DESC" : "ASC";
             // Добавляем (или изменяем) input в форме с новым значением сортировки
             let sortInput = $("#" + tableId + "_filters input[name='sort_" + field + "']");
-            $('input[name^="sort_"]').not(sortInput).each(function () {
-                var currentName = $(this).attr('name');
-                $(this).attr('name', currentName + '_disabled');
-            });
+            $("#" + tableId + "_filters input[name^='sort_']").not(sortInput).prop('disabled', true);
             if (sortInput.length) {
                 sortInput.val(newSort).prop('disabled', false);
             } else {
@@ -55,7 +52,9 @@ $(document).ready(function () {
             let form = $('#' + $(this).attr('form'));
             form.find('input[type="text"], textarea, input[type="date"]').val('');
             form.find('input[type="checkbox"], input[type="radio"]').prop('checked', false);
-            form.find('select').val(0);
+            form.find('select').each(function () {
+                this.selectedIndex = 0;
+            });
             form.submit();
             $(this).removeAttr('disabled');
         });
@@ -84,15 +83,16 @@ $(document).ready(function () {
         });
         // Скрытие и раскрытие дополнительной таблицы
         $(document).off("click", ".expand_nested_table").on("click", ".expand_nested_table", function () {
-            var nestedTable = $($(this).attr('data-nested_table'));
+            var $toggle = $(this);
+            var nestedTable = $($toggle.attr('data-nested_table'));
+            var $icon = $toggle.find('i').first();
             nestedTable.slideToggle(100, function () {
-                var icon = $(this).find('i');
                 if (nestedTable.is(':visible')) {
-                    icon.removeClass('fa-plus').addClass('fa-minus');
+                    $icon.removeClass('fa-plus').addClass('fa-minus');
                 } else {
-                    icon.removeClass('fa-minus').addClass('fa-plus');
+                    $icon.removeClass('fa-minus').addClass('fa-plus');
                 }
-            }.bind(this));
+            });
         });
     }
     // Обработчик события отправки формы
@@ -115,15 +115,12 @@ $(document).ready(function () {
             dataType: 'html',
             success: function (response) {
                 $("#" + tableId + "_content_tables").replaceWith(response);
-                // Добавление задержки перед повторной инициализацией обработчиков событий
-                setTimeout(function () {
-                    initEventHandlers(tableId); // переинициализация обработчиков
-                }, 500); // Задержка в 500 миллисекунд (или 0.5 секунды)
+                initEventHandlers(tableId);
                 $('#preloader').fadeOut(500);
             },
             error: function (a, b, c) {
                 console.error('Error:', a, b, c);
-                $('#preloader').fadeIn(500);
+                $('#preloader').fadeOut(500);
             }
         });
     });
@@ -145,6 +142,9 @@ $(document).ready(function () {
     // Обработчик клика для всех кнопок, управляющих фильтрами
     $("[data-bs-toggle='collapse']").on('click', function () {
         let tableId = $(this).data('table'); // Получаем ID таблицы
+        if (!tableId) {
+            return;
+        }
         let targetCollapse = '#' + tableId + '_filtersCollapse'; // Селектор целевого элемента для сворачивания/разворачивания
         // Проверяем состояние сворачиваемого элемента перед выполнением действия
         let isOpen = !$(targetCollapse).hasClass('show');
@@ -153,10 +153,18 @@ $(document).ready(function () {
 
     // Обработчики событий для Bootstrap collapse
     $('.collapse').on('shown.bs.collapse', function () {
-        let tableId = $(this).attr('id').split('_')[0]; // Получаем ID таблицы из ID элемента
+        let collapseId = $(this).attr('id') || '';
+        if (!collapseId.endsWith('_filtersCollapse')) {
+            return;
+        }
+        let tableId = collapseId.replace(/_filtersCollapse$/, '');
         toggleIcon(true, tableId);
     }).on('hidden.bs.collapse', function () {
-        let tableId = $(this).attr('id').split('_')[0];
+        let collapseId = $(this).attr('id') || '';
+        if (!collapseId.endsWith('_filtersCollapse')) {
+            return;
+        }
+        let tableId = collapseId.replace(/_filtersCollapse$/, '');
         toggleIcon(false, tableId);
     });
 

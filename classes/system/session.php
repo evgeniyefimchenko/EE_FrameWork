@@ -106,6 +106,13 @@ class Session {
         session_destroy();
     }
 
+    public static function regenerateId(bool $deleteOldSession = true): void {
+        self::init();
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_regenerate_id($deleteOldSession);
+        }
+    }
+
     /**
      * Очищает ключи сессии, соответствующие заданным строковым шаблонам
      * Поддерживает шаблоны в стиле SQL: '%text' (заканчивается на text), 'text%' (начинается с text), '%text%' (содержит text)

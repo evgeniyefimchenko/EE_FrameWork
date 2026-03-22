@@ -16,13 +16,13 @@ class SysClass {
      * @var bool|null Кэшированный результат проверки подключения и наличия таблицы
      */
     private static $cacheDB = null;
-    
+
     /**
      * Кеширует подключенные модели для экономии памяти
      * @var array|null
      */
     private static $cacheModel = null;
-    
+
     // Массив исключений - слова, которые не будут включены в ключевые слова
     private const ARRAY_EXCEPTIONS = [
         "и", "в", "не", "на", "я", "с", "что", "а", "по", "он", "она", "оно", "из", "у", "к", "ко", "за", "от", "до", "без", "для", "о", "об", "под", "про", "над", "через", "при"
@@ -46,44 +46,45 @@ class SysClass {
      * @return string Реальный IP-адрес пользователя или "unknown", если IP определить не удалось
      */
     public static function getClientIp(): string {
-        // Возможные источники IP-адреса
-        $ipSources = [
-            'HTTP_CLIENT_IP' => $_SERVER['HTTP_CLIENT_IP'] ?? null,        // IP от клиента через прокси
-            'HTTP_X_FORWARDED_FOR' => $_SERVER['HTTP_X_FORWARDED_FOR'] ?? null, // IP через заголовок X-Forwarded-For
-            'REMOTE_ADDR' => $_SERVER['REMOTE_ADDR'] ?? null              // Прямой IP клиента
-        ];
+        $remoteAddr = trim((string) ($_SERVER['REMOTE_ADDR'] ?? ''));
+        $trustedProxies = defined('ENV_AUTH_TRUSTED_PROXIES') && is_array(ENV_AUTH_TRUSTED_PROXIES)
+            ? ENV_AUTH_TRUSTED_PROXIES
+            : ['127.0.0.1', '::1'];
+        $trustProxyHeaders = defined('ENV_AUTH_TRUST_PROXY_HEADERS') ? (bool) ENV_AUTH_TRUST_PROXY_HEADERS : false;
 
-        // Фильтры для проверки IP
-        $ipFilterOptions = FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE; // Исключаем частные и зарезервированные диапазоны
-
-        // Проверяем каждый источник IP
-        foreach ($ipSources as $header => $value) {
-            if (empty($value)) {
-                continue; // Пропускаем пустые значения
+        if ($trustProxyHeaders && $remoteAddr !== '' && in_array($remoteAddr, $trustedProxies, true)) {
+            $forwardedFor = trim((string) ($_SERVER['HTTP_X_FORWARDED_FOR'] ?? ''));
+            if ($forwardedFor !== '') {
+                foreach (explode(',', $forwardedFor) as $candidateIp) {
+                    $candidateIp = trim($candidateIp);
+                    if (filter_var($candidateIp, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+                        return $candidateIp;
+                    }
+                }
             }
 
-            // Если в X-Forwarded-For несколько IP, берём первый (реальный клиентский IP)
-            if ($header === 'HTTP_X_FORWARDED_FOR') {
-                $ipList = explode(',', $value);
-                $value = trim($ipList[0]); // Первый IP в цепочке
-            }
-
-            // Проверяем валидность IP
-            if (filter_var($value, FILTER_VALIDATE_IP, $ipFilterOptions)) {
-                return (string) $value; // Возвращаем первый валидный IP
+            $clientIp = trim((string) ($_SERVER['HTTP_CLIENT_IP'] ?? ''));
+            if ($clientIp !== '' && filter_var($clientIp, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+                return $clientIp;
             }
         }
 
-        // Если ни один IP не прошёл проверку
-        new \classes\system\ErrorLogger(
-            'Не удалось определить реальный IP-адрес пользователя',
-            __FUNCTION__,
-            'system',
-            [
-                'ip_sources' => $ipSources,
-                'server_data' => array_intersect_key($_SERVER, array_flip(['HTTP_CLIENT_IP', 'HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR']))
-            ]
-        );
+        if ($remoteAddr !== '' && filter_var($remoteAddr, FILTER_VALIDATE_IP)) {
+            return $remoteAddr;
+        }
+
+        Logger::warning('system', 'Не удалось определить реальный IP-адрес пользователя', [
+            'ip_sources' => [
+                'HTTP_CLIENT_IP' => $_SERVER['HTTP_CLIENT_IP'] ?? null,
+                'HTTP_X_FORWARDED_FOR' => $_SERVER['HTTP_X_FORWARDED_FOR'] ?? null,
+                'REMOTE_ADDR' => $_SERVER['REMOTE_ADDR'] ?? null,
+            ],
+            'server_data' => array_intersect_key($_SERVER, array_flip(['HTTP_CLIENT_IP', 'HTTP_X_FORWARDED_FOR', 'REMOTE_ADDR']))
+        ], [
+            'initiator' => __FUNCTION__,
+            'details' => 'Не удалось определить реальный IP-адрес пользователя',
+            'include_trace' => false,
+        ]);
         return 'unknown'; // Возвращаем "unknown" как значение по умолчанию
     }
 
@@ -147,15 +148,50 @@ class SysClass {
      * @return bool Возвращает TRUE, если у пользователя есть доступ, иначе FALSE
      */
     public static function getAccessUser(mixed $userId = 0, array $access = []): bool {
+        $decision = self::getAccessDecision($userId, $access);
+        return (bool) ($decision['allowed'] ?? false);
+    }
+
+    /**
+     * Возвращает детализированное решение по доступу пользователя.
+     * @param mixed $userId
+     * @param array $access
+     * @return array{allowed:bool,status:string,user:array<string,mixed>,role_constant:int|null}
+     */
+    public static function getAccessDecision(mixed $userId = 0, array $access = []): array {
         $userData = new Users([$userId]);
+        $decision = [
+            'allowed' => false,
+            'status' => 'forbidden',
+            'user' => is_array($userData->data ?? null) ? $userData->data : [],
+            'role_constant' => null,
+        ];
         if (in_array(Constants::ALL, $access)) {
-            return true;
+            $decision['allowed'] = true;
+            $decision['status'] = 'public';
+            return $decision;
         }
-        if ($userData->data['new_user']) {
-            return false;
+        if (!empty($userData->data['new_user'])) {
+            $decision['status'] = 'not_authenticated';
+            return $decision;
+        }
+        if ((int) ($userData->data['deleted'] ?? 0) === 1) {
+            $decision['status'] = 'deleted';
+            return $decision;
+        }
+        $activeState = (int) ($userData->data['active'] ?? 0);
+        if ($activeState === 3) {
+            $decision['status'] = 'blocked';
+            return $decision;
+        }
+        if ($activeState !== 2 && (int) ($userData->data['user_role'] ?? 0) !== Constants::SYSTEM) {
+            $decision['status'] = 'inactive';
+            return $decision;
         }
         if (in_array(Constants::ALL_AUTH, $access)) {
-            return true;
+            $decision['allowed'] = true;
+            $decision['status'] = 'authorized';
+            return $decision;
         }
         $role = strtoupper($userData->data['user_role_name']);
         if (!is_string($role)) {
@@ -164,10 +200,14 @@ class SysClass {
         if (!defined("classes\system\Constants::$role")) {
             self::pre("Constant Constants::$role is not defined");
         }
-        if (in_array(constant("classes\system\Constants::" . $role), $access)) {
-            return true;
+        $roleConstant = constant("classes\system\Constants::" . $role);
+        $decision['role_constant'] = $roleConstant;
+        if (in_array($roleConstant, $access, true)) {
+            $decision['allowed'] = true;
+            $decision['status'] = 'authorized';
+            return $decision;
         }
-        return false;
+        return $decision;
     }
 
     /**
@@ -288,9 +328,7 @@ class SysClass {
      * @return int ID авторизованного пользователя
      */
     public static function getCurrentUserId(): int|bool {
-        $session = ENV_AUTH_USER === 2 ? Cookies::get('user_session') : Session::get('user_session');
-        $sql = 'SELECT user_id FROM ?n WHERE `session` = ?s';
-        return SafeMySQL::gi()->getOne($sql, Constants::USERS_TABLE, $session);
+        return AuthSessionService::resolveCurrentUserId();
     }
 
     /**
@@ -329,7 +367,11 @@ class SysClass {
             $transliterator = \Transliterator::create('Any-Latin; Latin-ASCII; [\u0080-\u7fff] remove');
             $fileName = $transliterator->transliterate($fileName);
         } else {
-            SysClass::preFile('errors', 'transliterateFileName', 'Класс Transliterator недоступен', __LINE__);
+            Logger::notice('errors', 'Класс Transliterator недоступен', ['line' => __LINE__], [
+                'initiator' => 'transliterateFileName',
+                'details' => 'Класс Transliterator недоступен',
+                'include_trace' => false,
+            ]);
             // Если Transliterator недоступен, используем ручную транслитерацию кириллицы и других символов
             $transliterationTable = [
                 'а' => 'a', 'б' => 'b', 'в' => 'v', 'г' => 'g', 'д' => 'd', 'е' => 'e', 'ё' => 'e',
@@ -747,7 +789,7 @@ class SysClass {
                 "CL" => "Chile",
                 "PW" => "Palau",
                 "CN" => "China",
-                "ZH" => "China",                
+                "ZH" => "China",
                 "PS" => "Palestine, State of",
                 "CX" => "Christmas Island",
                 "PA" => "Panama",
@@ -943,10 +985,16 @@ class SysClass {
             new Users(true);
         }
         if (ENV_CACHE_PATH && !self::createDirectoriesForFile(ENV_CACHE_PATH . '.cache')) {
-            self::preFile('errors', 'checkInstall', 'Не удалось создать директорию кэша', ENV_CACHE_PATH);
+            Logger::error('errors', 'Не удалось создать директорию кэша', ['path' => ENV_CACHE_PATH], [
+                'initiator' => 'checkInstall',
+                'details' => ENV_CACHE_PATH,
+            ]);
         }
         if (!self::createDirectoriesForFile($cacheFilePath) || file_put_contents($cacheFilePath, 'Install check passed') === false) {
-            self::preFile('errors', 'checkInstall', 'Не удалось создать файл кэша', $cacheFilePath);
+            Logger::error('errors', 'Не удалось создать файл кэша', ['path' => $cacheFilePath], [
+                'initiator' => 'checkInstall',
+                'details' => $cacheFilePath,
+            ]);
         }
         return true;
     }
@@ -971,8 +1019,8 @@ class SysClass {
             return;
         }
         $global = [
-            'ENV_SITE_NAME' => ENV_SITE_NAME,            
-            'ENV_DOMEN_NAME' => ENV_DOMEN_NAME,            
+            'ENV_SITE_NAME' => ENV_SITE_NAME,
+            'ENV_DOMEN_NAME' => ENV_DOMEN_NAME,
             'ENV_URL_SITE' => ENV_URL_SITE,
             'ENV_DEF_LANG' => ENV_DEF_LANG,
             'ENV_VERSION_CORE' => ENV_VERSION_CORE,
@@ -981,9 +1029,16 @@ class SysClass {
         $jsContent = "window.LANG_VARS = " . json_encode(array_merge($lang, $global), JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) . ";";
         $result = file_put_contents($langJsPath, $jsContent);
         if ($result === false) {
-            new ErrorLogger("Не удалось записать файл: $langJsPath", __FUNCTION__, 'lang');
+            Logger::error('lang', "Не удалось записать файл: $langJsPath", ['path' => $langJsPath], [
+                'initiator' => __FUNCTION__,
+                'details' => $langJsPath,
+            ]);
         } elseif ($result === 0) {
-            new ErrorLogger("Файл записан, но его размер равен 0 байт: $langJsPath", __FUNCTION__, 'lang');
+            Logger::warning('lang', "Файл записан, но его размер равен 0 байт: $langJsPath", ['path' => $langJsPath], [
+                'initiator' => __FUNCTION__,
+                'details' => $langJsPath,
+                'include_trace' => false,
+            ]);
         }
     }
 
@@ -1138,34 +1193,7 @@ class SysClass {
      */
     public static function preFile(string $subFolder, string $initiator, mixed $result, mixed $details = ''): void {
         if (ENV_LOG) {
-            $logsPath = ENV_LOGS_PATH . $subFolder;
-            if (!is_dir($logsPath)) {
-                mkdir($logsPath, 0755, true);
-            }
-            $trace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
-            $formattedTrace = [];
-            foreach ($trace as $item) {
-                $formattedTrace[] = [
-                    'function' => $item['function'] ?? 'N/A',
-                    'line' => $item['line'] ?? 'N/A',
-                    'file' => $item['file'] ?? 'N/A',
-                    'class' => $item['class'] ?? 'N/A',
-                    'type' => $item['type'] ?? 'N/A',
-                    'object' => $item['object'] ?? 'N/A',
-                ];
-            }
-            $path = $logsPath . ENV_DIRSEP . date("Y-m-d") . '.txt';
-            $result = is_array($result) ? json_encode($result, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) : $result;
-            $details = is_array($details) ? json_encode($details, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) : $details;
-            $logMessage = "{START}";
-            $logMessage .= PHP_EOL . "Время события: " . date("Y-m-d H:i:s");
-            $logMessage .= PHP_EOL . "Инициатор: " . var_export($initiator, true);
-            $logMessage .= PHP_EOL . "Результат: " . $result;
-            $logMessage .= PHP_EOL . "Детали: " . $details;
-            $json = json_encode($formattedTrace, JSON_UNESCAPED_SLASHES);
-            $logMessage .= PHP_EOL . "Полный стек вызовов: " . $json;
-            $logMessage .= PHP_EOL . "{END}" . PHP_EOL;
-            file_put_contents($path, $logMessage, FILE_APPEND | LOCK_EX);
+            Logger::legacy($subFolder, $initiator, $result, $details);
         }
     }
 
@@ -1183,7 +1211,10 @@ class SysClass {
             return true;
         }
         if (!mkdir($directory, $permissions, true)) {
-            self::preFile('errors', 'createDirectoriesForFile', 'Ошибка создания директории', $filePath);
+            Logger::error('errors', 'Ошибка создания директории', ['file_path' => $filePath, 'directory' => $directory], [
+                'initiator' => 'createDirectoriesForFile',
+                'details' => $filePath,
+            ]);
             return false;
         }
         return true;
@@ -1286,9 +1317,9 @@ class SysClass {
         // Создаем имя файла резервной копии
         $backup_file = "backup_" . date("Ymd") . ".zip";
         // Создаем новый объект класса ZipArchive
-        $zip = new ZipArchive();
+        $zip = new \ZipArchive();
         // Открываем архив для записи и задаем пароль, если он задан
-        if ($zip->open($backup_file, ZIPARCHIVE::CREATE | ZIPARCHIVE::OVERWRITE) !== TRUE) {
+        if ($zip->open($backup_file, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== TRUE) {
             die("Ошибка: Не удалось создать архив");
         }
         if ($password) {
@@ -1323,7 +1354,7 @@ class SysClass {
      * @return string Имя файла резервной копии
      * @throws RuntimeException При возникновении ошибок в процессе резервного копирования
      */
-    function backupDatabase(
+    public static function backupDatabase(
             string $host,
             string $user,
             string $password,
@@ -1331,6 +1362,10 @@ class SysClass {
             string $backupDir,
             string $archivePassword
     ): string {
+        if (!is_dir($backupDir) && !@mkdir($backupDir, 0775, true) && !is_dir($backupDir)) {
+            throw new \RuntimeException("Не удалось создать директорию резервных копий: {$backupDir}");
+        }
+
         $backupFile = "backup_" . date("Ymd") . ".sql";
         $backupFilePath = "{$backupDir}/{$backupFile}";
         $db = new SafeMySQL([
@@ -1341,26 +1376,35 @@ class SysClass {
         ]);
         $hasMysqldump = (bool) shell_exec('command -v mysqldump');
         if ($hasMysqldump) {
-            $command = "mysqldump -h {$host} -u {$user} -p{$password} {$database} > {$backupFilePath}";
+            $command = sprintf(
+                'mysqldump -h %s -u %s -p%s %s > %s',
+                escapeshellarg($host),
+                escapeshellarg($user),
+                escapeshellarg($password),
+                escapeshellarg($database),
+                escapeshellarg($backupFilePath)
+            );
             exec($command, $output, $returnVar);
             if ($returnVar !== 0) {
-                throw new RuntimeException("Ошибка при выполнении mysqldump: " . implode("\n", $output));
+                throw new \RuntimeException("Ошибка при выполнении mysqldump: " . implode("\n", $output));
             }
         } else {
             $dump = $db->dump();
             if (file_put_contents($backupFilePath, $dump) === false) {
-                throw new RuntimeException("Не удалось записать дамп базы данных в файл.");
+                throw new \RuntimeException("Не удалось записать дамп базы данных в файл.");
             }
         }
 
         $archiveFile = "{$backupFilePath}.zip";
-        $zip = new ZipArchive();
-        if ($zip->open($archiveFile, ZipArchive::CREATE) !== true) {
-            throw new RuntimeException("Не удалось создать архивный файл.");
+        $zip = new \ZipArchive();
+        if ($zip->open($archiveFile, \ZipArchive::CREATE) !== true) {
+            throw new \RuntimeException("Не удалось создать архивный файл.");
         }
-        $zip->setPassword($archivePassword);
+        if ($archivePassword !== '') {
+            $zip->setPassword($archivePassword);
+        }
         if (!$zip->addFile($backupFilePath, $backupFile)) {
-            throw new RuntimeException("Не удалось добавить файл в архив.");
+            throw new \RuntimeException("Не удалось добавить файл в архив.");
         }
         $zip->close();
         unlink($backupFilePath);
@@ -1578,7 +1622,7 @@ class SysClass {
         });
         return $array;
     }
-    
+
     /**
      * Возвращает слово в правильном склонении в зависимости от числа.
      * @param int   $number Число, от которого зависит склонение.
@@ -1588,14 +1632,14 @@ class SysClass {
     public static function ee_decline(int $number, array $forms): string {
         $case = [2, 0, 1, 1, 1, 2];
         $n = abs($number);
-        
+
         if ($n % 100 > 4 && $n % 100 < 20) {
             return $forms[2];
         }
-        
+
         return $forms[$case[min($n % 10, 5)]];
     }
-    
+
     /**
      * Очищает строковую переменную для безопасного хранения, удаляя теги и пробелы.
      * @param string $inputString Входная строка для очистки
@@ -1606,10 +1650,10 @@ class SysClass {
             return false;
         }
         $cleanedString = strip_tags($inputString);
-        $cleanedString = trim($cleanedString);        
+        $cleanedString = trim($cleanedString);
         return $cleanedString;
     }
-    
+
     /**
      * Очищает входной массив или строку от специальных символов и обрезает пробелы.
      * Рекурсивно обрабатывает вложенные массивы, очищая как ключи, так и значения.
@@ -1646,7 +1690,10 @@ class SysClass {
             $reflection = new \ReflectionClass('classes\system\Constants');
         } catch (\ReflectionException $e) {
             $message = "Класс Constants не найден: " . $e->getMessage();
-            self::preFile('sysclass', 'ee_getFieldsTable', 'throw new \ReflectionException', $message);
+            Logger::error('sysclass', 'throw new \\ReflectionException', ['message' => $message], [
+                'initiator' => 'ee_getFieldsTable',
+                'details' => $message,
+            ]);
             throw new \ReflectionException($message);
         }
         $constantTableName = str_replace(ENV_DB_PREF, '', $tableName) . '_table';
@@ -1660,13 +1707,19 @@ class SysClass {
         $constantsFile = ENV_SITE_PATH . 'classes/system/Constants.php';
         if (!is_writable($constantsFile)) {
             $message = "Файл constants.php недоступен для записи.";
-            self::preFile('sysclass', 'ee_getFieldsTable', 'throw new \ReflectionException', $message);
+            Logger::error('sysclass', 'throw new \\ReflectionException', ['message' => $message], [
+                'initiator' => 'ee_getFieldsTable',
+                'details' => $message,
+            ]);
             throw new \RuntimeException($message);
         }
         $fileContent = file_get_contents($constantsFile);
         if ($fileContent === false) {
             $message = "Не удалось прочитать файл constants.php.";
-            self::preFile('sysclass', 'ee_getFieldsTable', 'throw new \ReflectionException', $message);
+            Logger::error('sysclass', 'throw new \\ReflectionException', ['message' => $message], [
+                'initiator' => 'ee_getFieldsTable',
+                'details' => $message,
+            ]);
             throw new \RuntimeException($message);
         }
         $newContent = str_replace($fieldsKey . ' = []', $fieldsKey . ' = [' . implode(',', array_map(function ($value) {
@@ -1674,7 +1727,10 @@ class SysClass {
                         }, $fieldNames)) . ']', $fileContent);
         if (file_put_contents($constantsFile, $newContent) === false) {
             $message = "Не удалось обновить файл constants.php.";
-            self::preFile('sysclass', 'ee_getFieldsTable', 'throw new \ReflectionException', $message);
+            Logger::error('sysclass', 'throw new \\ReflectionException', ['message' => $message], [
+                'initiator' => 'ee_getFieldsTable',
+                'details' => $message,
+            ]);
             throw new \RuntimeException($message);
         }
         return $fieldNames;
@@ -1754,7 +1810,11 @@ class SysClass {
             $echo .= "Total time: " . $item['total_time'] . PHP_EOL;
             $echo .= "Backtrace: " . var_export($item['backtrace'], true) . PHP_EOL;
         }
-        self::preFile($logFile, 'ee_printSafeMySQLStats', end($stats)['total_time'], $echo);
+        Logger::info($logFile, (string) end($stats)['total_time'], ['stats_dump' => $echo], [
+            'initiator' => 'ee_printSafeMySQLStats',
+            'details' => (string) end($stats)['total_time'],
+            'include_trace' => false,
+        ]);
     }
 
     /**
@@ -1763,11 +1823,16 @@ class SysClass {
      * сравнивая хост из заголовка `HTTP_REFERER` с текущим хостом
      * @return bool
      */
-    public static function isAjaxRequestFromSameSite(): bool {        
+    public static function isAjaxRequestFromSameSite(): bool {
         $isAjax = !empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest';
         $referer = !empty($_SERVER['HTTP_REFERER']) ? parse_url($_SERVER['HTTP_REFERER']) : null;
-        $currentHost = $_SERVER['HTTP_HOST'];
-        $isSameSite = $referer && $referer['host'] == $currentHost;
+        $currentHost = function_exists('ee_get_request_host_name')
+            ? ee_get_request_host_name()
+            : (string) ($_SERVER['HTTP_HOST'] ?? '');
+        $refererHost = !empty($referer['host'])
+            ? (function_exists('ee_normalize_host') ? ee_normalize_host((string) $referer['host'], false) : (string) $referer['host'])
+            : '';
+        $isSameSite = $refererHost !== '' && $refererHost === $currentHost;
         return $isAjax && $isSameSite && !empty(ENV_SITE);
     }
 
@@ -1786,20 +1851,20 @@ class SysClass {
         if (is_array(self::$cacheModel) && !empty(self::$cacheModel[$className])) {
             return self::$cacheModel[$className];
         }
-        
+
         $filePath = trim(ENV_SITE_PATH . ENV_APP_DIRECTORY . ENV_DIRSEP . $area . ENV_DIRSEP . 'models' . ENV_DIRSEP . $className . '.php');
         if (!file_exists($filePath)) {
             return false;
         }
         include_once($filePath);
-        
+
         // Правильная проверка на существование глобального класса
         if (class_exists($className)) {
             $classObject = new $className($params);
             self::$cacheModel[$className] = $classObject;
             return $classObject;
         }
-        
+
         return false;
     }
 
@@ -1838,29 +1903,29 @@ class SysClass {
         SafeMySQL::gi()->query("DELETE FROM ?n WHERE option_key = ?s", Constants::GLOBAL_OPTIONS, $key);
         return true;
     }
-    
+
     /**
      * Создает структуру папок и базовые файлы для нового модуля в директории app
-     * @param string $moduleName Имя нового модуля (например, 'upSale', 'news', 'products')
-     * @param bool $toLowerCase Приводить ли имя модуля (и папки) к нижнему регистру (по умолчанию false)
-     * @return bool Возвращает true в случае успеха, false при ошибке
+     * @param string $moduleName Имя нового модуля
+     * @param bool $toLowerCase Приводить ли имя модуля к нижнему регистру
+     * @param array $views Массив имен представлений для создания (например, ['v_index', 'v_view'])
+     * @return bool
      */
-    public static function createAppModule(string $moduleName, bool $toLowerCase = false): bool {
-        // 1. Валидация и определение имени/пути
+    public static function createAppModule(string $moduleName, bool $toLowerCase = false, array $views = ['v_index']): bool {
+        // 1. Валидация
         if (empty(trim($moduleName)) || !preg_match('/^[a-zA-Z0-9_]+$/', $moduleName)) {
-            self::pre("Ошибка: Недопустимое имя модуля '{$moduleName}'. Используйте только латинские буквы, цифры и подчеркивание.");
+            self::pre("Ошибка: Недопустимое имя модуля '{$moduleName}'.");
             return false;
         }
 
         $targetModuleName = $toLowerCase ? strtolower($moduleName) : $moduleName;
-        $controllerNamePart = ucfirst($targetModuleName); // Для имени класса Controller
-        $moduleTitle = ucfirst($moduleName); // Для комментариев и заголовков
-
+        $controllerNamePart = ucfirst($targetModuleName);
+        $moduleTitle = ucfirst($moduleName);
         $basePath = ENV_SITE_PATH . ENV_APP_DIRECTORY . ENV_DIRSEP . $targetModuleName;
 
         // 2. Проверка существования
         if (is_dir($basePath)) {
-            self::pre("Ошибка: Модуль (папка) '{$targetModuleName}' уже существует в " . ENV_APP_DIRECTORY);
+            self::pre("Ошибка: Модуль '{$targetModuleName}' уже существует.");
             return false;
         }
 
@@ -1876,151 +1941,86 @@ class SysClass {
         foreach ($dirs as $dir) {
             if (!mkdir($dir, 0755, true)) {
                 self::pre("Ошибка: Не удалось создать директорию {$dir}");
-                // Попытка удалить уже созданные папки этого модуля (опционально)
                 self::ee_removeDir($basePath, true);
                 return false;
             }
         }
 
-        // 4. Генерация контента файлов
-        // Определяем пространство имен на основе пути
+        // 4. Генерация контента
         $moduleNamespace = 'app\\' . str_replace(ENV_DIRSEP, '\\', $targetModuleName);
 
-        // --- Контроллер (index.php) ---
+        // --- Контроллер ---
         $controllerContent = <<<PHP
 <?php
 namespace {$moduleNamespace};
 
 use classes\system\ControllerBase;
 use classes\system\SysClass;
-use classes\system\Constants;
-use classes\system\Users;
 
-/**
- * Контроллер для модуля {$moduleTitle}
- */
 class Controller{$controllerNamePart} Extends ControllerBase {
 
-    /**
-     * Загружает стандартные представления, CSS и JS для модуля
-     */
     private function getStandardViews(): void {
-        // Устанавливаем переменные для макета
         \$this->parameters_layout["title"] = ENV_SITE_NAME . ' - {$moduleTitle}';
-        \$this->parameters_layout["description"] = ENV_SITE_DESCRIPTION . ' - {$moduleTitle}';
-        // Подключаем CSS и JS модуля
-        \$this->parameters_layout["add_script"] .= '<script src="' . \$this->getPathController() . '/js/index.js" type="text/javascript"></script>';
-        \$this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="' . \$this->getPathController() . '/css/index.css"/>';
+        \$this->parameters_layout["description"] = ENV_SITE_DESCRIPTION;
+        \$this->parameters_layout["add_script"] .= '<script src="' . \$this->getPathController() . '/js/index.js"></script>';
+        \$this->parameters_layout["add_style"] .= '<link rel="stylesheet" href="' . \$this->getPathController() . '/css/index.css"/>';
     }
 
-    /**
-     * Главный метод (action) модуля
-     * @param array \$params Параметры из URL
-     * @return void
-     */
     public function index(array \$params = []): void {
-        // --- Проверка доступа ---
-        \$this->access = [Constants::ALL]; // <<< Установите нужные права доступа! (ALL_AUTH для авторизованных, ADMIN и т.д.)
-        // if (!SysClass::getAccessUser(\$this->logged_in, \$this->access)) {
-        //     SysClass::handleRedirect(403); // Доступ запрещен
-        //     return;
-        // }
-        // --- Конец проверки доступа ---
-
-        // --- Загрузка моделей (если нужны) ---
-        // \$this->loadModel('m_index');
-
-        // --- Получение данных из моделей (пример) ---
-        // \$dataFromModel = \$this->models['m_index']->getSomeData();
-        // \$this->view->set('someData', \$dataFromModel);
-
-        // --- Подготовка и отображение представления ---
         \$this->getStandardViews();
-
-        \$this->html = \$this->view->read('v_index'); // Загружаем v_index.php
-
+        \$this->html = \$this->view->read('v_index');
         \$this->parameters_layout["layout_content"] = \$this->html;
-        \$this->parameters_layout["layout"] = 'index'; // Используемый макет
-
+        \$this->parameters_layout["layout"] = 'index';
         \$this->showLayout(\$this->parameters_layout);
     }
-
-    // --- Другие actions ---
-
-} // Конец класса Controller{$controllerNamePart}
+}
 PHP;
 
-        // --- Модель (ModelIndex.php) ---
+        // --- Модель ---
         $modelContent = <<<PHP
 <?php
 namespace {$moduleNamespace}\models;
-
-use classes\plugins\SafeMySQL; // Или SafePostgreSQL
-use classes\system\SysClass;
-use classes\system\Constants;
-
-/**
- * Модель для модуля {$moduleTitle}
- */
 class ModelIndex {
-
-    /**
-     * Пример метода
-     * @return array
-     */
-    public function getSomeData(): array {
-        return ['message' => 'Данные из модели модуля {$moduleTitle}'];
+    public function getData(): array {
+        return [];
     }
-
-} // Конец класса ModelIndex
+}
 PHP;
 
-        // --- Представление (v_index.php) ---
-        $viewContent = <<<PHP
-<?php if (!defined('ENV_SITE')) exit(header("Location: http://" . \$_SERVER['HTTP_HOST'], true, 301)); ?>
-<h1>Модуль {$moduleTitle}</h1>
-<p>Это главная страница модуля {$moduleTitle}.</p>
-<?php
-// Пример вывода данных
-// if (isset(\$someData)) {
-//     SysClass::pre(\$someData);
-// }
-?>
-PHP;
+        // --- CSS и JS ---
+        $cssContent = "/* Стили модуля {$moduleTitle} */";
+        $jsContent = "$(document).ready(function() { console.log('Module {$moduleTitle} loaded'); });";
 
-        // --- CSS (index.css) ---
-        $cssContent = <<<CSS
-/* Стили для модуля {$moduleTitle} */
-CSS;
-
-        // --- JS (index.js) ---
-        $jsContent = <<<JS
-// JavaScript для модуля {$moduleTitle}
-\$(document).ready(function() {
-    // console.log('Модуль {$moduleTitle} загружен');
-    // Ваш код здесь
-});
-JS;
-
-        // 5. Запись файлов
+        // 5. Сборка файлов
         $filesToWrite = [
             $basePath . ENV_DIRSEP . 'index.php' => $controllerContent,
             $basePath . ENV_DIRSEP . 'models' . ENV_DIRSEP . 'ModelIndex.php' => $modelContent,
-            $basePath . ENV_DIRSEP . 'views' . ENV_DIRSEP . 'v_index.php' => $viewContent,
             $basePath . ENV_DIRSEP . 'css' . ENV_DIRSEP . 'index.css' => $cssContent,
             $basePath . ENV_DIRSEP . 'js' . ENV_DIRSEP . 'index.js' => $jsContent,
         ];
 
+        // Генерация View файлов
+        foreach ($views as $viewName) {
+            $viewContent = <<<PHP
+<?php if (!defined('ENV_SITE')) exit; ?>
+<div class="container mt-5 pt-5">
+    <h1>Представление {$viewName}</h1>
+    <p>Модуль: {$moduleTitle}</p>
+</div>
+PHP;
+            $filesToWrite[$basePath . ENV_DIRSEP . 'views' . ENV_DIRSEP . $viewName . '.php'] = $viewContent;
+        }
+
+        // Запись
         foreach ($filesToWrite as $filePath => $content) {
             if (file_put_contents($filePath, $content) === false) {
-                self::pre("Ошибка: Не удалось записать файл {$filePath}");
-                // Попытка удалить уже созданные папки/файлы этого модуля
+                self::pre("Ошибка записи файла {$filePath}");
                 self::ee_removeDir($basePath, true);
                 return false;
             }
         }
 
-        self::pre("Модуль '{$targetModuleName}' успешно создан.", false); // Выводим сообщение без die()
+        self::pre("Модуль '{$targetModuleName}' успешно создан.", false);
         return true;
-    }    
+    }
 }

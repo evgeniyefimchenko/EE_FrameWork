@@ -1,4 +1,4 @@
-<?php if (!defined('ENV_SITE')) exit(header("Location: http://" . $_SERVER['HTTP_HOST'], true, 301)); ?>
+<?php if (!defined('ENV_SITE')) exit(header('Location: /', true, 301)); ?>
 <!-- Редактирование типа категории -->
 <main>
     <form id="type_edit" action="/admin/categories_type_edit/id/<?= $type_data['type_id'] ?>" method="POST">
@@ -8,14 +8,25 @@
                class="btn btn-info mx-1 float-end<?= empty($type_data['type_id']) ? " d-none" : "" ?>">
                 <i class="fa fa-plus-circle"></i>&nbsp;<?= $lang['sys.add'] ?>
             </a>
+            <button type="submit" name="lifecycle_preview" value="1" class="btn btn-outline-secondary float-end mx-1">Preview</button>
             <button type="submit" class="btn btn-primary float-end"><?=$lang['sys.save']?></button>            
             <h1 class="mt-4"><?= !$type_data ? 'Добавить тип категории' : 'Редактировать тип категории' ?></h1>
             <ol class="breadcrumb mb-4">
                 <li class="breadcrumb-item active">
                     <span id="type_id" data-id="<?= $type_data['type_id'] ?>">id = <?php echo !$type_data ? 'Не присвоен' : $type_data['type_id'] ?></span>
                     <input type="hidden" name="type_id" class="form-control" value="<?= $type_data['type_id'] ? $type_data['type_id'] : 0 ?>">
+                    <input type="hidden" name="old_parent_type_id" value="<?= (int) ($type_data['parent_type_id'] ?? 0) ?>">
                 </li>
             </ol>
+            <?php if (!empty($categoryTypeImpact['categories_count']) || !empty($categoryTypeImpact['descendants_count'])) { ?>
+                <div class="alert alert-warning">
+                    <?= $lang['sys.used'] ?>:
+                    <?= (int) $categoryTypeImpact['categories_count'] ?> category,
+                    <?= (int) $categoryTypeImpact['pages_count'] ?> page,
+                    <?= (int) $categoryTypeImpact['descendants_count'] ?> child type.
+                    После смены родителя или наборов свойств зависимости будут пересчитаны.
+                </div>
+            <?php } ?>
             <div class="row">
                 <div class="col">
                     <ul class="nav nav-tabs" id="eeTab" role="tablist">
@@ -63,13 +74,14 @@
                         </div>
                         <!-- Наборы свойств -->
                         <div class="tab-pane fade show mt-3" id="features-tab-pane" role="tabpanel" aria-labelledby="features-tab">
-                            <?= classes\system\Plugins::renderPropertySets($propertySetsData, $categoriesTypeSetsData) ?>
+                            <?= classes\system\Plugins::renderPropertySets($propertySetsData, $categoriesTypeSetsData, $directCategoriesTypeSetsData ?? []) ?>
                         </div>                        
                     </div>
                 </div>
             </div>
             <div class="row">
                 <div class="col">
+                    <button type="submit" name="lifecycle_preview" value="1" class="btn btn-outline-secondary my-3 me-2">Preview</button>
                     <button type="submit" class="btn btn-primary my-3"><?=$lang['sys.save']?></button>
                 </div>                    
             </div>

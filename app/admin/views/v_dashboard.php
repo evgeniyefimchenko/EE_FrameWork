@@ -1,4 +1,4 @@
-<?php if (!defined('ENV_SITE')) exit(header("Location: http://" . $_SERVER['HTTP_HOST'], true, 301)); ?>
+<?php if (!defined('ENV_SITE')) exit(header('Location: /', true, 301)); ?>
 <?= $top_bar ?>
 <div id="layoutSidenav">
     <!-- General menu -->

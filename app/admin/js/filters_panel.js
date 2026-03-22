@@ -1,6 +1,6 @@
 /* Управление панелью пересчета фильтров (ФИНАЛЬНАЯ ВЕРСИЯ) */
 $(document).ready(function () {
-    setActiveNavLink('/admin/systems/filters_panel');
+    setActiveNavLink('/admin/filters_panel');
 
     const regenerateBtn = $('#regenerate-btn');
     const regenerateAllBtn = $('#regenerate-all-btn');
@@ -104,19 +104,31 @@ $(document).ready(function () {
                     let html = '<dl class="dl-horizontal">';
                     response.data.forEach(function(filter) {
                         try {
-                            const options = JSON.parse(filter.filter_options);
+                            const payload = JSON.parse(filter.filter_options);
+                            const fields = Array.isArray(payload.fields)
+                                ? payload.fields
+                                : [payload];
                             html += `<dt>${filter.property_name}</dt>`;
-                            if (options.filter_type === 'range') {
-                                html += `<dd>Тип: Диапазон (от ${options.min_value} до ${options.max_value}), найдено ${options.count} шт.</dd>`;
-                            } else if (options.filter_type === 'options' && options.options && options.options.length > 0) {
-                                let optionsHtml = '<ul>';
-                                options.options.forEach(opt => {
-                                    optionsHtml += `<li>${opt.label} (ID: ${opt.id}) - ${opt.count} шт.</li>`;
-                                });
-                                optionsHtml += '</ul>';
-                                html += `<dd>${optionsHtml}</dd>`;
+                            let fieldsHtml = '';
+                            fields.forEach(field => {
+                                const fieldLabel = field.label || filter.property_name;
+                                if (field.filter_type === 'range') {
+                                    fieldsHtml += `<div><strong>${fieldLabel}</strong>: диапазон от ${field.min_value} до ${field.max_value}, найдено ${field.count || 0} шт.</div>`;
+                                    return;
+                                }
+                                if (field.filter_type === 'options' && Array.isArray(field.options) && field.options.length > 0) {
+                                    let optionsHtml = '<ul>';
+                                    field.options.forEach(opt => {
+                                        optionsHtml += `<li>${opt.label} (ID: ${opt.id}) - ${opt.count} шт.</li>`;
+                                    });
+                                    optionsHtml += '</ul>';
+                                    fieldsHtml += `<div><strong>${fieldLabel}</strong>${optionsHtml}</div>`;
+                                }
+                            });
+                            if (fieldsHtml) {
+                                html += `<dd>${fieldsHtml}</dd>`;
                             } else {
-                                 html += `<dd>Нет данных для отображения.</dd>`;
+                                html += `<dd>Нет данных для отображения.</dd>`;
                             }
                         } catch (e) {
                             console.error('Ошибка парсинга JSON для фильтра:', filter);

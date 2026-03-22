@@ -1,4 +1,4 @@
-<?php if (!defined('ENV_SITE')) exit(header("Location: http://" . $_SERVER['HTTP_HOST'], true, 301));
+<?php if (!defined('ENV_SITE')) exit(header('Location: /', true, 301));
 if (!count($allType)) {
    classes\helpers\ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Необходимо создать хотя бы один тип категории!', 'status' => 'info']);
    classes\system\SysClass::handleRedirect(200, '/admin/types_categories');
@@ -6,9 +6,10 @@ if (!count($allType)) {
 $countPages = count($categoryPages);
 ?>
 <!-- Редактирование категории -->
-<main>    
+<main>
     <form id="edit_category" action="/admin/category_edit/id/<?= $categoryData['category_id'] ?>" method="POST" enctype="multipart/form-data" novalidate>
         <input type="hidden" name="fake" value="1" />
+        <input type="hidden" name="language_code" value="<?= htmlspecialchars((string)($categoryData['language_code'] ?? (\classes\system\Session::get('lang') ?: ENV_DEF_LANG)), ENT_QUOTES, 'UTF-8') ?>" />
         <input type="hidden" id="count_pages" value="<?=$countPages?>" />
         <div class="container-fluid px-4">
             <a href="/admin/category_edit/id" data-bs-toggle="tooltip" data-bs-placement="top" title="<?= $lang['sys.add'] ?>" type="button"

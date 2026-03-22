@@ -1,4 +1,4 @@
-<?php if (!defined('ENV_SITE')) exit(header("Location: http://" . $_SERVER['HTTP_HOST'], true, 301)); ?>
+<?php if (!defined('ENV_SITE')) exit(header('Location: /', true, 301)); ?>
 <!-- Всплывающая форма авторизации и регистрации -->
 <div class="container">
     <div class="modal fade login" id="loginModal">    
@@ -24,6 +24,11 @@
                                         <input class="btn btn-default btn-login" type="submit" value="<?= $lang['sys.log_in'] ?>">
                                     </div>                                
                                 </form>
+                                <?php if (defined('ENV_AUTH_GOOGLE_CLIENT_ID') && trim((string) ENV_AUTH_GOOGLE_CLIENT_ID) !== '') { ?>
+                                    <div class="mt-3 text-center">
+                                        <a class="btn btn-outline-dark w-100" href="/auth/google/start"><?= $lang['sys.continue_with_google'] ?></a>
+                                    </div>
+                                <?php } ?>
                             </div>
                         </div>
                     </div>
@@ -42,6 +47,11 @@
                                     </div>
                                     <input class="btn btn-default btn-register" type="submit" value="<?= $lang['sys.sign_up'] ?>" name="commit">
                                 </form>
+                                <?php if (defined('ENV_AUTH_GOOGLE_CLIENT_ID') && trim((string) ENV_AUTH_GOOGLE_CLIENT_ID) !== '') { ?>
+                                    <div class="mt-3 text-center">
+                                        <a class="btn btn-outline-dark w-100" href="/auth/google/start"><?= $lang['sys.continue_with_google'] ?></a>
+                                    </div>
+                                <?php } ?>
                             </div>
                         </div>
                     </div>

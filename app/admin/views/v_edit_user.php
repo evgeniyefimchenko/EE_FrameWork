@@ -1,8 +1,9 @@
-<?php if (!defined('ENV_SITE')) exit(header("Location: http://" . $_SERVER['HTTP_HOST'], true, 301)); ?>
+<?php if (!defined('ENV_SITE')) exit(header('Location: /', true, 301)); ?>
 <!-- Редактирование пользователя сайта -->
 <main>
     <form id="edit_users">
         <input type="hidden" name="fake" value="1" />
+        <input type="hidden" name="new" value="<?= $user_context['new_user'] ? 1 : 0 ?>" />
         <div class="container-fluid px-4">
             <h1 class="mt-4"><?= $user_context['new_user'] ? $lang['sys.add'] : $lang['sys.edit'] ?></h1>
             <ol class="breadcrumb mb-4">
@@ -103,6 +104,55 @@
                                     <input type="password" id="new_pass_conf" name="new_pass_conf" class="form-control" >
                                     <small></small>
                                 </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <div class="form-check mt-4">
+                                        <input class="form-check-input" type="checkbox" id="auth_require_password_setup" name="auth_require_password_setup" <?= !empty($user_context['auth_security']['must_set_password']) ? 'checked' : '' ?>>
+                                        <label class="form-check-label" for="auth_require_password_setup">
+                                            <?= $lang['sys.require_password_setup'] ?>
+                                        </label>
+                                    </div>
+                                    <div class="form-check mt-3">
+                                        <input class="form-check-input" type="checkbox" id="auth_ip_restricted" name="auth_ip_restricted" <?= !empty($user_context['options']['auth']['ip_restricted']) ? 'checked' : '' ?>>
+                                        <label class="form-check-label" for="auth_ip_restricted">
+                                            <?= $lang['sys.ip_restricted'] ?>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="auth_password_setup_reason"><?= $lang['sys.password_setup_reason'] ?>:</label>
+                                    <input type="text" id="auth_password_setup_reason" name="auth_password_setup_reason" class="form-control" value="<?= htmlspecialchars($user_context['options']['auth']['password_setup_reason'] ?? '') ?>" placeholder="<?= $lang['sys.enter_description'] ?>">
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <label><?= $lang['sys.local_password'] ?>:</label>
+                                    <input type="text" class="form-control" disabled value="<?= !empty($user_context['auth_security']['has_local_password']) ? $lang['sys.yes'] : $lang['sys.no'] ?>">
+                                </div>
+                                <div class="col-md-4">
+                                    <label><?= $lang['sys.failed_attempts'] ?>:</label>
+                                    <input type="text" class="form-control" disabled value="<?= (int) ($user_context['auth_security']['failed_attempts'] ?? 0) ?>">
+                                </div>
+                                <div class="col-md-4">
+                                    <label><?= $lang['sys.locked_until'] ?>:</label>
+                                    <input type="text" class="form-control" disabled value="<?= htmlspecialchars((string) ($user_context['auth_security']['locked_until'] ?? '')) ?>">
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label><?= $lang['sys.linked_providers'] ?>:</label>
+                                <?php if (!empty($user_context['auth_security']['linked_identities'])) { ?>
+                                    <ul class="list-group">
+                                        <?php foreach ($user_context['auth_security']['linked_identities'] as $identity) { ?>
+                                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                                <span><?= htmlspecialchars(ucfirst((string) ($identity['provider'] ?? 'provider'))) ?></span>
+                                                <small class="text-muted"><?= htmlspecialchars((string) ($identity['provider_email'] ?? $identity['provider_user_id'] ?? '')) ?></small>
+                                            </li>
+                                        <?php } ?>
+                                    </ul>
+                                <?php } else { ?>
+                                    <div class="text-muted small"><?= $lang['sys.no_linked_providers'] ?></div>
+                                <?php } ?>
                             </div>
                         </div>
                         <!-- Содержимое для комментария -->

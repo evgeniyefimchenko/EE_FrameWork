@@ -3,7 +3,6 @@
 namespace classes\system;
 
 use classes\system\SysClass;
-use classes\system\ErrorLogger;
 
 /**
  * Роутинг проекта
@@ -21,14 +20,29 @@ class Router {
     private ?\Redis $redis = null;
 
     /**
+     * Использовать ли route cache для текущего запроса.
+     */
+    private bool $routeCacheEnabled = false;
+
+    /**
+     * Backend для route cache: file|redis
+     */
+    private string $routeCacheBackend = 'file';
+
+    /**
      * Устанавливает путь к контроллерам, задаётся в головном файле INDEX
      * @param string $path Путь к контроллерам
      */
     public function setPath(string $path): void {
-        $path = trim($path, '/\\') . ENV_DIRSEP;
-        $path = ENV_DIRSEP . $path;
+        $resolvedPath = realpath($path);
+        $path = ($resolvedPath !== false ? $resolvedPath : $path);
+        $path = rtrim($path, '/\\') . ENV_DIRSEP;
+
         if (!is_dir($path)) {
-            $errorLogger = new ErrorLogger('Указана неверная папка для контроллеров: `' . $path . '`', __FUNCTION__);
+            Logger::critical('router_error', 'Указана неверная папка для контроллеров: `' . $path . '`', ['path' => $path], [
+                'initiator' => __FUNCTION__,
+                'details' => $path,
+            ]);
             SysClass::handleRedirect(500);
             exit;
         }
@@ -40,17 +54,37 @@ class Router {
      * Инициализирует кеширование, если оно включено
      */
     private function initCache(): void {
-        if (ENV_ROUTING_CACHE) {
+        $this->routeCacheEnabled = self::isRouteCacheEnabled();
+        $this->routeCacheBackend = self::getRouteCacheBackend();
+
+        if (!$this->routeCacheEnabled) {
+            return;
+        }
+
+        if ($this->routeCacheBackend === 'redis') {
             $this->redis = new \Redis();
-            if (!$this->redis->connect(ENV_REDIS_ADDRESS, ENV_REDIS_PORT)) {
-                $errorLogger = new ErrorLogger('Не удалось подключиться к Redis', __FUNCTION__);
+            try {
+                if (!$this->redis->connect(ENV_REDIS_ADDRESS, ENV_REDIS_PORT)) {
+                    throw new \RuntimeException('Не удалось подключиться к Redis');
+                }
+            } catch (\Throwable $e) {
+                Logger::critical('router_error', 'Не удалось подключиться к Redis', [
+                    'message' => $e->getMessage(),
+                ], [
+                    'initiator' => __FUNCTION__,
+                    'details' => $e->getMessage(),
+                ]);
                 SysClass::handleRedirect(500);
                 exit;
             }
         } else {
-            if (!is_dir(ENV_CACHE_PATH)) {
-                if (!mkdir(ENV_CACHE_PATH, 0755, true)) {
-                    $errorLogger = new ErrorLogger('Не удалось создать директорию для кеша: ' . ENV_CACHE_PATH, __FUNCTION__);
+            $routeCacheDir = self::getRouteCacheDirectory();
+            if (!is_dir($routeCacheDir)) {
+                if (!@mkdir($routeCacheDir, 0755, true) && !is_dir($routeCacheDir)) {
+                    Logger::critical('router_error', 'Не удалось создать директорию для route cache: ' . $routeCacheDir, ['path' => $routeCacheDir], [
+                        'initiator' => __FUNCTION__,
+                        'details' => $routeCacheDir,
+                    ]);
                     SysClass::handleRedirect(500);
                     exit;
                 }
@@ -64,14 +98,19 @@ class Router {
      * @return mixed Данные из кеша или null, если данные отсутствуют
      */
     private function getCache(string $key) {
-        if (ENV_ROUTING_CACHE) {
-            return $this->redis->get($key);
-        } else {
-            $cacheFile = ENV_CACHE_PATH . ENV_DIRSEP . 'route' . ENV_DIRSEP . $key . '.cache';
-            if (file_exists($cacheFile)) {
-                return file_get_contents($cacheFile);
-            }
+        if (!$this->routeCacheEnabled) {
+            return null;
         }
+
+        if ($this->routeCacheBackend === 'redis') {
+            return $this->redis?->get(self::buildRedisKey($key));
+        }
+
+        $cacheFile = self::getRouteCacheDirectory() . $key . '.cache';
+        if (is_file($cacheFile)) {
+            return file_get_contents($cacheFile);
+        }
+
         return null;
     }
 
@@ -81,13 +120,18 @@ class Router {
      * @param mixed $data Данные для кеширования
      */
     private function setCache(string $key, $data): void {
-        if (ENV_ROUTING_CACHE) {
-            $this->redis->set($key, $data);
-        } else {
-            $cacheFile = ENV_CACHE_PATH . ENV_DIRSEP . 'route' . ENV_DIRSEP . $key . '.cache';
-            SysClass::createDirectoriesForFile($cacheFile);
-            file_put_contents($cacheFile, $data);
+        if (!$this->routeCacheEnabled) {
+            return;
         }
+
+        if ($this->routeCacheBackend === 'redis') {
+            $this->redis?->set(self::buildRedisKey($key), $data);
+            return;
+        }
+
+        $cacheFile = self::getRouteCacheDirectory() . $key . '.cache';
+        SysClass::createDirectoriesForFile($cacheFile);
+        file_put_contents($cacheFile, $data, LOCK_EX);
     }
 
     /**
@@ -118,7 +162,10 @@ class Router {
 
         $routeFiltered = filter_var($routeRaw, FILTER_SANITIZE_FULL_SPECIAL_CHARS);
         if ($routeRaw !== $routeFiltered) {
-             new ErrorLogger('Ошибка безопасности при фильтрации маршрута: ' . $routeRaw, __FUNCTION__, 'router_error');
+             Logger::warning('router_error', 'Ошибка безопасности при фильтрации маршрута: ' . $routeRaw, ['route' => $routeRaw], [
+                 'initiator' => __FUNCTION__,
+                 'details' => $routeRaw,
+             ]);
              SysClass::handleRedirect(400);
              exit;
         }
@@ -230,7 +277,14 @@ class Router {
 
         // Финальная проверка читаемости файла
         if (empty($file) || !is_readable($file)) {
-             new ErrorLogger('Файл контроллера не найден или недоступен для чтения: [' . $file . '] (Raw: ' . $routeRaw . ', Norm: ' . $routeNormalized . ')', __FUNCTION__, 'router_error');
+             Logger::warning('router_error', 'Файл контроллера не найден или недоступен для чтения', [
+                 'file' => $file,
+                 'route_raw' => $routeRaw,
+                 'route_normalized' => $routeNormalized,
+             ], [
+                 'initiator' => __FUNCTION__,
+                 'details' => $file,
+             ]);
              SysClass::handleRedirect(404);
              exit;
         }
@@ -242,6 +296,104 @@ class Router {
             'action' => $action,
             'args' => $args
         ]));
+    }
+
+    public static function clearRouteCache(): void {
+        self::clearRouteCacheFiles();
+        if (self::getRouteCacheBackend() === 'redis' && class_exists('\Redis')) {
+            self::clearRouteCacheRedis();
+        }
+    }
+
+    public static function isRouteCacheEnabled(): bool {
+        if (defined('ENV_ROUTING_CACHE_ENABLED')) {
+            return (bool) ENV_ROUTING_CACHE_ENABLED;
+        }
+
+        return defined('ENV_ROUTING_CACHE') ? (bool) ENV_ROUTING_CACHE : false;
+    }
+
+    public static function getRouteCacheBackend(): string {
+        $backend = defined('ENV_ROUTING_CACHE_BACKEND') ? strtolower((string) ENV_ROUTING_CACHE_BACKEND) : '';
+        if ($backend === 'redis') {
+            return 'redis';
+        }
+        return 'file';
+    }
+
+    private static function getCacheNamespace(): string {
+        $namespace = defined('ENV_CACHE_NAMESPACE') ? (string) ENV_CACHE_NAMESPACE : 'ee-site';
+        $namespace = preg_replace('~[^a-z0-9._-]+~i', '-', strtolower($namespace)) ?? 'ee-site';
+        $namespace = trim($namespace, '-');
+        return $namespace !== '' ? $namespace : 'ee-site';
+    }
+
+    private static function getCacheVersion(): string {
+        $version = defined('ENV_CACHE_VERSION') ? (string) ENV_CACHE_VERSION : 'v1';
+        $version = preg_replace('~[^a-z0-9._-]+~i', '-', strtolower($version)) ?? 'v1';
+        $version = trim($version, '-');
+        return $version !== '' ? $version : 'v1';
+    }
+
+    private static function getRouteCacheDirectory(): string {
+        return rtrim((string) ENV_CACHE_PATH, '/\\') . ENV_DIRSEP
+            . 'route' . ENV_DIRSEP
+            . self::getCacheNamespace() . '-' . self::getCacheVersion() . ENV_DIRSEP;
+    }
+
+    private static function buildRedisKey(string $cacheKey): string {
+        return 'ee_cache:' . self::getCacheNamespace() . ':' . self::getCacheVersion() . ':route:' . $cacheKey;
+    }
+
+    private static function getRedisMatchPattern(): string {
+        return 'ee_cache:' . self::getCacheNamespace() . ':*:route:*';
+    }
+
+    private static function clearRouteCacheFiles(): void {
+        $routeRoot = rtrim((string) ENV_CACHE_PATH, '/\\') . ENV_DIRSEP . 'route' . ENV_DIRSEP;
+        if (!is_dir($routeRoot)) {
+            return;
+        }
+
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($routeRoot, \FilesystemIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::CHILD_FIRST
+        );
+        foreach ($iterator as $item) {
+            if ($item->isDir()) {
+                @rmdir($item->getPathname());
+            } else {
+                @unlink($item->getPathname());
+            }
+        }
+        @rmdir($routeRoot);
+    }
+
+    private static function clearRouteCacheRedis(): void {
+        try {
+            $redis = new \Redis();
+            $redis->connect(ENV_REDIS_ADDRESS, ENV_REDIS_PORT);
+        } catch (\Throwable $e) {
+            Logger::warning('router_error', 'Route cache Redis clear failed', [
+                'message' => $e->getMessage(),
+                'address' => ENV_REDIS_ADDRESS,
+                'port' => ENV_REDIS_PORT,
+            ], [
+                'initiator' => __METHOD__,
+                'details' => $e->getMessage(),
+                'include_trace' => false,
+            ]);
+            return;
+        }
+
+        $iterator = null;
+        $pattern = self::getRedisMatchPattern();
+        do {
+            $keys = $redis->scan($iterator, $pattern, 500);
+            if (is_array($keys) && $keys !== []) {
+                $redis->del($keys);
+            }
+        } while ($iterator !== 0 && $iterator !== null);
     }
 
     /**
@@ -278,14 +430,20 @@ class Router {
                     ], false);
         }
         if (!is_readable($file)) {
-            new ErrorLogger('Файл контроллера не найден или недоступен для чтения: ' . $file, __FUNCTION__, 'router_error');
+            Logger::warning('router_error', 'Файл контроллера не найден или недоступен для чтения: ' . $file, ['file' => $file], [
+                'initiator' => __FUNCTION__,
+                'details' => $file,
+            ]);
             SysClass::handleRedirect(404);
             exit;
         }
         \AutoloadManager::addClassMap($class, $file);
         $view = new View();
         if (!class_exists($class)) {
-            new ErrorLogger('Класс контроллера не найден автозагрузчиком после регистрации: ' . $class . '. Проверьте файл: ' . $file, __FUNCTION__, 'router_error', ['expected_class' => $class, 'file_path' => $file]);
+            Logger::error('router_error', 'Класс контроллера не найден автозагрузчиком после регистрации: ' . $class . '. Проверьте файл: ' . $file, ['expected_class' => $class, 'file_path' => $file], [
+                'initiator' => __FUNCTION__,
+                'details' => $class,
+            ]);
             SysClass::handleRedirect(404);
             exit;
         }
@@ -298,7 +456,10 @@ class Router {
                 }
                 $actualAction = 'index';
             } else {
-                new ErrorLogger('Метод контроллера не найден или не может быть вызван: ' . $class . '->' . $actualAction, __FUNCTION__, 'router_error', ['class' => $class, 'action' => $actualAction]);
+                Logger::warning('router_error', 'Метод контроллера не найден или не может быть вызван: ' . $class . '->' . $actualAction, ['class' => $class, 'action' => $actualAction], [
+                    'initiator' => __FUNCTION__,
+                    'details' => $class . '->' . $actualAction,
+                ]);
                 SysClass::handleRedirect(404);
                 exit;
             }

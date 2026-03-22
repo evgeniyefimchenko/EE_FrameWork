@@ -1,4 +1,4 @@
-<?php if (!defined('ENV_SITE')) exit(header("Location: http://" . $_SERVER['HTTP_HOST'], true, 301)); ?>
+<?php if (!defined('ENV_SITE')) exit(header('Location: /', true, 301)); ?>
 <!-- Редактирование почтового шаблона -->
 <main>
     <form id="edit_email_template" action="/admin/edit_email_template/id/<?= $templateData['template_id'] ?>" method="POST" enctype="multipart/form-data">

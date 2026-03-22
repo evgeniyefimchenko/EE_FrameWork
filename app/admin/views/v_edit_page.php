@@ -1,9 +1,10 @@
-<?php if (!defined('ENV_SITE')) exit(header("Location: http://" . $_SERVER['HTTP_HOST'], true, 301));
+<?php if (!defined('ENV_SITE')) exit(header('Location: /', true, 301));
 if (!$allType) classes\system\SysClass::handleRedirect(200, '/admin/type_categories');?>
 <!-- Редактирование страницы -->
 <main>    
     <form id="edit_page" method="POST" enctype="multipart/form-data" novalidate>
         <input type="hidden" name="fake" value="1" />
+        <input type="hidden" name="language_code" value="<?= htmlspecialchars((string)($pageData['language_code'] ?? (\classes\system\Session::get('lang') ?: ENV_DEF_LANG)), ENT_QUOTES, 'UTF-8') ?>" />
         <div class="container-fluid px-4">
             <a href="/admin/page_edit/id" data-bs-toggle="tooltip" data-bs-placement="top" title="<?= $lang['sys.add'] ?>" type="button"
                class="btn btn-info mx-1 float-end<?= empty($pageData['page_id']) ? " d-none" : "" ?>">

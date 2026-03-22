@@ -3,6 +3,7 @@
 namespace classes\system;
 
 use classes\plugins\SafeMySQL;
+use classes\helpers\ClassNotifications;
 
 /**
  * Базовый абстрактный класс для всех контроллеров проекта
@@ -70,12 +71,11 @@ abstract class ControllerBase {
     function __construct($view = \null) {
         SysClass::checkInstall();
         $this->view = $view instanceof View ? $view : new View();
-        $session = ENV_AUTH_USER === 2 ? Cookies::get('user_session') : Session::get('user_session');
-        if ($session) {
-            $this->logged_in = $this->logged_in ?? $this->getUsersSessionData($session);
+        $this->logged_in = AuthSessionService::resolveCurrentUserId();
+        if ($this->logged_in) {
+            $this->logged_in = $this->logged_in ?? false;
         } else {
-            Session::un_set('user_session');
-            Cookies::clear('user_session');
+            AuthSessionService::clearTransportState();
         }
         $this->users = new Users($this->logged_in);
         $userData = $this->users->data;
@@ -90,27 +90,169 @@ abstract class ControllerBase {
      */
     private function setUserData($userData) {
         $getLangCode = ''; // Для логирования
+        $availableLangs = array_map('strtoupper', Lang::getLangFilesWithoutExtension());
+        $normalizeLangCode = static function ($value) use ($availableLangs): string {
+            $value = strtoupper(trim((string)$value));
+            return in_array($value, $availableLangs, true) ? $value : '';
+        };
+        $sessionLangCode = $normalizeLangCode(Session::get('lang'));
         if (empty($userData['new_user'])) { // Разегистрированный пользователь
+            $notifications = !empty($this->logged_in) ? ClassNotifications::getNotificationsUser((int) $this->logged_in, 20) : [];
+            $userData['notifications'] = $notifications;
+            $this->view->set('notifications', $notifications);
+            $this->view->set('messages', is_array($userData['messages'] ?? null) ? $userData['messages'] : []);
+            $this->view->set('count_unread_messages', (int) ($userData['count_unread_messages'] ?? 0));
+            $this->view->set('count_messages', (int) ($userData['count_messages'] ?? 0));
             $this->view->set('userData', $userData);
-            if (!empty($userData['options']['localize'])) { // Проверка на наличие локали в настройках пользователя
+            $storedLangCode = $normalizeLangCode($userData['options']['localize'] ?? '');
+            if ($sessionLangCode !== '') {
+                $getLangCode = 'user_data Session override';
+                $langCode = $sessionLangCode;
+                if (($storedLangCode === '' || $storedLangCode !== $langCode) && !empty($this->logged_in)) {
+                    $userData['options']['localize'] = $langCode;
+                    $this->users->setUserOptions($this->logged_in, $userData['options']);
+                }
+            } elseif ($storedLangCode !== '') { // Проверка на наличие локали в настройках пользователя
                 $getLangCode = 'user_data options localize';
-                $langCode = $userData['options']['localize'];
+                $langCode = $storedLangCode;
             } else { // Записываем локаль в опции пользователя
-                $getLangCode = 'user_data Session';
-                $langCode = !empty(Session::get('lang')) ? Session::get('lang') : ENV_DEF_LANG;
+                $getLangCode = 'user_data ENV fallback';
+                $langCode = $normalizeLangCode(ENV_DEF_LANG);
+                if ($langCode === '') {
+                    $langCode = strtoupper((string)ENV_PROTO_LANGUAGE);
+                }
                 $userData['options']['localize'] = $langCode;
                 $this->users->setUserOptions($this->logged_in, $userData['options']);
             }
         } else { // Новый пользователь
-            $langCode = !empty(Session::get('lang')) ? Session::get('lang') : ENV_DEF_LANG;
+            $this->view->set('notifications', []);
+            $this->view->set('messages', []);
+            $this->view->set('count_unread_messages', 0);
+            $this->view->set('count_messages', 0);
+            $langCode = $sessionLangCode !== '' ? $sessionLangCode : $normalizeLangCode(ENV_DEF_LANG);
+            if ($langCode === '') {
+                $langCode = strtoupper((string)ENV_PROTO_LANGUAGE);
+            }
             $getLangCode = 'New user ' . $langCode;
             Session::set('lang', $langCode);
-        }        
+        }
         $this->lang = Lang::init($langCode);
         Session::set('lang', $langCode);
         SysClass::checkLangVars($langCode, $this->lang);
         $this->view->set('lang', $this->lang);
         $this->users->lang = $this->lang;
+    }
+
+    protected function getAdminUiLanguageCode(): string {
+        $langCode = strtoupper(trim((string) (Session::get('lang') ?: ($this->users->data['options']['localize'] ?? ENV_DEF_LANG))));
+        if ($langCode === '') {
+            $langCode = strtoupper((string) ENV_DEF_LANG);
+        }
+        if ($langCode === '') {
+            $langCode = strtoupper((string) ENV_PROTO_LANGUAGE);
+        }
+        return $langCode;
+    }
+
+    protected function normalizeOperationResult(mixed $result, array $options = []): OperationResult {
+        $defaultErrorMessage = trim((string) ($options['default_error_message'] ?? ($this->lang['sys.error'] ?? 'Ошибка выполнения операции')));
+        $successMessage = trim((string) ($options['success_message'] ?? ''));
+
+        return OperationResult::fromLegacy($result, [
+            'false_message' => $defaultErrorMessage,
+            'success_message' => $successMessage,
+            'failure_code' => (string) ($options['failure_code'] ?? 'operation_failed'),
+        ]);
+    }
+
+    protected function notifyOperationResult(mixed $result, array $options = []): OperationResult {
+        $operationResult = $this->normalizeOperationResult($result, $options);
+        $defaultErrorMessage = trim((string) ($options['default_error_message'] ?? ($this->lang['sys.error'] ?? 'Ошибка выполнения операции')));
+
+        if ($operationResult->isSuccess()) {
+            if (!($options['skip_success_notification'] ?? false)) {
+                $successMessage = trim((string) ($options['success_message'] ?? $operationResult->getMessage('')));
+                if ($successMessage !== '' && !empty($this->logged_in)) {
+                    ClassNotifications::addNotificationUser($this->logged_in, [
+                        'text' => $successMessage,
+                        'status' => $options['success_status'] ?? 'success',
+                    ]);
+                }
+            }
+            return $operationResult;
+        }
+
+        if (!($options['skip_error_notification'] ?? false) && !empty($this->logged_in)) {
+            $errorMessage = $operationResult->getMessage($defaultErrorMessage);
+            if ($errorMessage !== '') {
+                ClassNotifications::addNotificationUser($this->logged_in, [
+                    'text' => $errorMessage,
+                    'status' => $options['error_status'] ?? 'danger',
+                ]);
+            }
+        }
+
+        return $operationResult;
+    }
+
+    protected function canAccess(array $access = []): bool {
+        return SysClass::getAccessUser($this->logged_in, $access);
+    }
+
+    /**
+     * Единый guard для controller/trait методов.
+     */
+    protected function requireAccess(array $access = [], array $options = []): bool {
+        $this->access = $access;
+        $decision = SysClass::getAccessDecision($this->logged_in, $access);
+        if (!empty($decision['allowed'])) {
+            return true;
+        }
+
+        $status = (string) ($decision['status'] ?? 'forbidden');
+        $currentPath = trim((string) parse_url((string) ($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_PATH), '/');
+        $returnPath = trim((string) ($options['return'] ?? $currentPath), '/');
+        $isAjax = array_key_exists('ajax', $options)
+            ? (bool) $options['ajax']
+            : SysClass::isAjaxRequestFromSameSite();
+
+        Logger::warning('access_denied', 'Попытка доступа отклонена', [
+            'user_id' => (int) ($this->logged_in ?? 0),
+            'status' => $status,
+            'access' => $access,
+            'request_uri' => $_SERVER['REQUEST_URI'] ?? '',
+            'method' => $_SERVER['REQUEST_METHOD'] ?? '',
+        ], [
+            'initiator' => $options['initiator'] ?? __METHOD__,
+            'details' => 'Access denied',
+            'include_trace' => false,
+        ]);
+
+        if (in_array($status, ['deleted', 'blocked', 'inactive'], true)) {
+            AuthSessionService::clearTransportState();
+        }
+
+        if ($isAjax) {
+            http_response_code((int) ($options['ajax_http_code'] ?? 403));
+            echo json_encode([
+                'error' => 'access_denied',
+                'status' => $status,
+                'message' => $options['ajax_message'] ?? ($this->lang['sys.no_access'] ?? 'Access denied'),
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            return false;
+        }
+
+        $redirect = trim((string) ($options['redirect'] ?? ''));
+        if ($redirect === '') {
+            if ($status === 'not_authenticated') {
+                $redirect = '/show_login_form' . ($returnPath !== '' ? '?return=' . rawurlencode($returnPath) : '');
+            } else {
+                $redirect = (string) ($options['forbidden_redirect'] ?? '/');
+            }
+        }
+
+        SysClass::handleRedirect(200, $redirect);
+        return false;
     }
 
     /**
@@ -197,23 +339,4 @@ abstract class ControllerBase {
         return $result;
     }
 
-    /**
-     * Ищет текущую сессию пользователя в базе, обновляет крайнее время на сайте 
-     * @session - сессия с сервера
-     * @return id пользователя или false
-     */
-    private function getUsersSessionData($session) {
-        $sql = 'SELECT user_id, last_ip FROM ?n WHERE session = ?s';
-        $userData = SafeMySQL::gi()->getRow($sql, ENV_DB_PREF . 'users', $session);
-        if (ENV_ONE_IP_ONE_USER && $userData['last_ip'] !== SysClass::getClientIp()) {
-            return false;
-        } else {
-            if (isset($userData['user_id'])) {
-                $sql = 'UPDATE ?n SET last_activ = NOW() WHERE user_id = ?i';
-                SafeMySQL::gi()->query($sql, ENV_DB_PREF . 'users', $userData['user_id']);
-                return $userData['user_id'];
-            }
-            return false;
-        }
-    }
 }

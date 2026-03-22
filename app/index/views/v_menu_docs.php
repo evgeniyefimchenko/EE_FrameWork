@@ -1,23 +1,42 @@
-<?php if (!defined('ENV_SITE')) exit(header("Location: http://" . $_SERVER['HTTP_HOST'], true, 301)); ?>
-<!-- Файл: app\index\views\v_menu_docs.php -->
+<?php if (!defined('ENV_SITE')) exit(header('Location: /', true, 301)); ?>
 <div class="list-group">
-    <a href="#introduction" class="list-group-item list-group-item-action" data-doc="introduction">
-        <i class="fas fa-info-circle"></i> Введение
+    <a href="/docs/readme" class="list-group-item list-group-item-action" data-doc="readme">
+        <i class="fas fa-book-open"></i> Карта документации
     </a>
-    <a href="#installation" class="list-group-item list-group-item-action" data-doc="installation">
-        <i class="fas fa-download"></i> Установка
+    <a href="/docs/quick-start" class="list-group-item list-group-item-action" data-doc="quick-start">
+        <i class="fas fa-bolt"></i> Быстрый старт
     </a>
-    <a href="#configuration" class="list-group-item list-group-item-action" data-doc="configuration">
-        <i class="fas fa-cog"></i> Конфигурация
+    <a href="/docs/architecture" class="list-group-item list-group-item-action" data-doc="architecture">
+        <i class="fas fa-diagram-project"></i> Архитектура
     </a>
-    <a href="#api" class="list-group-item list-group-item-action" data-doc="api">
-        <i class="fas fa-code"></i> API
+    <a href="/docs/routing" class="list-group-item list-group-item-action" data-doc="routing">
+        <i class="fas fa-route"></i> Маршрутизация
     </a>
-    <a href="#examples" class="list-group-item list-group-item-action" data-doc="examples">
-        <i class="fas fa-book"></i> Примеры
+    <a href="/docs/models" class="list-group-item list-group-item-action" data-doc="models">
+        <i class="fas fa-database"></i> Модели
     </a>
-    <a href="#faq" class="list-group-item list-group-item-action" data-doc="faq">
-        <i class="fas fa-circle-question"></i> FAQ
+    <a href="/docs/content-model" class="list-group-item list-group-item-action" data-doc="content-model">
+        <i class="fas fa-network-wired"></i> Контентная модель
+    </a>
+    <a href="/docs/views" class="list-group-item list-group-item-action" data-doc="views">
+        <i class="fas fa-window-maximize"></i> Views и Layouts
+    </a>
+    <a href="/docs/hooks" class="list-group-item list-group-item-action" data-doc="hooks">
+        <i class="fas fa-plug"></i> Hooks
+    </a>
+    <a href="/docs/imports" class="list-group-item list-group-item-action" data-doc="imports">
+        <i class="fas fa-file-import"></i> Импорт структуры
+    </a>
+    <a href="/docs/auth" class="list-group-item list-group-item-action" data-doc="auth">
+        <i class="fas fa-user-shield"></i> Auth и доступ
+    </a>
+    <a href="/docs/cache" class="list-group-item list-group-item-action" data-doc="cache">
+        <i class="fas fa-gauge-high"></i> Кэширование
+    </a>
+    <a href="/docs/debug" class="list-group-item list-group-item-action" data-doc="debug">
+        <i class="fas fa-bug"></i> Отладка
+    </a>
+    <a href="/docs/api-reference" class="list-group-item list-group-item-action" data-doc="api-reference">
+        <i class="fas fa-code"></i> API Reference
     </a>
 </div>
-

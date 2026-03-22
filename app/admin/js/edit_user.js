@@ -21,9 +21,9 @@ $(document).ready(function () {
                 notify.close();
                 if (data.error !== 'no') {
                     console.log('error', data);
-                    actions.showNotification('ERROR', 'danger');
+                    actions.showNotification(data.error || 'ERROR', 'danger');
                 } else {
-                    actions.showNotification('UPDATE SUCCESS', 'primary');
+                    actions.showNotification(data.message || 'UPDATE SUCCESS', 'primary');
                     if (data.new == 1) {
                         window.location = "/admin/users";
                     } else {

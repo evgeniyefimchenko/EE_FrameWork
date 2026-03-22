@@ -3,6 +3,9 @@
 use classes\plugins\SafeMySQL;
 use classes\system\Constants;
 use classes\system\SysClass;
+use classes\system\AuthService;
+use classes\system\Logger;
+use classes\system\OperationResult;
 
 /**
  * Модель карты пользователя
@@ -80,22 +83,22 @@ class ModelUserEdit {
      *     - name (string): Название роли пользователя (обязательно для создания или обновления)
      *     - другие поля соответствуют структуре таблицы Constants::USERS_ROLES_TABLE
      * @param string $language_code Код языка, используемый при сохранении роли (по умолчанию — ENV_DEF_LANG)
-     * @return int|false Идентификатор роли при успешном создании или обновлении, либо false при ошибке
+     * @return OperationResult Идентификатор роли и статус операции
      * Процесс работы:
      * - Фильтрует входные данные через SafeMySQL::filterArray().
      * - Обрезает лишние пробелы в строковых значениях.
      * - Конвертирует числовые значения в нужные типы.
      * - Если передан 'role_id', пытается обновить существующую запись.
      * - Если 'role_id' не передан или равен 0, создает новую запись.
-     * - При ошибке SQL логирует её через ErrorLogger.
+     * - При ошибке SQL логирует её через Logger.
      */
-    public function update_users_role_data(array $usersRoleData = [], $language_code = ENV_DEF_LANG) {
+    public function update_users_role_data(array $usersRoleData = [], $language_code = ENV_DEF_LANG): OperationResult {
         $usersRoleData = SafeMySQL::gi()->filterArray($usersRoleData, SysClass::ee_getFieldsTable(Constants::USERS_ROLES_TABLE));
         $usersRoleData = array_map('trim', $usersRoleData);
         $usersRoleData = SysClass::ee_convertArrayValuesToNumbers($usersRoleData);
         $usersRoleData['language_code'] = $language_code;
         if (!isset($usersRoleData['name'])) {
-            return false;
+            return OperationResult::validation('Не указано имя роли', $usersRoleData);
         }
         if (!empty($usersRoleData['role_id']) && $usersRoleData['role_id'] != 0) {
             $role_id = $usersRoleData['role_id'];
@@ -104,9 +107,16 @@ class ModelUserEdit {
             $result = SafeMySQL::gi()->query($sql, Constants::USERS_ROLES_TABLE, $usersRoleData, $role_id, $language_code);
             if (!$result) {
                 $message = 'error SQL';
-                new \classes\system\ErrorLogger($message, __FUNCTION__, 'user_role_edit', SafeMySQL::gi()->parse($sql, Constants::USERS_ROLES_TABLE, $usersRoleData, $role_id, $language_code));
+                Logger::error('user_role_edit', $message, [
+                    'sql' => SafeMySQL::gi()->parse($sql, Constants::USERS_ROLES_TABLE, $usersRoleData, $role_id, $language_code),
+                ], [
+                    'initiator' => __FUNCTION__,
+                    'details' => $message,
+                ]);
             }
-            return $result ? $role_id : false;
+            return $result
+                ? OperationResult::success((int) $role_id, '', 'updated')
+                : OperationResult::failure('Ошибка обновления роли пользователя', 'user_role_update_error', ['role_data' => $usersRoleData]);
         } else {
             unset($usersRoleData['role_id']);
         }
@@ -114,9 +124,16 @@ class ModelUserEdit {
         $result = SafeMySQL::gi()->query($sql, Constants::USERS_ROLES_TABLE, $usersRoleData);
         if (!$result) {
             $message = 'error SQL';
-            new \classes\system\ErrorLogger($message, __FUNCTION__, 'user_role_edit', SafeMySQL::gi()->parse($sql, Constants::USERS_ROLES_TABLE, $usersRoleData));
+            Logger::error('user_role_edit', $message, [
+                'sql' => SafeMySQL::gi()->parse($sql, Constants::USERS_ROLES_TABLE, $usersRoleData),
+            ], [
+                'initiator' => __FUNCTION__,
+                'details' => $message,
+            ]);
         }
-        return $result ? SafeMySQL::gi()->insertId() : false;
+        return $result
+            ? OperationResult::success((int) SafeMySQL::gi()->insertId(), '', 'created')
+            : OperationResult::failure('Ошибка создания роли пользователя', 'user_role_insert_error', ['role_data' => $usersRoleData]);
     }
 
     /**
@@ -124,17 +141,27 @@ class ModelUserEdit {
      * @param int $role_id Идентификатор роли пользователя, которую необходимо удалить
      * @return void
      */
-    public function users_role_dell(int $role_id): void {
+    public function users_role_dell(int $role_id): OperationResult {
         $sql_role = 'DELETE FROM ?n WHERE role_id = ?i';
-        SafeMySQL::gi()->query($sql_role, Constants::USERS_ROLES_TABLE, $role_id);
+        $result = SafeMySQL::gi()->query($sql_role, Constants::USERS_ROLES_TABLE, $role_id);
+        return $result
+            ? OperationResult::success(['role_id' => $role_id], '', 'deleted')
+            : OperationResult::failure('Ошибка удаления роли пользователя', 'user_role_delete_error', ['role_id' => $role_id]);
     }
 
     /**
      * 	Удаление пользователя, присвоит флаг удалённый 
      * 	@param user_id - user_id пользователя
      */
-    public function delete_user(int $user_id) {
-        $sql = "UPDATE ?n SET deleted = 1 WHERE user_id = ?i";
-        return SafeMySQL::gi()->query($sql, Constants::USERS_TABLE, $user_id);
+    public function delete_user(int $user_id): OperationResult {
+        return (new AuthService())->handleSoftDelete($user_id)
+            ? OperationResult::success(['user_id' => $user_id], '', 'soft_deleted')
+            : OperationResult::failure('Ошибка удаления пользователя', 'user_soft_delete_error', ['user_id' => $user_id]);
+    }
+
+    public function restore_user(int $user_id, bool $forcePasswordSetup = true): OperationResult {
+        return (new AuthService())->restoreUser($user_id, $forcePasswordSetup, 'admin_restore')
+            ? OperationResult::success(['user_id' => $user_id], '', 'restored')
+            : OperationResult::failure('Ошибка восстановления пользователя', 'user_restore_error', ['user_id' => $user_id]);
     }
 }

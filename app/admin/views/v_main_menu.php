@@ -1,4 +1,7 @@
-<?php if (!defined('ENV_SITE')) exit(header("Location: http://" . $_SERVER['HTTP_HOST'], true, 301));
+<?php
+
+if (!defined('ENV_SITE'))
+    exit(header('Location: /', true, 301));
 /**
  * Главное меню админ-панели
  * Настраивается опционально по данным массива
@@ -53,7 +56,8 @@ $menuItems = [
                         ['title' => $lang['sys.list'], 'link' => '/admin/properties', 'icon' => 'fa-sharp fa-solid fa-list'],
                         ['title' => $lang['sys.types'], 'link' => '/admin/types_properties', 'icon' => 'fa-sharp fa-solid fa-marker'],
                         ['title' => $lang['sys.property_sets'], 'link' => '/admin/properties_sets', 'icon' => 'fa-sharp fa-solid fa-sliders'],
-                    ],                    
+                        ['title' => $lang['sys.property_lifecycle_jobs'] ?? 'Задачи жизненного цикла', 'link' => '/admin/property_lifecycle_jobs', 'icon' => 'fa-solid fa-list-check'],
+                    ],
                 ],
                 [
                     'title' => $lang['sys.email_templates'],
@@ -62,13 +66,35 @@ $menuItems = [
                     'subItems' => [
                         ['title' => $lang['sys.list'], 'link' => '/admin/email_templates', 'icon' => 'fa-sharp fa-solid fa-list'],
                         ['title' => $lang['sys.snippets'], 'link' => '/admin/email_snippets', 'icon' => 'fa-solid fa-file-fragment'],
-                    ],                    
+                    ],
                 ],
                 [
                     'title' => $lang['sys.filters_management'] ?? 'Управление фильтрами',
                     'link' => '/admin/filters_panel',
                     'icon' => 'fa-solid fa-filter-circle-dollar',
-                ],                
+                ],
+                [
+                    'title' => $this->lang['sys.imports_management'] ?? 'Импорт',
+                    'link' => '#',
+                    'icon' => 'fa-solid fa-upload',
+                    'subItems' => [
+                        [
+                            'title' => $this->lang['sys.imports_profiles_list'] ?? 'Профили импорта',
+                            'link' => '/admin/imports',
+                            'icon' => 'fa-sharp fa-solid fa-list-check'
+                        ],
+                        [
+                            'title' => $this->lang['sys.imports_new_profile_wp'] ?? 'Создать профиль WordPress',
+                            'link' => '/admin/edit_import_wp/id/0',
+                            'icon' => 'fa-brands fa-wordpress'
+                        ],
+                        [
+                            'title' => $this->lang['sys.imports_property_definitions'] ?? 'JSON: типы/свойства/наборы',
+                            'link' => '/admin/import_property_definitions',
+                            'icon' => 'fa-solid fa-diagram-project'
+                        ],
+                    ]
+                ],
             ],
             $lang['sys.system'] => [
                 [
@@ -77,9 +103,31 @@ $menuItems = [
                     'icon' => 'fa fa-wrench',
                     'subItems' => [
                         [
+                            'title' => $lang['sys.health'] ?? 'Состояние системы',
+                            'link' => '/admin/health',
+                            'icon' => 'fa-solid fa-heart-pulse',
+                        ],
+                        [
                             'title' => $lang['sys.logs'],
                             'link' => '/admin/logs',
                             'icon' => 'fa-solid fa-table-list',
+                        ],
+                        [
+                            'title' => $lang['sys.clear_html_cache'] ?? 'Очистить HTML-кэш',
+                            'link' => '/admin/clear_html_cache',
+                            'icon' => 'fa-solid fa-broom',
+                            'attributes' => 'onclick="return confirm(\'' . ($lang['sys.clear_html_cache'] ?? 'Очистить HTML-кэш?') . '\');"',
+                        ],
+                        [
+                            'title' => $lang['sys.clear_route_cache'] ?? 'Очистить route-кэш',
+                            'link' => '/admin/clear_route_cache',
+                            'icon' => 'fa-solid fa-route',
+                            'attributes' => 'onclick="return confirm(\'' . ($lang['sys.clear_route_cache'] ?? 'Очистить route-кэш?') . '\');"',
+                        ],
+                        [
+                            'title' => $lang['sys.reset_redis_probe'] ?? 'Сбросить проверку Redis',
+                            'link' => '/admin/reset_redis_cache_probe',
+                            'icon' => 'fa-solid fa-arrows-rotate',
                         ],
                         [
                             'title' => $lang['sys.backup'],

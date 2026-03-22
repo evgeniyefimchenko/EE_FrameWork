@@ -6,7 +6,8 @@ use classes\system\SysClass;
 use classes\system\Constants;
 use classes\helpers\ClassNotifications;
 use classes\system\Plugins;
-use classes\system\ErrorLogger;
+use classes\system\CacheManager;
+use classes\system\Router;
 
 /**
  * Функции работы с логами
@@ -19,16 +20,20 @@ trait SystemsTrait {
      * @return void
      */
     public function filters_panel($params = []) {
-        $this->access = [Constants::ADMIN, Constants::MODERATOR];
-        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
-            SysClass::handleRedirect(200, '/show_login_form?return=admin/systems/filters_panel');
-            exit();
+        if (!$this->requireAccess([Constants::ADMIN, Constants::MODERATOR], [
+            'return' => 'admin/filters_panel',
+            'initiator' => __METHOD__,
+        ])) {
+            return;
         }
         $this->loadModel('m_categories');
         $this->loadModel('m_filters');
-        $categoriesData = $this->models['m_categories']->getCategoriesData('title ASC', 'parent_id IS NULL OR parent_id = 0', 0, 1000);
-        $rootCategories = $categoriesData['data'];
-        $existingFilters = $this->models['m_filters']->getExistingFiltersSummary();
+        $categoriesData = $this->models['m_categories']->getCategoriesData('title ASC', 'parent_id IS NULL OR parent_id = 0', 0, 1000, ENV_DEF_LANG);
+        $rootCategories = array_values(array_filter(
+            $categoriesData['data'] ?? [],
+            static fn($category): bool => is_array($category) && !empty($category['category_id'])
+        ));
+        $existingFilters = $this->models['m_filters']->getExistingFiltersSummary(ENV_DEF_LANG);
         $this->view->set('categories', $rootCategories);
         $this->view->set('existingFilters', $existingFilters); // Новые данные
         $this->view->set('page_title', $this->lang['sys.filters_management'] ?? 'Управление фильтрами');
@@ -52,9 +57,11 @@ trait SystemsTrait {
     public function regenerate_filters($params = []) {
         $is_ajax = SysClass::isAjaxRequestFromSameSite();
         if ($is_ajax && !empty($_POST)) {
-            $this->access = [Constants::ADMIN, Constants::MODERATOR];
-            if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
-                echo json_encode(['status' => 'error', 'message' => 'Access Denied']);
+            if (!$this->requireAccess([Constants::ADMIN, Constants::MODERATOR], [
+                'ajax' => true,
+                'initiator' => __METHOD__,
+                'ajax_message' => 'Access Denied',
+            ])) {
                 die;
             }             
 
@@ -69,7 +76,7 @@ trait SystemsTrait {
             if (empty($this->models['m_categories'])) {
                 $this->loadModel('m_categories');
             }
-            $descendants = $this->models['m_categories']->getCategoryDescendantsShort($startEntityId);
+            $descendants = $this->models['m_categories']->getCategoryDescendantsShort($startEntityId, ENV_DEF_LANG);
 
             $categoryIdsToProcess = [];
             if (!empty($descendants)) {
@@ -82,7 +89,7 @@ trait SystemsTrait {
             $processedCount = 0;
 
             foreach ($categoryIdsToProcess as $categoryId) {
-                $filterService->regenerateFiltersForEntity('category', $categoryId);
+                $filterService->regenerateFiltersForEntity('category', $categoryId, ENV_DEF_LANG);
                 $processedCount++;
             }
 
@@ -100,10 +107,17 @@ trait SystemsTrait {
      */
     public function get_filters_table($params = []) {
         if (SysClass::isAjaxRequestFromSameSite()) {
+            if (!$this->requireAccess([Constants::ADMIN, Constants::MODERATOR], [
+                'ajax' => true,
+                'initiator' => __METHOD__,
+                'ajax_message' => 'Access Denied',
+            ])) {
+                die;
+            }
             if (empty($this->models['m_filters'])) {
                 $this->loadModel('m_filters');
             }            
-            $this->view->set('existingFilters', $this->models['m_filters']->getExistingFiltersSummary());
+            $this->view->set('existingFilters', $this->models['m_filters']->getExistingFiltersSummary(ENV_DEF_LANG));
             $this->view->set('is_full_page_load', false);
             echo $this->view->read('v_filters');
         }
@@ -118,6 +132,13 @@ trait SystemsTrait {
      */
     public function get_filter_details($params = []) {
         if (SysClass::isAjaxRequestFromSameSite()) {
+            if (!$this->requireAccess([Constants::ADMIN, Constants::MODERATOR], [
+                'ajax' => true,
+                'initiator' => __METHOD__,
+                'ajax_message' => 'Access Denied',
+            ])) {
+                die;
+            }
             $postData = SysClass::ee_cleanArray($_POST);
             $entityId = (int) ($postData['entity_id'] ?? 0);
 
@@ -125,7 +146,7 @@ trait SystemsTrait {
                 if (empty($this->models['m_filters'])) {
                     $this->loadModel('m_filters');
                 }
-                $filterDetails = $this->models['m_filters']->getFiltersForEntity($entityId);
+                $filterDetails = $this->models['m_filters']->getFiltersForEntity($entityId, ENV_DEF_LANG);
                 echo json_encode(['status' => 'success', 'data' => $filterDetails]);
             } else {
                 echo json_encode(['status' => 'error', 'message' => 'Неверный ID категории']);
@@ -138,37 +159,75 @@ trait SystemsTrait {
      * Вывод страницы с логами
      */
     public function logs($params = array()) {
-        $this->access = [Constants::ADMIN];
-        if (!SysClass::getAccessUser($this->logged_in, $this->access) || array_filter($params)) {
-            SysClass::handleRedirect();
-            exit();
+        if (!$this->requireAccess([Constants::ADMIN], [
+            'return' => 'admin/logs',
+            'initiator' => __METHOD__,
+        ]) || array_filter($params)) {
+            if (array_filter($params)) {
+                SysClass::handleRedirect();
+            }
+            return;
         }
         /* get data */
+        $this->loadModel('m_systems');
+        $logs_summary = $this->models['m_systems']->get_logs_summary();
         $fatal_errors_table = $this->get_php_logs_table('fatal_errors');
         $php_logs_table = $this->get_php_logs_table('php_logs');
-        $progect_logs = $this->get_project_logs_table();
+        $project_logs = $this->get_project_logs_table();
         /* view */
         $this->getStandardViews();
+        $this->view->set('logs_summary', $logs_summary);
         $this->view->set('php_logs_table', $php_logs_table);
         $this->view->set('fatal_errors_table', $fatal_errors_table);
-        $this->view->set('progect_logs_table', $progect_logs);
+        $this->view->set('project_logs_table', $project_logs);
+        $this->view->set('cache_probe_exists', is_file(ENV_CACHE_PATH . 'redis_connection_check.cache'));
         $this->view->set('body_view', $this->view->read('v_logs'));
         $this->html = $this->view->read('v_dashboard');
         /* layouts */
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
-        $this->parameters_layout["title"] = 'logs';
+        $this->parameters_layout["title"] = $this->lang['sys.logs'];
         $this->showLayout($this->parameters_layout);
+    }
+
+    public function health($params = []) {
+        if (!$this->requireAccess([Constants::ADMIN], [
+            'return' => 'admin/health',
+            'initiator' => __METHOD__,
+        ]) || array_filter($params)) {
+            if (array_filter($params)) {
+                SysClass::handleRedirect();
+            }
+            return;
+        }
+
+        $this->renderSystemHealthDashboard('health');
+    }
+
+    public function backup($params = []) {
+        if (!$this->requireAccess([Constants::ADMIN], [
+            'return' => 'admin/backup',
+            'initiator' => __METHOD__,
+        ]) || array_filter($params)) {
+            if (array_filter($params)) {
+                SysClass::handleRedirect();
+            }
+            return;
+        }
+
+        $this->renderSystemHealthDashboard('backup');
     }
 
     /**
      * Вернёт таблицу логирования проекта
      */
     public function get_project_logs_table() {
-        $this->access = [Constants::ADMIN];
-        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
-            SysClass::handleRedirect();
-            exit();
+        if (!$this->requireAccess([Constants::ADMIN], [
+            'ajax' => !empty($_POST),
+            'return' => 'admin/logs',
+            'initiator' => __METHOD__,
+        ])) {
+            return '';
         }
         /* model */
         $this->loadModel('m_systems');
@@ -176,37 +235,44 @@ trait SystemsTrait {
             [
                 'field' => 'date_time',
                 'title' => $this->lang['sys.date_create'],
+                'sorted' => 'DESC',
+                'filterable' => true,
+                'width' => 12
+            ],
+            [
+                'field' => 'level',
+                'title' => $this->lang['sys.level'] ?? 'Уровень',
                 'sorted' => true,
                 'filterable' => true,
-                'width' => 10
+                'width' => 8
             ],
             [
                 'field' => 'type_log',
-                'title' => 'type_log',
+                'title' => $this->lang['sys.log_channel'] ?? 'Канал',
                 'sorted' => true,
                 'filterable' => true,
-                'width' => 10
+                'width' => 12
             ],
             [
                 'field' => 'initiator',
-                'title' => 'initiator',
-                'sorted' => 'ASC',
+                'title' => $this->lang['sys.initiator'] ?? 'Инициатор',
+                'sorted' => false,
                 'filterable' => true,
-                'width' => 10
+                'width' => 14
             ],
             [
                 'field' => 'result',
-                'title' => 'result',
+                'title' => $this->lang['sys.result'] ?? 'Результат',
                 'sorted' => false,
                 'filterable' => false,
-                'width' => 10
+                'width' => 14
             ],
             [
                 'field' => 'details',
-                'title' => 'details',
+                'title' => $this->lang['sys.details'] ?? 'Детали',
                 'sorted' => false,
                 'filterable' => false,
-                'width' => 60
+                'width' => 40
             ],
         ];
         $filters = [
@@ -216,53 +282,73 @@ trait SystemsTrait {
                 'value' => '',
                 'label' => $this->lang['sys.date_create']
             ],
+            'level' => [
+                'type' => 'text',
+                'id' => "level",
+                'value' => '',
+                'label' => $this->lang['sys.level'] ?? 'Уровень'
+            ],
             'initiator' => [
                 'type' => 'text',
                 'id' => "initiator",
                 'value' => '',
-                'label' => 'initiator'
+                'label' => $this->lang['sys.initiator'] ?? 'Инициатор'
             ],
             'type_log' => [
                 'type' => 'text',
                 'id' => "type_log",
                 'value' => '',
-                'label' => 'type_log'
+                'label' => $this->lang['sys.log_channel'] ?? 'Канал'
             ]
         ];
         $postData = SysClass::ee_cleanArray($_POST);
         if ($postData && SysClass::isAjaxRequestFromSameSite()) { // AJAX
             list($params, $filters, $selected_sorting) = Plugins::ee_showTablePrepareParams($postData, $data_table['columns']);
-            $type = $this->get_table_name_from_post($postData);
             $php_logs_array = $this->models['m_systems']->get_all_logs($params['order'], $params['where'], $params['start'], $params['limit']);
         } else {
             $php_logs_array = $this->models['m_systems']->get_all_logs(false, false, false, 25);
         }
         foreach ($php_logs_array['data'] as $key => $item) {
+            $level = $item['level'] ?: ($item['type_log'] && str_contains(strtolower((string) $item['type_log']), 'error') ? 'ERROR' : '');
+            $hasNestedDetails = !empty($item['stack_trace']) || !empty($item['request_id']) || !empty($item['context']) || !empty($item['meta']) || !empty($item['uri']);
             $data_table['rows'][$key] = [
                 'date_time' => $item['date_time'],
-                'type_log' => $item['type_log'],
+                'level' => $level,
+                'type_log' => $item['channel'] ?: $item['type_log'],
                 'initiator' => $item['initiator'],
                 'result' => $item['result'],
-                'details' => $item['details'], true,
+                'details' => $item['details'],
                 'nested_table' => [
                     'columns' => [
-                        ['field' => 'stack_trace', 'title' => $this->lang['sys.stack_trace'], 'width' => 20, 'align' => 'left'],
+                        ['field' => 'request_id', 'title' => $this->lang['sys.request_id'] ?? 'Request ID', 'width' => 12, 'align' => 'left'],
+                        ['field' => 'user_id', 'title' => $this->lang['sys.user'] ?? 'Пользователь', 'width' => 8, 'align' => 'left'],
+                        ['field' => 'request', 'title' => $this->lang['sys.request'] ?? 'Запрос', 'width' => 20, 'align' => 'left'],
+                        ['field' => 'context', 'title' => $this->lang['sys.context'] ?? 'Контекст', 'width' => 20, 'align' => 'left', 'raw' => true],
+                        ['field' => 'meta', 'title' => $this->lang['sys.meta'] ?? 'Мета', 'width' => 20, 'align' => 'left', 'raw' => true],
+                        ['field' => 'stack_trace', 'title' => $this->lang['sys.stack_trace'], 'width' => 20, 'align' => 'left', 'raw' => true],
                     ],
                     'rows' => [
-                        ['stack_trace' => $item['stack_trace']],
+                        [
+                            'request_id' => $item['request_id'],
+                            'user_id' => $item['user_id'],
+                            'request' => trim(($item['method'] ? $item['method'] . ' ' : '') . ($item['uri'] ?? '') . ($item['host'] ? ' @ ' . $item['host'] : '') . ($item['ip'] ? ' [' . $item['ip'] . ']' : '')),
+                            'context' => $item['context'],
+                            'meta' => $item['meta'],
+                            'stack_trace' => $item['stack_trace'],
+                        ],
                     ],
                 ]
             ];
-            if (!$item['stack_trace']) {
+            if (!$hasNestedDetails) {
                 unset($data_table['rows'][$key]['nested_table']);
             }
         }
         $data_table['total_rows'] = $php_logs_array['total_count'];
         if ($postData) {
-            echo Plugins::ee_show_table('progect_logs_table_', $data_table, 'get_project_logs_table', $filters, (int) $postData["page"], $postData["rows_per_page"], $selected_sorting);
+            echo Plugins::ee_show_table('project_logs_table_', $data_table, 'get_project_logs_table', $filters, (int) $postData["page"], $postData["rows_per_page"], $selected_sorting);
             die;
         } else {
-            return Plugins::ee_show_table('progect_logs_table_', $data_table, 'get_project_logs_table', $filters);
+            return Plugins::ee_show_table('project_logs_table_', $data_table, 'get_project_logs_table', $filters);
         }
     }
 
@@ -270,10 +356,12 @@ trait SystemsTrait {
      * Вернёт таблицу ошибок PHP
      */
     public function get_php_logs_table($type = '') {
-        $this->access = [Constants::ADMIN];
-        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
-            SysClass::handleRedirect();
-            exit();
+        if (!$this->requireAccess([Constants::ADMIN], [
+            'ajax' => !empty($_POST),
+            'return' => 'admin/logs',
+            'initiator' => __METHOD__,
+        ])) {
+            return '';
         }
         /* model */
         $this->loadModel('m_systems');
@@ -283,12 +371,13 @@ trait SystemsTrait {
                 'title' => $this->lang['sys.error_type'],
                 'sorted' => true,
                 'filterable' => true,
-                'width' => 15
+                'width' => 15,
+                'raw' => true
             ],
             [
                 'field' => 'date_time',
                 'title' => $this->lang['sys.date_create'],
-                'sorted' => 'ASC',
+                'sorted' => 'DESC',
                 'filterable' => true,
                 'width' => 15,
                 'align' => 'center'
@@ -350,7 +439,7 @@ trait SystemsTrait {
                 'message' => $item['message'],
                 'nested_table' => [
                     'columns' => [
-                        ['field' => 'stack_trace', 'title' => $this->lang['sys.stack_trace'], 'width' => 20, 'align' => 'left'],
+                        ['field' => 'stack_trace', 'title' => $this->lang['sys.stack_trace'], 'width' => 20, 'align' => 'left', 'raw' => true],
                     ],
                     'rows' => [
                         ['stack_trace' => $stack_trace],
@@ -391,15 +480,121 @@ trait SystemsTrait {
      * Очистит файл php_errors.log
      */
     public function clear_php_logs($params = []) {
-        $this->access = [Constants::ADMIN];
-        if (!SysClass::getAccessUser($this->logged_in, $this->access) || array_filter($params)) {
-            SysClass::handleRedirect();
-            exit();
+        if (!$this->requireAccess([Constants::ADMIN], [
+            'return' => 'admin/logs',
+            'initiator' => __METHOD__,
+        ]) || array_filter($params)) {
+            if (array_filter($params)) {
+                SysClass::handleRedirect();
+            }
+            return;
         }
-        $logFilePath = ENV_LOGS_PATH . 'php_errors.log';
-        if (file_exists($logFilePath)) {
-            file_put_contents($logFilePath, '');
+        $this->loadModel('m_systems');
+        $this->models['m_systems']->clearFlatLogFiles('php_logs');
+        SysClass::handleRedirect(200, '/admin/logs');
+    }
+
+    /**
+     * Очистить fatal log и его архивы.
+     */
+    public function clear_fatal_logs($params = []) {
+        if (!$this->requireAccess([Constants::ADMIN], [
+            'return' => 'admin/logs',
+            'initiator' => __METHOD__,
+        ]) || array_filter($params)) {
+            if (array_filter($params)) {
+                SysClass::handleRedirect();
+            }
+            return;
         }
+        $this->loadModel('m_systems');
+        $this->models['m_systems']->clearFlatLogFiles('fatal_errors');
+        SysClass::handleRedirect(200, '/admin/logs');
+    }
+
+    /**
+     * Очистить project logs и архивы.
+     */
+    public function clear_project_logs($params = []) {
+        if (!$this->requireAccess([Constants::ADMIN], [
+            'return' => 'admin/logs',
+            'initiator' => __METHOD__,
+        ]) || array_filter($params)) {
+            if (array_filter($params)) {
+                SysClass::handleRedirect();
+            }
+            return;
+        }
+        $this->loadModel('m_systems');
+        $this->models['m_systems']->clearProjectLogs();
+        SysClass::handleRedirect(200, '/admin/logs');
+    }
+
+    /**
+     * Очистить HTML/block cache проекта.
+     */
+    public function clear_html_cache($params = []) {
+        if (!$this->requireAccess([Constants::ADMIN], [
+            'return' => 'admin/logs',
+            'initiator' => __METHOD__,
+        ]) || array_filter($params)) {
+            if (array_filter($params)) {
+                SysClass::handleRedirect();
+            }
+            return;
+        }
+
+        CacheManager::clearHtmlCache();
+        ClassNotifications::addNotificationUser($this->logged_in, [
+            'text' => $this->lang['sys.cache_html_cleared'] ?? 'HTML-кэш очищен.',
+            'status' => 'success'
+        ]);
+        SysClass::handleRedirect(200, '/admin/logs');
+    }
+
+    /**
+     * Очистить route cache проекта.
+     */
+    public function clear_route_cache($params = []) {
+        if (!$this->requireAccess([Constants::ADMIN], [
+            'return' => 'admin/logs',
+            'initiator' => __METHOD__,
+        ]) || array_filter($params)) {
+            if (array_filter($params)) {
+                SysClass::handleRedirect();
+            }
+            return;
+        }
+
+        Router::clearRouteCache();
+        ClassNotifications::addNotificationUser($this->logged_in, [
+            'text' => $this->lang['sys.cache_route_cleared'] ?? 'Route-кэш очищен.',
+            'status' => 'success'
+        ]);
+        SysClass::handleRedirect(200, '/admin/logs');
+    }
+
+    /**
+     * Сбросить файл-пробу доступности Redis.
+     */
+    public function reset_redis_cache_probe($params = []) {
+        if (!$this->requireAccess([Constants::ADMIN], [
+            'return' => 'admin/logs',
+            'initiator' => __METHOD__,
+        ]) || array_filter($params)) {
+            if (array_filter($params)) {
+                SysClass::handleRedirect();
+            }
+            return;
+        }
+
+        $reset = CacheManager::resetRedisAvailabilityProbe();
+        ClassNotifications::addNotificationUser($this->logged_in, [
+            'text' => $reset
+                ? ($this->lang['sys.redis_probe_reset'] ?? 'Проверка Redis будет выполнена заново.')
+                : ($this->lang['sys.data_update_error'] ?? 'Ошибка обновления данных.'),
+            'status' => $reset ? 'info' : 'danger'
+        ]);
         SysClass::handleRedirect(200, '/admin/logs');
     }
 
@@ -409,10 +604,14 @@ trait SystemsTrait {
      * Оставит единственного пользователя admin с паролем admin
      */
     public function killEmAll($params = []) {
-        $this->access = [Constants::ADMIN];
-        if (!SysClass::getAccessUser($this->logged_in, $this->access) || array_filter($params)) {
-            SysClass::handleRedirect();
-            exit();
+        if (!$this->requireAccess([Constants::ADMIN], [
+            'return' => 'admin',
+            'initiator' => __METHOD__,
+        ]) || array_filter($params)) {
+            if (array_filter($params)) {
+                SysClass::handleRedirect();
+            }
+            return;
         }
         $this->loadModel('m_systems');
         // Удаление временных и загруженных файлов
@@ -420,20 +619,39 @@ trait SystemsTrait {
         SysClass::ee_removeDir(ENV_SITE_PATH . 'cache');
         SysClass::ee_removeDir(ENV_SITE_PATH . 'logs');
         SysClass::ee_removeDir(ENV_SITE_PATH . 'uploads' . ENV_DIRSEP . 'files');
+        @mkdir(ENV_TMP_PATH, 0775, true);
+        @mkdir(ENV_SITE_PATH . 'cache', 0775, true);
+        @mkdir(ENV_SITE_PATH . 'logs', 0775, true);
+        @mkdir(ENV_SITE_PATH . 'logs' . ENV_DIRSEP . 'errors', 0775, true);
+        @mkdir(ENV_SITE_PATH . 'uploads' . ENV_DIRSEP . 'files', 0775, true);
         // Перезапись файла Constants.php содержимым Constants_clean.php
         $constantsCleanPath = ENV_SITE_PATH . 'classes' . ENV_DIRSEP . 'system' . ENV_DIRSEP . 'Constants_clean.php';
         $constantsPath = ENV_SITE_PATH . 'classes' . ENV_DIRSEP . 'system' . ENV_DIRSEP . 'Constants.php';
         if (file_exists($constantsCleanPath)) {
             $constantsCleanContent = file_get_contents($constantsCleanPath);
             if (file_put_contents($constantsPath, $constantsCleanContent) === false) {
-                ClassNotifications::add_notification_user($this->logged_in, ['text' => 'Failed to overwrite Constants.php.', 'status' => 'danger']);
-                return false;
+                $this->notifyOperationResult(
+                    \classes\system\OperationResult::failure('Не удалось перезаписать Constants.php.', 'constants_rewrite_failed'),
+                    ['skip_success_notification' => true]
+                );
+                SysClass::handleRedirect(200, '/admin');
+                return;
             }
         } else {
-            ClassNotifications::add_notification_user($this->logged_in, ['text' => 'Constants_clean.php not found.', 'status' => 'danger']);
-            return false;
+            $this->notifyOperationResult(
+                \classes\system\OperationResult::failure('Constants_clean.php не найден.', 'constants_clean_missing'),
+                ['skip_success_notification' => true]
+            );
+            SysClass::handleRedirect(200, '/admin');
+            return;
         }
-        $this->models['m_systems']->killDB($this->logged_in);
+        $this->notifyOperationResult(
+            $this->models['m_systems']->killDB($this->logged_in),
+            [
+                'success_message' => 'База данных и системные таблицы пересозданы.',
+                'default_error_message' => 'Ошибка очистки базы данных.',
+            ]
+        );
         SysClass::handleRedirect(200, '/admin');
     }
 
@@ -490,10 +708,14 @@ trait SystemsTrait {
      * @return bool Возвращает false, если тестовые данные уже были созданы
      */
     public function createTest($params = []) {
-        $this->access = [Constants::ADMIN, Constants::MODERATOR];
-        if (!SysClass::getAccessUser($this->logged_in, $this->access) || array_filter($params)) {
-            SysClass::handleRedirect();
-            exit();
+        if (!$this->requireAccess([Constants::ADMIN, Constants::MODERATOR], [
+            'return' => 'admin',
+            'initiator' => __METHOD__,
+        ]) || array_filter($params)) {
+            if (array_filter($params)) {
+                SysClass::handleRedirect();
+            }
+            return;
         }
         // Путь к файлу-флагу
         $flagFilePath = ENV_TMP_PATH . 'test_data_created.txt';
@@ -530,6 +752,87 @@ trait SystemsTrait {
         }
         ClassNotifications::addNotificationUser($this->logged_in, ['text' => $textMessage, 'status' => $status]);
         SysClass::handleRedirect(200, '/admin');
+    }
+
+    public function recover_stale_lifecycle_jobs($params = []) {
+        if (!$this->requireAccess([Constants::ADMIN], [
+            'return' => 'admin/health',
+            'initiator' => __METHOD__,
+        ]) || array_filter($params)) {
+            if (array_filter($params)) {
+                SysClass::handleRedirect();
+            }
+            return;
+        }
+
+        $this->loadModel('m_systems');
+        $this->notifyOperationResult(
+            $this->models['m_systems']->recoverStaleLifecycleJobs(),
+            [
+                'success_message' => 'Проверка lifecycle jobs завершена.',
+                'default_error_message' => 'Не удалось восстановить lifecycle jobs.',
+            ]
+        );
+        SysClass::handleRedirect(200, '/admin/health');
+    }
+
+    public function refresh_media_metadata($params = []) {
+        if (!$this->requireAccess([Constants::ADMIN], [
+            'return' => 'admin/health',
+            'initiator' => __METHOD__,
+        ]) || array_filter($params)) {
+            if (array_filter($params)) {
+                SysClass::handleRedirect();
+            }
+            return;
+        }
+
+        $this->loadModel('m_systems');
+        $this->notifyOperationResult(
+            $this->models['m_systems']->refreshMediaMetadata(),
+            [
+                'success_message' => 'Метаданные файлов обновлены.',
+                'default_error_message' => 'Не удалось обновить метаданные файлов.',
+            ]
+        );
+        SysClass::handleRedirect(200, '/admin/health');
+    }
+
+    public function run_backup($params = []) {
+        if (!$this->requireAccess([Constants::ADMIN], [
+            'return' => 'admin/backup',
+            'initiator' => __METHOD__,
+        ]) || array_filter($params)) {
+            if (array_filter($params)) {
+                SysClass::handleRedirect();
+            }
+            return;
+        }
+
+        $this->loadModel('m_systems');
+        $this->notifyOperationResult(
+            $this->models['m_systems']->createBackupSnapshot(),
+            [
+                'success_message' => 'Резервная копия создана.',
+                'default_error_message' => 'Не удалось создать резервную копию.',
+            ]
+        );
+        SysClass::handleRedirect(200, '/admin/backup');
+    }
+
+    private function renderSystemHealthDashboard(string $activeSection = 'health'): void {
+        $this->loadModel('m_systems');
+        $healthReport = $this->models['m_systems']->getHealthReport();
+
+        $this->getStandardViews();
+        $this->view->set('health_report', $healthReport);
+        $this->view->set('active_system_section', $activeSection);
+        $this->view->set('body_view', $this->view->read('v_health'));
+        $this->html = $this->view->read('v_dashboard');
+        $this->parameters_layout["layout_content"] = $this->html;
+        $this->parameters_layout["layout"] = 'dashboard';
+        $this->parameters_layout["title"] = $this->lang['sys.health'] ?? 'Состояние системы';
+        $this->showLayout($this->parameters_layout);
     }
 
     /**

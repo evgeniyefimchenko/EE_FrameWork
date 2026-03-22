@@ -8,6 +8,8 @@ namespace classes\system;
  */
 class Plugins {
 
+    private const RAW_TABLE_FIELDS = ['actions', 'action', 'controls', 'html'];
+
     /**
      * Загрузка библиотеки SortableJS на страницу
      */
@@ -37,13 +39,16 @@ class Plugins {
         if (!is_string($add_class)) {
             $add_class = 'table-striped';
         }
+        $columns = is_array($dataTable['columns'] ?? null) ? $dataTable['columns'] : [];
         $html = '<div class="mb-3" data-tableID="' . $idTable . '" id="' . $idTable . '_content_tables">';
         $html .= '<input type="hidden" id="' . $idTable . '_callback_function" value="' . $callbackFunction . '">';
         $html .= self::generateFilterSection($idTable, $dataTable, $filters);
-        $html .= '<table id="' . $idTable . '" class="table ' . $add_class . '">';
-        $html .= self::generateTableHeader($idTable, $dataTable['columns'], $selected_sorting);
+        $html .= '<div class="table-responsive">';
+        $html .= '<table id="' . $idTable . '" class="table table-sm align-middle ' . $add_class . '">';
+        $html .= self::generateTableHeader($idTable, $columns, $selected_sorting);
         $html .= self::generateTableBody($dataTable, $idTable);
         $html .= '</table>';  // закрыть таблицу
+        $html .= '</div>';
         $html .= self::generatePagination($idTable, (int) $page, $dataTable, (int) $currentRowsPerPage, (int) $max_buttons);
         $html .= self::generateRowsPerPageSection($idTable, $dataTable, $currentRowsPerPage);
         if (!SysClass::isAjaxRequestFromSameSite()) { // Не подгружаем если AJAX запрос
@@ -63,6 +68,7 @@ class Plugins {
     private static function generateFilterSection($idTable, $dataTable, $filters) {
         $langCode = Session::get('lang');
         $globalLang = Lang::init($langCode);
+        $applyFiltersLabel = (string) ($globalLang['sys.apply_filters'] ?? 'Применить фильтры');
         $html = '';
         $html .= '<button class="btn btn-primary mb-2" type="button" data-table="' . $idTable . '" data-bs-toggle="collapse" data-bs-target="#' . $idTable . '_filtersCollapse"'
                 . 'aria-expanded="false" id="' . $idTable . '_button_filtersCollapse" aria-controls="' . $idTable . '_filtersCollapse"><i class="fa-solid fa-filter"'
@@ -109,18 +115,18 @@ class Plugins {
             $html .= '<div class="col-6 col-sm-3 text-center">';
             $filterId = $filter['id'] ?? $idTable . '_filter_' . $key;
             $filterValue = $filter['value'] ?? "";
-            $filterLabel = $filter['label'] ? $filter['label'] : 'Unknown';
-            $html .= '<label for="' . $filterId . '">' . $filterLabel . '</label>';
+            $filterLabel = !empty($filter['label']) ? $filter['label'] : 'Unknown';
+            $html .= '<label for="' . $filterId . '">' . htmlspecialchars((string) $filterLabel, ENT_QUOTES, 'UTF-8') . '</label>';
             switch ($filter['type']) {
                 case 'text':
-                    $html .= '<input type="text" class="form-control mb-2" name="' . $filterId . '" id="' . $filterId . '" value="' . $filterValue . '">';
+                    $html .= '<input type="text" class="form-control mb-2" name="' . $filterId . '" id="' . $filterId . '" value="' . htmlspecialchars((string) $filterValue, ENT_QUOTES, 'UTF-8') . '">';
                     break;
                 case 'checkbox':
                     foreach ($filter['options'] as $option) {
                         $checked = in_array($option['value'], (array) $filterValue) ? ' checked' : '';
                         $html .= '<div class="form-check mb-2">';
-                        $html .= '<input class="form-check-input" type="checkbox" value="' . $option['value'] . '" name="' . $filterId . '_' . $option['id'] . '" id="' . $filterId . '_' . $option['id'] . '"' . $checked . '>';
-                        $html .= '<label class="form-check-label" for="' . $option['id'] . '">' . $option['label'] . '</label>';
+                        $html .= '<input class="form-check-input" type="checkbox" value="' . htmlspecialchars((string) ($option['value'] ?? ''), ENT_QUOTES, 'UTF-8') . '" name="' . $filterId . '_' . ($option['id'] ?? '') . '" id="' . $filterId . '_' . ($option['id'] ?? '') . '"' . $checked . '>';
+                        $html .= '<label class="form-check-label" for="' . ($option['id'] ?? '') . '">' . htmlspecialchars((string) ($option['label'] ?? ''), ENT_QUOTES, 'UTF-8') . '</label>';
                         $html .= '</div>';
                     }
                     break;
@@ -133,18 +139,18 @@ class Plugins {
                     $html .= '<select class="form-select mb-2" name="' . $filterId . '[]" id="' . $filterId . '"' . $multiple . '>';
                     foreach ($filter['options'] as $option) {
                         $selected = in_array($option['value'], (array) $filterValue) ? ' selected' : '';
-                        $html .= '<option value="' . $option['value'] . '"' . $selected . '>' . $option['label'] . '</option>';
+                        $html .= '<option value="' . htmlspecialchars((string) ($option['value'] ?? ''), ENT_QUOTES, 'UTF-8') . '"' . $selected . '>' . htmlspecialchars((string) ($option['label'] ?? ''), ENT_QUOTES, 'UTF-8') . '</option>';
                     }
                     $html .= '</select>';
                     break;
                 case 'date':
-                    $html .= '<input type="date" class="form-control mb-2" name="' . $filterId . '" id="' . $filterId . '" value="' . $filterValue . '">';
+                    $html .= '<input type="date" class="form-control mb-2" name="' . $filterId . '" id="' . $filterId . '" value="' . htmlspecialchars((string) $filterValue, ENT_QUOTES, 'UTF-8') . '">';
                     break;
             }
             $html .= '</div>';
         }
-        $html .= '</div><div class="w-100 text-center"><button type="submit" class="btn btn-primary" form="' . $idTable . '_filters">Применить фильтры</button>
-		<button type="reset" id="' . $idTable . '_filters_reset" class="btn btn-secondary" form="' . $idTable . '_filters">Сбросить</button></div>';
+        $html .= '</div><div class="w-100 text-center"><button type="submit" class="btn btn-primary" form="' . $idTable . '_filters">' . htmlspecialchars($applyFiltersLabel, ENT_QUOTES, 'UTF-8') . '</button>
+		<button type="reset" id="' . $idTable . '_filters_reset" class="btn btn-secondary" form="' . $idTable . '_filters">' . htmlspecialchars((string) ($globalLang['sys.clear'] ?? 'Сбросить'), ENT_QUOTES, 'UTF-8') . '</button></div>';
         // Закрываем форму и блок collapse
         $html .= '</form>';
         $html .= '</div></div>'; // Закрываем .card-body и .collapse
@@ -184,7 +190,7 @@ class Plugins {
             $widthStyle = isset($column['width']) ? ' style="width:' . (int) $column['width'] . '%;"' : ' style="width:auto;"';
             $add_class = isset($column['align']) ? 'text-' . $column['align'] : '';
             $html .= '<th' . $widthStyle . ' class="' . $add_class . '">';
-            $html .= $column['title'] . $sortedIndicator;
+            $html .= htmlspecialchars((string) ($column['title'] ?? ''), ENT_QUOTES, 'UTF-8') . $sortedIndicator;
             $html .= '</th>';
         }
         $html .= '</thead>';
@@ -208,19 +214,25 @@ class Plugins {
      * @return string HTML для тела таблицы.
      */
     private static function generateTableBody($dataTable, $idTable) {
+        $langCode = Session::get('lang');
+        $globalLang = Lang::init($langCode);
         $html = '<tbody>';
         if ($dataTable['total_rows'] == 0 || count($dataTable['rows']) == 0) { // Если записей нет
-            $html .= '<tr><td colspan="' . count($dataTable['columns']) . '" class="text-center">Нет записей</td></tr>';
+            $html .= '<tr><td colspan="' . count($dataTable['columns']) . '" class="text-center text-muted">' . htmlspecialchars((string) ($globalLang['sys.no_data'] ?? 'Нет данных'), ENT_QUOTES, 'UTF-8') . '</td></tr>';
         } else {
             $count_row = 1;
             foreach ($dataTable['rows'] as $row) {
                 $html .= '<tr>';
                 $firstColumn = true;  // Флаг для отслеживания первой колонки
                 foreach ($dataTable['columns'] as $column) {
-                    $value = $row[$column['field']];
+                    $value = $row[$column['field']] ?? '';
                     $textAlignStyle = isset($column['align']) ? ' style="text-align:' . $column['align'] . ';"' : '';
+                    $renderRaw = self::shouldRenderTableCellRaw((array) $column);
+                    $cellHtml = $renderRaw
+                        ? (string) $value
+                        : htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
                     $html .= '<td' . $textAlignStyle . '>';
-                    $html .= $value;
+                    $html .= $cellHtml;
                     if ($firstColumn && isset($row['nested_table'])) {
                         $html .= '<div class="expand_nested_table" data-nested_table="#' . $idTable . '_nested_table_' . $count_row . '">' .
                                 '<i class="fa fa-plus" style="right: 8px; position: relative;"></i></div>';  // Кнопка "плюс" в первой колонке
@@ -245,9 +257,13 @@ class Plugins {
                     foreach ($nested_table['rows'] as $nested_row) {
                         $html .= '<tr>';
                         foreach ($nested_table['columns'] as $column) {
-                            $value = $nested_row[$column['field']];
+                            $value = $nested_row[$column['field']] ?? '';
                             $textAlignStyle = isset($column['align']) ? ' style="text-align:' . $column['align'] . ';"' : '';
-                            $html .= '<td' . $textAlignStyle . '>' . $value . '</td>';
+                            $renderRaw = self::shouldRenderTableCellRaw((array) $column);
+                            $cellHtml = $renderRaw
+                                ? (string) $value
+                                : htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
+                            $html .= '<td' . $textAlignStyle . '>' . $cellHtml . '</td>';
                         }
                         $html .= '</tr>';
                     }
@@ -470,28 +486,42 @@ class Plugins {
         $rows_per_page = $limit['rows_per_page'] ?? 25;
         $start = ((int) $page - 1) * (int) $rows_per_page;
         $start = $start < 0 ? 0 : $start;
+        $allowedFields = [];
+        foreach ((array) $columns as $column) {
+            $field = trim((string) ($column['field'] ?? ''));
+            if ($field !== '') {
+                $allowedFields[$field] = true;
+            }
+        }
         // Преобразование filter
         $whereConditions = [];
         foreach ($filter as $key => $filterItem) {
+            $identifier = self::quoteSqlIdentifier((string) $key, $allowedFields);
+            if ($identifier === null) {
+                continue;
+            }
             if ($filterItem['type'] === 'text' && !empty($filterItem['value']) && $filterItem['value']) { // Отсекаем пустые значения
-                $whereConditions[] = "$key LIKE '%" . $filterItem['value'] . "%'";
+                $whereConditions[] = $identifier . ' LIKE ' . self::escapeSqlLikeContains((string) $filterItem['value']) . " ESCAPE '\\\\'";
             } elseif ($filterItem['type'] === 'select' && !empty($filterItem['value'])) {
-                if ($filterItem['value'][0]) {
-                    if ($filterItem['multiple']) {
-                        $whereConditions[] = $key . ' IN (' . implode(',', $filterItem['value']) . ')';
+                $values = array_values(array_filter((array) $filterItem['value'], static function ($value) {
+                    return trim((string) $value) !== '';
+                }));
+                if (!empty($values)) {
+                    if (!empty($filterItem['multiple'])) {
+                        $whereConditions[] = $identifier . ' IN (' . implode(',', array_map([self::class, 'escapeSqlLiteral'], $values)) . ')';
                     } else {
-                        $whereConditions[] = $key . ' = ' . $filterItem['value'][0];
+                        $whereConditions[] = $identifier . ' = ' . self::escapeSqlLiteral((string) reset($values));
                     }
                 }
             } elseif ($filterItem['type'] === 'date' && !empty($filterItem['value'])) {
                 if (preg_match('/\d{2}:\d{2}(:\d{2})?/', $filterItem['value'])) {
                     // Содержит время
-                    $whereConditions[] = "$key = '" . $filterItem['value'] . "'";
+                    $whereConditions[] = $identifier . ' = ' . self::escapeSqlLiteral((string) $filterItem['value']);
                 } else {
                     // Не содержит время, используем условие для целых суток
                     $dateStart = $filterItem['value'] . " 00:00:00";
                     $dateEnd = $filterItem['value'] . " 23:59:59";
-                    $whereConditions[] = "$key >= '" . $dateStart . "' AND $key <= '" . $dateEnd . "'";
+                    $whereConditions[] = $identifier . ' >= ' . self::escapeSqlLiteral($dateStart) . ' AND ' . $identifier . ' <= ' . self::escapeSqlLiteral($dateEnd);
                 }
             }
         }
@@ -499,7 +529,12 @@ class Plugins {
         // Преобразование sort
         $orderString = '';
         foreach ($sort as $key => $direction) {
-            $orderString .= "$key $direction, ";
+            $identifier = self::quoteSqlIdentifier((string) $key, $allowedFields);
+            if ($identifier === null) {
+                continue;
+            }
+            $direction = strtoupper(trim((string) $direction)) === 'DESC' ? 'DESC' : 'ASC';
+            $orderString .= $identifier . ' ' . $direction . ', ';
         }
         $orderString = rtrim($orderString, ", ");
         return [
@@ -512,6 +547,39 @@ class Plugins {
             $filter,
             $out_sort
         ];
+    }
+
+    private static function shouldRenderTableCellRaw(array $column): bool {
+        if (!empty($column['raw']) || !empty($column['html'])) {
+            return true;
+        }
+
+        $field = strtolower(trim((string) ($column['field'] ?? '')));
+        return in_array($field, self::RAW_TABLE_FIELDS, true);
+    }
+
+    private static function quoteSqlIdentifier(string $field, array $allowedFields): ?string {
+        $field = trim($field);
+        if ($field === '' || !isset($allowedFields[$field])) {
+            return null;
+        }
+        if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $field)) {
+            return null;
+        }
+        return '`' . $field . '`';
+    }
+
+    private static function escapeSqlLiteral(string $value): string {
+        return "'" . str_replace(
+            ["\\", "\0", "\n", "\r", "'", '"', "\x1a"],
+            ["\\\\", "\\0", "\\n", "\\r", "\\'", '\\"', "\\Z"],
+            $value
+        ) . "'";
+    }
+
+    private static function escapeSqlLikeContains(string $value): string {
+        $value = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $value);
+        return self::escapeSqlLiteral('%' . $value . '%');
     }
 
 ////////END Plugin TABLE
@@ -607,9 +675,15 @@ class Plugins {
             $html .= '</a><ul class="dropdown-menu dropdown-menu-end" aria-labelledby="notificationsDropdown">';
             $count = 1;
             foreach ($data['notifications'] as $notification) {
+                $iconClass = trim((string) ($notification['icon'] ?? 'fa-solid fa-circle-info'));
+                if ($iconClass === '') {
+                    $iconClass = 'fa-solid fa-circle-info';
+                } elseif (strpos($iconClass, 'fa-') === false) {
+                    $iconClass = 'fas ' . $iconClass;
+                }
                 if ($count > 1)
                     $html .= '<li><hr class="dropdown-divider" /></li>';
-                $html .= '<li><a style="padding-left: 5px;" class="dropdown-item" href="' . $notification['url'] . '"><i style="color: ' . $notification['color'] . '" class="fas ' . $notification['icon'] . '"></i>&nbsp;' . $notification['text'] . '</a></li>';
+                $html .= '<li><a style="padding-left: 5px;" class="dropdown-item" href="' . htmlspecialchars((string) ($notification['url'] ?? '#'), ENT_QUOTES) . '"><i style="color: ' . htmlspecialchars((string) ($notification['color'] ?? '#61bdd1'), ENT_QUOTES) . '" class="' . htmlspecialchars($iconClass, ENT_QUOTES) . '"></i>&nbsp;' . htmlspecialchars((string) ($notification['text'] ?? ''), ENT_QUOTES) . '</a></li>';
                 if ($count > 10) {
                     $html .= '<li><a class="dropdown-item" href="/admin/messages">...</a></li>';
                     break;
@@ -645,39 +719,31 @@ class Plugins {
     public static function renderPropertyHtmlFields(mixed $fields, mixed $default = []): string {
         $langCode = Session::get('lang');
         $globalLang = Lang::init($langCode);
-        $count = 0;
         $result = '';
-        if (!is_array($fields) && is_string($fields)) {
-            $fields = json_decode($fields, true);
-        }
-        if (!is_array($default) && is_string($default)) {
-            $default = json_decode($default, true);
-        }
-        foreach ($fields as $type) {
-            if (!count($default) || empty($default[$count])) {
-                $default[$count] = ['title' => '', 'label' => '', 'default' => '', 'required' => 0, 'multiple' => 0, 'title' => ''];
-            }
-            $default[$count]['label'] ??= '';
-            $result .= $globalLang['sys.type'] . ' ' . ucfirst($type) . ': ';
-            $result .= '<div class="row rounded-2 p-2 col-12 col-sm-12 mt-2 align-items-center property_content border">';
-            if ($type !== 'checkbox' && $type !== 'radio') {
-                $result .= '<div class="col">';
-                $result .= '<label class="form-label">' . $globalLang['sys.title'] . '</label><input type="text" required name="property_data[' . $type . '_' . $count . '_label]"'
-                        . 'class="form-control mb-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $default[$count]['label'] . '"'
-                        . 'value="' . $default[$count]['label'] . '" />';
-                $result .= '</div>';
-            }
-            $default[$count]['default'] = isset($default[$count]['default']) ? $default[$count]['default'] : '';                       
+        $fieldDefinitions = self::normalizeTypeFieldDefinitions($fields);
+        $defaults = PropertyFieldContract::normalizeDefaultFieldsForStorage($default, $fieldDefinitions);
+
+        foreach ($defaults as $count => $fieldValue) {
+            $type = (string) ($fieldValue['type'] ?? 'text');
             $valueName = $type . '_' . $count;
+
+            $result .= $globalLang['sys.type'] . ' ' . ucfirst($type) . ': ';
+            $result .= '<div class="row rounded-2 p-2 col-12 col-sm-12 mt-2 align-items-start property_content border">';
             $result .= '<input type="hidden" name="property_data_changed" value="0" />';
-            $result .= '<div class="col pt-1">';
-            $result .= '<label class="form-label" ' . (in_array($type, ["file", "image"]) ? " style=\"visibility: hidden;\"" : "") . '>' . $globalLang['sys.value'] . '</label>';            
-            $value = $default[$count];
-            $value['value'] = $default[$count]['default'];
-            $area = 'default';
-            $result .= self::renderFieldsProperty($value, $type, $valueName, $area);
-            $count++;
+            $result .= '<input type="hidden" name="property_data[' . $valueName . '_uid]" value="' . htmlspecialchars((string) ($fieldValue['uid'] ?? ('legacy_' . $count)), ENT_QUOTES) . '" />';
+            $result .= '<input type="hidden" name="property_data[' . $valueName . '_type]" value="' . htmlspecialchars($type, ENT_QUOTES) . '" />';
+            $result .= '<div class="col">';
+            $result .= '<label class="form-label">' . $globalLang['sys.title'] . '</label>';
+            $result .= '<input type="text" required name="property_data[' . $valueName . '_label]" class="form-control mb-2" value="' . htmlspecialchars((string) ($fieldValue['label'] ?? ''), ENT_QUOTES) . '" />';
+            $result .= '</div>';
+            $result .= '<div class="col">';
+            $result .= '<label class="form-label">' . $globalLang['sys.heading'] . '</label>';
+            $result .= '<input type="text" name="property_data[' . $valueName . '_title]" class="form-control mb-2" value="' . htmlspecialchars((string) ($fieldValue['title'] ?? ''), ENT_QUOTES) . '" />';
+            $result .= '</div>';
+            $fieldValue['value'] = $fieldValue['default'] ?? [];
+            $result .= self::renderFieldsProperty($fieldValue, $type, $valueName, 'default');
         }
+
         return $result;
     }
 
@@ -850,30 +916,37 @@ class Plugins {
      */
     public static function renderPropertyHtmlFieldsByAdmin(array $arrValue, int $entityId, string $entity_type): string {
         $result = '';
-        $valueId = $arrValue['value_id'];
-        $propertyId = $arrValue['property_id'];
-        $setId = $arrValue['set_id'];
-        foreach ($arrValue['fields'] as $key => $value) {
-            if (!isset($value['required'])) {
-                $value['required'] = 0;
+        $valueId = (string) ($arrValue['value_id'] ?? '');
+        $propertyId = (string) ($arrValue['property_id'] ?? '');
+        $setId = (string) ($arrValue['set_id'] ?? '');
+        $typeFields = $arrValue['fields_type'] ?? ($arrValue['type_fields'] ?? ($arrValue['fields_schema'] ?? ($arrValue['type_fields_json'] ?? [])));
+        if ($typeFields === [] && isset($arrValue['fields']) && empty($arrValue['default_values'])) {
+            $typeFields = $arrValue['fields'];
+        }
+        $runtimeFields = PropertyFieldContract::buildRuntimeFields(
+            $arrValue['default_values'] ?? [],
+            $arrValue['fields'] ?? [],
+            $typeFields,
+            $arrValue
+        );
+
+        foreach ($runtimeFields as $key => $value) {
+            $type = strtolower(trim((string) ($value['type'] ?? 'text')));
+            if ($type === '') {
+                $type = 'text';
             }
-            if (!isset($value['value'])) {
-                $value['value'] = '';
-            }
-            $valueName = $valueId . '_' . $key . '_' . $value['type'] . '_' . $entityId . '_' . $entity_type . '_' . $propertyId . '_' . $setId;  
-            $result .= '<div class="row rounded-2 p-2 col-12 col-sm-12 mt-2 align-items-center property_content border">';
+            $valueName = $valueId . '_' . $key . '_' . $type . '_' . $entityId . '_' . $entity_type . '_' . $propertyId . '_' . $setId;
+            $result .= '<div class="row rounded-2 p-2 col-12 col-sm-12 mt-2 align-items-start property_content border">';
             $result .= '<input type="hidden" name="property_data_changed" value="0" />';
-            $result .= '<input type="hidden" name="property_data[' . $valueName . '_type]" value="' . $value['type'] . '"/>';
-            if ($value['type'] !== 'checkbox' && $value['type'] !== 'radio') {
-                $result .= '<div class="col pt-3">';
-                $result .= count($value) == 1 ? '' : '<input type="text" required value="' . $value['label'] . '" name="property_data[' . $valueName . '_label]"'
-                        . 'class="form-control fw-bold" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $value['label'] . '"/>';
-                $result .= '</div>';
-            }
+            $result .= '<input type="hidden" name="property_data[' . $valueName . '_type]" value="' . htmlspecialchars($type, ENT_QUOTES) . '"/>';
+            $result .= '<input type="hidden" name="property_data[' . $valueName . '_uid]" value="' . htmlspecialchars((string) ($value['uid'] ?? ('legacy_' . $key)), ENT_QUOTES) . '"/>';
             $result .= '<div class="col pt-3">';
-            $type = $value['type'];
-            $area = 'value';
-            $result .= self::renderFieldsProperty($value, $type, $valueName, $area);
+            $result .= '<label class="form-label fw-bold">' . htmlspecialchars((string) ($value['label'] ?? ($arrValue['name'] ?? '')), ENT_QUOTES) . '</label>';
+            if (!empty($value['title'])) {
+                $result .= '<div class="text-muted small">' . htmlspecialchars((string) $value['title'], ENT_QUOTES) . '</div>';
+            }
+            $result .= '</div>';
+            $result .= self::renderFieldsProperty($value, $type, $valueName, 'value');
         }
         return $result;
     }
@@ -885,14 +958,16 @@ class Plugins {
      * @param type $valueName
      * @return string
      */
-    private static function renderFieldsProperty($value, $type, $valueName, $area) {        
+    private static function renderFieldsProperty($value, $type, $valueName, $area) {
         $langCode = Session::get('lang');
         $globalLang = Lang::init($langCode);
         $result = '';
+        $isDefinitionArea = $area === 'default';
         $multipleChoice = true;
         $multiple = !empty($value['multiple']) ? true : false;
-        $required = !empty($value['required']) ? ' required ' : '';        
-        $nameSuffix = $multiple ? '[]' : '';        
+        $required = !empty($value['required']) ? ' required ' : '';
+        $nameSuffix = $multiple ? '[]' : '';
+        $result .= '<div class="col pt-3">';
         switch ($type) {
             case 'text':
             case 'number':
@@ -908,8 +983,9 @@ class Plugins {
                     'hidden', 'password' => 'text',
                     default => $type,
                 };
-                if ($multiple && is_array($value['value'])) {
-                    foreach ($value['value'] as $valueItem) {
+                $scalarValue = $value['value'] ?? ($value['default'] ?? '');
+                if ($multiple && is_array($scalarValue)) {
+                    foreach ($scalarValue as $valueItem) {
                         $result .= '<div class="field_container d-flex align-items-center">';
                         $result .= '<input type="' . $itype . '" class="form-control"' . $required
                                 . 'data-bs-toggle="tooltip" data-bs-placement="top" title="' . $type . '" '
@@ -919,78 +995,25 @@ class Plugins {
                 } else {
                     $result .= '<input type="' . $itype . '"  class="form-control"' . $required
                             . 'data-bs-toggle="tooltip" data-bs-placement="top" title="' . $type . '" '
-                            . 'name="property_data[' . $valueName . '_' . $area . ']' . $nameSuffix . '" value="' . htmlentities($value['value']) . '" />';
-                }                   
+                            . 'name="property_data[' . $valueName . '_' . $area . ']' . $nameSuffix . '" value="' . htmlentities(is_array($scalarValue) ? (string) reset($scalarValue) : (string) $scalarValue) . '" />';
+                }
                 break;
-            case 'select':                    
-                $options = '';
-                $countSelected = 0;
-                if ($multiple && is_array($value['value'])) {
-                    $countItemSelect = 0;
-                    foreach ($value['value'] as $valueItem) {
-                        $options = '';
-                        $countSelected = 0;
-                        if (is_array($arr_opt = explode('{|}', html_entity_decode($valueItem)))) {
-                            foreach ($arr_opt as $item) {
-                                if ($item) {                                    
-                                    $arr_item = explode('=', $item);
-                                    $selected = false;
-                                    if (mb_strpos($arr_item[1], '{*}') !== false) {
-                                        $selected = true;
-                                        $countSelected++;
-                                        $arr_item[1] = str_replace('{*}', '', $arr_item[1]);
-                                    }
-                                    $options .= '<option' . ($selected ? ' selected="selected" data-selected="true"' : '') . ' value="' . $arr_item[1] . '">' . $arr_item[0] . '</option>';
-                                }
-                            }
-                        }
-                        $result .= '<div class="field_container d-flex align-items-center">';
-                        $result .= '<input type="hidden" name="property_data[' . $valueName . '_' . $area . ']' . $nameSuffix . '" '
-                                . 'id="' . $valueName . '_' . $countItemSelect . '_' . $area . '"'
-                                . 'value="' . htmlentities($valueItem) . '"/>'
-                                . '<div class="input-group">'
-                                . '<select class="form-select" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $type . '"'
-                                . ($countSelected > 1 ? ' multiple ' : '')
-                                . 'id="' . $valueName  . '_' . $countItemSelect . '">' . $options . '</select>'
-                                . '<span data-select-id="' . $valueName . '_' . $countItemSelect . '" id="' . $valueName
-                                . '_default_add_select_values_' . $countItemSelect . '" role="button"'
-                                . 'class="input-group-text btn-primary openModal" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $globalLang['sys.separate_window'] . '">'
-                                . '<i class="fas fa-tree"></i></span>'
-                                . '</div>';
-                        $result .= '</div>';
-                        $countItemSelect++;
-                    }
-                } else {                    
-                    if ($value['value'] && is_array($arr_opt = explode('{|}', html_entity_decode($value['value'])))) {
-                        foreach ($arr_opt as $item) {
-                            if ($item) {
-                                $arr_item = explode('=', $item);
-                                $selected = false;
-                                if (mb_strpos($arr_item[1], '{*}') !== false) {
-                                    $selected = true;
-                                    $countSelected++;
-                                    $arr_item[1] = str_replace('{*}', '', $arr_item[1]);
-                                }
-                                $options .= '<option' . ($selected ? ' selected="selected" data-selected="true"' : '') . ' value="' . $arr_item[1] . '">' . $arr_item[0] . '</option>';
-                            }
-                        }
-                    }
-                    $result .= '<input type="hidden" name="property_data[' . $valueName . '_' . $area . ']' . $nameSuffix . '" '
-                            . 'id="' . $valueName . '_0_' . $area . '"'
-                            . 'value="' . htmlentities($value['value']) . '"/>'
-                            . '<div class="input-group">'
-                            . '<select class="form-select" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $type . '"'
-                            . ($countSelected > 1 ? ' multiple ' : '')
-                            . 'id="' . $valueName . '_0">' . $options . '</select>'
-                            . '<span data-select-id="' . $valueName . '_0" id="' . $valueName. '_default_add_select_values_0" role="button"'
-                            . 'class="input-group-text btn-primary openModal" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $globalLang['sys.separate_window'] . '">'
-                            . '<i class="fas fa-tree"></i></span>'
-                            . '</div>';
+            case 'select':
+            case 'checkbox':
+            case 'radio':
+                if ($isDefinitionArea) {
+                    $result .= self::renderChoiceDefinitionEditor($value, $valueName, $type, $globalLang);
+                } else {
+                    $result .= self::renderChoiceValueInput($value, $valueName, $type, $required);
+                }
+                if ($type === 'checkbox' || $type === 'radio') {
+                    $multipleChoice = false;
                 }
                 break;
             case 'textarea':
-                if ($multiple && is_array($value['value'])) {
-                    foreach ($value['value'] as $valueItem) {
+                $textareaValue = $value['value'] ?? ($value['default'] ?? '');
+                if ($multiple && is_array($textareaValue)) {
+                    foreach ($textareaValue as $valueItem) {
                         $result .= '<div class="field_container d-flex align-items-center">';
                         $result .= '<textarea class="form-control" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $type . '"' . $required
                                 . 'name="property_data[' . $valueName . '_' . $area . ']' . $nameSuffix . '">' . htmlentities($valueItem) . '</textarea>';
@@ -998,20 +1021,13 @@ class Plugins {
                     }
                 } else {
                     $result .= '<textarea class="form-control" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $type . '"' . $required
-                            . 'name="property_data[' . $valueName . '_' . $area . ']' . $nameSuffix . '">' . htmlentities($value['value']) . '</textarea>';
+                            . 'name="property_data[' . $valueName . '_' . $area . ']' . $nameSuffix . '">' . htmlentities(is_array($textareaValue) ? (string) reset($textareaValue) : (string) $textareaValue) . '</textarea>';
                 }
                 break;
             case 'file':
             case 'image':
-                if ($type == 'image') {
-                    $allowed_extensions = 'jpeg, jpg, png, gif, bmp, tiff, webp, ico';
-                } else {
-                    $allowed_extensions = 'zip, rar, 7z, gzip, bz2, pdf, doc, xlsx, odt, ods, odp, rtf, epub, woff, woff2, ttf, otf, sqlite, csv, txt, xml, json';
-                }
-                $preloaded_files = [];
-                if (isset($value['value']) && !empty($value['value'])) {
-                    $preloaded_files = explode(',', $value['value']);
-                }                    
+                $allowed_extensions = FileSystem::getAllowedExtensionsStringForFieldType($type);
+                $preloaded_files = FileSystem::normalizeFileReferences($value['value'] ?? ($value['default'] ?? []));
                 $result .= self::ee_uploader([
                             'name' => 'property_data[' . $valueName . '_' . $area . ']',
                             'allowed_extensions' => $allowed_extensions,
@@ -1019,119 +1035,147 @@ class Plugins {
                             'required' => $value['required'],
                             'preloaded_files' => $preloaded_files
                 ]);                   
-                break;              
-            case 'checkbox':                    
-                $countItems = $valueCount = 0;
-                if (!empty($value['count'])) {
-                    $countItems = $value['count'];
-                } else {
-                    $countItems = is_array($value['label']) ? count($value['label']) : 0;
-                }
-                $add_html = '';
-                $firstElement = ['name' => '', 'checked' => NULL];
-                if ($countItems) {
-                    $checkedArr = is_array($value['value']) ?  array_flip($value['value']) : array_flip(explode(',', $value['value']));
-                    foreach ($value['label'] as $k => $name) {
-                        if (!$valueCount) {
-                            $firstElement = ['name' => $name, 'checked' => in_array('0', $checkedArr) ? 1 : NULL];
-                            $valueCount++;
-                            continue;
-                        }
-                        $add_html .= '<div class="checkbox_container d-flex align-items-center">'
-                                . '<span>' . $globalLang['sys.title'] . '</span>&nbsp;'
-                                . '<input type="text" required value="' . $name . '" name="property_data[' . $valueName . '_label][]"'
-                                . 'class="form-control mb-2 w-25" data-bs-toggle="tooltip" data-bs-placement="top" />&nbsp'
-                                . '<span>' . $globalLang['sys.value'] . '</span>&nbsp<div class="form-check float-start">'
-                                . '<input type="checkbox" ' . (isset($checkedArr[$k]) ? 'checked ' : '') . 'class="form-check-input" '
-                                . 'data-bs-toggle="tooltip" data-bs-placement="top" value="' . $valueCount . '"'
-                                . 'title="' . $globalLang['sys.default'] . '" name="property_data[' . $valueName . '_' . $area . '][]"></div>'
-                                . '<button type="button" class="btn btn-primary" data-general-name="' . $valueName . '"'
-                                . 'id="' . $valueCount . '_' . $valueName . '_add_checkbox_values"><i class="fa fa-minus"></i></button></div>';
-                        $valueCount++;
-                    }
-                }
-                $result .= '<div class="parent_checkbox_container d-flex align-items-center row">'
-                        . '<input type="hidden" id="' . $valueName . '_count" name="property_data[' . $valueName . '_count]" value="' . $countItems . '">'
-                        . '<div class="input-group mb-3 w-75"><span class="input-group-text me-0 fw-bold">' . $globalLang['sys.heading'] . '</span>'
-                        . '<input type="text" class="form-control" name="property_data[' . $valueName . '_title]" value="' . $value['title'] . '"/></div>'
-                        . '<div class="checkbox_container d-flex align-items-center">'
-                        . '<span>' . $globalLang['sys.title'] . '</span>&nbsp;'
-                        . '<input type="text" required value="' . $firstElement['name'] . '" name="property_data[' . $valueName . '_label][]"'
-                        . 'class="form-control mb-2 w-25" data-bs-toggle="tooltip" data-bs-placement="top" >&nbsp'
-                        . '<span>' . $globalLang['sys.value'] . '</span>&nbsp<div class="form-check float-start">'
-                        . '<input type="checkbox" ' . (isset($firstElement['checked']) ? 'checked ' : '') . ' value="0" class="form-check-input" '
-                        . 'data-bs-toggle="tooltip" data-bs-placement="top" '
-                        . 'title="' . $globalLang['sys.default'] . '" name="property_data[' . $valueName . '_' . $area . '][]"></div>'
-                        . '<button type="button" class="btn btn-primary" data-general-name="' . $valueName . '"'
-                        . 'id="' . $valueCount . '_' . $valueName . '_add_checkbox_values"><i class="fa fa-plus"></i></button>'
-                        . '</div>' . $add_html . '</div>';
-                $multipleChoice = false;
-                break;
-            case 'radio':
-                $countItems = 0;
-                if (!empty($value['count'])) {
-                    $countItems = $value['count'];
-                } else {
-                    $countItems = is_array($value['label']) ? count($value['label']) : 0;
-                }
-                $add_html = '';
-                $firstElement = ['name' => '', 'checked' => NULL];
-                $valueCount = 0;
-                if ($countItems) {                    
-                    $checkedArr = is_array($value['value']) ?  array_flip($value['value']) : array_flip(explode(',', $value['value']));                    
-                    foreach ($value['label'] as $k => $name) {
-                        if (!$valueCount) {
-                            $firstElement = ['name' => $name, 'checked' => in_array(0, $checkedArr) ? 1 : NULL];
-                            $valueCount++;
-                            continue;
-                        }
-                        $add_html .= '<div class="radio_container d-flex align-items-center">'
-                                . '<span>' . $globalLang['sys.title'] . '</span>&nbsp;'
-                                . '<input type="text" required value="' . $name . '" name="property_data[' . $valueName . '_label][]"'
-                                . 'class="form-control mb-2 w-25" data-bs-toggle="tooltip" data-bs-placement="top" >&nbsp'
-                                . '<span>' . $globalLang['sys.value'] . '</span>&nbsp<div class="form-check"><input type="radio"'
-                                . ' ' . (isset($checkedArr[$k]) ? 'checked ' : '') . 'class="form-check-input" data-bs-toggle="tooltip"'
-                                . 'data-bs-placement="top" value="' . $valueCount . '" '
-                                . 'name="property_data[' . $valueName . '_' . $area . '][]"></div>'
-                                . '<button type="button" class="btn btn-primary" data-general-name="' . $valueName . '"'
-                                . 'id="' . $valueCount . '_' . $valueName . '_add_radio_values"><i class="fa fa-minus"></i></button></div>';
-                        $valueCount++;
-                    }
-                }
-                $result .= '<div class="parent_radio_container d-flex align-items-center row">'
-                        . '<input type="hidden" id="' . $valueName . '_count" name="property_data[' . $valueName . '_count]" value="' . $countItems . '">'
-                        . '<div class="input-group mb-3 w-75"><span class="input-group-text me-0 fw-bold">' . $globalLang['sys.heading'] . '</span>'
-                        . '<input type="text" class="form-control" name="property_data[' . $valueName . '_title]" value="' . $value['title'] . '"/></div>'
-                        . '<div class="radio_container d-flex align-items-center">'
-                        . '<span>' . $globalLang['sys.title'] . '</span>&nbsp;'
-                        . '<input type="text" required value="' . $firstElement['name'] . '" name="property_data[' . $valueName . '_label][]"'
-                        . 'class="form-control mb-2 w-25" data-bs-toggle="tooltip" data-bs-placement="top" >&nbsp'
-                        . '<span>' . $globalLang['sys.value'] . '</span>&nbsp<div class="form-check"><input type="radio" class="form-check-input" data-bs-toggle="tooltip"'
-                        . 'data-bs-placement="top" ' . (isset($firstElement['checked']) ? 'checked ' : '') . 'value="0"'
-                        . ' name="property_data[' . $valueName . '_' . $area . '][]"></div>'
-                        . '<button type="button" class="btn btn-primary" data-general-name="' . $valueName . '"'
-                        . 'id="' . $valueCount . '_' . $valueName . '_add_radio_values"><i class="fa fa-plus"></i></button>'
-                        . '</div>' . $add_html . '</div>';
-                $multipleChoice = false;
                 break;
             default:
                 $result .= '<span class="text-danger">Unsupported field type: ' . $type . '</span>';
         }
         $result .= '</div>';
-        $result .= '<div class="col pt-3">';
-        $result .= '<label>' . $globalLang['sys.required'] . '</label><input type="checkbox"'
-                . 'class="" name="property_data[' . $valueName . '_required]"'
-                . ($value['required'] ? 'checked ' : '') . '/>';
-        $result .= '</div>';
-        if ($multipleChoice) {
-            $result .= '<div class="col multicheck pt-3">';
-            $result .= '<label class="form-label">' . $globalLang['sys.multiple_choice'] . '</label><input type="checkbox"'
-                    . 'class="" name="property_data[' . $valueName . '_multiple]"'
-                    . ($multiple ? 'checked ' : '') . '/>';
+        if ($isDefinitionArea) {
+            $result .= '<div class="col pt-3">';
+            $result .= '<label>' . $globalLang['sys.required'] . '</label><input type="checkbox"'
+                    . ' class="" name="property_data[' . $valueName . '_required]"'
+                    . ($value['required'] ? ' checked' : '') . '/>';
             $result .= '</div>';
+            if ($multipleChoice) {
+                $result .= '<div class="col multicheck pt-3">';
+                $result .= '<label class="form-label">' . $globalLang['sys.multiple_choice'] . '</label><input type="checkbox"'
+                        . ' class="" name="property_data[' . $valueName . '_multiple]"'
+                        . ($multiple ? ' checked' : '') . '/>';
+                $result .= '</div>';
+            }
         }
-        $result .= '</div>';        
+        $result .= '</div>';
         return $result;
+    }
+
+    private static function normalizeTypeFieldDefinitions(mixed $fields): array {
+        return PropertyFieldContract::normalizeTypeFields($fields);
+    }
+
+    private static function renderChoiceDefinitionEditor(array $value, string $valueName, string $type, array $globalLang): string {
+        $options = self::normalizeChoiceOptionsForRender($value);
+        $selectedKeys = array_flip(self::normalizeChoiceSelectedKeys($value['value'] ?? ($value['default'] ?? [])));
+        $selectorType = $type === 'radio' ? 'radio' : 'checkbox';
+        $buttonSuffix = $type === 'select' ? 'select' : $type;
+        $html = '<div class="choice-definition-editor">';
+
+        if (empty($options)) {
+            $options[] = ['key' => '', 'label' => '', 'disabled' => 0, 'sort' => 10];
+        }
+
+        foreach ($options as $index => $option) {
+            $rowAction = $index === 0 ? 'plus' : 'minus';
+            $html .= '<div class="choice-option-container d-flex align-items-center gap-2 mb-2">';
+            $html .= '<input type="text" required class="form-control option-label-input" name="property_data[' . $valueName . '_option_label][]" placeholder="' . htmlspecialchars((string) $globalLang['sys.title'], ENT_QUOTES) . '" value="' . htmlspecialchars((string) ($option['label'] ?? ''), ENT_QUOTES) . '"/>';
+            $html .= '<input type="text" class="form-control option-key-input" name="property_data[' . $valueName . '_option_key][]" placeholder="' . htmlspecialchars((string) $globalLang['sys.value'], ENT_QUOTES) . '" value="' . htmlspecialchars((string) ($option['key'] ?? ''), ENT_QUOTES) . '"/>';
+            $html .= '<div class="form-check mb-0">';
+            $html .= '<input class="form-check-input choice-option-selected" type="' . $selectorType . '" value="' . $index . '" name="property_data[' . $valueName . '_option_selected][]" ' . (isset($selectedKeys[(string) ($option['key'] ?? '')]) ? 'checked ' : '') . '/>';
+            $html .= '<label class="form-check-label">' . htmlspecialchars((string) $globalLang['sys.default'], ENT_QUOTES) . '</label>';
+            $html .= '</div>';
+            $html .= '<button type="button" class="btn btn-primary choice-option-toggle" data-selector-type="' . $selectorType . '" data-general-name="' . $valueName . '" id="' . $index . '_' . $valueName . '_add_' . $buttonSuffix . '_values"><i class="fa fa-' . ($rowAction === 'plus' ? 'plus' : 'minus') . '"></i></button>';
+            $html .= '</div>';
+        }
+
+        $html .= '</div>';
+        return $html;
+    }
+
+    private static function renderChoiceValueInput(array $value, string $valueName, string $type, string $required): string {
+        $options = self::normalizeChoiceOptionsForRender($value);
+        $selectedKeys = array_flip(self::normalizeChoiceSelectedKeys($value['value'] ?? []));
+        $html = '';
+
+        if ($type === 'select') {
+            $name = 'property_data[' . $valueName . '_value][]';
+            $html .= '<select class="form-select" data-bs-toggle="tooltip" data-bs-placement="top" title="' . htmlspecialchars($type, ENT_QUOTES) . '" name="' . $name . '"' . ($value['multiple'] ? ' multiple' : '') . $required . '>';
+            foreach ($options as $option) {
+                $key = (string) ($option['key'] ?? '');
+                if ($key === '' || !empty($option['disabled'])) {
+                    continue;
+                }
+                $html .= '<option value="' . htmlspecialchars($key, ENT_QUOTES) . '"' . (isset($selectedKeys[$key]) ? ' selected' : '') . '>' . htmlspecialchars((string) ($option['label'] ?? $key), ENT_QUOTES) . '</option>';
+            }
+            $html .= '</select>';
+            return $html;
+        }
+
+        $inputType = $type === 'radio' ? 'radio' : 'checkbox';
+        $inputName = 'property_data[' . $valueName . '_value]' . ($type === 'checkbox' ? '[]' : '');
+        foreach ($options as $option) {
+            $key = (string) ($option['key'] ?? '');
+            if ($key === '' || !empty($option['disabled'])) {
+                continue;
+            }
+            $checked = isset($selectedKeys[$key]) ? ' checked' : '';
+            $itemRequired = $type === 'checkbox' ? '' : $required;
+            $html .= '<div class="form-check mb-2">';
+            $html .= '<input class="form-check-input" type="' . $inputType . '" name="' . $inputName . '" value="' . htmlspecialchars($key, ENT_QUOTES) . '"' . $checked . $itemRequired . '>';
+            $html .= '<label class="form-check-label">' . htmlspecialchars((string) ($option['label'] ?? $key), ENT_QUOTES) . '</label>';
+            $html .= '</div>';
+        }
+        return $html;
+    }
+
+    private static function normalizeChoiceOptionsForRender(array $value): array {
+        $options = $value['options'] ?? [];
+        if (!is_array($options)) {
+            return [];
+        }
+        $normalized = [];
+        foreach (array_values($options) as $index => $option) {
+            if (!is_array($option)) {
+                continue;
+            }
+            $normalized[] = [
+                'key' => (string) ($option['key'] ?? ''),
+                'label' => (string) ($option['label'] ?? ''),
+                'sort' => isset($option['sort']) ? (int) $option['sort'] : (($index + 1) * 10),
+                'disabled' => !empty($option['disabled']) ? 1 : 0,
+            ];
+        }
+        usort($normalized, static fn(array $left, array $right): int => ($left['sort'] ?? 0) <=> ($right['sort'] ?? 0));
+        return $normalized;
+    }
+
+    private static function normalizeChoiceSelectedKeys(mixed $payload): array {
+        if (is_string($payload)) {
+            $payload = trim($payload);
+            if ($payload === '') {
+                return [];
+            }
+            $decoded = json_decode($payload, true);
+            if (is_array($decoded)) {
+                $payload = $decoded;
+            } elseif (str_contains($payload, ',')) {
+                $payload = explode(',', $payload);
+            } else {
+                $payload = [$payload];
+            }
+        } elseif (!is_array($payload)) {
+            $payload = [$payload];
+        }
+
+        $selected = [];
+        foreach ($payload as $item) {
+            if (is_array($item) && isset($item['key'])) {
+                $item = $item['key'];
+            }
+            $item = trim((string) $item);
+            if ($item !== '') {
+                $selected[$item] = $item;
+            }
+        }
+        return array_values($selected);
     }
     
     /**
@@ -1160,6 +1204,13 @@ class Plugins {
     public static function ee_uploader(array $params = []): string {
         $langCode = Session::get('lang');
         $globalLang = Lang::init($langCode);
+        $fileUnavailableText = (string) ($globalLang['sys.file_unavailable'] ?? 'Файл недоступен');
+        $allowedFilesLabel = (string) ($globalLang['sys.allowed_files'] ?? 'Допустимые файлы');
+        $uploadLabel = (string) ($globalLang['sys.download'] ?? 'Upload');
+        $pendingDeleteLabel = (string) ($globalLang['sys.file_marked_for_delete'] ?? 'Файл помечен на удаление');
+        $undoDeleteLabel = (string) ($globalLang['sys.undo_delete'] ?? 'Отменить удаление');
+        $externalReferenceLabel = (string) ($globalLang['sys.external_reference'] ?? 'Внешняя ссылка');
+        $legacyReferenceLabel = (string) ($globalLang['sys.legacy_reference'] ?? 'Устаревшая ссылка');
         $defaultParams = [
             'name' => 'ee_upload_file_' . md5(SysClass::ee_generate_uuid()),
             'id' => 'upload_id_' . md5(SysClass::ee_generate_uuid()),
@@ -1170,14 +1221,17 @@ class Plugins {
             'layout' => 'horizontal' // 'vertical' или 'horizontal' TODO неработает
         ];
         $params = array_merge($defaultParams, $params);
-        $params['preloaded_files'] = is_string($params['preloaded_files']) ? explode(',', $params['preloaded_files']) : $params['preloaded_files'];
+        $params['preloaded_files'] = FileSystem::normalizeFileReferences($params['preloaded_files']);
         // Обработка allowed_extensions для атрибута accept
-        $allowedExtensionsArray = array_map('trim', explode(',', $params['allowed_extensions']));
+        $allowedExtensionsArray = array_values(array_filter(array_map('trim', explode(',', (string) $params['allowed_extensions']))));
         if (!empty($allowedExtensionsArray[0])) {
             $acceptAttribute = 'accept=".' . implode(',.', $allowedExtensionsArray) . '"';
         } else {
             $acceptAttribute = '';
         }
+        $allowedExtensionsHint = !empty($allowedExtensionsArray)
+            ? $allowedFilesLabel . ': ' . implode(', ', $allowedExtensionsArray)
+            : '';
         // Атрибуты multiple и required
         $multipleAttribute = $params['multiple'] ? 'multiple' : '';
         $requiredAttribute = $params['required'] ? 'data-required="1"' : '';
@@ -1188,40 +1242,65 @@ class Plugins {
             self::$sortableJS = true;
         } else {
             $html = '';
-        }       
-        $html .= '<div class="card" style="align-items: center; width: 319px;" id="upload-content_' . $params['id'] . '" data-layout="' . $params['layout'] . '">';
+        }
+        $html .= '<div class="card ee-uploader-card" id="upload-content_' . $params['id'] . '" data-layout="' . $params['layout'] . '">';
         if (count($params['preloaded_files'])) { // Есть предзагруженные файлы, выводим их отдельно, учитывая сортировку
             $html .= '<div class="preloadedFilesData" id="preloaded_' . $params['id'] . '">';
             $preloadCount = 0;
             $matches = [];
             preg_match('/\[(.*?)\]/', $params['name'], $matches);
             $propertyName = isset($matches[1]) ? $matches[1] : $params['name'];
-            foreach ($params['preloaded_files'] as $fileId) {
+            foreach ($params['preloaded_files'] as $reference) {
                 $preloadCount++;
-                $fileData = FileSystem::getFileData($fileId);
-                if (!$fileData) { // Файл не найден ERROR
-                    $fileData['file_id'] = $fileId;
-                    $fileData['original_name'] = 'ERROR';
-                    $fileData['mime_type'] = 'image';
-                    $fileData['file_url'] = ENV_URL_SITE . '/uploads/images/image_collections/no-image.svg';
+                $fileReference = FileSystem::describeFileReference($reference);
+                if (!$fileReference) {
+                    continue;
                 }
-                $fileData['unique_id'] = $fileData['file_id'];
-                $fileData['property_name'] = $propertyName;
-                $html .= '<div class="fileItem" data-unique-id="' . $fileData['file_id'] . '">';
-                $html .= '<input type="hidden" name="ee_dataFiles[]" value="' . htmlentities(json_encode($fileData)) . '">';
-                $html .= '<div class="fileName mb-2">' . $fileData['original_name'] . '</div>';
-                if (strpos($fileData['mime_type'], 'image') !== false) {
-                    $html .= '<img src="' . $fileData['file_url'] . '" />';
+
+                $payload = [
+                    'unique_id' => $fileReference['unique_id'],
+                    'property_name' => $propertyName,
+                    'original_name' => $fileReference['original_name'] ?: $fileUnavailableText,
+                ];
+                if (!empty($fileReference['is_legacy'])) {
+                    $payload['legacy_value'] = $fileReference['reference'];
+                    $payload['is_legacy'] = true;
                 } else {
-                    $extension = pathinfo($fileData['file_path'], PATHINFO_EXTENSION);
+                    $payload['file_id'] = $fileReference['file_id'];
+                    $payload['file_path'] = $fileReference['file_path'];
+                    $payload['file_url'] = $fileReference['file_url'];
+                    $payload['mime_type'] = $fileReference['mime_type'];
+                }
+
+                $html .= '<div class="fileItem' . (!empty($fileReference['is_legacy']) ? ' legacy-file' : '') . '" data-unique-id="' . htmlspecialchars((string) $fileReference['unique_id'], ENT_QUOTES) . '">';
+                $html .= '<input type="hidden" name="ee_dataFiles[]" value="' . htmlentities(json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) . '">';
+                $html .= '<div class="fileName mb-2">' . htmlspecialchars((string) ($fileReference['original_name'] ?: $fileUnavailableText), ENT_QUOTES) . '</div>';
+                if (!empty($fileReference['is_image']) && !empty($fileReference['file_url'])) {
+                    $html .= '<img src="' . htmlspecialchars((string) $fileReference['file_url'], ENT_QUOTES) . '" />';
+                } else {
+                    $extension = pathinfo((string) ($fileReference['file_path'] ?: $fileReference['reference']), PATHINFO_EXTENSION);
                     $html .= FileSystem::getFileIcon($extension);
-                }                                 
-                $html .= '<div class="actionIcons" role="button"><i class="fas fa-trash actionIcon deleteIcon"></i><i class="fas fa-edit actionIcon editIcon"></i></div>';
+                }
+                if (!empty($fileReference['is_legacy'])) {
+                    $html .= '<div class="small text-muted mb-2">' . htmlspecialchars((string) ($fileReference['kind'] === 'external' ? $externalReferenceLabel : $legacyReferenceLabel), ENT_QUOTES) . '</div>';
+                }
+                $html .= '<div class="actionIcons" role="button"><i class="fas fa-trash actionIcon deleteIcon"></i>';
+                if (!empty($fileReference['allow_edit'])) {
+                    $html .= '<i class="fas fa-edit actionIcon editIcon"></i>';
+                }
+                if (!empty($fileReference['allow_transform'])) {
+                    $html .= '<i class="fas fa-rotate-right actionIcon rotateIcon"></i><i class="fas fa-arrows-left-right actionIcon flipHIcon"></i><i class="fas fa-arrows-up-down actionIcon flipVIcon"></i>';
+                }
+                $html .= '</div>';
                 $html .= '</div>';
             }
             if ($preloadCount > 1 && empty($multipleAttribute)) {
                 $message = 'Поле ' . $params['name'] . ' непомечено как множественное, удалите лишние файлы!';
-                SysClass::preFile('errors', 'ee_uploader', $message, $params);
+                Logger::warning('uploader', $message, $params, [
+                    'initiator' => 'ee_uploader',
+                    'details' => $message,
+                    'include_trace' => false,
+                ]);
                 \classes\helpers\ClassNotifications::addNotificationUser(SysClass::getCurrentUserId(), ['text' => $message, 'status' => 'danger']);
             }            
             $html .= '</div>';
@@ -1229,8 +1308,14 @@ class Plugins {
         // general input
         $html .= '<input type="file" class="ee_fileInput" name="' . $params['name'] . '[]" id="' . $params['id'] . '" '
                 . 'data-ee_uploader="true" data-allowed-extensions="'
-                . $params['allowed_extensions'] . '" ' . $acceptAttribute . ' ' . $multipleAttribute . ' ' . $requiredAttribute . ' />'
+                . $params['allowed_extensions'] . '" data-upload-label="' . htmlspecialchars($uploadLabel, ENT_QUOTES) . '"'
+                . ' data-pending-delete-label="' . htmlspecialchars($pendingDeleteLabel, ENT_QUOTES) . '"'
+                . ' data-undo-delete-label="' . htmlspecialchars($undoDeleteLabel, ENT_QUOTES) . '" '
+                . $acceptAttribute . ' ' . $multipleAttribute . ' ' . $requiredAttribute . ' />'
                 . '<input type="hidden" name="ee_check_file[]" value="0">';
+        if ($allowedExtensionsHint !== '') {
+            $html .= '<div class="ee-uploader-help small text-muted mt-2">' . htmlspecialchars($allowedExtensionsHint, ENT_QUOTES) . '</div>';
+        }
         // HTML для модального окна
         $html .= '<div class="modal fade" id="uploadModal-' . $params['id'] . '" tabindex="-1" aria-labelledby="uploadModalLabel-' . $params['id'] . '" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered">
@@ -1308,12 +1393,14 @@ class Plugins {
      * @param array $categoriesTypeSetsData Данные для типов наборов категорий
      * @return string Сгенерированный HTML код
      */
-    public static function renderPropertySets($propertySetsData, $categoriesTypeSetsData) {
+    public static function renderPropertySets($propertySetsData, $categoriesTypeSetsData, $directCategoriesTypeSetsData = []) {
         $langCode = Session::get('lang');
         $globalLang = Lang::init($langCode);
         $html = '';
-        if (count($categoriesTypeSetsData)) {
-            foreach ($categoriesTypeSetsData as $item_ctsd) {
+        $directCategoriesTypeSetsData = array_values(array_unique(array_map('intval', (array) $directCategoriesTypeSetsData)));
+        $categoriesTypeSetsData = array_values(array_unique(array_map('intval', (array) $categoriesTypeSetsData)));
+        if (count($directCategoriesTypeSetsData)) {
+            foreach ($directCategoriesTypeSetsData as $item_ctsd) {
                 $html .= '<input type="hidden" name="old_property_set[]" value="' . $item_ctsd . '" />';
             }
         } else {

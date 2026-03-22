@@ -1,4 +1,4 @@
-<?php if (!defined('ENV_SITE')) exit(header("Location: http://" . $_SERVER['HTTP_HOST'], true, 301)); ?>
+<?php if (!defined('ENV_SITE')) exit(header('Location: /', true, 301)); ?>
 <!-- Редактирование роли пользователей -->
 <main>
     <form  id="edit_users_role" action="/admin/users_role_edit/id" method="POST">

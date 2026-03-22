@@ -64,6 +64,25 @@ trait PagesTrait {
         $this->loadModel('m_properties');
 
         $postData = SysClass::ee_cleanArray($_POST);
+        $entityLanguageCode = 0;
+        if (in_array('id', $params)) {
+            $keyId = array_search('id', $params);
+            if ($keyId !== false && isset($params[$keyId + 1])) {
+                $entityLanguageCode = strtoupper((string) (\classes\plugins\SafeMySQL::gi()->getOne(
+                    'SELECT language_code FROM ?n WHERE page_id = ?i LIMIT 1',
+                    Constants::PAGES_TABLE,
+                    (int) $params[$keyId + 1]
+                ) ?: ''));
+            }
+        }
+        $currentUiLanguageCode = $this->getAdminUiLanguageCode();
+        $languageCode = strtoupper(trim((string)($postData['language_code'] ?? ($entityLanguageCode ?: $currentUiLanguageCode))));
+        if ($languageCode === '') {
+            $languageCode = $entityLanguageCode !== '' ? $entityLanguageCode : $currentUiLanguageCode;
+        }
+        if (!empty($postData) && $languageCode !== '') {
+            $postData['language_code'] = $languageCode;
+        }
         if (in_array('id', $params)) {
             $keyId = array_search('id', $params);
             if ($keyId !== false && isset($params[$keyId + 1])) {
@@ -71,37 +90,44 @@ trait PagesTrait {
             } else {
                 $pageId = 0;
             }
+            $saveSucceeded = false;
             if (isset($postData['title']) && $postData['title']) {
                 $postData['description'] = \classes\system\FileSystem::extractBase64Images($postData['description']);
-                $new_id = $this->models['m_pages']->updatePageData($postData);
-                if (!is_numeric($new_id)) {
-                    ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.db_registration_error'] . ' ' . var_export($new_id, true), 'status' => 'danger']);
-                } else {
-                    $pageId = $new_id;
-                }
-                $this->saveFileProperty($postData);
-                // Сохранение свойств
-                if (isset($postData['property_data']) && is_array($postData['property_data']) && !empty($postData['property_data_changed'])) {
-                    $this->processPropertyData($postData['property_data']);
+                $saveResult = $this->notifyOperationResult(
+                    $this->models['m_pages']->updatePageData($postData, $languageCode ?: ENV_DEF_LANG),
+                    [
+                        'success_message' => $this->lang['sys.saved'] ?? 'Страница сохранена',
+                        'default_error_message' => $this->lang['sys.db_registration_error'] ?? 'Ошибка сохранения',
+                    ]
+                );
+                if ($saveResult->isSuccess()) {
+                    $pageId = $saveResult->getId();
+                    $saveSucceeded = true;
+                    $this->saveFileProperty($postData);
+                    if (isset($postData['property_data']) && is_array($postData['property_data']) && !empty($postData['property_data_changed'])) {
+                        $this->processPropertyData($postData['property_data'], $languageCode);
+                    }
                 }
             }
             $newEntity = empty($pageId) ? true : false;
-            $this->processPostParams($postData, $newEntity, $pageId);
-            $getPageData = (int) $pageId ? $this->models['m_pages']->getPageData($pageId) : $default_data;
+            if ($saveSucceeded) {
+                $this->processPostParams($postData, $newEntity, $pageId);
+            }
+            $getPageData = (int) $pageId ? $this->models['m_pages']->getPageData($pageId, $languageCode ?: ENV_DEF_LANG) : $default_data;
             $getPageData = $getPageData ? $getPageData : $default_data;
         } else { // Не передан ключевой параметр id
             SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/user_edit/id/' . $this->logged_in);
         }
-        $getAllTypes = $this->models['m_categories_types']->getAllTypes();
+        $getAllTypes = $this->models['m_categories_types']->getAllTypes(null, true, null, $languageCode ?: ENV_DEF_LANG);
         $result = array_reduce($getAllTypes, function ($carry, $item) {
             $carry[$item['type_id']] = $item;
             return $carry;
         }, []);
         $getAllTypes = $result;
         unset($result);
-        $getAllCategories = $this->models['m_categories']->getCategoriesTree(null, null, true);
-        $getAllPages = $this->models['m_pages']->getAllPages($pageId);
-        $getAllProperties = $this->getPropertiesByCategoryId($getPageData['category_id'], $pageId);
+        $getAllCategories = $this->models['m_categories']->getCategoriesTree(null, null, true, $languageCode ?: ENV_DEF_LANG);
+        $getAllPages = $this->models['m_pages']->getAllPages($pageId, $languageCode ?: ENV_DEF_LANG);
+        $getAllProperties = $this->getPropertiesByCategoryId((int) ($getPageData['category_id'] ?? 0), (int) $pageId, $languageCode ?: ENV_DEF_LANG);
         foreach (Constants::ALL_STATUS as $key => $value) {
             $allStatus[$key] = $this->lang['sys.' . $value];
         }
@@ -125,11 +151,11 @@ trait PagesTrait {
         $this->showLayout($this->parameters_layout);
     }
 
-    private function getPropertiesByCategoryId(int $categoryId, int $pageId): array {
-        $categoryTypeId = $this->models['m_categories']->getCategoryTypeId($categoryId);
+    private function getPropertiesByCategoryId(int $categoryId, int $pageId, string $languageCode = ENV_DEF_LANG): array {
+        $categoryTypeId = $this->models['m_categories']->getCategoryTypeId($categoryId, $languageCode);
         $getCategoriesTypeSets = $this->models['m_categories_types']->getCategoriesTypeSetsData($categoryTypeId);
         // $getCategoriesTypeSetsData = $this->processPageProperties($getCategoriesTypeSets, $pageId);
-        $getCategoriesTypeSetsData = $this->formattingEntityProperties($getCategoriesTypeSets, $pageId, 'page', $pageId);
+        $getCategoriesTypeSetsData = $this->formattingEntityProperties($getCategoriesTypeSets, $pageId, 'page', $pageId, $languageCode);
         return $getCategoriesTypeSetsData;
     }
 
@@ -151,10 +177,13 @@ trait PagesTrait {
             } else {
                 $id = 0;
             }
-            $res = $this->models['m_pages']->deletePage($id);
-            if (is_object($res)) {
-                ClassNotifications::addNotificationUser($this->logged_in, ['text' => $res->result['error_message'], 'status' => 'danger']);
-            }
+            $this->notifyOperationResult(
+                $this->models['m_pages']->deletePage($id),
+                [
+                    'success_message' => $this->lang['sys.removed'] ?? 'Удалено!',
+                    'default_error_message' => 'Ошибка удаления страницы',
+                ]
+            );
         }
         SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/pages');
     }

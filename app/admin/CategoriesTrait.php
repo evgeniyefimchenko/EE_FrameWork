@@ -82,6 +82,21 @@ trait CategoriesTrait {
         $this->loadModel('m_categories_types');
         $this->loadModel('m_categories');
         $postData = SysClass::ee_cleanArray($_POST);
+        $entityLanguageCode = $categoryId > 0
+            ? strtoupper((string) (\classes\plugins\SafeMySQL::gi()->getOne(
+                'SELECT language_code FROM ?n WHERE category_id = ?i LIMIT 1',
+                Constants::CATEGORIES_TABLE,
+                $categoryId
+            ) ?: ''))
+            : '';
+        $currentUiLanguageCode = $this->getAdminUiLanguageCode();
+        $languageCode = strtoupper(trim((string)($postData['language_code'] ?? ($entityLanguageCode ?: $currentUiLanguageCode))));
+        if ($languageCode === '') {
+            $languageCode = $entityLanguageCode !== '' ? $entityLanguageCode : $currentUiLanguageCode;
+        }
+        if (!empty($postData) && $languageCode !== '') {
+            $postData['language_code'] = $languageCode;
+        }
         if (!empty($postData) && isset($postData['title'])) {
             if (!$newEntity) {
                 $postData['category_id'] = $categoryId;
@@ -89,52 +104,50 @@ trait CategoriesTrait {
             if (isset($postData['description'])) {
                 $postData['description'] = \classes\system\FileSystem::extractBase64Images($postData['description']);
             }
-            $result = $this->models['m_categories']->updateCategoryData($postData, $postData['language_code'] ?? ENV_DEF_LANG);
-            if (is_object($result) && $result instanceof ErrorLogger) {
-                $errorMessage = $result->result['error_message'] ?? 'Ошибка сохранения категории';
-                ClassNotifications::addNotificationUser($this->logged_in, ['text' => $errorMessage, 'status' => 'danger']);
-            } else if (is_int($result) && $result > 0) {
-                $categoryId = $result;
+            $saveResult = $this->notifyOperationResult(
+                $this->models['m_categories']->updateCategoryData($postData, $languageCode ?: ENV_DEF_LANG),
+                [
+                    'success_message' => $this->lang['sys.saved'] ?? 'Категория сохранена',
+                    'default_error_message' => 'Ошибка сохранения категории',
+                ]
+            );
+            if ($saveResult->isSuccess()) {
+                $categoryId = $saveResult->getId();
                 $newEntity = false;
-                ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.saved'] ?? 'Категория сохранена', 'status' => 'success']);
-
                 $this->saveFileProperty($postData);
                 if (isset($postData['property_data']) && is_array($postData['property_data']) && !empty($postData['property_data_changed'])) {
-                    $this->processPropertyData($postData['property_data']);
+                    $this->processPropertyData($postData['property_data'], $languageCode);
                 }
                 $this->processPostParams($postData, $newEntity, $categoryId);
-            } else {
-                ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Произошла неизвестная ошибка при сохранении', 'status' => 'danger']);
-                new ErrorLogger('Неожиданный результат от ModelCategories::updateCategoryData', __FUNCTION__, 'category_edit', ['result' => $result]);
             }
         }
-        $getCategoryData = ($categoryId > 0 ? $this->models['m_categories']->getCategoryData($categoryId) : null) ?: $defaultData;
+        $getCategoryData = ($categoryId > 0 ? $this->models['m_categories']->getCategoryData($categoryId, $languageCode ?: ENV_DEF_LANG) : null) ?: $defaultData;
         if (empty($this->models['m_categories'])) {
             $this->loadModel('m_categories');
         }
         if (empty($this->models['m_categories_types'])) {
             $this->loadModel('m_categories_types');
         }
-        $categories_tree = $this->models['m_categories']->getCategoriesTree($categoryId);
-        $fullCategoriesTree = $this->models['m_categories']->getCategoriesTree();
-        $categoryPages = ($categoryId > 0) ? $this->models['m_categories']->getCategoryPages($categoryId) : [];
+        $categories_tree = $this->models['m_categories']->getCategoriesTree($categoryId, null, null, $languageCode ?: ENV_DEF_LANG);
+        $fullCategoriesTree = $this->models['m_categories']->getCategoriesTree(null, null, null, $languageCode ?: ENV_DEF_LANG);
+        $categoryPages = ($categoryId > 0) ? $this->models['m_categories']->getCategoryPages($categoryId, $languageCode ?: ENV_DEF_LANG) : [];
         $currentTypeId = $getCategoryData['type_id'] ?? 0;
         $parentCategoryId = $getCategoryData['parent_id'] ?? 0;
         $getCategoriesTypeSets = ($currentTypeId > 0) ? $this->models['m_categories_types']->getCategoriesTypeSetsData($currentTypeId) : [];
         $getAllTypes = [];
         if ($parentCategoryId > 0) {
-            $parentTypeId = $this->models['m_categories']->getCategoryTypeId($parentCategoryId);
+            $parentTypeId = $this->models['m_categories']->getCategoryTypeId($parentCategoryId, $languageCode ?: ENV_DEF_LANG);
             if (method_exists($this->models['m_categories_types'], 'getAllTypes')) {
-                $getAllTypes = $this->models['m_categories_types']->getAllTypes(false, false, $parentTypeId);
+                $getAllTypes = $this->models['m_categories_types']->getAllTypes(false, false, $parentTypeId, $languageCode ?: ENV_DEF_LANG);
             }
         } else {
             if (method_exists($this->models['m_categories_types'], 'getAllTypes')) {
-                $getAllTypes = $this->models['m_categories_types']->getAllTypes(false, false);
+                $getAllTypes = $this->models['m_categories_types']->getAllTypes(false, false, null, $languageCode ?: ENV_DEF_LANG);
             }
         }
         $getCategoriesTypeSetsData = [];
         if (!empty($getCategoriesTypeSets) && $categoryId > 0) {
-            $getCategoriesTypeSetsData = $this->formattingEntityProperties($getCategoriesTypeSets, $categoryId, 'category', $getCategoryData['title'] ?? '');
+            $getCategoriesTypeSetsData = $this->formattingEntityProperties($getCategoriesTypeSets, $categoryId, 'category', $getCategoryData['title'] ?? '', $languageCode ?: ENV_DEF_LANG);
         }
         $this->view->set('categoryData', $getCategoryData);
         $this->view->set('categories_tree', $categories_tree);
@@ -170,12 +183,20 @@ trait CategoriesTrait {
             $this->loadModel('m_categories');
             $this->loadModel('m_categories_types');
             $postData = SysClass::ee_cleanArray($_POST);
+            $entityLanguageCode = !empty($postData['category_id'])
+                ? strtoupper((string) (\classes\plugins\SafeMySQL::gi()->getOne(
+                    'SELECT language_code FROM ?n WHERE category_id = ?i LIMIT 1',
+                    Constants::CATEGORIES_TABLE,
+                    (int) $postData['category_id']
+                ) ?: ''))
+                : '';
+            $languageCode = strtoupper(trim((string)($postData['language_code'] ?? ($entityLanguageCode ?: $this->getAdminUiLanguageCode()))));
             if (!empty($postData['parent_id'])) {
-                $typeId = $this->models['m_categories']->getCategoryTypeId($postData['parent_id']);
-                $oldTypeId = $this->models['m_categories']->getCategoryTypeId($postData['category_id']);
-                $getAllTypes = $this->models['m_categories_types']->getAllTypes(false, false, $typeId);
+                $typeId = $this->models['m_categories']->getCategoryTypeId((int) $postData['parent_id'], $languageCode);
+                $oldTypeId = $this->models['m_categories']->getCategoryTypeId((int) $postData['category_id'], $languageCode);
+                $getAllTypes = $this->models['m_categories_types']->getAllTypes(false, false, $typeId, $languageCode);
             } else {
-                $getAllTypes = $this->models['m_categories_types']->getAllTypes(false, false);
+                $getAllTypes = $this->models['m_categories_types']->getAllTypes(false, false, null, $languageCode);
                 $postData['parent_id'] = 0;
                 $typeId = 0;
             }
@@ -206,10 +227,18 @@ trait CategoriesTrait {
                 exit();
             }
             $postData = SysClass::ee_cleanArray($_POST);
+            $entityLanguageCode = !empty($postData['category_id'])
+                ? strtoupper((string) (\classes\plugins\SafeMySQL::gi()->getOne(
+                    'SELECT language_code FROM ?n WHERE category_id = ?i LIMIT 1',
+                    Constants::CATEGORIES_TABLE,
+                    (int) $postData['category_id']
+                ) ?: ''))
+                : '';
+            $languageCode = strtoupper(trim((string)($postData['language_code'] ?? ($entityLanguageCode ?: $this->getAdminUiLanguageCode()))));
             $this->loadModel('m_categories_types');
             $getCategoriesTypeSets = $this->models['m_categories_types']->getCategoriesTypeSetsData($postData['type_id']);
             $categoryId = $postData['category_id'];
-            $getCategoriesTypeSetsData = $this->formattingEntityProperties($getCategoriesTypeSets, $categoryId, 'category', $postData['title']);
+            $getCategoriesTypeSetsData = $this->formattingEntityProperties($getCategoriesTypeSets, $categoryId, 'category', $postData['title'], $languageCode);
             echo json_encode(['html' => Plugins::renderPropertiesSetsAccordion($getCategoriesTypeSetsData, $categoryId),
                 'get_categories_type_sets' => $getCategoriesTypeSets, 'category_id' => $categoryId]);
         }
@@ -239,13 +268,13 @@ trait CategoriesTrait {
             if (empty($this->models['m_categories'])) {
                 ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Ошибка загрузки модели категорий', 'status' => 'danger']);
             } else {
-                $res = $this->models['m_categories']->deleteCategory($categoryId);
-                if (is_object($res) && $res instanceof ErrorLogger) {
-                    $errorMessage = $res->result['error_message'] ?? 'Произошла ошибка при удалении категории';
-                    ClassNotifications::addNotificationUser($this->logged_in, ['text' => $errorMessage, 'status' => 'danger']);
-                } else {
-                    ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.removed'] ?? 'Категория успешно удалена', 'status' => 'success']);
-                }
+                $this->notifyOperationResult(
+                    $this->models['m_categories']->deleteCategory($categoryId),
+                    [
+                        'success_message' => $this->lang['sys.removed'] ?? 'Категория успешно удалена',
+                        'default_error_message' => 'Произошла ошибка при удалении категории',
+                    ]
+                );
             }
         } else {
             ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Некорректный или отсутствующий ID категории', 'status' => 'warning']);

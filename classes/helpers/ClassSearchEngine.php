@@ -5,7 +5,8 @@ namespace classes\helpers;
 use \classes\plugins\SafeMySQL;
 use \classes\system\SysClass;
 use \classes\system\Constants;
-use \classes\system\ErrorLogger;
+use \classes\system\Logger;
+use \classes\system\PropertyFieldContract;
 
 /**
  * Класс для управления поисковым индексом и выполнения поиска по сайту
@@ -16,6 +17,8 @@ class ClassSearchEngine {
 
     private const MIN_WORD_LENGTH = 3; // Минимальная длина слова для поиска/индексации
     private const NGRAM_LENGTH = 3;    // Длина N-граммы
+    private const MAX_NGRAM_SOURCE_LENGTH = 768; // Ограничение текста для fuzzy-индекса
+    private const REBUILD_BATCH_SIZE = 200;
     // Порог схожести N-грамм для нечеткого поиска (0.0 до 1.0)
     private const NGRAM_SIMILARITY_THRESHOLD = 0.3;
     // Лимит результатов для нечеткого поиска (может отличаться от основного)
@@ -40,6 +43,19 @@ class ClassSearchEngine {
         'email_template' => 'edit_email_template/id/',
         'email_snippet' => 'email_snippet_edit/id/',
             // Добавьте другие типы
+    ];
+    private const SEARCHABLE_FIELD_TYPES = [
+        'text',
+        'number',
+        'date',
+        'time',
+        'datetime-local',
+        'email',
+        'phone',
+        'textarea',
+        'select',
+        'checkbox',
+        'radio',
     ];
 
     public function __construct() {
@@ -92,8 +108,8 @@ class ClassSearchEngine {
             );
             
             if ($searchId) {
-                $textForNgrams = $indexData['title'] . ' ' . $indexData['content_full'];
-                $ngrams = self::generateNgrams(self::prepareContent($textForNgrams));
+                $textForNgrams = self::prepareNgramSource($indexData['title'], $indexData['content_full']);
+                $ngrams = self::generateNgrams($textForNgrams);
                 $this->updateNgramsInDb((int)$searchId, $ngrams);
             } else {
                  return false;
@@ -101,7 +117,10 @@ class ClassSearchEngine {
 
             return true;
         } catch (\Throwable $e) {
-            new ErrorLogger("Критическая ошибка updateIndexEntry: " . $e->getMessage(), __CLASS__ . '::' . __FUNCTION__, 'search_index_error', ['data' => $data]);
+            Logger::error('search_index_error', 'Критическая ошибка updateIndexEntry: ' . $e->getMessage(), ['data' => $data], [
+                'initiator' => __CLASS__ . '::' . __FUNCTION__,
+                'details' => $e->getMessage(),
+            ]);
             return false;
         }
     }
@@ -171,7 +190,10 @@ class ClassSearchEngine {
             $result = $this->db->query($sqlDelete, Constants::SEARCH_INDEX_TABLE, $entityType, $entityId);
             return (bool) $result;
         } catch (\Throwable $e) {
-            new ErrorLogger("Ошибка removeIndexEntry {$entityType} ID {$entityId}: " . $e->getMessage(), __CLASS__ . '::' . __FUNCTION__, 'search_index_error', ['entity_type' => $entityType, 'entity_id' => $entityId]);
+            Logger::error('search_index_error', "Ошибка removeIndexEntry {$entityType} ID {$entityId}: " . $e->getMessage(), ['entity_type' => $entityType, 'entity_id' => $entityId], [
+                'initiator' => __CLASS__ . '::' . __FUNCTION__,
+                'details' => $e->getMessage(),
+            ]);
             return false;
         }
     }
@@ -274,7 +296,10 @@ class ClassSearchEngine {
                 $total = count($results);
             }
         } catch (\Throwable $e) {
-            new ErrorLogger("Ошибка SearchEngine::search: " . $e->getMessage(), __CLASS__ . '::' . __FUNCTION__, 'search_error', ['query' => $originalQuery, 'lang' => $lang]);
+            Logger::error('search_error', 'Ошибка SearchEngine::search: ' . $e->getMessage(), ['query' => $originalQuery, 'lang' => $lang], [
+                'initiator' => __CLASS__ . '::' . __FUNCTION__,
+                'details' => $e->getMessage(),
+            ]);
             return ['results' => [], 'total' => 0, 'error' => 'Search error occurred'];
         }
 
@@ -356,10 +381,384 @@ class ClassSearchEngine {
                 }
             }
         } catch (\Throwable $e) {
-            new ErrorLogger("Ошибка SearchEngine::autocomplete: " . $e->getMessage(), __CLASS__ . '::' . __FUNCTION__, 'search_error', ['term' => $term, 'lang' => $lang]);
+            Logger::error('search_error', 'Ошибка SearchEngine::autocomplete: ' . $e->getMessage(), ['term' => $term, 'lang' => $lang], [
+                'initiator' => __CLASS__ . '::' . __FUNCTION__,
+                'details' => $e->getMessage(),
+            ]);
             return [];
         }
         return $suggestions;
+    }
+
+    /**
+     * Переиндексирует одну сущность по её текущему состоянию в БД.
+     */
+    public function reindexEntity(string $entityType, int $entityId, ?string $languageCode = null): bool {
+        $entityType = strtolower(trim($entityType));
+        if ($entityId <= 0 || !in_array($entityType, ['page', 'category'], true)) {
+            return false;
+        }
+
+        $entityRow = $this->loadEntityRow($entityType, $entityId, $languageCode);
+        if ($entityRow === null) {
+            return $this->removeIndexEntry($entityType, $entityId);
+        }
+
+        if (($entityRow['status'] ?? '') !== 'active') {
+            return $this->removeIndexEntry($entityType, $entityId);
+        }
+
+        $indexData = $this->buildIndexPayloadFromEntityRow($entityType, $entityRow);
+        if ($indexData === null) {
+            return $this->removeIndexEntry($entityType, $entityId);
+        }
+
+        return $this->updateIndexEntry($indexData);
+    }
+
+    /**
+     * Возвращает текст свойств одной сущности, пригодный для добавления в search_index.
+     */
+    public function getEntityPropertySearchText(string $entityType, int $entityId, string $languageCode = ENV_DEF_LANG): string {
+        $map = $this->collectEntityPropertySearchTextMap($entityType, [$entityId], $languageCode);
+        return $map[$entityId] ?? '';
+    }
+
+    /**
+     * Батчево собирает поисковый текст из property_values, чтобы не делать N+1 на rebuild.
+     *
+     * @return array<int, string> [entity_id => prepared_text]
+     */
+    public function collectEntityPropertySearchTextMap(string $entityType, array $entityIds, string $languageCode = ENV_DEF_LANG): array {
+        $entityType = strtolower(trim($entityType));
+        $entityIds = array_values(array_unique(array_filter(array_map('intval', $entityIds), static fn(int $id): bool => $id > 0)));
+        if (empty($entityIds) || !in_array($entityType, ['page', 'category'], true)) {
+            return [];
+        }
+
+        $rows = $this->db->getAll(
+            'SELECT pv.entity_id, pv.property_values, p.name, p.default_values, p.is_multiple, p.is_required, pt.fields AS type_fields
+             FROM ?n AS pv
+             INNER JOIN ?n AS p ON p.property_id = pv.property_id
+             LEFT JOIN ?n AS pt ON pt.type_id = p.type_id
+             WHERE pv.entity_type = ?s
+               AND pv.entity_id IN (?a)
+               AND pv.language_code = ?s
+               AND p.language_code = ?s
+               AND p.status = ?s
+             ORDER BY pv.entity_id ASC, pv.property_id ASC',
+            Constants::PROPERTY_VALUES_TABLE,
+            Constants::PROPERTIES_TABLE,
+            Constants::PROPERTY_TYPES_TABLE,
+            $entityType,
+            $entityIds,
+            $languageCode,
+            $languageCode,
+            'active'
+        );
+
+        $preparedByEntity = array_fill_keys($entityIds, '');
+        foreach ($rows as $row) {
+            $entityId = (int) ($row['entity_id'] ?? 0);
+            if ($entityId <= 0) {
+                continue;
+            }
+            $runtimeFields = PropertyFieldContract::buildRuntimeFields(
+                $row['default_values'] ?? [],
+                $row['property_values'] ?? [],
+                $row['type_fields'] ?? [],
+                $row
+            );
+            $fieldText = $this->buildSearchTextFromRuntimeFields($runtimeFields);
+            if ($fieldText === '') {
+                continue;
+            }
+            $preparedByEntity[$entityId] = trim($preparedByEntity[$entityId] . ' ' . $fieldText);
+        }
+
+        foreach ($preparedByEntity as $entityId => $text) {
+            $preparedByEntity[$entityId] = self::prepareContent($text);
+        }
+
+        return $preparedByEntity;
+    }
+
+    /**
+     * Диагностика поисковой схемы и обязательных индексов.
+     * Возвращает структуру, пригодную для smoke/regression-проверок.
+     */
+    public function getSchemaDiagnostics(): array {
+        $requiredIndexes = [
+            Constants::SEARCH_INDEX_TABLE => [
+                'uq_entity' => ['type' => 'BTREE', 'columns' => 'entity_id,entity_type,language_code'],
+                'idx_content' => ['type' => 'FULLTEXT', 'columns' => 'title,content_full'],
+                'idx_entity' => ['type' => 'BTREE', 'columns' => 'entity_type,entity_id'],
+                'idx_lookup' => ['type' => 'BTREE', 'columns' => 'language_code'],
+                'idx_rank' => ['type' => 'BTREE', 'columns' => 'language_code,popularity_score,static_rank'],
+                'idx_title_prefix' => ['type' => 'BTREE', 'columns' => 'title'],
+            ],
+            Constants::SEARCH_NGRAMS_TABLE => [
+                'idx_ngram_search' => ['type' => 'BTREE', 'columns' => 'ngram,search_id'],
+                'idx_search_id' => ['type' => 'BTREE', 'columns' => 'search_id'],
+            ],
+            Constants::SEARCH_LOG_TABLE => [
+                'uq_query' => ['type' => 'BTREE', 'columns' => 'normalized_query,area,language_code'],
+                'idx_hits' => ['type' => 'BTREE', 'columns' => 'hit_count'],
+            ],
+        ];
+
+        $tableNames = array_keys($requiredIndexes);
+        $existingTables = $this->db->getCol(
+            'SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN (?a)',
+            $tableNames
+        );
+        $tablePresence = array_fill_keys($tableNames, false);
+        foreach ($existingTables as $tableName) {
+            $tablePresence[$tableName] = true;
+        }
+
+        $indexRows = $this->db->getAll(
+            'SELECT TABLE_NAME, INDEX_NAME, INDEX_TYPE, GROUP_CONCAT(COLUMN_NAME ORDER BY SEQ_IN_INDEX SEPARATOR \',\') AS columns_list
+             FROM INFORMATION_SCHEMA.STATISTICS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN (?a)
+             GROUP BY TABLE_NAME, INDEX_NAME, INDEX_TYPE',
+            $tableNames
+        );
+        $existingIndexes = [];
+        foreach ($indexRows as $row) {
+            $existingIndexes[$row['TABLE_NAME']][$row['INDEX_NAME']] = [
+                'type' => strtoupper((string) ($row['INDEX_TYPE'] ?? 'BTREE')),
+                'columns' => (string) ($row['columns_list'] ?? ''),
+            ];
+        }
+
+        $issues = [];
+        $indexStatus = [];
+        foreach ($requiredIndexes as $tableName => $indexes) {
+            $indexStatus[$tableName] = [];
+            foreach ($indexes as $indexName => $expected) {
+                $actual = $existingIndexes[$tableName][$indexName] ?? null;
+                $present = $actual !== null;
+                $typeMatches = $present && strtoupper($actual['type']) === strtoupper($expected['type']);
+                $columnMatches = $present && $actual['columns'] === $expected['columns'];
+                $indexStatus[$tableName][$indexName] = [
+                    'present' => $present,
+                    'expected' => $expected,
+                    'actual' => $actual,
+                    'matches' => $present && $typeMatches && $columnMatches,
+                ];
+                if (!$present) {
+                    $issues[] = "Missing index {$tableName}.{$indexName}";
+                } elseif (!$typeMatches || !$columnMatches) {
+                    $issues[] = "Index mismatch {$tableName}.{$indexName}";
+                }
+            }
+        }
+
+        $tableCounts = [
+            Constants::SEARCH_INDEX_TABLE => $tablePresence[Constants::SEARCH_INDEX_TABLE]
+                ? (int) $this->db->getOne('SELECT COUNT(*) FROM ?n', Constants::SEARCH_INDEX_TABLE)
+                : null,
+            Constants::SEARCH_NGRAMS_TABLE => $tablePresence[Constants::SEARCH_NGRAMS_TABLE]
+                ? (int) $this->db->getOne('SELECT COUNT(*) FROM ?n', Constants::SEARCH_NGRAMS_TABLE)
+                : null,
+            Constants::SEARCH_LOG_TABLE => $tablePresence[Constants::SEARCH_LOG_TABLE]
+                ? (int) $this->db->getOne('SELECT COUNT(*) FROM ?n', Constants::SEARCH_LOG_TABLE)
+                : null,
+        ];
+
+        $orphanNgrams = null;
+        if ($tablePresence[Constants::SEARCH_INDEX_TABLE] && $tablePresence[Constants::SEARCH_NGRAMS_TABLE]) {
+            $orphanNgrams = (int) $this->db->getOne(
+                'SELECT COUNT(*)
+                 FROM ?n AS sn
+                 LEFT JOIN ?n AS si ON si.search_id = sn.search_id
+                 WHERE si.search_id IS NULL',
+                Constants::SEARCH_NGRAMS_TABLE,
+                Constants::SEARCH_INDEX_TABLE
+            );
+            if ($orphanNgrams > 0) {
+                $issues[] = 'Detected orphaned search ngrams.';
+            }
+        }
+
+        return [
+            'tables' => $tablePresence,
+            'indexes' => $indexStatus,
+            'counts' => $tableCounts,
+            'orphan_ngrams' => $orphanNgrams,
+            'issues' => $issues,
+            'ok' => empty($issues),
+        ];
+    }
+
+    /**
+     * Возвращает EXPLAIN для основных поисковых запросов.
+     * Нужен для проверки, что FULLTEXT/NGRAM индексы реально участвуют в плане.
+     */
+    public function explainSearchPlans(
+        string $query,
+        string $lang = ENV_DEF_LANG,
+        bool $isAdminSearch = false,
+        int $limit = 20,
+        int $offset = 0
+    ): array {
+        $originalQuery = trim($query);
+        if ($originalQuery === '') {
+            return ['query' => $query, 'issues' => ['empty_query']];
+        }
+
+        $searchQueryPrepared = self::prepareSearchQueryBoolean($originalQuery);
+        $entityTypeFilter = $isAdminSearch ? '' : "AND entity_type IN ('page', 'category')";
+        $ngrams = self::generateNgrams(self::prepareContent($originalQuery));
+        $safeSearchQuery = "'" . addslashes($searchQueryPrepared) . "'";
+
+        $plans = [
+            'query' => $originalQuery,
+            'prepared_boolean_query' => $searchQueryPrepared,
+            'ngram_count' => count($ngrams),
+            'fulltext_count' => [],
+            'fulltext_results' => [],
+            'ngram_results' => [],
+            'issues' => [],
+        ];
+
+        if ($searchQueryPrepared === '') {
+            $plans['issues'][] = 'prepared_boolean_query_is_empty';
+            return $plans;
+        }
+
+        try {
+            $plans['fulltext_count'] = $this->db->getAll(
+                "EXPLAIN SELECT COUNT(search_id) FROM ?n
+                 WHERE MATCH(title, content_full) AGAINST (" . $safeSearchQuery . " IN BOOLEAN MODE)
+                   AND language_code = ?s " . $entityTypeFilter,
+                Constants::SEARCH_INDEX_TABLE,
+                $lang
+            );
+
+            $plans['fulltext_results'] = $this->db->getAll(
+                "EXPLAIN SELECT search_id, entity_id, entity_type, title, popularity_score, static_rank, language_code,
+                                MATCH(title, content_full) AGAINST (" . $safeSearchQuery . " IN BOOLEAN MODE) AS relevance
+                   FROM ?n
+                  WHERE MATCH(title, content_full) AGAINST (" . $safeSearchQuery . " IN BOOLEAN MODE)
+                    AND language_code = ?s " . $entityTypeFilter . "
+                  ORDER BY relevance DESC, popularity_score DESC, static_rank DESC
+                  LIMIT ?i, ?i",
+                Constants::SEARCH_INDEX_TABLE,
+                $lang,
+                $offset,
+                $limit
+            );
+
+            if (!empty($ngrams)) {
+                $plans['ngram_results'] = $this->db->getAll(
+                    "EXPLAIN SELECT si.search_id, si.entity_id, si.entity_type, si.title, si.popularity_score, si.static_rank,
+                                    (t.ngram_matches / ?i) AS relevance
+                       FROM ?n si
+                       JOIN (
+                           SELECT search_id, COUNT(ngram_id) AS ngram_matches
+                           FROM ?n
+                           WHERE ngram IN (?a)
+                           GROUP BY search_id
+                       ) t ON si.search_id = t.search_id
+                      WHERE si.language_code = ?s " . ($isAdminSearch ? '' : "AND si.entity_type IN ('page', 'category')") . "
+                      ORDER BY relevance DESC, si.popularity_score DESC, si.static_rank DESC
+                      LIMIT ?i",
+                    max(1, count($ngrams)),
+                    Constants::SEARCH_INDEX_TABLE,
+                    Constants::SEARCH_NGRAMS_TABLE,
+                    $ngrams,
+                    $lang,
+                    $limit
+                );
+            }
+        } catch (\Throwable $e) {
+            $plans['issues'][] = $e->getMessage();
+        }
+
+        return $plans;
+    }
+
+    /**
+     * Невесомый smoke-тест движка без зависимости от реальных страниц/категорий.
+     * Создает временные строки индекса, проверяет exact/fuzzy/autocomplete и затем очищает за собой.
+     */
+    public function runSmokeTest(string $lang = ENV_DEF_LANG): array {
+        $token = 'codexsearch' . bin2hex(random_bytes(5));
+        $fuzzyToken = substr($token, 0, -1) . (substr($token, -1) === 'z' ? 'y' : 'z');
+        $prefix = substr($token, 0, 8);
+        $baseId = random_int(1500000000, 1999999999);
+        $fixtures = [
+            [
+                'entity_id' => $baseId,
+                'entity_type' => 'page',
+                'language_code' => $lang,
+                'title' => $token . ' page smoke',
+                'content_full' => 'Search smoke content for ' . $token . ' architecture index relevance',
+            ],
+            [
+                'entity_id' => $baseId + 1,
+                'entity_type' => 'category',
+                'language_code' => $lang,
+                'title' => $token . ' category smoke',
+                'content_full' => 'Search smoke category body ' . $token . ' taxonomy tree',
+            ],
+        ];
+
+        $created = [];
+        $normalizedQueries = [
+            self::normalizeQuery($token),
+            self::normalizeQuery($fuzzyToken),
+        ];
+
+        try {
+            foreach ($fixtures as $fixture) {
+                if ($this->updateIndexEntry($fixture)) {
+                    $created[] = [$fixture['entity_type'], (int) $fixture['entity_id']];
+                }
+            }
+
+            $autocompleteResults = $this->autocomplete($prefix, $lang, 10);
+            $exactResults = $this->search($token, $lang, 10, 0);
+            $fuzzyResults = $this->search($fuzzyToken, $lang, 10, 0);
+
+            $expectedIds = array_column($fixtures, 'entity_id');
+            $exactIds = array_map(static fn(array $row): int => (int) ($row['id'] ?? 0), $exactResults['results'] ?? []);
+            $fuzzyIds = array_map(static fn(array $row): int => (int) ($row['id'] ?? 0), $fuzzyResults['results'] ?? []);
+            $autocompleteTypes = array_map(static fn(array $row): string => (string) ($row['type'] ?? ''), $autocompleteResults);
+
+            return [
+                'token' => $token,
+                'fuzzy_token' => $fuzzyToken,
+                'prefix' => $prefix,
+                'created_entries' => count($created),
+                'exact_search' => $exactResults,
+                'fuzzy_search' => $fuzzyResults,
+                'autocomplete' => $autocompleteResults,
+                'assertions' => [
+                    'fixtures_created' => count($created) === count($fixtures),
+                    'exact_hits_fixture' => count(array_intersect($expectedIds, $exactIds)) >= 1,
+                    'fuzzy_hits_fixture' => count(array_intersect($expectedIds, $fuzzyIds)) >= 1,
+                    'autocomplete_hits_index_titles' => count(array_filter(
+                        $autocompleteTypes,
+                        static fn(string $type): bool => in_array($type, ['page', 'category'], true)
+                    )) >= 1,
+                ],
+            ];
+        } finally {
+            foreach ($created as [$entityType, $entityId]) {
+                $this->removeIndexEntry((string) $entityType, (int) $entityId);
+            }
+            if (!empty($normalizedQueries)) {
+                $this->db->query(
+                    'DELETE FROM ?n WHERE normalized_query IN (?a) AND language_code = ?s',
+                    Constants::SEARCH_LOG_TABLE,
+                    $normalizedQueries,
+                    $lang
+                );
+            }
+        }
     }
 
     // === ПРИВАТНЫЕ МЕТОДЫ ДЛЯ ВЫПОЛНЕНИЯ ПОИСКА ===
@@ -422,23 +821,23 @@ class ClassSearchEngine {
 
             // 3. Вставляем новые N-граммы в цикле
             if (!empty($ngrams)) {
-                // --- ИСПОЛЬЗУЕМ СТАНДАРТНЫЙ INSERT ... SET ?u ---
-                $sql = "INSERT INTO ?n SET ?u"; // Плейсхолдеры ?n и ?u
-                $insertedCount = 0;
-                foreach ($ngrams as $ngram) {
-                    if (mb_strlen($ngram) === self::NGRAM_LENGTH) {
-                         // Формируем массив данных для ?u
-                         $data = [
-                             'ngram'     => $ngram,
-                             'search_id' => $searchId
-                         ];
-                         // Выполняем запрос с ?n и ?u
-                         $this->db->query($sql, Constants::SEARCH_NGRAMS_TABLE, $data);
-                         $insertedCount++;
+                $validNgrams = array_values(array_filter(
+                    array_unique($ngrams),
+                    static fn(string $ngram): bool => mb_strlen($ngram) === self::NGRAM_LENGTH
+                ));
+                foreach (array_chunk($validNgrams, 250) as $ngramChunk) {
+                    $values = [];
+                    foreach ($ngramChunk as $ngram) {
+                        $values[] = $this->db->parse('(?s, ?i)', $ngram, $searchId);
+                    }
+                    if (!empty($values)) {
+                        $this->db->query(
+                            'INSERT INTO ?n (ngram, search_id) VALUES ?p',
+                            Constants::SEARCH_NGRAMS_TABLE,
+                            implode(', ', $values)
+                        );
                     }
                 }
-                // SysClass::preFile('debug_ngrams_db', 'Finished INSERTs loop', ['searchId' => $searchId, 'inserted_count' => $insertedCount, 'total_ngrams' => count($ngrams)]);
-                 // ---------------------------------------------
             } else {
                 // SysClass::preFile('debug_ngrams_db', 'No ngrams to insert', ['searchId' => $searchId]);
             }
@@ -451,8 +850,15 @@ class ClassSearchEngine {
             $this->db->query("ROLLBACK");
 
             $errorDetails = ['searchId' => $searchId, 'error' => $e->getMessage(), 'trace' => $e->getTraceAsString()];
-            new ErrorLogger("Ошибка updateNgramsInDb для searchId {$searchId}: " . $e->getMessage(), __CLASS__.'::'.__FUNCTION__, 'search_ngram_error', $errorDetails);
-            SysClass::preFile('debug_ngrams_db_EXCEPTION', 'EXCEPTION in updateNgramsInDb, ROLLED BACK', $errorDetails);
+            Logger::error('search_ngram_error', "Ошибка updateNgramsInDb для searchId {$searchId}: " . $e->getMessage(), $errorDetails, [
+                'initiator' => __CLASS__ . '::' . __FUNCTION__,
+                'details' => $e->getMessage(),
+            ]);
+            Logger::warning('debug_ngrams_db_exception', 'EXCEPTION in updateNgramsInDb, ROLLED BACK', $errorDetails, [
+                'initiator' => __CLASS__ . '::' . __FUNCTION__,
+                'details' => 'EXCEPTION in updateNgramsInDb, ROLLED BACK',
+                'include_trace' => false,
+            ]);
         }
     }
 
@@ -503,7 +909,10 @@ class ClassSearchEngine {
             
             $this->db->query($sql, Constants::SEARCH_LOG_TABLE, $originalQuery, $normalizedQuery, $area, $lang);
         } catch (\Exception $e) {
-            new ErrorLogger('Ошибка логирования поискового запроса: ' . $e->getMessage(), __CLASS__ . '::' . __FUNCTION__, 'search_log_error');
+            Logger::error('search_log_error', 'Ошибка логирования поискового запроса: ' . $e->getMessage(), [], [
+                'initiator' => __CLASS__ . '::' . __FUNCTION__,
+                'details' => $e->getMessage(),
+            ]);
         }
     }
 
@@ -548,9 +957,12 @@ class ClassSearchEngine {
             'truncated_tables' => [],
             'pages_indexed' => 0,
             'categories_indexed' => 0,
+            'batches' => 0,
             'errors' => 0,
-            'error_log' => []
+            'error_log' => [],
+            'started_at' => date('c'),
         ];
+        $startedAt = microtime(true);
 
         try {
             // Шаг 1: Полная очистка старых данных.
@@ -561,60 +973,201 @@ class ClassSearchEngine {
             $stats['truncated_tables'][] = Constants::SEARCH_INDEX_TABLE;
             $this->db->query("SET FOREIGN_KEY_CHECKS=1");
 
-            // Шаг 2: Индексация всех активных страниц (pages).
-            $pages = $this->db->getAll(
-                "SELECT page_id, title, description, short_description FROM ?n WHERE status = 'active'",
-                Constants::PAGES_TABLE
-            );
-            foreach ($pages as $page) {
-                $contentForSearch = $page['title'] . ' ' . ($page['short_description'] ?? '') . ' ' . ($page['description'] ?? '');
-                
-                // ИСПРАВЛЕНО: URL больше не передается, как и в хуке.
-                $pageData = [
-                    'entity_id'    => $page['page_id'],
-                    'entity_type'  => 'page',
-                    'title'        => $page['title'],
-                    'content_full' => $contentForSearch,
-                ];
-
-                if (!$this->updateIndexEntry($pageData)) {
-                    $stats['errors']++;
-                    $stats['error_log'][] = "Failed to index page with ID: " . $page['page_id'];
-                } else {
-                    $stats['pages_indexed']++;
-                }
-            }
-
-            // Шаг 3: Индексация всех активных категорий (categories).
-            $categories = $this->db->getAll(
-                "SELECT category_id, title, description, short_description FROM ?n WHERE status = 'active'",
-                Constants::CATEGORIES_TABLE
-            );
-            foreach ($categories as $category) {
-                $contentForSearch = $category['title'] . ' ' . ($category['short_description'] ?? '') . ' ' . ($category['description'] ?? '');
-
-                // ИСПРАВЛЕНО: URL больше не передается.
-                $categoryData = [
-                    'entity_id'    => $category['category_id'],
-                    'entity_type'  => 'category',
-                    'title'        => $category['title'],
-                    'content_full' => $contentForSearch,
-                ];
-
-                if (!$this->updateIndexEntry($categoryData)) {
-                    $stats['errors']++;
-                    $stats['error_log'][] = "Failed to index category with ID: " . $category['category_id'];
-                } else {
-                    $stats['categories_indexed']++;
-                }
-            }
+            // Шаг 2-3: Батчевая индексация активных страниц и категорий.
+            $this->rebuildEntityTypeIndex('page', $stats);
+            $this->rebuildEntityTypeIndex('category', $stats);
 
         } catch (\Throwable $e) {
-            new ErrorLogger("Критическая ошибка при полной переиндексации: " . $e->getMessage(), __CLASS__, 'rebuild_index_error');
+            Logger::critical('rebuild_index_error', 'Критическая ошибка при полной переиндексации: ' . $e->getMessage(), [], [
+                'initiator' => __CLASS__,
+                'details' => $e->getMessage(),
+            ]);
             $stats['fatal_error'] = $e->getMessage();
         }
 
+        $stats['finished_at'] = date('c');
+        $stats['duration_ms'] = (int) round((microtime(true) - $startedAt) * 1000);
+
         return $stats;
-    }    
+    }
+
+    private static function prepareNgramSource(string $title, string $contentFull): string {
+        $preparedTitle = self::prepareContent($title);
+        $preparedContent = self::prepareContent($contentFull);
+        if ($preparedContent !== '' && mb_strlen($preparedContent) > self::MAX_NGRAM_SOURCE_LENGTH) {
+            $preparedContent = mb_substr($preparedContent, 0, self::MAX_NGRAM_SOURCE_LENGTH);
+        }
+        return trim($preparedTitle . ' ' . $preparedContent);
+    }
+
+    private function loadEntityRow(string $entityType, int $entityId, ?string $languageCode = null): ?array {
+        $table = $entityType === 'page' ? Constants::PAGES_TABLE : Constants::CATEGORIES_TABLE;
+        $idColumn = $entityType === 'page' ? 'page_id' : 'category_id';
+        $languageSql = $languageCode !== null && $languageCode !== ''
+            ? $this->db->parse(' AND language_code = ?s', $languageCode)
+            : '';
+
+        return $this->db->getRow(
+            "SELECT {$idColumn}, title, short_description, description, status, language_code
+             FROM ?n
+             WHERE {$idColumn} = ?i{$languageSql}
+             LIMIT 1",
+            $table,
+            $entityId
+        ) ?: null;
+    }
+
+    private function buildIndexPayloadFromEntityRow(string $entityType, array $entityRow, ?string $propertyText = null): ?array {
+        $idColumn = $entityType === 'page' ? 'page_id' : 'category_id';
+        $entityId = (int) ($entityRow[$idColumn] ?? 0);
+        if ($entityId <= 0) {
+            return null;
+        }
+
+        $languageCode = (string) ($entityRow['language_code'] ?? ENV_DEF_LANG);
+        $title = self::prepareTitle((string) ($entityRow['title'] ?? ''));
+        if ($propertyText === null) {
+            $propertyText = $this->getEntityPropertySearchText($entityType, $entityId, $languageCode);
+        }
+
+        $contentParts = [
+            (string) ($entityRow['title'] ?? ''),
+            (string) ($entityRow['short_description'] ?? ''),
+            (string) ($entityRow['description'] ?? ''),
+            $propertyText,
+        ];
+        $contentFull = self::prepareContent(implode(' ', array_filter(
+            $contentParts,
+            static fn($value): bool => is_scalar($value) && trim((string) $value) !== ''
+        )));
+
+        if ($title === '' && $contentFull === '') {
+            return null;
+        }
+
+        return [
+            'entity_id' => $entityId,
+            'entity_type' => $entityType,
+            'language_code' => $languageCode,
+            'title' => $title,
+            'content_full' => $contentFull,
+        ];
+    }
+
+    private function buildSearchTextFromRuntimeFields(array $runtimeFields): string {
+        $parts = [];
+        foreach ($runtimeFields as $field) {
+            if (!is_array($field)) {
+                continue;
+            }
+            $fieldType = strtolower(trim((string) ($field['type'] ?? '')));
+            if (!in_array($fieldType, self::SEARCHABLE_FIELD_TYPES, true)) {
+                continue;
+            }
+
+            if (PropertyFieldContract::isChoiceType($fieldType)) {
+                $selectedKeys = array_map('strval', (array) ($field['value'] ?? []));
+                if (empty($selectedKeys)) {
+                    continue;
+                }
+                $optionByKey = [];
+                foreach ((array) ($field['options'] ?? []) as $option) {
+                    if (!is_array($option)) {
+                        continue;
+                    }
+                    $key = trim((string) ($option['key'] ?? ''));
+                    if ($key === '') {
+                        continue;
+                    }
+                    $optionByKey[$key] = trim((string) ($option['label'] ?? $key));
+                }
+                foreach ($selectedKeys as $selectedKey) {
+                    if ($selectedKey === '') {
+                        continue;
+                    }
+                    if (isset($optionByKey[$selectedKey]) && $optionByKey[$selectedKey] !== '') {
+                        $parts[] = $optionByKey[$selectedKey];
+                    }
+                    if (!isset($optionByKey[$selectedKey]) || $optionByKey[$selectedKey] !== $selectedKey) {
+                        $parts[] = $selectedKey;
+                    }
+                }
+                continue;
+            }
+
+            $value = $field['value'] ?? '';
+            if (is_array($value)) {
+                foreach ($value as $item) {
+                    $item = trim((string) $item);
+                    if ($item !== '') {
+                        $parts[] = $item;
+                    }
+                }
+                continue;
+            }
+
+            $value = trim((string) $value);
+            if ($value !== '') {
+                $parts[] = $value;
+            }
+        }
+
+        return self::prepareContent(implode(' ', $parts));
+    }
+
+    private function rebuildEntityTypeIndex(string $entityType, array &$stats): void {
+        $table = $entityType === 'page' ? Constants::PAGES_TABLE : Constants::CATEGORIES_TABLE;
+        $idColumn = $entityType === 'page' ? 'page_id' : 'category_id';
+        $statsKey = $entityType === 'page' ? 'pages_indexed' : 'categories_indexed';
+        $lastId = 0;
+
+        while (true) {
+            $rows = $this->db->getAll(
+                "SELECT {$idColumn}, title, short_description, description, language_code, status
+                 FROM ?n
+                 WHERE {$idColumn} > ?i AND status = ?s
+                 ORDER BY {$idColumn} ASC
+                 LIMIT ?i",
+                $table,
+                $lastId,
+                'active',
+                self::REBUILD_BATCH_SIZE
+            );
+
+            if (empty($rows)) {
+                break;
+            }
+
+            $stats['batches']++;
+            $rowsByLanguage = [];
+            foreach ($rows as $row) {
+                $languageCode = (string) ($row['language_code'] ?? ENV_DEF_LANG);
+                $rowsByLanguage[$languageCode][] = $row;
+            }
+
+            $propertyTextMap = [];
+            foreach ($rowsByLanguage as $languageCode => $languageRows) {
+                $ids = array_map(static fn(array $row): int => (int) ($row[$idColumn] ?? 0), $languageRows);
+                $propertyTextMap[$languageCode] = $this->collectEntityPropertySearchTextMap($entityType, $ids, $languageCode);
+            }
+
+            foreach ($rows as $row) {
+                $entityId = (int) ($row[$idColumn] ?? 0);
+                if ($entityId <= 0) {
+                    continue;
+                }
+                $languageCode = (string) ($row['language_code'] ?? ENV_DEF_LANG);
+                $propertyText = $propertyTextMap[$languageCode][$entityId] ?? '';
+                $indexData = $this->buildIndexPayloadFromEntityRow($entityType, $row, $propertyText);
+                if ($indexData === null || !$this->updateIndexEntry($indexData)) {
+                    $stats['errors']++;
+                    $stats['error_log'][] = "Failed to index {$entityType} with ID: {$entityId}";
+                } else {
+                    $stats[$statsKey]++;
+                }
+                $lastId = $entityId;
+            }
+        }
+    }
     
 }

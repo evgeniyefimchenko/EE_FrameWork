@@ -4,24 +4,26 @@ use classes\plugins\SafeMySQL;
 use classes\system\Constants;
 use classes\system\SysClass;
 use classes\system\Hook;
+use classes\system\Logger;
+use classes\system\OperationResult;
 
 /**
- * Модель работы с страницами
+ * РњРѕРґРµР»СЊ СЂР°Р±РѕС‚С‹ СЃ СЃС‚СЂР°РЅРёС†Р°РјРё
  */
 class ModelPages {
 
     /**
-     * Получает данные всех страниц с возможностью сортировки, фильтрации и ограничения количества записей
-     * @param string $order Строка с сортировкой (например, 'page_id ASC')
-     * @param string|null $where Условие для фильтрации данных (опционально)
-     * @param int $start Начальная позиция для выборки (опционально)
-     * @param int $limit Количество записей для выборки (опционально)
-     * @param string $language_code Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG
-     * @return array Массив с данными страниц
+     * РџРѕР»СѓС‡Р°РµС‚ РґР°РЅРЅС‹Рµ РІСЃРµС… СЃС‚СЂР°РЅРёС† СЃ РІРѕР·РјРѕР¶РЅРѕСЃС‚СЊСЋ СЃРѕСЂС‚РёСЂРѕРІРєРё, С„РёР»СЊС‚СЂР°С†РёРё Рё РѕРіСЂР°РЅРёС‡РµРЅРёСЏ РєРѕР»РёС‡РµСЃС‚РІР° Р·Р°РїРёСЃРµР№
+     * @param string $order РЎС‚СЂРѕРєР° СЃ СЃРѕСЂС‚РёСЂРѕРІРєРѕР№ (РЅР°РїСЂРёРјРµСЂ, 'page_id ASC')
+     * @param string|null $where РЈСЃР»РѕРІРёРµ РґР»СЏ С„РёР»СЊС‚СЂР°С†РёРё РґР°РЅРЅС‹С… (РѕРїС†РёРѕРЅР°Р»СЊРЅРѕ)
+     * @param int $start РќР°С‡Р°Р»СЊРЅР°СЏ РїРѕР·РёС†РёСЏ РґР»СЏ РІС‹Р±РѕСЂРєРё (РѕРїС†РёРѕРЅР°Р»СЊРЅРѕ)
+     * @param int $limit РљРѕР»РёС‡РµСЃС‚РІРѕ Р·Р°РїРёСЃРµР№ РґР»СЏ РІС‹Р±РѕСЂРєРё (РѕРїС†РёРѕРЅР°Р»СЊРЅРѕ)
+     * @param string $language_code РљРѕРґ СЏР·С‹РєР° РїРѕ СЃС‚Р°РЅРґР°СЂС‚Сѓ ISO 3166-2. РџРѕ СѓРјРѕР»С‡Р°РЅРёСЋ РёСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ Р·РЅР°С‡РµРЅРёРµ РёР· РєРѕРЅСЃС‚Р°РЅС‚С‹ ENV_DEF_LANG
+     * @return array РњР°СЃСЃРёРІ СЃ РґР°РЅРЅС‹РјРё СЃС‚СЂР°РЅРёС†
      */
     public function getPagesData($order = 'page_id ASC', $where = null, $start = 0, $limit = 100, $language_code = ENV_DEF_LANG) {
         $start = $start ? $start : 0;
-        // Проверка, содержит ли $where или $order type_id
+        // РџСЂРѕРІРµСЂРєР°, СЃРѕРґРµСЂР¶РёС‚ Р»Рё $where РёР»Рё $order type_id
         $needsJoin = strpos($where, 'type_id') !== false || strpos($order, 'type_id') !== false;
         $languageCondition = "language_code = ?s";
         if ($where) {
@@ -30,7 +32,7 @@ class ModelPages {
             $where = $languageCondition;
         }
         if ($needsJoin) {
-            // Если type_id присутствует в $where или $order, применяем JOIN
+            // Р•СЃР»Рё type_id РїСЂРёСЃСѓС‚СЃС‚РІСѓРµС‚ РІ $where РёР»Рё $order, РїСЂРёРјРµРЅСЏРµРј JOIN
             $order = SysClass::ee_addPrefixToFields($order, SysClass::ee_getFieldsTable(Constants::PAGES_TABLE), 'e.');
             $where = SysClass::ee_addPrefixToFields($where, SysClass::ee_getFieldsTable(Constants::PAGES_TABLE), 'e.');
             $order = str_replace('type_id', 't.type_id', $order);
@@ -45,7 +47,7 @@ class ModelPages {
             LIMIT ?i, ?i";
             $res_array = SafeMySQL::gi()->getAll($sql_pages, Constants::PAGES_TABLE, Constants::CATEGORIES_TABLE, Constants::CATEGORIES_TYPES_TABLE, $language_code, $start, $limit);
         } else {
-            // Если type_id отсутствует, применяем простой запрос
+            // Р•СЃР»Рё type_id РѕС‚СЃСѓС‚СЃС‚РІСѓРµС‚, РїСЂРёРјРµРЅСЏРµРј РїСЂРѕСЃС‚РѕР№ Р·Р°РїСЂРѕСЃ
             $orderString = $order ? $order : 'e.page_id ASC';
             $sql_pages = "SELECT e.page_id FROM ?n as e WHERE $where ORDER BY $orderString LIMIT ?i, ?i";
             $res_array = SafeMySQL::gi()->getAll($sql_pages, Constants::PAGES_TABLE, $language_code, $start, $limit);
@@ -73,11 +75,11 @@ class ModelPages {
     }
 
     /**
-     * Получает данные одной страницы по её ID
-     * @param int $pageId ID страницы, для которой нужно получить данные
-     * @param string $language_code Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG
-     * @param string $status Статус типа свойства Constants::ALL_STATUS
-     * @return array|null Массив с данными страницы или NULL, если страница не найдена
+     * РџРѕР»СѓС‡Р°РµС‚ РґР°РЅРЅС‹Рµ РѕРґРЅРѕР№ СЃС‚СЂР°РЅРёС†С‹ РїРѕ РµС‘ ID
+     * @param int $pageId ID СЃС‚СЂР°РЅРёС†С‹, РґР»СЏ РєРѕС‚РѕСЂРѕР№ РЅСѓР¶РЅРѕ РїРѕР»СѓС‡РёС‚СЊ РґР°РЅРЅС‹Рµ
+     * @param string $language_code РљРѕРґ СЏР·С‹РєР° РїРѕ СЃС‚Р°РЅРґР°СЂС‚Сѓ ISO 3166-2. РџРѕ СѓРјРѕР»С‡Р°РЅРёСЋ РёСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ Р·РЅР°С‡РµРЅРёРµ РёР· РєРѕРЅСЃС‚Р°РЅС‚С‹ ENV_DEF_LANG
+     * @param string $status РЎС‚Р°С‚СѓСЃ С‚РёРїР° СЃРІРѕР№СЃС‚РІР° Constants::ALL_STATUS
+     * @return array|null РњР°СЃСЃРёРІ СЃ РґР°РЅРЅС‹РјРё СЃС‚СЂР°РЅРёС†С‹ РёР»Рё NULL, РµСЃР»Рё СЃС‚СЂР°РЅРёС†Р° РЅРµ РЅР°Р№РґРµРЅР°
      */
     public function getPageData($pageId, $language_code = ENV_DEF_LANG, $status = Constants::ALL_STATUS) {
         if (is_string($status)) {
@@ -109,11 +111,11 @@ class ModelPages {
     }
 
     /**
-     * Получает все страницы, исключая одну по её ID
-     * @param int|null $excludePageId ID страницы для исключения из результатов (по умолчанию NULL)
-     * @param string $language_code Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG
-     * @param string $status Статус типа свойства Constants::ALL_STATUS
-     * @return array Массив ассоциативных массивов, каждый из которых содержит ID и заголовок страницы. Первый элемент массива всегда имеет page_id 0 и пустой заголовок
+     * РџРѕР»СѓС‡Р°РµС‚ РІСЃРµ СЃС‚СЂР°РЅРёС†С‹, РёСЃРєР»СЋС‡Р°СЏ РѕРґРЅСѓ РїРѕ РµС‘ ID
+     * @param int|null $excludePageId ID СЃС‚СЂР°РЅРёС†С‹ РґР»СЏ РёСЃРєР»СЋС‡РµРЅРёСЏ РёР· СЂРµР·СѓР»СЊС‚Р°С‚РѕРІ (РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ NULL)
+     * @param string $language_code РљРѕРґ СЏР·С‹РєР° РїРѕ СЃС‚Р°РЅРґР°СЂС‚Сѓ ISO 3166-2. РџРѕ СѓРјРѕР»С‡Р°РЅРёСЋ РёСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ Р·РЅР°С‡РµРЅРёРµ РёР· РєРѕРЅСЃС‚Р°РЅС‚С‹ ENV_DEF_LANG
+     * @param string $status РЎС‚Р°С‚СѓСЃ С‚РёРїР° СЃРІРѕР№СЃС‚РІР° Constants::ALL_STATUS
+     * @return array РњР°СЃСЃРёРІ Р°СЃСЃРѕС†РёР°С‚РёРІРЅС‹С… РјР°СЃСЃРёРІРѕРІ, РєР°Р¶РґС‹Р№ РёР· РєРѕС‚РѕСЂС‹С… СЃРѕРґРµСЂР¶РёС‚ ID Рё Р·Р°РіРѕР»РѕРІРѕРє СЃС‚СЂР°РЅРёС†С‹. РџРµСЂРІС‹Р№ СЌР»РµРјРµРЅС‚ РјР°СЃСЃРёРІР° РІСЃРµРіРґР° РёРјРµРµС‚ page_id 0 Рё РїСѓСЃС‚РѕР№ Р·Р°РіРѕР»РѕРІРѕРє
      */
     public function getAllPages($excludePageId = null, $language_code = ENV_DEF_LANG, $status = Constants::ALL_STATUS) {
         if (is_string($status)) {
@@ -131,17 +133,17 @@ class ModelPages {
     }
 
     /**
-     * Возвращает заголовок страницы по её идентификатору и коду языка
-     * @param int $pageId Идентификатор страницы
-     * @param string $languageCode Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG
-     * @return string|null Возвращает заголовок страницы или null, если страница не найдена
+     * Р’РѕР·РІСЂР°С‰Р°РµС‚ Р·Р°РіРѕР»РѕРІРѕРє СЃС‚СЂР°РЅРёС†С‹ РїРѕ РµС‘ РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂСѓ Рё РєРѕРґСѓ СЏР·С‹РєР°
+     * @param int $pageId РРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ СЃС‚СЂР°РЅРёС†С‹
+     * @param string $languageCode РљРѕРґ СЏР·С‹РєР° РїРѕ СЃС‚Р°РЅРґР°СЂС‚Сѓ ISO 3166-2. РџРѕ СѓРјРѕР»С‡Р°РЅРёСЋ РёСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ Р·РЅР°С‡РµРЅРёРµ РёР· РєРѕРЅСЃС‚Р°РЅС‚С‹ ENV_DEF_LANG
+     * @return string|null Р’РѕР·РІСЂР°С‰Р°РµС‚ Р·Р°РіРѕР»РѕРІРѕРє СЃС‚СЂР°РЅРёС†С‹ РёР»Рё null, РµСЃР»Рё СЃС‚СЂР°РЅРёС†Р° РЅРµ РЅР°Р№РґРµРЅР°
      */
     public function getPageTitleById($pageId, $languageCode = ENV_DEF_LANG) {
         if (empty($pageId) || !is_numeric($pageId)) {
-            return null; // Если идентификатор страницы некорректен, возвращаем null
+            return null; // Р•СЃР»Рё РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ СЃС‚СЂР°РЅРёС†С‹ РЅРµРєРѕСЂСЂРµРєС‚РµРЅ, РІРѕР·РІСЂР°С‰Р°РµРј null
         }
 
-        // Выполняем запрос к базе данных для получения заголовка
+        // Р’С‹РїРѕР»РЅСЏРµРј Р·Р°РїСЂРѕСЃ Рє Р±Р°Р·Рµ РґР°РЅРЅС‹С… РґР»СЏ РїРѕР»СѓС‡РµРЅРёСЏ Р·Р°РіРѕР»РѕРІРєР°
         $title = SafeMySQL::gi()->getOne(
                 'SELECT title FROM ?n WHERE page_id = ?i AND language_code = ?s',
                 Constants::PAGES_TABLE,
@@ -149,62 +151,115 @@ class ModelPages {
                 $languageCode
         );
 
-        return $title ?: null; // Возвращаем null, если заголовок не найден
+        return $title ?: null; // Р’РѕР·РІСЂР°С‰Р°РµРј null, РµСЃР»Рё Р·Р°РіРѕР»РѕРІРѕРє РЅРµ РЅР°Р№РґРµРЅ
     }
 
     /**
-     * Обновляет данные страницы
-     * @param array $pageData Массив данных страницы
-     * @param string $language_code Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG
-     * @return int|bool Возвращает идентификатор обновленной страницы в случае успеха, или false в случае ошибки
+     * РћР±РЅРѕРІР»СЏРµС‚ РґР°РЅРЅС‹Рµ СЃС‚СЂР°РЅРёС†С‹
+     * @param array $pageData РњР°СЃСЃРёРІ РґР°РЅРЅС‹С… СЃС‚СЂР°РЅРёС†С‹
+     * @param string $language_code РљРѕРґ СЏР·С‹РєР° РїРѕ СЃС‚Р°РЅРґР°СЂС‚Сѓ ISO 3166-2. РџРѕ СѓРјРѕР»С‡Р°РЅРёСЋ РёСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ Р·РЅР°С‡РµРЅРёРµ РёР· РєРѕРЅСЃС‚Р°РЅС‚С‹ ENV_DEF_LANG
+     * @return int|bool Р’РѕР·РІСЂР°С‰Р°РµС‚ РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ РѕР±РЅРѕРІР»РµРЅРЅРѕР№ СЃС‚СЂР°РЅРёС†С‹ РІ СЃР»СѓС‡Р°Рµ СѓСЃРїРµС…Р°, РёР»Рё false РІ СЃР»СѓС‡Р°Рµ РѕС€РёР±РєРё
      */
-    public function updatePageData($pageData = [], $language_code = ENV_DEF_LANG) {
-        $pageData = SafeMySQL::gi()->filterArray($pageData, SysClass::ee_getFieldsTable(Constants::PAGES_TABLE));
-        $pageData = array_map('trim', $pageData);
-        $pageData = SysClass::ee_convertArrayValuesToNumbers($pageData);
-        if (empty($pageData['category_id']) || empty($pageData['title'])) {
-            return new \classes\system\ErrorLogger('Отсутствует category_id или title', __FUNCTION__);
-        }
-        $pageData['parent_page_id'] = isset($pageData['parent_page_id']) && $pageData['parent_page_id'] !== 0 ? $pageData['parent_page_id'] : NULL;
-        $pageData['category_id'] = !empty($pageData['parent_page_id']) ?
-                (int) SafeMySQL::gi()->getOne('SELECT category_id FROM ?n WHERE page_id=?i', Constants::PAGES_TABLE, $pageData['parent_page_id']) :
-                (int) $pageData['category_id'];
-        $pageData['language_code'] = $language_code;  // добавлено
-        if (empty($pageData['title'])) {
-            return new \classes\system\ErrorLogger('Отсутствует title', __FUNCTION__);
-        }
-        if (!empty($pageData['page_id'])) {
-            // Проверяем, не является ли parent_page_id предком для текущей страницы
-            if (!empty($pageData['parent_page_id']) && $this->isAncestorPage($pageData['parent_page_id'], $pageData['page_id'])) {
-                return new \classes\system\ErrorLogger('Страница не может быть родителем для самой себя или своих предков', __FUNCTION__);
+    public function updatePageData($pageData = [], $language_code = ENV_DEF_LANG): OperationResult {
+        try {
+            $pageData = SafeMySQL::gi()->filterArray($pageData, SysClass::ee_getFieldsTable(Constants::PAGES_TABLE));
+            $pageData = array_map('trim', $pageData);
+            $pageData = SysClass::ee_convertArrayValuesToNumbers($pageData);
+            if (empty($pageData['category_id']) || empty($pageData['title'])) {
+                Logger::warning('page_validation', 'Отсутствует category_id или title', ['pageData' => $pageData], ['initiator' => __FUNCTION__]);
+                return OperationResult::validation('Отсутствует category_id или title', ['pageData' => $pageData]);
             }
-            $pageId = $pageData['page_id'];
-            unset($pageData['page_id']);
-            $sql = "UPDATE ?n SET ?u WHERE page_id = ?i";
-            $result = SafeMySQL::gi()->query($sql, Constants::PAGES_TABLE, $pageData, $pageId);
-            $method = 'update';
-        } else {
-            unset($pageData['page_id']);
-            $method = 'insert';
-            $sql = "INSERT INTO ?n SET ?u";
-            $result = SafeMySQL::gi()->query($sql, Constants::PAGES_TABLE, $pageData);
-            $pageId = SafeMySQL::gi()->insertId();
-        }
-        if ($method == 'insert') { // Записываем значения свойств для новой страницы
-            $objectModelProperties = SysClass::getModelObject('admin', 'm_properties');
-            $objectModelProperties->createPropertiesValueEntities('page', $pageId, $pageData);
-        }
-        if ($pageId > 0) { // Вызываем хук только если есть ID
+            $pageData['parent_page_id'] = isset($pageData['parent_page_id']) && $pageData['parent_page_id'] !== 0 ? $pageData['parent_page_id'] : NULL;
+            $resolvedLanguageCode = strtoupper(trim((string) $language_code));
+            if (!empty($pageData['parent_page_id'])) {
+                $parentPageData = SafeMySQL::gi()->getRow(
+                    'SELECT category_id, language_code FROM ?n WHERE page_id = ?i LIMIT 1',
+                    Constants::PAGES_TABLE,
+                    (int) $pageData['parent_page_id']
+                ) ?: null;
+                if (!$parentPageData || empty($parentPageData['category_id'])) {
+                    Logger::warning('page_validation', 'Родительская страница не найдена', ['pageData' => $pageData], ['initiator' => __FUNCTION__]);
+                    return OperationResult::validation('Родительская страница не найдена', ['pageData' => $pageData]);
+                }
+                $pageData['category_id'] = (int) $parentPageData['category_id'];
+                $resolvedLanguageCode = strtoupper(trim((string) ($parentPageData['language_code'] ?? $resolvedLanguageCode)));
+            } else {
+                $pageData['category_id'] = (int) $pageData['category_id'];
+            }
+            $categoryLanguageCode = SafeMySQL::gi()->getOne(
+                'SELECT language_code FROM ?n WHERE category_id = ?i LIMIT 1',
+                Constants::CATEGORIES_TABLE,
+                (int) $pageData['category_id']
+            );
+            if (!empty($categoryLanguageCode)) {
+                $resolvedLanguageCode = strtoupper(trim((string) $categoryLanguageCode));
+            }
+            if ($resolvedLanguageCode === '') {
+                $resolvedLanguageCode = strtoupper((string) ENV_DEF_LANG);
+            }
+            $pageData['language_code'] = $resolvedLanguageCode;
+            if (empty($pageData['title'])) {
+                Logger::warning('page_validation', 'Отсутствует title', ['pageData' => $pageData], ['initiator' => __FUNCTION__]);
+                return OperationResult::validation('Отсутствует title', ['pageData' => $pageData]);
+            }
+
+            $oldCategoryId = null;
+            $oldPageRow = null;
+            if (!empty($pageData['page_id'])) {
+                if (!empty($pageData['parent_page_id']) && $this->isAncestorPage($pageData['parent_page_id'], $pageData['page_id'])) {
+                    Logger::warning('page_validation', 'Страница не может быть родителем для самой себя или своих предков', ['pageData' => $pageData], ['initiator' => __FUNCTION__]);
+                    return OperationResult::validation('Страница не может быть родителем для самой себя или своих предков', ['pageData' => $pageData]);
+                }
+                $pageId = $pageData['page_id'];
+                $oldPageRow = SafeMySQL::gi()->getRow(
+                    'SELECT category_id, parent_page_id, language_code FROM ?n WHERE page_id = ?i LIMIT 1',
+                    Constants::PAGES_TABLE,
+                    $pageId
+                ) ?: null;
+                $oldCategoryId = (int) ($oldPageRow['category_id'] ?? 0);
+                unset($pageData['page_id']);
+                $sql = "UPDATE ?n SET ?u WHERE page_id = ?i";
+                $result = SafeMySQL::gi()->query($sql, Constants::PAGES_TABLE, $pageData, $pageId);
+                $method = 'update';
+            } else {
+                unset($pageData['page_id']);
+                $method = 'insert';
+                $sql = "INSERT INTO ?n SET ?u";
+                $result = SafeMySQL::gi()->query($sql, Constants::PAGES_TABLE, $pageData);
+                $pageId = SafeMySQL::gi()->insertId();
+            }
+
+            if ($method == 'insert') {
+                $objectModelProperties = SysClass::getModelObject('admin', 'm_properties');
+                $objectModelProperties->createPropertiesValueEntities('page', $pageId, $pageData);
+            }
+
+            if ($method === 'update' && $oldCategoryId !== null && $oldCategoryId !== (int) $pageData['category_id']) {
+                $pageData['old_category_id'] = $oldCategoryId;
+            }
+            if ($method === 'update' && is_array($oldPageRow)) {
+                $pageData['old_parent_page_id'] = $oldPageRow['parent_page_id'] ?? null;
+                $pageData['language_code'] = $pageData['language_code'] ?? ($oldPageRow['language_code'] ?? $language_code);
+            }
+
+            if (!$result || (int) $pageId <= 0) {
+                Logger::error('page_sql_error', 'Не удалось сохранить страницу', ['pageData' => $pageData, 'query' => SafeMySQL::gi()->lastQuery()], ['initiator' => __FUNCTION__]);
+                return OperationResult::failure('Не удалось сохранить страницу', 'page_sql_error', ['pageData' => $pageData]);
+            }
+
             Hook::run('afterUpdatePageData', $pageId, $pageData, $method);
+            return OperationResult::success((int) $pageId, '', $method === 'insert' ? 'created' : 'updated');
+        } catch (\Throwable $e) {
+            Logger::error('page_error', 'Исключение при сохранении страницы: ' . $e->getMessage(), ['pageData' => $pageData ?? [], 'exception' => $e], ['initiator' => __FUNCTION__, 'include_trace' => true]);
+            return OperationResult::failure('Исключение при сохранении страницы: ' . $e->getMessage(), 'page_exception', ['pageData' => $pageData ?? []]);
         }
-        return $result ? $pageId : false;
     }
 
     /**
-     * Проверяет, можно ли назначить родителя ancestorPageId для страницы pageId
-     * @param int $ancestorPageId Идентификатор предполагаемого родителя
-     * @param int $pageId Идентификатор страницы, для которой назначается родитель
-     * @return bool Возвращает true, если назначение невозможно (есть циклическая зависимость), иначе false
+     * РџСЂРѕРІРµСЂСЏРµС‚, РјРѕР¶РЅРѕ Р»Рё РЅР°Р·РЅР°С‡РёС‚СЊ СЂРѕРґРёС‚РµР»СЏ ancestorPageId РґР»СЏ СЃС‚СЂР°РЅРёС†С‹ pageId
+     * @param int $ancestorPageId РРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ РїСЂРµРґРїРѕР»Р°РіР°РµРјРѕРіРѕ СЂРѕРґРёС‚РµР»СЏ
+     * @param int $pageId РРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ СЃС‚СЂР°РЅРёС†С‹, РґР»СЏ РєРѕС‚РѕСЂРѕР№ РЅР°Р·РЅР°С‡Р°РµС‚СЃСЏ СЂРѕРґРёС‚РµР»СЊ
+     * @return bool Р’РѕР·РІСЂР°С‰Р°РµС‚ true, РµСЃР»Рё РЅР°Р·РЅР°С‡РµРЅРёРµ РЅРµРІРѕР·РјРѕР¶РЅРѕ (РµСЃС‚СЊ С†РёРєР»РёС‡РµСЃРєР°СЏ Р·Р°РІРёСЃРёРјРѕСЃС‚СЊ), РёРЅР°С‡Рµ false
      */
     private function isAncestorPage($ancestorPageId, $pageId) {
         if ($ancestorPageId === null || $pageId === null) {
@@ -225,9 +280,9 @@ class ModelPages {
     }
 
     /**
-     * Возвращает массив всех потомков для заданной страницы
-     * @param int $pageId Идентификатор страницы, для которой ищем потомков
-     * @return array Массив идентификаторов потомков
+     * Р’РѕР·РІСЂР°С‰Р°РµС‚ РјР°СЃСЃРёРІ РІСЃРµС… РїРѕС‚РѕРјРєРѕРІ РґР»СЏ Р·Р°РґР°РЅРЅРѕР№ СЃС‚СЂР°РЅРёС†С‹
+     * @param int $pageId РРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ СЃС‚СЂР°РЅРёС†С‹, РґР»СЏ РєРѕС‚РѕСЂРѕР№ РёС‰РµРј РїРѕС‚РѕРјРєРѕРІ
+     * @return array РњР°СЃСЃРёРІ РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂРѕРІ РїРѕС‚РѕРјРєРѕРІ
      */
     private function getDescendants($pageId) {
         $descendants = [];
@@ -246,28 +301,36 @@ class ModelPages {
     }
 
     /**
-     * Удаляет страницу по указанному page_id из таблицы pages и связанные значения из property_values
-     * @param int $pageId Идентификатор страницы для удаления
-     * @return array Возвращает пустой массив в случае успешного удаления или массив с информацией об ошибке
+     * РЈРґР°Р»СЏРµС‚ СЃС‚СЂР°РЅРёС†Сѓ РїРѕ СѓРєР°Р·Р°РЅРЅРѕРјСѓ page_id РёР· С‚Р°Р±Р»РёС†С‹ pages Рё СЃРІСЏР·Р°РЅРЅС‹Рµ Р·РЅР°С‡РµРЅРёСЏ РёР· property_values
+     * @param int $pageId РРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ СЃС‚СЂР°РЅРёС†С‹ РґР»СЏ СѓРґР°Р»РµРЅРёСЏ
+     * @return array Р’РѕР·РІСЂР°С‰Р°РµС‚ РїСѓСЃС‚РѕР№ РјР°СЃСЃРёРІ РІ СЃР»СѓС‡Р°Рµ СѓСЃРїРµС€РЅРѕРіРѕ СѓРґР°Р»РµРЅРёСЏ РёР»Рё РјР°СЃСЃРёРІ СЃ РёРЅС„РѕСЂРјР°С†РёРµР№ РѕР± РѕС€РёР±РєРµ
      */
-    public function deletePage($pageId) {
+    public function deletePage($pageId): OperationResult {
         try {
+            $pageData = SafeMySQL::gi()->getRow(
+                'SELECT page_id, category_id, parent_page_id, language_code FROM ?n WHERE page_id = ?i LIMIT 1',
+                Constants::PAGES_TABLE,
+                $pageId
+            ) ?: null;
             $sql_check = "SELECT COUNT(*) FROM ?n WHERE parent_page_id = ?i";
             $count = SafeMySQL::gi()->getOne($sql_check, Constants::PAGES_TABLE, $pageId);
             if ($count > 0) {
-                return new \classes\system\ErrorLogger('Нельзя удалить страницу, так как она является родительской для других.', __FUNCTION__, 'deletePage');
+                Logger::warning('delete_page', 'Нельзя удалить страницу, так как она является родительской для других.', ['page_id' => $pageId], ['initiator' => __FUNCTION__]);
+                return OperationResult::failure('Нельзя удалить страницу, так как она является родительской для других.', 'delete_page_blocked', ['page_id' => $pageId]);
             }
             $sql_delete_page = "DELETE FROM ?n WHERE page_id = ?i";
             $result = SafeMySQL::gi()->query($sql_delete_page, Constants::PAGES_TABLE, $pageId);
             if ($result) {
                 $sql_delete_properties = "DELETE FROM ?n WHERE entity_id = ?i AND entity_type = 'page'";
                 SafeMySQL::gi()->query($sql_delete_properties, Constants::PROPERTY_VALUES_TABLE, $pageId);
-                Hook::run('afterDeletePage', $pageId);
-                return [];
+                Hook::run('afterDeletePage', $pageId, $pageData, 'delete');
+                return OperationResult::success(['page_id' => (int) $pageId], '', 'deleted');
             }
-            return new \classes\system\ErrorLogger('Ошибка при выполнении запроса DELETE для ' . $pageId, __FUNCTION__, 'deletePage');
+            Logger::error('delete_page', 'Ошибка при выполнении запроса DELETE для ' . $pageId, ['page_id' => $pageId, 'query' => SafeMySQL::gi()->lastQuery()], ['initiator' => __FUNCTION__]);
+            return OperationResult::failure('Ошибка при выполнении запроса DELETE для ' . $pageId, 'delete_page_sql_error', ['page_id' => $pageId]);
         } catch (Exception $e) {
-            return new \classes\system\ErrorLogger($e->getMessage(), __FUNCTION__, 'deletePage');
+            Logger::error('delete_page', $e->getMessage(), ['page_id' => $pageId, 'exception' => $e], ['initiator' => __FUNCTION__, 'include_trace' => true]);
+            return OperationResult::failure($e->getMessage(), 'delete_page_exception', ['page_id' => $pageId]);
         }
     }
 }

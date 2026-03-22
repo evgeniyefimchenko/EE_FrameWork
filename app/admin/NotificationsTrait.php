@@ -25,7 +25,13 @@ trait NotificationsTrait {
             exit();
         }
         $postData = SysClass::ee_cleanArray($_POST);
-        ClassNotifications::set_reading_time($this->logged_in, $postData['showtime'], $postData['id']);
+        if (!isset($postData['showtime'], $postData['id'])) {
+            echo json_encode(['error' => 'invalid payload'], JSON_UNESCAPED_UNICODE);
+            exit();
+        }
+        $updated = ClassNotifications::set_reading_time($this->logged_in, $postData['showtime'], $postData['id']);
+        echo json_encode(['error' => $updated ? 'no' : 'update failed'], JSON_UNESCAPED_UNICODE);
+        exit();
     }
 
     /**
@@ -43,8 +49,11 @@ trait NotificationsTrait {
         }        
         $postData = SysClass::ee_cleanArray($_POST);
         if (!is_array($postData) || !isset($postData['id']) || !is_numeric($postData['id']) || $postData['id'] < 0) {
-            return;
+            echo json_encode(['error' => 'invalid payload'], JSON_UNESCAPED_UNICODE);
+            exit();
         }
-        ClassNotifications::killNotificationById($this->logged_in, $postData['id']);
+        $deleted = ClassNotifications::killNotificationById($this->logged_in, $postData['id']);
+        echo json_encode(['error' => $deleted ? 'no' : 'delete failed'], JSON_UNESCAPED_UNICODE);
+        exit();
     }
 }

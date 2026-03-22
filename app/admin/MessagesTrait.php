@@ -4,8 +4,8 @@ namespace app\admin;
 
 use classes\system\SysClass;
 use classes\system\Plugins;
-use classes\helpers\ClassNotifications;
 use classes\system\Session;
+use classes\system\Constants;
 
 /**
  * Функции работы с сообщениями
@@ -144,6 +144,7 @@ trait MessagesTrait {
             $messages_array = $this->models['m_messages']->get_user_messages($user_id, false, false, false, 25);
         }
         foreach ($messages_array['data'] as $item) {
+            $actions = '';
             if ($this->logged_in == $user_id) {
                 $read_at = $item['read_at'] ? '<span class="p-3"><i class="fa-solid fa-check text-success" data-bs-toggle="tooltip" data-bs-placement="top"'
                         . 'title="' . $this->lang['sys.read'] . '"></i></span>' :
@@ -184,9 +185,9 @@ trait MessagesTrait {
     /**
      * Отметить все сообщения пользователя прочитанными
      */
-    public function read_all_message() {
+    public function read_all_message($params = []) {
         $this->access = [Constants::ALL_AUTH];
-        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+        if (!SysClass::getAccessUser($this->logged_in, $this->access) || array_filter((array) $params)) {
             SysClass::handleRedirect(401);
             exit;
         }
@@ -198,9 +199,9 @@ trait MessagesTrait {
     /**
      * Удалить все сообщения пользователя
      */
-    public function kill_all_message() {
+    public function kill_all_message($params = []) {
         $this->access = [Constants::ALL_AUTH];
-        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+        if (!SysClass::getAccessUser($this->logged_in, $this->access) || array_filter((array) $params)) {
             SysClass::handleRedirect(401);
             exit();
         }
@@ -213,13 +214,18 @@ trait MessagesTrait {
      * Пометить сообщение прочитанным
      * @param array $params - ID сообщения
      */
-    public function set_readed($id_message = 0) {
+    public function set_readed($params = []) {
         $this->access = [Constants::ALL_AUTH];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect(401);
             exit();
         }
-        $message_id = filter_var($id_message, FILTER_VALIDATE_INT);
+        $keyId = array_search('id', (array) $params, true);
+        if ($keyId !== false && isset($params[$keyId + 1])) {
+            $message_id = filter_var($params[$keyId + 1], FILTER_VALIDATE_INT);
+        } else {
+            $message_id = isset($params[0]) ? filter_var($params[0], FILTER_VALIDATE_INT) : 0;
+        }
         $this->loadModel('m_messages');
         $this->models['m_messages']->set_message_as_readed($message_id, $this->logged_in);
         SysClass::handleRedirect(200, '/admin/messages');
@@ -229,9 +235,15 @@ trait MessagesTrait {
      * Удалит все оповещения пользователя
      * связанные с непрочитанными сообщениями
      */
-    public function set_readed_all() {
-        ClassNotifications::kill_notification_by_text($this->logged_in, 'непрочитанное сообщение');
-        $this->set_readed();
+    public function set_readed_all($params = []) {
+        $this->access = [Constants::ALL_AUTH];
+        if (!SysClass::getAccessUser($this->logged_in, $this->access) || array_filter((array) $params)) {
+            SysClass::handleRedirect(401);
+            exit();
+        }
+        $this->loadModel('m_messages');
+        $this->models['m_messages']->read_all($this->logged_in);
+        SysClass::handleRedirect(200, '/admin/messages');
     }
 
     /**
@@ -244,7 +256,12 @@ trait MessagesTrait {
             SysClass::handleRedirect(401);
             exit();
         }
-        $message_id = filter_var($params[0], FILTER_VALIDATE_INT);
+        $keyId = array_search('id', (array) $params, true);
+        if ($keyId !== false && isset($params[$keyId + 1])) {
+            $message_id = filter_var($params[$keyId + 1], FILTER_VALIDATE_INT);
+        } else {
+            $message_id = isset($params[0]) ? filter_var($params[0], FILTER_VALIDATE_INT) : 0;
+        }
         $this->loadModel('m_messages');
         $this->models['m_messages']->kill_message($message_id, $this->logged_in);
         SysClass::handleRedirect(200, '/admin/messages');

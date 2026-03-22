@@ -13,22 +13,34 @@ class Lang {
      * @var array
      */
     private static array $lang = [];
+    private static array $langCache = [];
+    private static string $currentLangCode = '';
 
     /**
      * Загружает языковой файл и добавляет его данные в общий массив
      * @param string $filePath Путь к языковому файлу
      * @throws \RuntimeException Если файл не найден
      */
-    private static function loadLangFile(string $filePath): void {
+    private static function loadLangFile(string $filePath): array {
+        $loaded = [];
         if (file_exists($filePath)) {
             require $filePath;
             if (isset($lang) && is_array($lang)) { // $lang массив из языкового файла
-                self::$lang = array_merge(self::$lang, $lang);
+                $loaded = array_merge($loaded, $lang);
             }
         } else {
-            $errorLogger = new ErrorLogger('Языковой файл не найден: ' . $filePath . ' Искал: ' . SysClass::detectClientBrowser() . ' IP: ' . SysClass::getClientIp(), __FUNCTION__, 'lang');
-            self::$lang = $errorLogger->result;
+            $message = 'Языковой файл не найден: ' . $filePath . ' Искал: ' . SysClass::detectClientBrowser() . ' IP: ' . SysClass::getClientIp();
+            Logger::error('lang', $message, ['file_path' => $filePath], [
+                'initiator' => __FUNCTION__,
+                'details' => $message,
+            ]);
+            $loaded = [
+                'error' => true,
+                'error_message' => $message,
+                'function_name' => __FUNCTION__,
+            ];
         }
+        return $loaded;
     }
 
     /**
@@ -37,12 +49,21 @@ class Lang {
      */
     public static function init(string &$langCode): array {
         $langCode = strtoupper($langCode);
-        if (empty(self::$lang)) {
+        if (isset(self::$langCache[$langCode]) && is_array(self::$langCache[$langCode])) {
+            self::$currentLangCode = $langCode;
+            self::$lang = self::$langCache[$langCode];
+            return self::$lang;
+        }
+
+        if ($langCode !== self::$currentLangCode || empty(self::$lang)) {
             $langPath = ENV_SITE_PATH . ENV_PATH_LANG . $langCode . '.php';
             if (!file_exists($langPath)) {
-                $langPath = ENV_SITE_PATH . ENV_PATH_LANG . ENV_PROTO_LANGUAGE . '.php';                
+                $langCode = strtoupper((string)ENV_PROTO_LANGUAGE);
+                $langPath = ENV_SITE_PATH . ENV_PATH_LANG . $langCode . '.php';
             }
-            self::loadLangFile($langPath);
+            self::$lang = self::loadLangFile($langPath);
+            self::$langCache[$langCode] = self::$lang;
+            self::$currentLangCode = $langCode;
         }
         return self::$lang;
     }
@@ -53,8 +74,15 @@ class Lang {
      */
     public static function getAll(): array {
         if (empty(self::$lang)) {
-            $errorLogger = new ErrorLogger('Языковой массив пуст', __FUNCTION__, 'lang'); 
-            self::$lang = $errorLogger->result;
+            Logger::warning('lang', 'Языковой массив пуст', [], [
+                'initiator' => __FUNCTION__,
+                'details' => 'Языковой массив пуст',
+            ]);
+            self::$lang = [
+                'error' => true,
+                'error_message' => 'Языковой массив пуст',
+                'function_name' => __FUNCTION__,
+            ];
         }        
         return self::$lang;
     }
@@ -67,9 +95,16 @@ class Lang {
     public static function getByPrefix(string $prefix): array {
         $filtered = [];
         if (empty(self::$lang)) {
-            $errorLogger = new ErrorLogger('Языковой массив пуст', __FUNCTION__, 'lang');
-            self::$lang = $errorLogger->result;
-            $filtered = var_export($errorLogger->result, true);
+            Logger::warning('lang', 'Языковой массив пуст', ['prefix' => $prefix], [
+                'initiator' => __FUNCTION__,
+                'details' => 'Языковой массив пуст',
+            ]);
+            self::$lang = [
+                'error' => true,
+                'error_message' => 'Языковой массив пуст',
+                'function_name' => __FUNCTION__,
+            ];
+            $filtered = self::$lang;
         } else {
             foreach (self::$lang as $key => $value) {
                 if (strpos($key, $prefix) === 0) {

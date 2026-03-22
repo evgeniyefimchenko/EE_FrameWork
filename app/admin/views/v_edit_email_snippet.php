@@ -1,4 +1,4 @@
-<?php if (!defined('ENV_SITE')) exit(header("Location: http://" . $_SERVER['HTTP_HOST'], true, 301)); ?>
+<?php if (!defined('ENV_SITE')) exit(header('Location: /', true, 301)); ?>
 <main>
     <form id="edit_email_snippet" action="<?= ENV_URL_SITE ?>/admin/email_snippet_edit<?= !empty($snippetData['snippet_id']) ? '/id/' . $snippetData['snippet_id'] : '' ?>" method="POST">
         <div class="container-fluid px-4">

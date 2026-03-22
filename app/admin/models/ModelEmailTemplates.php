@@ -3,7 +3,8 @@
 use classes\plugins\SafeMySQL;
 use classes\system\Constants;
 use classes\system\SysClass;
-use classes\system\ErrorLogger;
+use classes\system\Logger;
+use classes\system\OperationResult;
 
 /**
  * Class ModelEmailTemplates
@@ -115,50 +116,66 @@ class ModelEmailTemplates {
      * Обновляет или создает шаблон
      * @param array $templateData Ассоциативный массив с данными шаблона
      * @param string $languageCode Код языка по стандарту ISO 3166-2 (по умолчанию: ENV_DEF_LANG)
-     * @return int|false ID обновленной или созданной записи в случае успеха, иначе false
+     * @return OperationResult Результат сохранения шаблона
      */
-    public function updateEmailTemplateData(array $templateData, string $languageCode = ENV_DEF_LANG): int|false {
+    public function updateEmailTemplateData(array $templateData, string $languageCode = ENV_DEF_LANG): OperationResult {
         $templateData = SafeMySQL::gi()->filterArray($templateData, SysClass::ee_getFieldsTable(Constants::EMAIL_TEMPLATES_TABLE));
         $templateData = array_map(fn($value) => is_string($value) ? trim($value) : $value, $templateData);
         $templateData['language_code'] = $languageCode;
+        if (empty($templateData['name'])) {
+            return OperationResult::validation('Не указано имя шаблона письма', $templateData);
+        }
         if (isset($templateData['template_id']) && $templateData['template_id'] > 0) {
             $templateId = $templateData['template_id'];
             unset($templateData['template_id']);
             $result = SafeMySQL::gi()->query("UPDATE ?n SET ?u WHERE template_id = ?i", Constants::EMAIL_TEMPLATES_TABLE, $templateData, $templateId);
-            return $result ? $templateId : false;
+            return $result
+                ? OperationResult::success((int) $templateId, '', 'updated')
+                : OperationResult::failure('Ошибка обновления почтового шаблона', 'email_template_update_error', ['template_data' => $templateData]);
         }
         $result = SafeMySQL::gi()->query("INSERT INTO ?n SET ?u", Constants::EMAIL_TEMPLATES_TABLE, $templateData);
-        return $result ? SafeMySQL::gi()->insertId() : false;
+        return $result
+            ? OperationResult::success((int) SafeMySQL::gi()->insertId(), '', 'created')
+            : OperationResult::failure('Ошибка создания почтового шаблона', 'email_template_insert_error', ['template_data' => $templateData]);
     }
 
     /**
      * Обновляет или создает сниппет
      * @param array $snippetData Ассоциативный массив с данными сниппета
      * @param string $languageCode Код языка по стандарту ISO 3166-2 (по умолчанию: ENV_DEF_LANG)
-     * @return int|false ID обновленной или созданной записи в случае успеха, иначе false
+     * @return OperationResult Результат сохранения сниппета
      */
-    public function updateEmailSnippetData(array $snippetData, string $languageCode = ENV_DEF_LANG): int|false {
+    public function updateEmailSnippetData(array $snippetData, string $languageCode = ENV_DEF_LANG): OperationResult {
         $snippetData = SafeMySQL::gi()->filterArray($snippetData, SysClass::ee_getFieldsTable(Constants::EMAIL_SNIPPETS_TABLE));
         $snippetData = array_map(fn($value) => is_string($value) ? trim($value) : $value, $snippetData);
         $snippetData['language_code'] = $languageCode;
+        if (empty($snippetData['name'])) {
+            return OperationResult::validation('Не указано имя сниппета', $snippetData);
+        }
         if (isset($snippetData['snippet_id']) && $snippetData['snippet_id'] > 0) {
             $snippetId = $snippetData['snippet_id'];
             unset($snippetData['snippet_id']);
             $result = SafeMySQL::gi()->query("UPDATE ?n SET ?u WHERE snippet_id = ?i", Constants::EMAIL_SNIPPETS_TABLE, $snippetData, $snippetId);
-            return $result ? $snippetId : false;
+            return $result
+                ? OperationResult::success((int) $snippetId, '', 'updated')
+                : OperationResult::failure('Ошибка обновления сниппета', 'email_snippet_update_error', ['snippet_data' => $snippetData]);
         }
         $result = SafeMySQL::gi()->query("INSERT INTO ?n SET ?u", Constants::EMAIL_SNIPPETS_TABLE, $snippetData);
-        return $result ? SafeMySQL::gi()->insertId() : false;
+        return $result
+            ? OperationResult::success((int) SafeMySQL::gi()->insertId(), '', 'created')
+            : OperationResult::failure('Ошибка создания сниппета', 'email_snippet_insert_error', ['snippet_data' => $snippetData]);
     }
 
     /**
      * Удаляет почтовый шаблон
      * @param int $templateId ID шаблона
-     * @return bool
+     * @return OperationResult
      */
-    public function deleteEmailTemplate(int $templateId): bool {
+    public function deleteEmailTemplate(int $templateId): OperationResult {
         $result = SafeMySQL::gi()->query("DELETE FROM ?n WHERE template_id = ?i", Constants::EMAIL_TEMPLATES_TABLE, $templateId);
-        return (bool) $result;
+        return $result
+            ? OperationResult::success(['template_id' => $templateId], '', 'deleted')
+            : OperationResult::failure('Ошибка удаления почтового шаблона', 'email_template_delete_error', ['template_id' => $templateId]);
     }
 
     /**
@@ -166,19 +183,27 @@ class ModelEmailTemplates {
      * Перед удалением проверяет, используется ли сниппет в каких-либо шаблонах.
      * Если сниппет используется, записывает информацию в лог и возвращает false
      * @param int $snippetId ID сниппета
-     * @return bool
+     * @return OperationResult
      */
-    public function deleteEmailSnippet(int $snippetId): bool {
+    public function deleteEmailSnippet(int $snippetId): OperationResult {
         $sql = "SELECT template_id FROM ?n WHERE body LIKE ?s";
         $templatesUsingSnippet = SafeMySQL::gi()->getAll($sql, Constants::EMAIL_TEMPLATES_TABLE, '%{{' . $this->getSnippetNameById($snippetId) . '}}%');
         if (!empty($templatesUsingSnippet)) {
             $templateIds = array_column($templatesUsingSnippet, 'template_id');
             $message = "Невозможно удалить сниппет ID $snippetId, так как он используется в шаблонах: " . implode(', ', $templateIds);
-            new ErrorLogger($message, __FUNCTION__, 'email_snippet', ['snippet_id' => $snippetId, 'template_ids' => $templateIds]);
-            return false;
+            Logger::warning('email_snippet', $message, [
+                'snippet_id' => $snippetId,
+                'template_ids' => $templateIds,
+            ], [
+                'initiator' => __FUNCTION__,
+                'details' => $message,
+            ]);
+            return OperationResult::failure($message, 'email_snippet_delete_blocked', ['snippet_id' => $snippetId, 'template_ids' => $templateIds]);
         }
         $result = SafeMySQL::gi()->query("DELETE FROM ?n WHERE snippet_id = ?i", Constants::EMAIL_SNIPPETS_TABLE, $snippetId);
-        return (bool) $result;
+        return $result
+            ? OperationResult::success(['snippet_id' => $snippetId], '', 'deleted')
+            : OperationResult::failure('Ошибка удаления сниппета', 'email_snippet_delete_error', ['snippet_id' => $snippetId]);
     }
 
     /**

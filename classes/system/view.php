@@ -25,6 +25,11 @@ class View {
      * Не кешируемые блоки
      */
     private $nonCachedBlocks = [];
+
+    /**
+     * Счетчик динамических блоков на текущем рендере.
+     */
+    private int $dynamicBlockSequence = 0;
     
     function __construct() {
         if (ENV_CACHE) {
@@ -153,22 +158,27 @@ class View {
                     return 'Шаблон `' . $this->templateName . '` не существует. Путь поиска: ' . $path;
                 }
                 extract($this->vars);
-                ob_start();
-                try {
-                    if ($this->cacheManager && !$cache) { // Non-cacheable block
-                        echo '<!-- START DYNAMIC BLOCK ' . $this->templateName . ' -->';
-                        include_once($path . '.php');
-                        echo '<!-- END DYNAMIC BLOCK ' . $this->templateName . ' -->';
-                    } elseif (!$content) { // Cached block or not use cache
-                        include_once($path . '.php');
+                if ($this->cacheManager && !$cache) {
+                    $markerId = $this->buildDynamicBlockMarker($path);
+                    ob_start();
+                    try {
+                        include $path . '.php';
+                    } catch (\Throwable $e) {
+                        ob_end_clean();
+                        throw $e;
                     }
-                } catch (\Throwable $e) {
-                    ob_end_clean();
-                    throw $e;
-                }
-                $content = ob_get_clean();
-                if ($this->cacheManager && !$cache) { // Записали некешированные блоки в память
-                    $this->nonCachedBlocks[$this->templateName] = $content;
+                    $dynamicContent = (string) ob_get_clean();
+                    $this->nonCachedBlocks[$markerId] = $dynamicContent;
+                    $content = $this->wrapDynamicBlock($markerId, $dynamicContent);
+                } else {
+                    ob_start();
+                    try {
+                        include $path . '.php';
+                    } catch (\Throwable $e) {
+                        ob_end_clean();
+                        throw $e;
+                    }
+                    $content = (string) ob_get_clean();
                 }
                 break;
         }
@@ -186,12 +196,15 @@ class View {
      * @return string Строка контента с замененными динамическими блоками
      */
     private function replaceDynamicBlocksContents($contents) {
-        foreach ($this->nonCachedBlocks as $blockName => $replacementContent) {
+        foreach ($this->nonCachedBlocks as $markerId => $replacementContent) {
             if (is_string($replacementContent)) {
-                $startMarker = "<!-- START DYNAMIC BLOCK {$blockName} -->";
-                $endMarker = "<!-- END DYNAMIC BLOCK {$blockName} -->";
-                $pattern = "/{$startMarker}(.*?){$endMarker}/si";
-                $contents = preg_replace($pattern, $startMarker . $replacementContent . $endMarker, $contents);
+                $pattern = $this->buildDynamicBlockPattern($markerId);
+                $replacement = $this->wrapDynamicBlock($markerId, $replacementContent);
+                $contents = preg_replace_callback(
+                    $pattern,
+                    static fn(): string => $replacement,
+                    $contents
+                );
             }
         }
         return $contents;
@@ -199,14 +212,30 @@ class View {
  
     private function clearDynamicBlockContent($content) {
         if (count($this->nonCachedBlocks)) {
-            foreach ($this->nonCachedBlocks as $name => $saveContent) {
-                $startMarker = "<!-- START DYNAMIC BLOCK {$name} -->";
-                $endMarker = "<!-- END DYNAMIC BLOCK {$name} -->";
-                $pattern = "/{$startMarker}(.*?){$endMarker}/si";
-                $content = preg_replace($pattern, $startMarker . $endMarker, $content);
+            foreach ($this->nonCachedBlocks as $markerId => $saveContent) {
+                $pattern = $this->buildDynamicBlockPattern($markerId);
+                $replacement = $this->wrapDynamicBlock($markerId, '');
+                $content = preg_replace_callback(
+                    $pattern,
+                    static fn(): string => $replacement,
+                    $content
+                );
             }
         }
         return $content;
-    }    
+    }
+
+    private function buildDynamicBlockMarker(string $path): string {
+        $this->dynamicBlockSequence++;
+        return md5($path . '|' . $this->templateName . '|' . $this->dynamicBlockSequence);
+    }
+
+    private function wrapDynamicBlock(string $markerId, string $content): string {
+        return '<!-- START DYNAMIC BLOCK ' . $markerId . ' -->' . $content . '<!-- END DYNAMIC BLOCK ' . $markerId . ' -->';
+    }
+
+    private function buildDynamicBlockPattern(string $markerId): string {
+        return '/<!-- START DYNAMIC BLOCK ' . preg_quote($markerId, '/') . ' -->(.*?)<!-- END DYNAMIC BLOCK ' . preg_quote($markerId, '/') . ' -->/si';
+    }
     
 }

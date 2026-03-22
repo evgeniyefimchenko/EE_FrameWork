@@ -7,6 +7,11 @@ use classes\helpers\ClassNotifications;
 
 class FileSystem {
 
+    private const IMAGE_FIELD_EXTENSIONS = ['jpeg', 'jpg', 'png', 'gif', 'bmp', 'tiff', 'tif', 'webp', 'ico'];
+    private const FILE_FIELD_EXTENSIONS = ['zip', 'rar', '7z', 'gz', 'gzip', 'bz2', 'pdf', 'doc', 'docx', 'xlsx', 'odt', 'ods', 'odp', 'rtf', 'epub', 'woff', 'woff2', 'ttf', 'otf', 'sqlite', 'csv', 'txt', 'sql', 'xml', 'json'];
+    private const IMAGE_MIME_PREFIXES = ['image/'];
+    private const FILE_DISALLOWED_MIME_PREFIXES = ['image/'];
+
     private static $allowedExtensions = [
         // Изображения
         'jpeg', 'jpg', // image/jpeg
@@ -35,6 +40,7 @@ class FileSystem {
         'rar', // application/x-rar-compressed
         '7z', // application/x-7z-compressed
         'gz', // application/gzip
+        'gzip', // application/gzip
         'bz2', // application/x-bzip2
         // Документы
         'pdf', // application/pdf
@@ -55,6 +61,7 @@ class FileSystem {
         'sqlite', // application/vnd.sqlite3
         'csv', // text/csv
         'txt', // text/plain
+        'sql', // application/sql
         'xml', // application/xml
         'json' // application/json
     ];
@@ -123,10 +130,12 @@ class FileSystem {
         'application/x-rar-compressed', // RAR
         'application/x-7z-compressed', // 7z
         'application/gzip', // GZIP
+        'application/x-gzip', // GZIP
         'application/x-bzip2', // Bzip2
         // Документы
         'application/pdf', // PDF
         'application/msword', // DOC (старый формат Word)
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // DOCX
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // XLSX
         'application/vnd.oasis.opendocument.text', // ODT
         'application/vnd.oasis.opendocument.spreadsheet', // ODS
@@ -143,6 +152,9 @@ class FileSystem {
         'application/vnd.sqlite3', // SQLite Database
         'text/csv', // CSV
         'text/plain', // TXT
+        'application/sql', // SQL
+        'application/x-sql', // SQL (non-standard)
+        'text/x-sql', // SQL
         'application/xml', // XML
         'text/xml',
         'application/json', // JSON
@@ -181,6 +193,7 @@ class FileSystem {
         // Документы
         'pdf' => "%PDF",
         'doc' => "\xD0\xCF\x11\xE0",
+        'docx' => "PK\x03\x04", // Доп. проверка содержимого
         'xlsx' => "PK\x03\x04", // Доп. проверка содержимого
         'odt' => "PK\x03\x04", // ODT
         'ods' => "PK\x03\x04", // ODS
@@ -199,6 +212,33 @@ class FileSystem {
         'json' => ["\x7B", "["], // JSON (объект или массив)
     ];
 
+    private static function logFileIssue(string $message, mixed $details = null, string $level = Logger::LEVEL_ERROR, ?string $initiator = null): void {
+        $context = [];
+        if (is_array($details)) {
+            $context = $details;
+        } elseif ($details instanceof \Throwable) {
+            $context = ['throwable' => [
+                'class' => get_class($details),
+                'message' => $details->getMessage(),
+                'file' => $details->getFile(),
+                'line' => $details->getLine(),
+            ]];
+        } elseif ($details !== '' && $details !== null) {
+            $context = ['details' => $details];
+        }
+
+        Logger::log($level, 'file', $message, $context, [
+            'initiator' => $initiator ?: __METHOD__,
+            'details' => $message,
+            'include_trace' => $level !== Logger::LEVEL_INFO,
+        ]);
+    }
+
+    private static function notifyFileIssue(string $message, mixed $details = null, string $level = Logger::LEVEL_ERROR, string $status = 'danger', ?string $initiator = null): void {
+        self::logFileIssue($message, $details, $level, $initiator);
+        ClassNotifications::addNotificationUser(SysClass::getCurrentUserId(), ['text' => $message, 'status' => $status]);
+    }
+
     /**
      * Проверяет сигнатуру файла на основе его содержимого
      * Функция открывает файл, считывает первые 12 байт и сравнивает с известными сигнатурами файлов
@@ -216,7 +256,7 @@ class FileSystem {
         fclose($file);
         if (empty($header)) {
             $message = 'Неудалось считать заголовок файла!';
-            new \classes\system\ErrorLogger($message, __FUNCTION__, 'file', $tmpFilePath);
+            self::logFileIssue($message, $tmpFilePath, Logger::LEVEL_ERROR, __FUNCTION__);
             return false; // Файл пуст или недоступен
         }
         foreach (self::$signatures as $format => $signature) {
@@ -240,6 +280,42 @@ class FileSystem {
             }
         }
         return false;
+    }
+
+    public static function getAllowedExtensionsForFieldType(?string $fieldType = null): array {
+        $fieldType = strtolower(trim((string) $fieldType));
+        return match ($fieldType) {
+            'image' => self::IMAGE_FIELD_EXTENSIONS,
+            'file' => self::FILE_FIELD_EXTENSIONS,
+            default => self::$allowedExtensions,
+        };
+    }
+
+    public static function getAllowedExtensionsStringForFieldType(?string $fieldType = null): string {
+        return implode(', ', self::getAllowedExtensionsForFieldType($fieldType));
+    }
+
+    public static function getUploadPolicyForFieldType(?string $fieldType = null): array {
+        $fieldType = strtolower(trim((string) $fieldType));
+        if ($fieldType === 'image') {
+            return [
+                'field_type' => 'image',
+                'allowed_extensions' => self::IMAGE_FIELD_EXTENSIONS,
+                'allowed_mime_prefixes' => self::IMAGE_MIME_PREFIXES,
+            ];
+        }
+        if ($fieldType === 'file') {
+            return [
+                'field_type' => 'file',
+                'allowed_extensions' => self::FILE_FIELD_EXTENSIONS,
+                'disallowed_mime_prefixes' => self::FILE_DISALLOWED_MIME_PREFIXES,
+            ];
+        }
+
+        return [
+            'field_type' => '',
+            'allowed_extensions' => self::$allowedExtensions,
+        ];
     }
 
     /**
@@ -273,6 +349,7 @@ class FileSystem {
         $zip = new \ZipArchive();
         if ($zip->open($tmpFilePath) === true) {
             $checkFiles = [
+                'docx' => 'word/document.xml',
                 'xlsx' => 'xl/workbook.xml',
                 'epub' => 'mimetype',
             ];
@@ -296,19 +373,29 @@ class FileSystem {
      * @global string ENV_DB_PREF Префикс для базы данных (используется для генерации уникального имени файла)
      * @global bool ENV_CREATE_WEBP Флаг, определяющий необходимость преобразования изображений в WebP
      */
-    public static function safeMoveUploadedFile(array $file): ?array {
+    public static function safeMoveUploadedFile(array $file, array $policy = []): ?array {
         $tmpFilePath = $file['tmp_name'];
         $originalFileName = $file['name'];
-        $mime = $file['type'];
+        $mime = trim((string) ($file['type'] ?? ''));
         $fileData = [];
         $fileExtension = strtolower(pathinfo($originalFileName, PATHINFO_EXTENSION));
+        if ($fileExtension === 'sql' && (empty($mime) || $mime === 'application/octet-stream')) {
+            $mime = 'text/plain';
+            $file['type'] = $mime;
+        }
+        $policy = self::normalizeUploadPolicy($policy);
+        $detectedMime = self::detectMimeType($tmpFilePath);
+        if (!empty($detectedMime)) {
+            $mime = $detectedMime;
+            $file['type'] = $mime;
+        }
         // 1. Валидация файла
-        if (!self::validateFile($file, $fileExtension)) {
+        if (!self::validateFile($file, $fileExtension, $policy)) {
             unlink($tmpFilePath);
             return NULL;
         }
         // 2. Генерация уникального имени файла        
-        $transliterateFileTypeName = SysClass::transliterateFileName($file['type']);
+        $transliterateFileTypeName = SysClass::transliterateFileName($mime);
         $targetDirectory = ENV_SITE_PATH . 'uploads' . ENV_DIRSEP . 'files' . ENV_DIRSEP . $transliterateFileTypeName . ENV_DIRSEP . date('d.m.Y');
         $fileName = self::generateUniqueFileName($fileExtension, $targetDirectory);
         $destination = $targetDirectory . ENV_DIRSEP . $fileName;
@@ -324,7 +411,7 @@ class FileSystem {
                 $targetDirectory = ENV_SITE_PATH . 'uploads' . ENV_DIRSEP . 'files' . ENV_DIRSEP . $transliterateFileTypeName . ENV_DIRSEP . date('d.m.Y');
                 $destination = $targetDirectory . ENV_DIRSEP . $fileName;
                 $imageSize = self::processImage($tmpFilePath);
-            } else {
+            } elseif (strpos($mime, 'image/') !== false) {
                 $imageSize = self::getImageSizeFromFile($tmpFilePath);
             }
             // Проверка хеша файла
@@ -345,8 +432,7 @@ class FileSystem {
                 // Создать папку, если ещё не существует, для каждого MIME типа файла
                 if (!SysClass::createDirectoriesForFile($destination) || !move_uploaded_file($tmpFilePath, $destination)) {
                     $message = "Не удалось переместить файл в: $destination";
-                    new \classes\system\ErrorLogger($message, __FUNCTION__, 'file', $file);
-                    ClassNotifications::addNotificationUser(SysClass::getCurrentUserId(), ['text' => $message, 'status' => 'danger']);
+                    self::notifyFileIssue($message, $file, Logger::LEVEL_ERROR, 'danger', __FUNCTION__);
                     return NULL;
                 } else {
                     $fileData['name'] = $fileName;
@@ -362,8 +448,7 @@ class FileSystem {
             }
         } catch (\Exception $e) {
             $message = 'Ошибка при обработке файла: ' . $e->getMessage();
-            new \classes\system\ErrorLogger($message, __FUNCTION__, 'file', $file);
-            ClassNotifications::addNotificationUser(SysClass::getCurrentUserId(), ['text' => $message, 'status' => 'danger']);
+            self::notifyFileIssue($message, $file, Logger::LEVEL_ERROR, 'danger', __FUNCTION__);
             return NULL;
         } finally {
             // Удалять исходный файл после перемещения
@@ -389,21 +474,19 @@ class FileSystem {
                 $imageSize = getimagesize($tmpFilePath);
                 if ($imageSize === false) {
                     $message = 'Не удалось получить размер изображения с помощью getimagesize.';
-                    new \classes\system\ErrorLogger($message, __FUNCTION__, 'file', $tmpFilePath);
-                    ClassNotifications::addNotificationUser(SysClass::getCurrentUserId(), ['text' => $message, 'status' => 'danger']);
+                    self::notifyFileIssue($message, $tmpFilePath, Logger::LEVEL_ERROR, 'danger', __FUNCTION__);
+                    return null; // <-- 2. Останавливаем выполнение
                 }
                 $width = $imageSize[0];
                 $height = $imageSize[1];
             } else {
                 $message = 'Необходимы расширения GD или Imagick.';
-                new \classes\system\ErrorLogger($message, __FUNCTION__, 'file', $tmpFilePath);
-                ClassNotifications::addNotificationUser(SysClass::getCurrentUserId(), ['text' => $message, 'status' => 'danger']);
+                self::notifyFileIssue($message, $tmpFilePath, Logger::LEVEL_ERROR, 'danger', __FUNCTION__);
             }
             return self::getImageSize($width, $height);
         } catch (\Exception $e) {
             $message = 'Ошибка при определении размера изображения!';
-            new \classes\system\ErrorLogger($message, __FUNCTION__, 'file', $e->getMessage());
-            ClassNotifications::addNotificationUser(SysClass::getCurrentUserId(), ['text' => $message, 'status' => 'danger']);
+            self::notifyFileIssue($message, $e->getMessage(), Logger::LEVEL_ERROR, 'danger', __FUNCTION__);
         }
     }
 
@@ -417,6 +500,9 @@ class FileSystem {
      * Изображение размером 1000x1000 пикселей: 1000 * 1000 = 1000000 пикселей (большое)
      */
     private static function getImageSize(int $width, int $height): string {
+        if ($width === null || $height === null) {
+            return null;
+        }        
         $size = $width * $height;
         if ($size <= 100000) {
             return 'small';
@@ -435,7 +521,7 @@ class FileSystem {
     private static function processImage(string $tmpFilePath): string {
         try {
             if (extension_loaded('imagick')) {
-                $image = new Imagick($tmpFilePath);
+                $image = new \Imagick($tmpFilePath);
                 $image->setImageFormat('webp');
                 $image->writeImage($tmpFilePath);
                 $width = $image->getImageWidth();
@@ -446,33 +532,28 @@ class FileSystem {
                 $imageContent = file_get_contents($tmpFilePath);
                 if ($imageContent === false) {
                     $message = 'Не удалось прочитать содержимое файла';
-                    new \classes\system\ErrorLogger($message, __FUNCTION__, 'file', ['tmpFilePath' => $tmpFilePath]);
-                    ClassNotifications::addNotificationUser(SysClass::getCurrentUserId(), ['text' => $message, 'status' => 'danger']);
+                    self::notifyFileIssue($message, ['tmpFilePath' => $tmpFilePath], Logger::LEVEL_ERROR, 'danger', __FUNCTION__);
                 }
                 $image = imagecreatefromstring($imageContent);
                 if ($image === false) {
                     $message = 'Не удалось создать изображение из содержимого файла';
-                    new \classes\system\ErrorLogger($message, __FUNCTION__, 'file', ['tmpFilePath' => $tmpFilePath]);
-                    ClassNotifications::addNotificationUser(SysClass::getCurrentUserId(), ['text' => $message, 'status' => 'danger']);
+                    self::notifyFileIssue($message, ['tmpFilePath' => $tmpFilePath], Logger::LEVEL_ERROR, 'danger', __FUNCTION__);
                 }
                 $width = imagesx($image);
                 $height = imagesy($image);
                 if (!imagewebp($image, $tmpFilePath, ENV_WEBP_QUALITY)) {
                     $message = 'Не удалось преобразовать изображение в WebP';
-                    new \classes\system\ErrorLogger($message, __FUNCTION__, 'file', ['tmpFilePath' => $tmpFilePath]);
-                    ClassNotifications::addNotificationUser(SysClass::getCurrentUserId(), ['text' => $message, 'status' => 'danger']);
+                    self::notifyFileIssue($message, ['tmpFilePath' => $tmpFilePath], Logger::LEVEL_ERROR, 'danger', __FUNCTION__);
                 }
                 imagedestroy($image);
             } else {
                 $message = 'Необходимы расширения GD или Imagick';
-                new \classes\system\ErrorLogger($message, __FUNCTION__, 'file', ['tmpFilePath' => $tmpFilePath]);
-                ClassNotifications::addNotificationUser(SysClass::getCurrentUserId(), ['text' => $message, 'status' => 'danger']);
+                self::notifyFileIssue($message, ['tmpFilePath' => $tmpFilePath], Logger::LEVEL_ERROR, 'danger', __FUNCTION__);
             }
             return self::getImageSize($width, $height);
         } catch (\Exception $e) {
             $message = 'Ошибка при обработке изображения!';
-            new \classes\system\ErrorLogger($message, __FUNCTION__, 'file', ['error' => $e->getMessage(), 'tmpFilePath' => $tmpFilePath]);
-            ClassNotifications::addNotificationUser(SysClass::getCurrentUserId(), ['text' => $message, 'status' => 'danger']);
+            self::notifyFileIssue($message, ['error' => $e->getMessage(), 'tmpFilePath' => $tmpFilePath], Logger::LEVEL_ERROR, 'danger', __FUNCTION__);
         }
     }
 
@@ -482,41 +563,102 @@ class FileSystem {
      * @param string $fileExtension Расширение файла
      * @return bool true, если файл прошел валидацию, иначе false
      */
-    private static function validateFile(array $file, string $fileExtension): bool {
+    private static function validateFile(array $file, string $fileExtension, array $policy = []): bool {
         $tmpFilePath = $file['tmp_name'];
         $originalFileName = $file['name'];
-        $mime = $file['type'];
+        $mime = trim((string) ($file['type'] ?? ''));
+        $policy = self::normalizeUploadPolicy($policy);
         // Проверка размера файла
         if ($file['size'] > ENV_MAX_FILE_SIZE) {
             $message = 'Размер файла превышает допустимый лимит ENV_MAX_FILE_SIZE = ' . ENV_MAX_FILE_SIZE;
-            new \classes\system\ErrorLogger($message, __FUNCTION__, 'file', $file);
-            ClassNotifications::addNotificationUser(SysClass::getCurrentUserId(), ['text' => $message, 'status' => 'danger']);
+            self::notifyFileIssue($message, $file, Logger::LEVEL_ERROR, 'danger', __FUNCTION__);
             return false;
         }
         // Проверка расширения
         if (!in_array($fileExtension, self::$allowedExtensions) || in_array($fileExtension, self::$dangerousExtensions)) {
             $message = 'Недопустимое расширение файла ' . $originalFileName;
-            new \classes\system\ErrorLogger($message, __FUNCTION__, 'file', $file);
-            ClassNotifications::addNotificationUser(SysClass::getCurrentUserId(), ['text' => $message, 'status' => 'danger']);
+            self::notifyFileIssue($message, $file, Logger::LEVEL_ERROR, 'danger', __FUNCTION__);
+            return false;
+        }
+        if (!empty($policy['allowed_extensions']) && !in_array($fileExtension, $policy['allowed_extensions'], true)) {
+            $message = 'Тип поля не допускает расширение файла ' . $originalFileName;
+            self::notifyFileIssue($message, ['file' => $file, 'policy' => $policy], Logger::LEVEL_ERROR, 'danger', __FUNCTION__);
             return false;
         }
         // Проверка MIME-типа
-        if (!in_array($mime, self::$allowedMimeTypes)) {
+        if (!in_array($mime, self::$allowedMimeTypes, true)) {
             $message = 'Недопустимый MIME-тип файла ' . $originalFileName . ' MIME:' . $mime;
-            new \classes\system\ErrorLogger($message, __FUNCTION__, 'file', $file);
-            ClassNotifications::addNotificationUser(SysClass::getCurrentUserId(), ['text' => $message, 'status' => 'danger']);
+            self::notifyFileIssue($message, $file, Logger::LEVEL_ERROR, 'danger', __FUNCTION__);
+            return false;
+        }
+        if (!empty($policy['allowed_mime_prefixes']) && !self::mimeMatchesAnyPrefix($mime, $policy['allowed_mime_prefixes'])) {
+            $message = 'Тип поля не допускает MIME-тип файла ' . $originalFileName . ' MIME:' . $mime;
+            self::notifyFileIssue($message, ['file' => $file, 'policy' => $policy], Logger::LEVEL_ERROR, 'danger', __FUNCTION__);
+            return false;
+        }
+        if (!empty($policy['disallowed_mime_prefixes']) && self::mimeMatchesAnyPrefix($mime, $policy['disallowed_mime_prefixes'])) {
+            $message = 'Тип поля не допускает MIME-тип файла ' . $originalFileName . ' MIME:' . $mime;
+            self::notifyFileIssue($message, ['file' => $file, 'policy' => $policy], Logger::LEVEL_ERROR, 'danger', __FUNCTION__);
             return false;
         }
         // Проверка сигнатуры файла
-        if (strpos($mime, 'text/') !== false) {
+        $isSqlMime = in_array($mime, ['application/sql', 'application/x-sql', 'text/x-sql'], true);
+        if (strpos($mime, 'text/') !== false || $isSqlMime) {
             // Пропустить проверку сигнатуры для текстовых файлов
         } elseif (!self::checkFileSignature($tmpFilePath)) {
             $message = 'Файл имеет недопустимую сигнатуру ' . $originalFileName;
-            new \classes\system\ErrorLogger($message, __FUNCTION__, 'file', $file);
-            ClassNotifications::addNotificationUser(SysClass::getCurrentUserId(), ['text' => $message, 'status' => 'danger']);
+            self::notifyFileIssue($message, $file, Logger::LEVEL_ERROR, 'danger', __FUNCTION__);
             return false;
         }
         return true;
+    }
+
+    private static function normalizeUploadPolicy(array $policy): array {
+        $policy['allowed_extensions'] = array_values(array_unique(array_filter(array_map(static function ($value) {
+            return strtolower(trim((string) $value));
+        }, (array) ($policy['allowed_extensions'] ?? [])))));
+        $policy['allowed_mime_prefixes'] = array_values(array_unique(array_filter(array_map(static function ($value) {
+            return strtolower(trim((string) $value));
+        }, (array) ($policy['allowed_mime_prefixes'] ?? [])))));
+        $policy['disallowed_mime_prefixes'] = array_values(array_unique(array_filter(array_map(static function ($value) {
+            return strtolower(trim((string) $value));
+        }, (array) ($policy['disallowed_mime_prefixes'] ?? [])))));
+        return $policy;
+    }
+
+    private static function detectMimeType(string $tmpFilePath): ?string {
+        if (!is_readable($tmpFilePath)) {
+            return null;
+        }
+
+        if (function_exists('finfo_open')) {
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            if ($finfo !== false) {
+                $mime = finfo_file($finfo, $tmpFilePath);
+                if (is_string($mime) && trim($mime) !== '') {
+                    return trim($mime);
+                }
+            }
+        }
+
+        if (function_exists('mime_content_type')) {
+            $mime = mime_content_type($tmpFilePath);
+            if (is_string($mime) && trim($mime) !== '') {
+                return trim($mime);
+            }
+        }
+
+        return null;
+    }
+
+    private static function mimeMatchesAnyPrefix(string $mime, array $prefixes): bool {
+        $mime = strtolower(trim($mime));
+        foreach ($prefixes as $prefix) {
+            if ($prefix !== '' && str_starts_with($mime, strtolower($prefix))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -542,8 +684,7 @@ class FileSystem {
     private static function moveFile(string $tmpFilePath, string $destination, array $file): bool {
         if (!SysClass::createDirectoriesForFile($destination) || !move_uploaded_file($tmpFilePath, $destination)) {
             $message = "Не удалось переместить файл в: $destination";
-            new \classes\system\ErrorLogger($message, __FUNCTION__, 'file', $file);
-            ClassNotifications::addNotificationUser(SysClass::getCurrentUserId(), ['text' => $message, 'status' => 'danger']);
+            self::notifyFileIssue($message, $file, Logger::LEVEL_ERROR, 'danger', __FUNCTION__);
             return false;
         }
         return true;
@@ -588,8 +729,7 @@ class FileSystem {
             self::applyWithGD($filePath, $transformations);
         } else {
             $message = 'Библиотеки GD или Imagick не установлены.';
-            new \classes\system\ErrorLogger($message, __FUNCTION__, 'file', [$filePath, $transformations]);
-            ClassNotifications::addNotificationUser(SysClass::getCurrentUserId(), ['text' => $message, 'status' => 'danger']);
+            self::notifyFileIssue($message, [$filePath, $transformations], Logger::LEVEL_ERROR, 'danger', __FUNCTION__);
         }
     }
 
@@ -600,10 +740,10 @@ class FileSystem {
      * @throws Exception Если произошла ошибка при обработке изображения
      */
     private static function applyWithImagick($filePath, $transformations): void {
-        $image = new Imagick($filePath);
+        $image = new \Imagick($filePath);
         if ($image) {
             if (isset($transformations['rotation']) && $transformations['rotation'] != 0) {
-                $image->rotateImage(new ImagickPixel('none'), $transformations['rotation']);
+                $image->rotateImage(new \ImagickPixel('none'), $transformations['rotation']);
             }
             if (isset($transformations['flipH']) && $transformations['flipH']) {
                 $image->flopImage();
@@ -627,11 +767,7 @@ class FileSystem {
         $image = self::createImageFromFile($filePath);
         if ($image === false) {
             $message = "Не удалось загрузить изображение для обработки: $filePath";
-            new \classes\system\ErrorLogger($message, __FUNCTION__, 'file', $filePath);
-            ClassNotifications::addNotificationUser(
-                    SysClass::getCurrentUserId(),
-                    ['text' => $message, 'status' => 'danger']
-            );
+            self::notifyFileIssue($message, $filePath, Logger::LEVEL_ERROR, 'danger', __FUNCTION__);
             return;
         }
         if (isset($transformations['rotation']) && $transformations['rotation'] != 0) {
@@ -663,11 +799,7 @@ class FileSystem {
             $extension = self::getExtensionFromMimeType($filePath);
             if ($extension === null) {
                 $message = "Неподдерживаемый формат файла или ошибка определения MIME-типа: $filePath";
-                new \classes\system\ErrorLogger($message, __FUNCTION__, 'file', $filePath);
-                ClassNotifications::addNotificationUser(
-                        SysClass::getCurrentUserId(),
-                        ['text' => $message, 'status' => 'danger']
-                );
+                self::notifyFileIssue($message, $filePath, Logger::LEVEL_ERROR, 'danger', __FUNCTION__);
                 return false;
             }
         }
@@ -684,11 +816,7 @@ class FileSystem {
         // Если формат не поддерживается
         if ($image === null) {
             $message = "Неподдерживаемый формат файла: $extension";
-            new \classes\system\ErrorLogger($message, __FUNCTION__, 'file', $filePath);
-            ClassNotifications::addNotificationUser(
-                    SysClass::getCurrentUserId(),
-                    ['text' => $message, 'status' => 'danger']
-            );
+            self::notifyFileIssue($message, $filePath, Logger::LEVEL_ERROR, 'danger', __FUNCTION__);
             return false;
         }
         return $image;
@@ -707,11 +835,7 @@ class FileSystem {
 
             if ($extension === null) {
                 $message = "Неподдерживаемый формат файла или ошибка определения MIME-типа для сохранения: $filePath";
-                new \classes\system\ErrorLogger($message, __FUNCTION__, 'file', $filePath);
-                ClassNotifications::addNotificationUser(
-                        SysClass::getCurrentUserId(),
-                        ['text' => $message, 'status' => 'danger']
-                );
+                self::notifyFileIssue($message, $filePath, Logger::LEVEL_ERROR, 'danger', __FUNCTION__);
                 return;
             }
         }
@@ -726,11 +850,7 @@ class FileSystem {
         };
         if (!$success) {
             $message = "Не удалось сохранить изображение: неподдерживаемый формат файла $extension для $filePath";
-            new \classes\system\ErrorLogger($message, __FUNCTION__, 'file', $filePath);
-            ClassNotifications::addNotificationUser(
-                    SysClass::getCurrentUserId(),
-                    ['text' => $message, 'status' => 'danger']
-            );
+            self::notifyFileIssue($message, $filePath, Logger::LEVEL_ERROR, 'danger', __FUNCTION__);
         }
     }
 
@@ -746,11 +866,7 @@ class FileSystem {
         $mimeType = mime_content_type($filePath);
         if ($mimeType === false) {
             $message = "Не удалось определить MIME-тип для файла: $filePath";
-            new \classes\system\ErrorLogger($message, __FUNCTION__, 'file', $filePath);
-            ClassNotifications::addNotificationUser(
-                    SysClass::getCurrentUserId(),
-                    ['text' => $message, 'status' => 'danger']
-            );
+            self::notifyFileIssue($message, $filePath, Logger::LEVEL_ERROR, 'danger', __FUNCTION__);
             return null;
         }
         return match ($mimeType) {
@@ -791,7 +907,10 @@ class FileSystem {
      * @param int $fileId ID файла в БД
      * @return array|null массив данных или NULL
      */
-    public static function getFileData(int $fileId): ?array {
+    public static function getFileData(int $fileId, bool $notifyOnError = true): ?array {
+        if ($fileId <= 0) {
+            return null;
+        }
         $sql = 'SELECT * FROM ?n WHERE file_id = ?i';
         $result = SafeMySQL::gi()->getRow($sql, Constants::FILES_TABLE, $fileId);
         $error = false;
@@ -805,10 +924,111 @@ class FileSystem {
             $error = true;
         }
         if ($error) {
-            new \classes\system\ErrorLogger($message, __FUNCTION__, 'file', ['result' => $result, 'fileId' => $fileId]);
-            ClassNotifications::addNotificationUser(SysClass::getCurrentUserId(), ['text' => $message, 'status' => 'danger']);
+            self::logFileIssue($message, ['result' => $result, 'fileId' => $fileId], Logger::LEVEL_ERROR, __FUNCTION__);
+            if ($notifyOnError) {
+                ClassNotifications::addNotificationUser(SysClass::getCurrentUserId(), ['text' => $message, 'status' => 'danger']);
+            }
         }
         return $result ? $result : NULL;
+    }
+
+    /**
+     * Нормализует набор ссылок на файлы/изображения из строкового, JSON или массивного payload.
+     * Поддерживает локальные file_id и legacy URL/path ссылки.
+     *
+     * @return array<int, string>
+     */
+    public static function normalizeFileReferences(mixed $payload): array {
+        return PropertyFieldContract::normalizeFileReferenceList($payload);
+    }
+
+    /**
+     * Возвращает описание ссылки на файл для рендера uploader.
+     */
+    public static function describeFileReference(mixed $reference): ?array {
+        $reference = trim((string) $reference);
+        if ($reference === '') {
+            return null;
+        }
+
+        if (ctype_digit($reference) && (int) $reference > 0) {
+            $fileId = (int) $reference;
+            $fileData = self::getFileData($fileId, false);
+            if ($fileData) {
+                $mimeType = (string) ($fileData['mime_type'] ?? '');
+                return [
+                    'kind' => 'local',
+                    'reference' => (string) $fileId,
+                    'file_id' => $fileId,
+                    'unique_id' => $fileId,
+                    'original_name' => (string) ($fileData['original_name'] ?? ('file-' . $fileId)),
+                    'file_path' => (string) ($fileData['file_path'] ?? ''),
+                    'file_url' => (string) ($fileData['file_url'] ?? ''),
+                    'mime_type' => $mimeType,
+                    'is_image' => str_contains($mimeType, 'image'),
+                    'allow_edit' => true,
+                    'allow_transform' => str_contains($mimeType, 'image'),
+                    'allow_delete' => true,
+                    'is_legacy' => false,
+                ];
+            }
+
+            $missingUrl = ENV_URL_SITE . '/uploads/images/image_collections/no-image.svg';
+            return [
+                'kind' => 'missing_local',
+                'reference' => (string) $fileId,
+                'file_id' => $fileId,
+                'unique_id' => $fileId,
+                'original_name' => 'File #' . $fileId,
+                'file_path' => '',
+                'file_url' => $missingUrl,
+                'mime_type' => 'application/octet-stream',
+                'is_image' => false,
+                'allow_edit' => false,
+                'allow_transform' => false,
+                'allow_delete' => true,
+                'is_legacy' => false,
+            ];
+        }
+
+        $isUrl = filter_var($reference, FILTER_VALIDATE_URL) !== false;
+        $path = $isUrl ? (string) parse_url($reference, PHP_URL_PATH) : $reference;
+        $extension = strtolower((string) pathinfo($path, PATHINFO_EXTENSION));
+        $imageExt = ['jpeg', 'jpg', 'png', 'gif', 'bmp', 'tiff', 'tif', 'webp', 'ico', 'svg'];
+        $isImage = in_array($extension, $imageExt, true);
+        $fileUrl = $reference;
+        if (!$isUrl) {
+            $trimmedPath = ltrim($reference, '/');
+            $candidatePath = ENV_SITE_PATH . $trimmedPath;
+            if (is_file($candidatePath)) {
+                $fileUrl = ENV_URL_SITE . '/' . $trimmedPath;
+            } elseif (str_starts_with($reference, '/')) {
+                $fileUrl = ENV_URL_SITE . $reference;
+            } else {
+                $fileUrl = '';
+            }
+        }
+
+        $originalName = basename($path);
+        if ($originalName === '' || $originalName === '.' || $originalName === '/') {
+            $originalName = mb_substr($reference, 0, 80);
+        }
+
+        return [
+            'kind' => $isUrl ? 'external' : 'legacy',
+            'reference' => $reference,
+            'file_id' => 0,
+            'unique_id' => 'legacy:' . md5($reference),
+            'original_name' => $originalName,
+            'file_path' => $isUrl ? '' : $reference,
+            'file_url' => $fileUrl,
+            'mime_type' => $isImage ? 'image/legacy' : 'application/octet-stream',
+            'is_image' => $isImage,
+            'allow_edit' => false,
+            'allow_transform' => false,
+            'allow_delete' => true,
+            'is_legacy' => true,
+        ];
     }
 
     /**
@@ -829,8 +1049,7 @@ class FileSystem {
                 if (!@unlink($fileData['file_path'])) { // Удаляем файл с диска, обрабатываем ошибку
                     $fileData['file_path'] = !empty($fileData['file_path']) ? $fileData['file_path'] : 'Нет записи в БД';
                     $message = 'Не удалось удалить файл с диска: ' . $fileData['file_path'];
-                    new \classes\system\ErrorLogger($message, __FUNCTION__, 'file', $fileData);
-                    ClassNotifications::addNotificationUser(SysClass::getCurrentUserId(), ['text' => $message, 'status' => 'danger']);
+                    self::notifyFileIssue($message, $fileData, Logger::LEVEL_ERROR, 'danger', __FUNCTION__);
                 }
                 // Удаляем информацию по файлу в БД
                 $sql = 'DELETE FROM ?n WHERE file_id = ?i';
@@ -861,7 +1080,8 @@ class FileSystem {
             foreach ($jsonData as $item) {
                 // Если тип "image" или "file" и поле для поиска существует
                 if (($item['type'] === 'image' || $item['type'] === 'file') && isset($item[$searchField])) {
-                    if (in_array($fileId, explode(',', $item[$searchField]))) {
+                    $references = self::normalizeFileReferences($item[$searchField]);
+                    if (in_array((string) $fileId, $references, true)) {
                         $result += 1;
                     }
                 }
@@ -885,6 +1105,180 @@ class FileSystem {
         $sql = "UPDATE ?n SET ?u WHERE file_id = ?i";
         $result = SafeMySQL::gi()->query($sql, Constants::FILES_TABLE, $fileData, $fileId);
         return $result ? $result : NULL;
+    }
+
+    public static function refreshFileDataFromDisk(int $fileId): ?int {
+        $fileData = self::getFileData($fileId, false);
+        if (!$fileData || empty($fileData['file_path']) || !file_exists((string) $fileData['file_path'])) {
+            return null;
+        }
+
+        $payload = [
+            'size' => (int) @filesize((string) $fileData['file_path']),
+            'file_hash' => md5_file((string) $fileData['file_path']) ?: ($fileData['file_hash'] ?? null),
+        ];
+
+        $detectedMime = self::detectMimeType((string) $fileData['file_path']);
+        if (!empty($detectedMime)) {
+            $payload['mime_type'] = $detectedMime;
+        }
+        if (!empty($payload['mime_type']) && str_starts_with((string) $payload['mime_type'], 'image/')) {
+            $payload['image_size'] = self::getImageSizeFromFile((string) $fileData['file_path']);
+        }
+
+        return self::updateFileData($fileId, $payload);
+    }
+
+    public static function collectFileDiagnostics(): array {
+        $files = SafeMySQL::gi()->getAll(
+            'SELECT file_id, original_name, file_path, file_url, mime_type, size, user_id, uploaded_at, updated_at
+             FROM ?n
+             ORDER BY file_id ASC',
+            Constants::FILES_TABLE
+        );
+
+        $references = array_merge(
+            self::collectFileReferencesFromJsonTable(Constants::PROPERTIES_TABLE, 'property_id', 'default_values', 'default'),
+            self::collectFileReferencesFromJsonTable(Constants::PROPERTY_VALUES_TABLE, 'value_id', 'property_values', 'value')
+        );
+
+        $filesById = [];
+        $missingOnDisk = [];
+        foreach ($files as $fileRow) {
+            $fileId = (int) ($fileRow['file_id'] ?? 0);
+            if ($fileId <= 0) {
+                continue;
+            }
+            $filesById[$fileId] = $fileRow;
+            if (empty($fileRow['file_path']) || !file_exists((string) $fileRow['file_path'])) {
+                $missingOnDisk[] = $fileRow;
+            }
+        }
+
+        $referencedFileIds = [];
+        $danglingReferences = [];
+        $legacyPayloads = [];
+        foreach ($references as $reference) {
+            foreach ($reference['file_ids'] as $fileId) {
+                $referencedFileIds[$fileId] = true;
+                if (!isset($filesById[$fileId])) {
+                    $danglingReferences[] = $reference + ['missing_file_id' => $fileId];
+                }
+            }
+            if ($reference['file_ids'] === [] && $reference['raw_value'] !== '') {
+                $legacyPayloads[] = $reference;
+            }
+        }
+
+        $unreferencedFiles = array_values(array_filter($files, static function (array $fileRow) use ($referencedFileIds): bool {
+            return !isset($referencedFileIds[(int) ($fileRow['file_id'] ?? 0)]);
+        }));
+
+        return [
+            'generated_at' => date('c'),
+            'summary' => [
+                'total_files' => count($files),
+                'referenced_file_ids' => count($referencedFileIds),
+                'unreferenced_files' => count($unreferencedFiles),
+                'missing_on_disk' => count($missingOnDisk),
+                'dangling_references' => count($danglingReferences),
+                'legacy_payloads_without_file_ids' => count($legacyPayloads),
+            ],
+            'missing_on_disk' => array_values($missingOnDisk),
+            'unreferenced_files' => array_values($unreferencedFiles),
+            'dangling_references' => array_values($danglingReferences),
+            'legacy_payloads_without_file_ids' => array_values($legacyPayloads),
+        ];
+    }
+
+    private static function collectFileReferencesFromJsonTable(string $tableName, string $rowIdField, string $jsonField, string $valueField): array {
+        $rows = SafeMySQL::gi()->getAll(
+            "SELECT {$rowIdField} AS row_id, {$jsonField} AS json_payload
+             FROM ?n
+             WHERE {$jsonField} IS NOT NULL
+               AND {$jsonField} <> ''",
+            $tableName
+        );
+
+        $references = [];
+        foreach ($rows as $row) {
+            $items = PropertyFieldContract::decodeFieldList($row['json_payload'] ?? '[]');
+            foreach ($items as $item) {
+                $type = strtolower(trim((string) ($item['type'] ?? '')));
+                if (!in_array($type, ['image', 'file'], true)) {
+                    continue;
+                }
+                $rawValue = $item[$valueField] ?? null;
+                $references[] = [
+                    'table' => $tableName,
+                    'row_id' => (int) ($row['row_id'] ?? 0),
+                    'field_type' => $type,
+                    'file_ids' => self::extractReferencedFileIds($rawValue),
+                    'raw_value' => self::normalizeReferencePayload($rawValue),
+                ];
+            }
+        }
+
+        return $references;
+    }
+
+    private static function extractReferencedFileIds(mixed $value): array {
+        if (is_string($value)) {
+            $trimmedValue = trim($value);
+            if ($trimmedValue === '') {
+                return [];
+            }
+            if ($trimmedValue[0] === '[' || $trimmedValue[0] === '{') {
+                $decoded = json_decode($trimmedValue, true);
+                if (json_last_error() === JSON_ERROR_NONE) {
+                    $value = $decoded;
+                }
+            }
+        }
+
+        $fileIds = [];
+        foreach ((array) $value as $item) {
+            if (is_string($item) && str_contains($item, ',')) {
+                foreach (explode(',', $item) as $token) {
+                    $token = trim($token);
+                    if (ctype_digit($token) && (int) $token > 0) {
+                        $fileIds[(int) $token] = true;
+                    }
+                }
+                continue;
+            }
+            if (is_int($item) || (is_string($item) && ctype_digit(trim($item)))) {
+                $item = (int) $item;
+                if ($item > 0) {
+                    $fileIds[$item] = true;
+                }
+            }
+        }
+
+        if ($fileIds === [] && is_string($value) && str_contains($value, ',')) {
+            foreach (explode(',', $value) as $token) {
+                $token = trim($token);
+                if (ctype_digit($token) && (int) $token > 0) {
+                    $fileIds[(int) $token] = true;
+                }
+            }
+        }
+
+        return array_keys($fileIds);
+    }
+
+    private static function normalizeReferencePayload(mixed $value): string {
+        if ($value === null) {
+            return '';
+        }
+        if (is_array($value)) {
+            $encoded = json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            return is_string($encoded) ? $encoded : '';
+        }
+        if (is_object($value)) {
+            return '';
+        }
+        return trim((string) $value);
     }
 
     /**
@@ -991,8 +1385,7 @@ class FileSystem {
             return $result;
         } catch (\Exception $e) {
             $message = 'Ошибка при сохранении изображения: ' . $e->getMessage();
-            new \classes\system\ErrorLogger($message, __FUNCTION__, 'file', $filePath);
-            ClassNotifications::addNotificationUser(SysClass::getCurrentUserId(), ['text' => $message, 'status' => 'danger']);
+            self::notifyFileIssue($message, $filePath, Logger::LEVEL_ERROR, 'danger', __FUNCTION__);
             return false;
         }
     }

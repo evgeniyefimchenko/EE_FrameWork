@@ -4,11 +4,18 @@ use classes\plugins\SafeMySQL;
 use classes\system\Constants;
 use classes\system\SysClass;
 use classes\system\Hook;
+use classes\system\Logger;
+use classes\system\OperationResult;
 
 /**
  * Модель работы с типами категорий
  */
 class ModelCategoriesTypes {
+
+    private array $directSetsCache = [];
+    private array $effectiveSetsCache = [];
+    private array $parentIdsCache = [];
+    private array $childrenIdsCache = [];
 
     /**
      * Получает все типы категорий, с учетом определенных параметров фильтрации и структуры
@@ -25,7 +32,7 @@ class ModelCategoriesTypes {
      * @return array Массив типов, организованный в соответствии с указанными параметрами
      *               Может быть как плоским списком, так и иерархически структурированным деревом
      */
-    public function getAllTypes(int $excludeTypeID = null, bool $flatArray = true, int $includeTypeID = null, string $languageCode = ENV_DEF_LANG) {
+    public function getAllTypes(?int $excludeTypeID = null, bool $flatArray = true, ?int $includeTypeID = null, string $languageCode = ENV_DEF_LANG) {
         $sql = "SELECT type_id, parent_type_id, name FROM ?n WHERE language_code = ?s";
         $types = SafeMySQL::gi()->getAll($sql, Constants::CATEGORIES_TYPES_TABLE, $languageCode);
         if ($includeTypeID !== null) {
@@ -155,6 +162,10 @@ class ModelCategoriesTypes {
      * @return array Массив type_id всех подчинённых типов по переданному type_id
      */
     function getAllTypeChildrensIds($type_id) {
+        $type_id = (int) $type_id;
+        if (isset($this->childrenIdsCache[$type_id])) {
+            return $this->childrenIdsCache[$type_id];
+        }
         $subTypes = [];
         $query = "SELECT type_id FROM ?n WHERE parent_type_id = ?i";
         $result = SafeMySQL::gi()->getAll($query, Constants::CATEGORIES_TYPES_TABLE, $type_id);
@@ -162,7 +173,8 @@ class ModelCategoriesTypes {
             $subTypes[] = $row['type_id'];
             $subTypes = array_merge($subTypes, $this->getAllTypeChildrensIds($row['type_id']));
         }
-        return $subTypes;
+        $this->childrenIdsCache[$type_id] = $subTypes;
+        return $this->childrenIdsCache[$type_id];
     }
 
     /**
@@ -172,12 +184,16 @@ class ModelCategoriesTypes {
      * @return array Массив всех найденных type_id включая начальный и всех родителей
      */
     public function getAllTypeParentsIds(int $type_id): array {
+        if (isset($this->parentIdsCache[$type_id])) {
+            return $this->parentIdsCache[$type_id];
+        }
         $result = [];
         if (!$type_id) {
             return $result;
         }
         $this->findParentsType($type_id, $result);
-        return $result;
+        $this->parentIdsCache[$type_id] = $result;
+        return $this->parentIdsCache[$type_id];
     }
 
     /**
@@ -242,12 +258,14 @@ class ModelCategoriesTypes {
      * @param string $languageCode Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG
      * @return int|bool ID нового или обновленного типа или false в случае ошибки
      */
-    public function updateCategoriesTypeData(array $typeData = [], string $languageCode = ENV_DEF_LANG): bool|int {
+    public function updateCategoriesTypeData(array $typeData = [], string $languageCode = ENV_DEF_LANG): OperationResult {
         $typeData = SafeMySQL::gi()->filterArray($typeData, SysClass::ee_getFieldsTable(Constants::CATEGORIES_TYPES_TABLE));
-        $typeData = array_map('trim', $typeData);
+        $typeData = array_map(static function ($value) {
+            return is_string($value) ? trim($value) : $value;
+        }, $typeData);
         $typeData['language_code'] = $languageCode;
         if (empty($typeData['name'])) {
-            return false;
+            return OperationResult::validation('Не указано имя типа категории', $typeData);
         }
         if (!isset($typeData['description'])) {
             $typeData['description'] = $typeData['name'];
@@ -260,17 +278,29 @@ class ModelCategoriesTypes {
             unset($typeData['type_id']); // Удаляем type_id из массива данных, чтобы избежать его обновление
             $sql = "UPDATE ?n SET ?u WHERE type_id = ?i";
             $result = SafeMySQL::gi()->query($sql, Constants::CATEGORIES_TYPES_TABLE, $typeData, $type_id);
-            return $result ? $type_id : false;
+            $this->invalidateTypeSetCaches(array_merge([$type_id], $this->getAllTypeChildrensIds($type_id)));
+            if (!$result) {
+                Logger::error('category_type', 'Ошибка обновления типа категории', ['type_data' => $typeData, 'query' => SafeMySQL::gi()->lastQuery()], ['initiator' => __FUNCTION__]);
+                return OperationResult::failure('Ошибка обновления типа категории', 'category_type_update_error', ['type_data' => $typeData]);
+            }
+            return OperationResult::success((int) $type_id, '', 'updated');
         }
         // Проверяем уникальность имени
         $existingType = $this->getIdCategoriesTypeByName($typeData['name']);
         if ($existingType) {
-            return false; // или вернуть какое-то сообщение об ошибке
+            return OperationResult::failure('Тип категории с таким именем уже существует', 'duplicate_category_type', ['type_data' => $typeData]);
         }
         unset($typeData['type_id']);
         $sql = "INSERT INTO ?n SET ?u";
         $result = SafeMySQL::gi()->query($sql, Constants::CATEGORIES_TYPES_TABLE, $typeData);
-        return $result ? SafeMySQL::gi()->insertId() : false;
+        if ($result) {
+            $this->invalidateTypeSetCaches();
+        }
+        if (!$result) {
+            Logger::error('category_type', 'Ошибка создания типа категории', ['type_data' => $typeData, 'query' => SafeMySQL::gi()->lastQuery()], ['initiator' => __FUNCTION__]);
+            return OperationResult::failure('Ошибка создания типа категории', 'category_type_insert_error', ['type_data' => $typeData]);
+        }
+        return OperationResult::success((int) SafeMySQL::gi()->insertId(), '', 'created');
     }
 
     /**
@@ -281,14 +311,18 @@ class ModelCategoriesTypes {
         try {
             $sql = 'SELECT title FROM ?n WHERE type_id = ?i';
             if ($title = SafeMySQL::gi()->getOne($sql, Constants::CATEGORIES_TABLE, $type_id)) {
-                return ['error' => 'Нельзя удалить тип категории <b>' . $this->getNameCategoriesType($type_id) . '</b>,'
-                    . 'так как он используется категорией <strong>' . $title . '</strong>'];
+                return OperationResult::failure('Нельзя удалить тип категории <b>' . $this->getNameCategoriesType($type_id) . '</b>,'
+                    . 'так как он используется категорией <strong>' . $title . '</strong>', 'category_type_delete_blocked', ['type_id' => $type_id]);
             }
             $sql_delete = "DELETE FROM ?n WHERE type_id = ?i";
             $result = SafeMySQL::gi()->query($sql_delete, Constants::CATEGORIES_TYPES_TABLE, $type_id);
-            return $result ? [] : ['error' => 'Ошибка при выполнении запроса DELETE'];
+            $this->invalidateTypeSetCaches();
+            return $result
+                ? OperationResult::success(['type_id' => $type_id], '', 'deleted')
+                : OperationResult::failure('Ошибка при выполнении запроса DELETE', 'category_type_delete_error', ['type_id' => $type_id]);
         } catch (Exception $e) {
-            return ['error' => $e->getMessage()];
+            Logger::error('category_type', $e->getMessage(), ['type_id' => $type_id, 'exception' => $e], ['initiator' => __FUNCTION__, 'include_trace' => true]);
+            return OperationResult::failure($e->getMessage(), 'category_type_delete_exception', ['type_id' => $type_id]);
         }
     }
 
@@ -317,12 +351,72 @@ class ModelCategoriesTypes {
      * @param int $typeIds - Типы категорий
      * @return array
      */
-    public function getCategoriesTypeSetsData(mixed $typeIds): array {
-        if (!is_array($typeIds)) {
-            $typeIds = [$typeIds];
+    public function getDirectCategoriesTypeSetsData(mixed $typeIds): array {
+        $typeIds = $this->normalizeIntegerIds($typeIds);
+        if (empty($typeIds)) {
+            return [];
         }
-        $sql = 'SELECT set_id FROM ?n WHERE type_id IN (?a)';
-        return SafeMySQL::gi()->getCol($sql, Constants::CATEGORY_TYPE_TO_PROPERTY_SET_TABLE, $typeIds);
+        $result = [];
+        $missingTypeIds = [];
+        foreach ($typeIds as $typeId) {
+            if (array_key_exists($typeId, $this->directSetsCache)) {
+                foreach ($this->directSetsCache[$typeId] as $setId) {
+                    $result[$setId] = $setId;
+                }
+                continue;
+            }
+            $missingTypeIds[] = $typeId;
+        }
+
+        if (!empty($missingTypeIds)) {
+            $rows = SafeMySQL::gi()->getAll(
+                'SELECT type_id, set_id FROM ?n WHERE type_id IN (?a)',
+                Constants::CATEGORY_TYPE_TO_PROPERTY_SET_TABLE,
+                $missingTypeIds
+            );
+            foreach ($missingTypeIds as $typeId) {
+                $this->directSetsCache[$typeId] = [];
+            }
+            foreach ($rows as $row) {
+                $typeId = (int) ($row['type_id'] ?? 0);
+                $setId = (int) ($row['set_id'] ?? 0);
+                if ($typeId <= 0 || $setId <= 0) {
+                    continue;
+                }
+                $this->directSetsCache[$typeId][$setId] = $setId;
+                $result[$setId] = $setId;
+            }
+        }
+
+        return array_values($result);
+    }
+
+    public function getCategoriesTypeSetsData(mixed $typeIds): array {
+        $typeIds = $this->normalizeIntegerIds($typeIds);
+        if (empty($typeIds)) {
+            return [];
+        }
+
+        $setIds = [];
+        foreach ($typeIds as $typeId) {
+            if (isset($this->effectiveSetsCache[$typeId])) {
+                foreach ($this->effectiveSetsCache[$typeId] as $setId) {
+                    $setIds[$setId] = $setId;
+                }
+                continue;
+            }
+            $lineageTypeIds = array_values(array_unique(array_merge(
+                [$typeId],
+                $this->getAllTypeParentsIds($typeId)
+            )));
+            $this->effectiveSetsCache[$typeId] = [];
+            foreach ($this->getDirectCategoriesTypeSetsData($lineageTypeIds) as $setId) {
+                $this->effectiveSetsCache[$typeId][$setId] = $setId;
+                $setIds[$setId] = $setId;
+            }
+        }
+
+        return array_values($setIds);
     }
 
     /**
@@ -331,21 +425,43 @@ class ModelCategoriesTypes {
      * @param int $type_id Идентификатор типа категории для обновления связей
      * @param int|array $set_ids Идентификаторы наборов свойств для связывания с указанным типом категории
      */
-    public function updateCategoriesTypeSetsData(int $type_id, mixed $set_ids): void {
-        if (!is_array($set_ids)) {
-            $set_ids = [$set_ids];
-        }
+    public function updateCategoriesTypeSetsData(int $type_id, mixed $set_ids): OperationResult {
+        $set_ids = $this->normalizeIntegerIds($set_ids);
         $allTypeChildrenIds = $this->getAllTypeChildrensIds($type_id);
         $allTypeChildrenIds[] = $type_id;
-        $this->deleteCategoriesTypeSetsData($allTypeChildrenIds);
+        $allTypeChildrenIds = array_values(array_unique(array_map('intval', $allTypeChildrenIds)));
+
+        $this->invalidateTypeSetCaches($allTypeChildrenIds);
+
+        if (!$this->deleteCategoriesTypeSetsData([$type_id])) {
+            return OperationResult::failure('Не удалось обновить связи типа категории с наборами', 'category_type_set_links_reset_failed', [
+                'type_id' => $type_id,
+            ]);
+        }
         $sql = "INSERT INTO ?n SET ?u";
-        foreach ($allTypeChildrenIds as $item_type_id) {
-            foreach ($set_ids as $set_id) {
-                $data = ['type_id' => $item_type_id, 'set_id' => $set_id];
-                SafeMySQL::gi()->query($sql, Constants::CATEGORY_TYPE_TO_PROPERTY_SET_TABLE, $data);
+        foreach ($set_ids as $set_id) {
+            $data = ['type_id' => $type_id, 'set_id' => $set_id];
+            $result = SafeMySQL::gi()->query($sql, Constants::CATEGORY_TYPE_TO_PROPERTY_SET_TABLE, $data);
+            if (!$result) {
+                Logger::error('category_types', 'Не удалось связать тип категории с набором', [
+                    'type_id' => $type_id,
+                    'set_id' => $set_id,
+                    'sql' => SafeMySQL::gi()->lastQuery(),
+                ]);
+                return OperationResult::failure('Не удалось связать тип категории с набором', 'category_type_set_link_insert_failed', [
+                    'type_id' => $type_id,
+                    'set_id' => $set_id,
+                ]);
             }
         }
-        Hook::run('postUpdateCategoriesTypeSetsData', $type_id, $set_ids, $allTypeChildrenIds);
+
+        $effectiveSetIds = $this->getCategoriesTypeSetsData($allTypeChildrenIds);
+        Hook::run('postUpdateCategoriesTypeSetsData', $type_id, $effectiveSetIds, $allTypeChildrenIds);
+        return OperationResult::success([
+            'type_id' => $type_id,
+            'set_ids' => $set_ids,
+            'affected_type_ids' => $allTypeChildrenIds,
+        ], '', 'updated');
     }
 
     /**
@@ -359,6 +475,7 @@ class ModelCategoriesTypes {
         if (!is_array($type_ids)) {
             $type_ids = [$type_ids];
         }
+        $this->invalidateTypeSetCaches($type_ids);
         if ($set_ids) {
             if (is_array($set_ids)) {
                 $set_ids = implode(',', $set_ids);
@@ -392,9 +509,85 @@ class ModelCategoriesTypes {
      *               Если у категории нет связанных сущностей, 'page_id' может быть null
      */
     public function getCategorySetPageData(array $setIds, string $languageCode = ENV_DEF_LANG): array {
-        $sql = 'SELECT c.category_id, cts.set_id, e.page_id FROM ?n c INNER JOIN ?n cts ON c.type_id = cts.type_id LEFT JOIN ?n e ON c.category_id = e.category_id WHERE 
-                cts.set_id IN (?a) AND c.language_code = ?s ORDER BY c.category_id, cts.set_id, e.page_id';
-        $result = SafeMySQL::gi()->getAll($sql, Constants::CATEGORIES_TABLE, Constants::CATEGORY_TYPE_TO_PROPERTY_SET_TABLE, Constants::PAGES_TABLE, $setIds, $languageCode);
+        $setIds = $this->normalizeIntegerIds($setIds);
+        if (empty($setIds)) {
+            return [];
+        }
+
+        $effectiveTypeIds = [];
+        foreach ($setIds as $setId) {
+            foreach ($this->getCategoryTypeIdsBySet($setId) as $typeId) {
+                $effectiveTypeIds[$typeId] = $typeId;
+            }
+        }
+        if (empty($effectiveTypeIds)) {
+            return [];
+        }
+
+        $categories = SafeMySQL::gi()->getAll(
+            'SELECT category_id, type_id FROM ?n WHERE type_id IN (?a) AND language_code = ?s ORDER BY category_id',
+            Constants::CATEGORIES_TABLE,
+            array_values($effectiveTypeIds),
+            $languageCode
+        );
+        if (empty($categories)) {
+            return [];
+        }
+
+        $categoryIds = array_values(array_unique(array_map(
+            static fn(array $category): int => (int) ($category['category_id'] ?? 0),
+            $categories
+        )));
+        $pageRows = !empty($categoryIds)
+            ? SafeMySQL::gi()->getAll(
+                'SELECT category_id, page_id FROM ?n WHERE category_id IN (?a) ORDER BY category_id, page_id',
+                Constants::PAGES_TABLE,
+                $categoryIds
+            )
+            : [];
+
+        $pagesByCategory = [];
+        foreach ($pageRows as $pageRow) {
+            $categoryId = (int) ($pageRow['category_id'] ?? 0);
+            $pageId = (int) ($pageRow['page_id'] ?? 0);
+            if ($categoryId > 0 && $pageId > 0) {
+                $pagesByCategory[$categoryId][] = $pageId;
+            }
+        }
+
+        $effectiveSetsByType = [];
+        $result = [];
+        foreach ($categories as $category) {
+            $categoryId = (int) ($category['category_id'] ?? 0);
+            $typeId = (int) ($category['type_id'] ?? 0);
+            if ($categoryId <= 0 || $typeId <= 0) {
+                continue;
+            }
+
+            if (!isset($effectiveSetsByType[$typeId])) {
+                $effectiveSetsByType[$typeId] = array_flip($this->getCategoriesTypeSetsData($typeId));
+            }
+            $matchedSetIds = [];
+            foreach ($setIds as $setId) {
+                if (isset($effectiveSetsByType[$typeId][$setId])) {
+                    $matchedSetIds[] = $setId;
+                }
+            }
+            if (empty($matchedSetIds)) {
+                continue;
+            }
+
+            foreach ($matchedSetIds as $setId) {
+                if (!empty($pagesByCategory[$categoryId])) {
+                    foreach ($pagesByCategory[$categoryId] as $pageId) {
+                        $result[] = ['category_id' => $categoryId, 'set_id' => $setId, 'page_id' => $pageId];
+                    }
+                    continue;
+                }
+                $result[] = ['category_id' => $categoryId, 'set_id' => $setId, 'page_id' => null];
+            }
+        }
+
         return $result;
     }
 
@@ -402,10 +595,60 @@ class ModelCategoriesTypes {
      * Находит все типы категорий, которые используют указанный набор свойств
      */
     public function getCategoryTypeIdsBySet(int $setId): array {
-        return SafeMySQL::gi()->getCol(
-                        "SELECT type_id FROM ?n WHERE set_id = ?i",
-                        Constants::CATEGORY_TYPE_TO_PROPERTY_SET_TABLE,
-                        $setId
-                );
+        $directTypeIds = array_values(array_unique(array_map(
+            'intval',
+            SafeMySQL::gi()->getCol(
+                "SELECT type_id FROM ?n WHERE set_id = ?i",
+                Constants::CATEGORY_TYPE_TO_PROPERTY_SET_TABLE,
+                $setId
+            )
+        )));
+        if (empty($directTypeIds)) {
+            return [];
+        }
+
+        $typeIds = [];
+        foreach ($directTypeIds as $typeId) {
+            $typeIds[$typeId] = $typeId;
+            foreach ($this->getAllTypeChildrensIds($typeId) as $childTypeId) {
+                $childTypeId = (int) $childTypeId;
+                if ($childTypeId > 0) {
+                    $typeIds[$childTypeId] = $childTypeId;
+                }
+            }
+        }
+
+        return array_values($typeIds);
+    }
+
+    private function normalizeIntegerIds(mixed $ids): array {
+        if (!is_array($ids)) {
+            $ids = [$ids];
+        }
+
+        return array_values(array_unique(array_filter(
+            array_map('intval', $ids),
+            static fn(int $id): bool => $id > 0
+        )));
+    }
+
+    private function invalidateTypeSetCaches(mixed $typeIds = []): void {
+        $typeIds = $this->normalizeIntegerIds($typeIds);
+        if (empty($typeIds)) {
+            $this->directSetsCache = [];
+            $this->effectiveSetsCache = [];
+            $this->parentIdsCache = [];
+            $this->childrenIdsCache = [];
+            return;
+        }
+
+        foreach ($typeIds as $typeId) {
+            unset(
+                $this->directSetsCache[$typeId],
+                $this->effectiveSetsCache[$typeId],
+                $this->parentIdsCache[$typeId],
+                $this->childrenIdsCache[$typeId]
+            );
+        }
     }
 }

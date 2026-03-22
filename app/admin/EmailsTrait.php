@@ -293,15 +293,24 @@ trait EmailsTrait {
                 $templateId = 0;
             }
             $newEntity = empty($templateId) ? true : false;
+            $saveSucceeded = false;
             if (isset($postData['name']) && $postData['name']) {
-                // Сохранение основных данных
-                if (!$new_id = $this->models['m_email_templates']->updateEmailTemplateData($postData)) {
-                    ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
-                } else {
-                    $templateId = $new_id;
+                $saveResult = $this->notifyOperationResult(
+                    $this->models['m_email_templates']->updateEmailTemplateData($postData),
+                    [
+                        'default_error_message' => $this->lang['sys.db_registration_error'],
+                        'success_message' => $newEntity ? 'Шаблон письма создан' : 'Шаблон письма обновлён',
+                        'failure_code' => 'email_template_save_failed',
+                    ]
+                );
+                if ($saveResult->isSuccess()) {
+                    $templateId = $saveResult->getId(['template_id', 'id']);
+                    $saveSucceeded = true;
                 }
             }
-            $this->processPostParams($postData, $newEntity, $templateId);
+            if (!empty($postData) && $saveSucceeded) {
+                $this->processPostParams($postData, $newEntity, $templateId);
+            }
             $getEmailTemplateData = ((int) $templateId ? $this->models['m_email_templates']->getEmailTemplateData($templateId) : null) ?: $defaultData;
         } else { // Не передан ключевой параметр id
             SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/email_templates');
@@ -363,18 +372,25 @@ trait EmailsTrait {
             } else {
                 $snippetId = 0;
             }
+            $newEntity = empty($snippetId) ? true : false;
+            $saveSucceeded = false;
             if (isset($postData['name']) && $postData['name']) {
-                if (!$new_id = $this->models['m_email_templates']->updateEmailSnippetData($postData)) {
-                    ClassNotifications::addNotificationUser($this->logged_in, [
-                        'text' => $this->lang['sys.db_registration_error'],
-                        'status' => 'danger'
-                    ]);
-                } else {
-                    $snippetId = $new_id;
+                $saveResult = $this->notifyOperationResult(
+                    $this->models['m_email_templates']->updateEmailSnippetData($postData),
+                    [
+                        'default_error_message' => $this->lang['sys.db_registration_error'],
+                        'success_message' => $newEntity ? 'Сниппет создан' : 'Сниппет обновлён',
+                        'failure_code' => 'email_snippet_save_failed',
+                    ]
+                );
+                if ($saveResult->isSuccess()) {
+                    $snippetId = $saveResult->getId(['snippet_id', 'id']);
+                    $saveSucceeded = true;
                 }
             }
-            $newEntity = empty($snippetId) ? true : false;
-            $this->processPostParams($postData, $newEntity, $snippetId);
+            if (!empty($postData) && $saveSucceeded) {
+                $this->processPostParams($postData, $newEntity, $snippetId);
+            }
             $getSnippetData = ((int) $snippetId ? $this->models['m_email_templates']->getEmailSnippetData($snippetId) : null) ?: $defaultData;
         } else {
             SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/email_snippets');
@@ -439,13 +455,39 @@ trait EmailsTrait {
             } else {
                 $templateId = 0;
             }
-            $res = $this->models['m_email_templates']->deleteEmailTemplate($templateId);
-            if (isset($res['error'])) {
-                ClassNotifications::addNotificationUser($this->logged_in, ['text' => $res['error'], 'status' => 'danger']);
-            } else {
-                ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.removed'], 'status' => 'success']);
-            }
+            $this->notifyOperationResult(
+                $this->models['m_email_templates']->deleteEmailTemplate($templateId),
+                [
+                    'default_error_message' => $this->lang['sys.data_update_error'],
+                    'success_message' => $this->lang['sys.removed'],
+                    'failure_code' => 'email_template_delete_failed',
+                ]
+            );
         }
-        SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/categories');
+        SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/email_templates');
+    }
+
+    public function email_snippet_delete($params = []): void {
+        $this->access = [Constants::ADMIN, Constants::MODERATOR];
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect();
+            exit();
+        }
+        $this->loadModel('m_email_templates');
+        if (in_array('id', $params, true)) {
+            $keyId = array_search('id', $params, true);
+            $snippetId = ($keyId !== false && isset($params[$keyId + 1]))
+                ? (int) filter_var($params[$keyId + 1], FILTER_VALIDATE_INT)
+                : 0;
+            $this->notifyOperationResult(
+                $this->models['m_email_templates']->deleteEmailSnippet($snippetId),
+                [
+                    'default_error_message' => $this->lang['sys.data_update_error'],
+                    'success_message' => $this->lang['sys.removed'],
+                    'failure_code' => 'email_snippet_delete_failed',
+                ]
+            );
+        }
+        SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/email_snippets');
     }
 }

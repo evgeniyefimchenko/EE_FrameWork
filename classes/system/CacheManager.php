@@ -3,212 +3,406 @@
 namespace classes\system;
 
 /**
- * Класс CacheManager
- * Этот класс предоставляет методы для управления кешем сайта, поддерживая кеширование на основе файловой системы и Redis
+ * Управление HTML/block cache проекта с безопасной изоляцией по namespace/version.
  */
 class CacheManager {
 
-    /**
-     * @var string $cachePath Путь к директории для кеша
-     */
-    private $cachePath;
+    private const SECTION_HTML = 'html';
+    private const SECTION_BLOCK = 'block';
+    private const SECTION_ROUTE = 'route';
+    private const REDIS_NAMESPACE_PREFIX = 'ee_cache';
 
     /**
-     * @var int $cacheDuration Время жизни кеша в секундах
+     * @var string $cachePath Базовый путь к директории кэша
      */
-    private $cacheDuration;
+    private string $cachePath;
 
     /**
-     * @var \Redis|null $redisClient Клиент Redis (если используется Redis)
+     * @var int $cacheDuration Время жизни кэша в секундах
      */
-    private $redisClient = null;
+    private int $cacheDuration;
 
     /**
-     * @var bool $useRedis Использовать ли Redis для кеширования
+     * @var \Redis|null $redisClient Клиент Redis, если backend = redis
      */
-    private $useRedis = false;
+    private ?\Redis $redisClient = null;
 
     /**
-     * @var array $parametersLayout Параметры из контроллера
+     * @var bool $useRedis Использовать ли Redis для кэширования
      */
-    private $parametersLayout = [];
-    
-    /**
-     * Конструктор класса CacheManager
-     * @param int $cacheDuration Время жизни кеша в секундах (по умолчанию 3600 секунд)
-     */
+    private bool $useRedis = false;
+
     public function __construct(int $cacheDuration = 3600) {
-        $this->cachePath = ENV_CACHE_PATH;
-        $this->cacheDuration = $cacheDuration;        
-        
-        // Проверка на использование Redis
-        if (ENV_CACHE_REDIS == 1 && class_exists('\Redis')) {
-            $this->useRedis = true;
-            try {
-                $this->redisClient = new \Redis();
-                $this->redisClient->connect(ENV_REDIS_ADDRESS, ENV_REDIS_PORT);
-            } catch (\Exception $e) {
-                // Если подключение к Redis не удалось, отключаем его использование
-                $this->useRedis = false;
-                $this->redisClient = null;
-                error_log("Redis connection failed: " . $e->getMessage());
-            }
+        $this->cachePath = rtrim((string) ENV_CACHE_PATH, '/\\') . ENV_DIRSEP;
+        $this->cacheDuration = $cacheDuration;
+        $this->bootBackend();
+    }
+
+    private function bootBackend(): void {
+        $this->useRedis = self::resolveBackend() === 'redis' && class_exists('\Redis');
+        if (!$this->useRedis) {
+            return;
+        }
+
+        try {
+            $this->redisClient = new \Redis();
+            $this->redisClient->connect(ENV_REDIS_ADDRESS, ENV_REDIS_PORT);
+        } catch (\Throwable $e) {
+            $this->useRedis = false;
+            $this->redisClient = null;
+            Logger::warning('cache_error', 'Redis connection failed', [
+                'message' => $e->getMessage(),
+                'address' => ENV_REDIS_ADDRESS,
+                'port' => ENV_REDIS_PORT,
+            ], [
+                'initiator' => __METHOD__,
+                'details' => $e->getMessage(),
+                'include_trace' => false,
+            ]);
         }
     }
 
-    /**
-     * Генерация уникального ключа для кеша на основе URL и параметров запроса
-     * @param string $param Уникальный ключ для блока кеширования
-     * @return string Возвращает хешированный ключ для идентификации кеша
-     */
-    private function generateCacheKey(string $param): string {
-        $key = $param;
-        $key .= isset($_GET) ? json_encode($_GET) : '';
-        return md5($key);
+    public static function resolveBackend(): string {
+        $backend = defined('ENV_CACHE_BACKEND') ? strtolower((string) ENV_CACHE_BACKEND) : '';
+        if ($backend === 'redis') {
+            return 'redis';
+        }
+        if ($backend === 'file') {
+            return 'file';
+        }
+
+        return (defined('ENV_CACHE_REDIS') && (int) ENV_CACHE_REDIS === 1) ? 'redis' : 'file';
     }
 
-    /**
-     * Проверка наличия актуального кеша
-     * @param string $param Уникальный ключ для блока кеширования
-     * @return string|false Путь к кеш-файлу или содержимое из Redis, если существует актуальный кеш
-     */
+    private static function getNamespace(): string {
+        $namespace = defined('ENV_CACHE_NAMESPACE') ? (string) ENV_CACHE_NAMESPACE : 'ee-site';
+        $namespace = preg_replace('~[^a-z0-9._-]+~i', '-', strtolower($namespace)) ?? 'ee-site';
+        $namespace = trim($namespace, '-');
+        return $namespace !== '' ? $namespace : 'ee-site';
+    }
+
+    private static function getVersion(): string {
+        $version = defined('ENV_CACHE_VERSION') ? (string) ENV_CACHE_VERSION : 'v1';
+        $version = preg_replace('~[^a-z0-9._-]+~i', '-', strtolower($version)) ?? 'v1';
+        $version = trim($version, '-');
+        return $version !== '' ? $version : 'v1';
+    }
+
+    private static function buildRedisPrefix(string $section, bool $allVersions = false): string {
+        $parts = [
+            self::REDIS_NAMESPACE_PREFIX,
+            self::getNamespace(),
+        ];
+        if (!$allVersions) {
+            $parts[] = self::getVersion();
+        }
+        $parts[] = $section;
+        return implode(':', $parts) . ':';
+    }
+
+    private static function buildRedisMatch(string $section, bool $allVersions = false): string {
+        return $allVersions
+            ? self::REDIS_NAMESPACE_PREFIX . ':' . self::getNamespace() . ':*:' . $section . ':*'
+            : self::buildRedisPrefix($section, false) . '*';
+    }
+
+    private function buildRedisKey(string $section, string $cacheKey): string {
+        return self::buildRedisPrefix($section, false) . $cacheKey;
+    }
+
+    private static function getNamespacedDirectory(string $section): string {
+        return rtrim((string) ENV_CACHE_PATH, '/\\') . ENV_DIRSEP
+            . trim($section, '/\\') . ENV_DIRSEP
+            . self::getNamespace() . '-' . self::getVersion() . ENV_DIRSEP;
+    }
+
+    private static function getSectionRoot(string $section): string {
+        return rtrim((string) ENV_CACHE_PATH, '/\\') . ENV_DIRSEP . trim($section, '/\\') . ENV_DIRSEP;
+    }
+
+    private function getCacheFilePath(string $section, string $cacheKey): string {
+        return self::getNamespacedDirectory($section) . $cacheKey . '.cache';
+    }
+
+    private function generateCacheKey(string $param, array $extraContext = []): string {
+        $payload = [
+            'scope' => $this->getRequestCacheScope(),
+            'lang' => $this->getLanguageContext(),
+            'param' => $param,
+            'get' => $_GET ?? [],
+            'context' => $extraContext,
+        ];
+
+        return md5((string) json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+    }
+
+    private function getRequestCacheScope(): string {
+        $scheme = defined('ENV_REQUEST_SCHEME')
+            ? (string) ENV_REQUEST_SCHEME
+            : (function_exists('ee_get_request_scheme') ? ee_get_request_scheme() : 'http');
+        $host = defined('ENV_REQUEST_HOST')
+            ? (string) ENV_REQUEST_HOST
+            : (function_exists('ee_get_request_host') ? ee_get_request_host() : (string) ($_SERVER['HTTP_HOST'] ?? 'localhost'));
+
+        return strtolower($scheme) . '://' . strtolower($host);
+    }
+
+    private function getLanguageContext(): string {
+        $lang = null;
+        if (class_exists(Session::class)) {
+            $lang = Session::get('lang');
+        }
+
+        $lang = strtoupper(trim((string) ($lang ?: (defined('ENV_DEF_LANG') ? ENV_DEF_LANG : 'RU'))));
+        return $lang !== '' ? $lang : 'RU';
+    }
+
     public function isCached(string $param): string|false {
         $cacheKey = $this->generateCacheKey($param);
+
         if ($this->useRedis && $this->redisClient) {
-            if ($this->redisClient->exists($cacheKey)) {
-                return $this->redisClient->get($cacheKey);
+            $redisKey = $this->buildRedisKey(self::SECTION_HTML, $cacheKey);
+            if ($this->redisClient->exists($redisKey)) {
+                return (string) $this->redisClient->get($redisKey);
             }
-        } else {
-            $cacheFile = $this->cachePath . $cacheKey . '.cache';
-            if (file_exists($cacheFile) && (time() - filemtime($cacheFile)) < $this->cacheDuration) {
-                return $cacheFile;
-            }
-        }        
+            return false;
+        }
+
+        $cacheFile = $this->getCacheFilePath(self::SECTION_HTML, $cacheKey);
+        if (is_file($cacheFile) && (time() - (int) @filemtime($cacheFile)) < $this->cacheDuration) {
+            return $cacheFile;
+        }
+
         return false;
     }
 
-    /**
-     * Получение данных из кеша
-     * @param string $cacheKey Путь к файлу кеша или ключ для Redis
-     * @return string Содержимое кеша
-     */
     public function getCache(string $cacheKey): string {
         if ($this->useRedis && $this->redisClient) {
-            return $cacheKey;  // В случае с Redis возвращаем кеш сразу
-        }        
-        return file_get_contents($cacheKey);  // Для файловой системы читаем содержимое файла
+            return $cacheKey;
+        }
+
+        return (string) @file_get_contents($cacheKey);
     }
 
-    /**
-     * Запись данных в кеш
-     * @param string $content Данные для кеширования
-     * @param string $param Уникальный ключ для блока кеширования
-     * @return void
-     */
     public function setCache(string $content, string $param): void {
-        $cacheKey = $this->generateCacheKey($param);        
+        $cacheKey = $this->generateCacheKey($param);
+
         if ($this->useRedis && $this->redisClient) {
-            $this->redisClient->set($cacheKey, $content, $this->cacheDuration);  // Кешируем в Redis
-        } else {
-            $cacheFile = $this->cachePath . $cacheKey . '.cache';
-            if (SysClass::createDirectoriesForFile($cacheFile)) {
-                file_put_contents($cacheFile, $content);  // Кешируем в файловую систему
-            }
+            $this->redisClient->set($this->buildRedisKey(self::SECTION_HTML, $cacheKey), $content, $this->cacheDuration);
+            return;
+        }
+
+        $cacheFile = $this->getCacheFilePath(self::SECTION_HTML, $cacheKey);
+        if (SysClass::createDirectoriesForFile($cacheFile)) {
+            file_put_contents($cacheFile, $content, LOCK_EX);
         }
     }
 
-    /**
-     * Очистка кеша для текущего запроса
-     * @param string $param Уникальный ключ для блока кеширования
-     * @return void
-     */
     public function clearCache(string $param): void {
-        $cacheKey = $this->generateCacheKey($param);        
+        $cacheKey = $this->generateCacheKey($param);
+
         if ($this->useRedis && $this->redisClient) {
-            $this->redisClient->del($cacheKey);
-        } else {
-            $cacheFile = $this->cachePath . DIRECTORY_SEPARATOR . $cacheKey . '.cache';
-            if (file_exists($cacheFile)) {
-                unlink($cacheFile);
-            }
+            $this->redisClient->del($this->buildRedisKey(self::SECTION_HTML, $cacheKey));
+            return;
+        }
+
+        $cacheFile = $this->getCacheFilePath(self::SECTION_HTML, $cacheKey);
+        if (is_file($cacheFile)) {
+            @unlink($cacheFile);
         }
     }
 
-    /**
-     * Полная очистка кеша
-     * @return void
-     */
     public function clearAllCache(): void {
-        if ($this->useRedis && $this->redisClient) {
-            $this->redisClient->flushAll();
-        } else {
-            array_map('unlink', glob($this->cachePath . DIRECTORY_SEPARATOR . '*.cache'));
-        }
+        self::clearSection(self::SECTION_HTML);
+        self::clearSection(self::SECTION_BLOCK);
+        self::clearSection(self::SECTION_ROUTE);
     }
 
-    /**
-     * Логирование файлов кеша
-     * @return array Лог-файл с информацией о кешированных данных
-     */
+    public static function clearHtmlCache(): void {
+        self::clearSection(self::SECTION_HTML);
+        self::clearSection(self::SECTION_BLOCK);
+    }
+
+    public static function clearBlockCache(): void {
+        self::clearSection(self::SECTION_BLOCK);
+    }
+
+    public static function resetRedisAvailabilityProbe(): bool {
+        $probeFile = rtrim((string) ENV_CACHE_PATH, '/\\') . ENV_DIRSEP . 'redis_connection_check.cache';
+        if (!is_file($probeFile)) {
+            return true;
+        }
+
+        return @unlink($probeFile);
+    }
+
     public function logCacheFiles(): array {
         if ($this->useRedis && $this->redisClient) {
-            // Логирование для Redis
-            $keys = $this->redisClient->keys('*');
-            $log = [];
-            foreach ($keys as $key) {
+            return $this->logRedisCacheKeys();
+        }
+
+        return $this->logFileCacheEntries();
+    }
+
+    private function logRedisCacheKeys(): array {
+        $patterns = [
+            self::buildRedisMatch(self::SECTION_HTML, true),
+            self::buildRedisMatch(self::SECTION_BLOCK, true),
+            self::REDIS_NAMESPACE_PREFIX . ':' . self::getNamespace() . ':*:' . self::SECTION_ROUTE . ':*',
+        ];
+
+        $log = [];
+        foreach ($patterns as $pattern) {
+            foreach ($this->scanRedisKeys($pattern) as $key) {
+                $value = (string) $this->redisClient->get($key);
                 $log[] = [
                     'key' => $key,
-                    'size' => strlen($this->redisClient->get($key)),
-                    'created_at' => 'N/A',  // Redis не предоставляет время создания
+                    'size' => strlen($value),
+                    'created_at' => 'N/A',
                 ];
             }
-            return $log;
-        } else {
-            // Логирование для файловой системы
-            $files = glob($this->cachePath . DIRECTORY_SEPARATOR . '*.cache');
-            $log = [];
-            foreach ($files as $file) {
+        }
+
+        return $log;
+    }
+
+    private function logFileCacheEntries(): array {
+        $directories = [
+            self::getSectionRoot(self::SECTION_HTML),
+            self::getSectionRoot(self::SECTION_BLOCK),
+            self::getSectionRoot(self::SECTION_ROUTE),
+        ];
+
+        $log = [];
+        foreach ($directories as $directory) {
+            if (!is_dir($directory)) {
+                continue;
+            }
+
+            $iterator = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($directory, \FilesystemIterator::SKIP_DOTS)
+            );
+
+            foreach ($iterator as $item) {
+                if (!$item->isFile() || $item->getExtension() !== 'cache') {
+                    continue;
+                }
+
                 $log[] = [
-                    'file' => $file,
-                    'size' => filesize($file),
-                    'created_at' => date('Y-m-d H:i:s', filemtime($file)),
+                    'file' => $item->getPathname(),
+                    'size' => $item->getSize(),
+                    'created_at' => date('Y-m-d H:i:s', $item->getMTime()),
                 ];
             }
-            return $log;
         }
+
+        return $log;
     }
 
-    /**
-     * Кеширование блоков страницы
-     * @param string $blockId Уникальный идентификатор блока
-     * @param string $content Контент блока
-     * @return void
-     */
     public function cacheBlock(string $blockId, string $content): void {
-        $cacheKey = md5($blockId);        
+        $cacheKey = $this->generateCacheKey('block:' . $blockId, ['block_id' => $blockId]);
+
         if ($this->useRedis && $this->redisClient) {
-            $this->redisClient->set($cacheKey, $content, $this->cacheDuration);
-        } else {
-            $cacheFile = $this->cachePath . DIRECTORY_SEPARATOR . $cacheKey . '.cache';
-            file_put_contents($cacheFile, $content);
+            $this->redisClient->set($this->buildRedisKey(self::SECTION_BLOCK, $cacheKey), $content, $this->cacheDuration);
+            return;
+        }
+
+        $cacheFile = $this->getCacheFilePath(self::SECTION_BLOCK, $cacheKey);
+        if (SysClass::createDirectoriesForFile($cacheFile)) {
+            file_put_contents($cacheFile, $content, LOCK_EX);
         }
     }
 
-    /**
-     * Получение кешированного блока
-     * @param string $blockId Уникальный идентификатор блока
-     * @return string|false Кешированный блок или false
-     */
     public function getCachedBlock(string $blockId): string|false {
-        $cacheKey = md5($blockId);        
+        $cacheKey = $this->generateCacheKey('block:' . $blockId, ['block_id' => $blockId]);
+
         if ($this->useRedis && $this->redisClient) {
-            return $this->redisClient->get($cacheKey);
-        } else {
-            $cacheFile = $this->cachePath . DIRECTORY_SEPARATOR . $cacheKey . '.cache';
-            if (file_exists($cacheFile)) {
-                return file_get_contents($cacheFile);
-            }
-        }        
+            $value = $this->redisClient->get($this->buildRedisKey(self::SECTION_BLOCK, $cacheKey));
+            return $value !== false ? (string) $value : false;
+        }
+
+        $cacheFile = $this->getCacheFilePath(self::SECTION_BLOCK, $cacheKey);
+        if (is_file($cacheFile) && (time() - (int) @filemtime($cacheFile)) < $this->cacheDuration) {
+            return (string) @file_get_contents($cacheFile);
+        }
+
         return false;
+    }
+
+    private static function clearSection(string $section): void {
+        if (self::resolveBackend() === 'redis' && class_exists('\Redis')) {
+            self::clearRedisSection($section);
+        }
+
+        self::clearSectionDirectory(self::getSectionRoot($section));
+    }
+
+    private static function clearRedisSection(string $section): void {
+        try {
+            $redis = new \Redis();
+            $redis->connect(ENV_REDIS_ADDRESS, ENV_REDIS_PORT);
+        } catch (\Throwable $e) {
+            Logger::warning('cache_error', 'Redis section clear failed', [
+                'message' => $e->getMessage(),
+                'section' => $section,
+            ], [
+                'initiator' => __METHOD__,
+                'details' => $e->getMessage(),
+                'include_trace' => false,
+            ]);
+            return;
+        }
+
+        $patterns = [$section === self::SECTION_ROUTE
+            ? self::REDIS_NAMESPACE_PREFIX . ':' . self::getNamespace() . ':*:' . self::SECTION_ROUTE . ':*'
+            : self::buildRedisMatch($section, true)];
+
+        foreach ($patterns as $pattern) {
+            $iterator = null;
+            do {
+                $keys = $redis->scan($iterator, $pattern, 500);
+                if (is_array($keys) && $keys !== []) {
+                    $redis->del($keys);
+                }
+            } while ($iterator !== 0 && $iterator !== null);
+        }
+    }
+
+    private function scanRedisKeys(string $pattern): array {
+        if (!$this->redisClient) {
+            return [];
+        }
+
+        $keys = [];
+        $iterator = null;
+        do {
+            $chunk = $this->redisClient->scan($iterator, $pattern, 500);
+            if (is_array($chunk) && $chunk !== []) {
+                array_push($keys, ...$chunk);
+            }
+        } while ($iterator !== 0 && $iterator !== null);
+
+        return $keys;
+    }
+
+    private static function clearSectionDirectory(string $directory): void {
+        if (!is_dir($directory)) {
+            return;
+        }
+
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($directory, \FilesystemIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::CHILD_FIRST
+        );
+
+        foreach ($iterator as $item) {
+            if ($item->isDir()) {
+                @rmdir($item->getPathname());
+                continue;
+            }
+            @unlink($item->getPathname());
+        }
+
+        @rmdir($directory);
     }
 }

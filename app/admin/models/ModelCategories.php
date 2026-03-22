@@ -4,7 +4,8 @@ use classes\plugins\SafeMySQL;
 use classes\system\Constants;
 use classes\system\SysClass;
 use classes\system\Hook;
-use classes\system\ErrorLogger;
+use classes\system\Logger;
+use classes\system\OperationResult;
 
 /**
  * Модель работы с категориями
@@ -57,7 +58,10 @@ class ModelCategories {
         $res_array = SafeMySQL::gi()->getAll($sql_categories, ...$params);
         $res = [];
         foreach ($res_array as $category) {
-            $res[] = $this->getCategoryData($category['category_id']);
+            $categoryData = $this->getCategoryData($category['category_id'], $languageCode);
+            if ($categoryData !== null) {
+                $res[] = $categoryData;
+            }
         }
         $sql_count = "SELECT COUNT(*) as total_count FROM ?n WHERE $whereString";
         $total_count = SafeMySQL::gi()->getOne($sql_count, ...array_slice($params, 0, 2));  // передаем первые два параметра (имя таблицы и код языка)
@@ -230,6 +234,44 @@ class ModelCategories {
     }
 
     /**
+     * Возвращает список ID категории и всех её родителей в рамках указанного языка.
+     * Порядок: от ближайшего родителя к корню. При includeSelf=true в конец добавляется сама категория.
+     */
+    public function getCategoryAncestorIds(int $categoryId, string $languageCode = ENV_DEF_LANG, bool $includeSelf = true): array {
+        if ($categoryId <= 0) {
+            return [];
+        }
+
+        $ancestorIds = [];
+        $visited = [];
+        $currentId = $categoryId;
+
+        while ($currentId > 0 && !isset($visited[$currentId])) {
+            $visited[$currentId] = true;
+            $row = SafeMySQL::gi()->getRow(
+                'SELECT category_id, parent_id FROM ?n WHERE category_id = ?i AND language_code = ?s LIMIT 1',
+                Constants::CATEGORIES_TABLE,
+                $currentId,
+                $languageCode
+            );
+            if (!$row) {
+                break;
+            }
+            $parentId = (int) ($row['parent_id'] ?? 0);
+            if ($parentId > 0) {
+                $ancestorIds[] = $parentId;
+            }
+            $currentId = $parentId;
+        }
+
+        if ($includeSelf) {
+            $ancestorIds[] = $categoryId;
+        }
+
+        return array_values(array_unique(array_filter(array_map('intval', $ancestorIds), static fn(int $id): bool => $id > 0)));
+    }
+
+    /**
      * Рекурсивная функция для построения дерева категорий с учетом уровня вложенности
      * @param array $categories Массив категорий
      * @param int $parentId ID родительской категории, по умолчанию 0
@@ -258,9 +300,9 @@ class ModelCategories {
      * Обновляет существующую запись категории или создает новую
      * @param array $categoryData Ассоциативный массив с данными категории
      * @param string $languageCode Код языка (по умолчанию ENV_DEF_LANG)
-     * @return int|ErrorLogger Возвращает ID категории в случае успеха или объект ErrorLogger с информацией об ошибке
+     * @return OperationResult
      */
-    public function updateCategoryData(array $categoryData = [], string $languageCode = ENV_DEF_LANG): int|ErrorLogger {
+    public function updateCategoryData(array $categoryData = [], string $languageCode = ENV_DEF_LANG): OperationResult {
         try {
             $db = $this->db ?? SafeMySQL::gi(); // Используем $this->db если есть, иначе gi()
             $allowedFields = SysClass::ee_getFieldsTable(Constants::CATEGORIES_TABLE);
@@ -273,28 +315,35 @@ class ModelCategories {
             $categoryData['parent_id'] = isset($categoryData['parent_id']) && (int) $categoryData['parent_id'] !== 0 ? (int) $categoryData['parent_id'] : NULL;
             $categoryData['language_code'] = $languageCode;
             if (empty($categoryData['type_id']) || !is_numeric($categoryData['type_id'])) {
-                return new ErrorLogger('Не указан или некорректен ID типа категории', __FUNCTION__, 'category_validation', $categoryData);
+                Logger::warning('category_validation', 'Не указан или некорректен ID типа категории', $categoryData, ['initiator' => __FUNCTION__]);
+                return OperationResult::validation('Не указан или некорректен ID типа категории', $categoryData);
             }
             $categoryData['type_id'] = (int) $categoryData['type_id'];
             if (!empty($categoryData['parent_id'])) {
                 $parent_type_id = $db->getOne('SELECT type_id FROM ?n WHERE category_id = ?i', Constants::CATEGORIES_TABLE, $categoryData['parent_id']);
                 if (!$parent_type_id) {
-                    return new ErrorLogger('Родительская категория не найдена', __FUNCTION__, 'category_validation', $categoryData);
+                    Logger::warning('category_validation', 'Родительская категория не найдена', $categoryData, ['initiator' => __FUNCTION__]);
+                    return OperationResult::validation('Родительская категория не найдена', $categoryData);
                 }
                 $objectModelCategoriesTypes = SysClass::getModelObject('admin', 'm_categories_types');
-                if (!$objectModelCategoriesTypes)
-                    return new ErrorLogger('Не удалось получить модель m_categories_types', __FUNCTION__, 'category_validation', $categoryData);
+                if (!$objectModelCategoriesTypes) {
+                    Logger::error('category_validation', 'Не удалось получить модель m_categories_types', $categoryData, ['initiator' => __FUNCTION__]);
+                    return OperationResult::failure('Не удалось получить модель m_categories_types', 'category_validation_error', $categoryData);
+                }
 
-                $allAvailableTypesData = $objectModelCategoriesTypes->getAllTypes(false, false, $parent_type_id);
+                $allAvailableTypesData = $objectModelCategoriesTypes->getAllTypes(false, false, $parent_type_id, $languageCode);
                 // Вызываем ваш приватный метод getTypeIds
                 $allAvailableTypeIds = $this->getTypeIds($allAvailableTypesData); // Передаем только данные типов
 
-                if (!in_array($categoryData['type_id'], $allAvailableTypeIds)) {
-                    return new ErrorLogger('Выбранный тип не может быть дочерним для родительской категории', __FUNCTION__, 'category_validation', $categoryData);
+                $sameTypeTree = (int)$categoryData['type_id'] === (int)$parent_type_id;
+                if (!$sameTypeTree && !in_array($categoryData['type_id'], $allAvailableTypeIds)) {
+                    Logger::warning('category_validation', 'Выбранный тип не может быть дочерним для родительской категории', $categoryData, ['initiator' => __FUNCTION__]);
+                    return OperationResult::validation('Выбранный тип не может быть дочерним для родительской категории', $categoryData);
                 }
             }
             if (empty($categoryData['title'])) {
-                return new ErrorLogger('Заголовок категории не может быть пустым', __FUNCTION__, 'category_validation', $categoryData);
+                Logger::warning('category_validation', 'Заголовок категории не может быть пустым', $categoryData, ['initiator' => __FUNCTION__]);
+                return OperationResult::validation('Заголовок категории не может быть пустым', $categoryData);
             }
             if (!isset($categoryData['description'])) {
                 $categoryData['description'] = $categoryData['title'];
@@ -305,18 +354,29 @@ class ModelCategories {
             $method = '';
             $categoryId = 0;
             $oldTypeId = null;
+            $oldCategoryRow = null;
             if (!empty($categoryData['category_id']) && is_numeric($categoryData['category_id'])) {
                 $method = 'update';
                 $categoryId = (int) $categoryData['category_id'];
-                $oldTypeId = $db->getOne('SELECT type_id FROM ?n WHERE category_id = ?i', Constants::CATEGORIES_TABLE, $categoryId);
+                $oldCategoryRow = $db->getRow(
+                    'SELECT type_id, parent_id, language_code FROM ?n WHERE category_id = ?i LIMIT 1',
+                    Constants::CATEGORIES_TABLE,
+                    $categoryId
+                ) ?: null;
+                $oldTypeId = (int) ($oldCategoryRow['type_id'] ?? 0);
                 unset($categoryData['category_id']);
                 $sql = "UPDATE ?n SET ?u WHERE `category_id` = ?i AND language_code = ?s";
                 $result = $db->query($sql, Constants::CATEGORIES_TABLE, $categoryData, $categoryId, $languageCode);
                 if ($result === false) {
-                    return new ErrorLogger('Ошибка SQL при обновлении категории', __FUNCTION__, 'sql_error', ['query' => $db->lastQuery(), 'data' => $categoryData]);
+                    Logger::error('category_sql_error', 'Ошибка SQL при обновлении категории', ['query' => $db->lastQuery(), 'data' => $categoryData], ['initiator' => __FUNCTION__]);
+                    return OperationResult::failure('Ошибка SQL при обновлении категории', 'sql_error', ['query' => $db->lastQuery(), 'data' => $categoryData]);
                 }
                 if ($oldTypeId !== null && $oldTypeId != $categoryData['type_id']) {
                     $categoryData['oldCategoryType'] = $oldTypeId;
+                }
+                if (is_array($oldCategoryRow)) {
+                    $categoryData['old_parent_id'] = $oldCategoryRow['parent_id'] ?? null;
+                    $categoryData['language_code'] = $categoryData['language_code'] ?? ($oldCategoryRow['language_code'] ?? $languageCode);
                 }
             } else {
                 $method = 'insert';
@@ -326,16 +386,19 @@ class ModelCategories {
                         Constants::CATEGORIES_TABLE, $categoryData['title'], $categoryData['type_id'], $languageCode
                 );
                 if ($existingCategory) {
-                    return new ErrorLogger('Категория с таким названием и типом уже существует для данного языка', __FUNCTION__, 'duplicate_category', $categoryData);
+                    Logger::warning('duplicate_category', 'Категория с таким названием и типом уже существует для данного языка', $categoryData, ['initiator' => __FUNCTION__]);
+                    return OperationResult::failure('Категория с таким названием и типом уже существует для данного языка', 'duplicate_category', $categoryData);
                 }
                 $sql = "INSERT INTO ?n SET ?u";
                 $result = $db->query($sql, Constants::CATEGORIES_TABLE, $categoryData);
                 if (!$result) {
-                    return new ErrorLogger('Ошибка SQL при создании категории', __FUNCTION__, 'sql_error', ['query' => $db->lastQuery(), 'data' => $categoryData]);
+                    Logger::error('category_sql_error', 'Ошибка SQL при создании категории', ['query' => $db->lastQuery(), 'data' => $categoryData], ['initiator' => __FUNCTION__]);
+                    return OperationResult::failure('Ошибка SQL при создании категории', 'sql_error', ['query' => $db->lastQuery(), 'data' => $categoryData]);
                 }
                 $categoryId = $db->insertId();
                 if (!$categoryId) {
-                    return new ErrorLogger('Не удалось получить ID после создания категории', __FUNCTION__, 'sql_error', $categoryData);
+                    Logger::error('category_sql_error', 'Не удалось получить ID после создания категории', $categoryData, ['initiator' => __FUNCTION__]);
+                    return OperationResult::failure('Не удалось получить ID после создания категории', 'sql_error', $categoryData);
                 }
             }
             $categoryData['category_id'] = $categoryId;
@@ -348,9 +411,10 @@ class ModelCategories {
                 }
             }
             Hook::run('afterUpdateCategoryData', $categoryId, $categoryData, $method);
-            return $categoryId; // Возвращаем ID
+            return OperationResult::success($categoryId, '', $method === 'insert' ? 'created' : 'updated');
         } catch (\Throwable $e) {
-            return new ErrorLogger('Исключение при обновлении/создании категории: ' . $e->getMessage(), __FUNCTION__, 'category', ['categoryData' => $categoryData ?? [], 'exception' => $e]);
+            Logger::error('category_error', 'Исключение при обновлении/создании категории: ' . $e->getMessage(), ['categoryData' => $categoryData ?? [], 'exception' => $e], ['initiator' => __FUNCTION__, 'include_trace' => true]);
+            return OperationResult::failure('Исключение при обновлении/создании категории: ' . $e->getMessage(), 'category_exception', ['categoryData' => $categoryData ?? []]);
         }
     }
 
@@ -358,42 +422,53 @@ class ModelCategories {
      * Удаляет категорию и связанные данные
      * Проверяет наличие дочерних категорий или страниц перед удалением
      * @param int $categoryId Идентификатор категории для удаления
-     * @return array|ErrorLogger Возвращает пустой массив в случае успеха или объект ErrorLogger с информацией об ошибке
+     * @return OperationResult
      */
-    public function deleteCategory(int $categoryId): array|ErrorLogger {
+    public function deleteCategory(int $categoryId): OperationResult {
         if ($categoryId <= 0) {
-            return new ErrorLogger('Неверный ID категории для удаления', __FUNCTION__, 'deleteCategory', ['categoryId' => $categoryId]);
+            Logger::warning('delete_category', 'Неверный ID категории для удаления', ['categoryId' => $categoryId], ['initiator' => __FUNCTION__]);
+            return OperationResult::validation('Неверный ID категории для удаления', ['categoryId' => $categoryId]);
         }
         try {
+            $categoryData = SafeMySQL::gi()->getRow(
+                'SELECT category_id, parent_id, language_code FROM ?n WHERE category_id = ?i LIMIT 1',
+                Constants::CATEGORIES_TABLE,
+                $categoryId
+            ) ?: null;
             $sql_check_children = "SELECT COUNT(*) FROM ?n WHERE parent_id = ?i";
             $count_children = SafeMySQL::gi()->getOne($sql_check_children, Constants::CATEGORIES_TABLE, $categoryId);
             if ($count_children > 0) {
-                return new ErrorLogger('Нельзя удалить категорию, у которой есть дочерние категории', __FUNCTION__, 'deleteCategory', ['categoryId' => $categoryId]);
+                Logger::warning('delete_category', 'Нельзя удалить категорию, у которой есть дочерние категории', ['categoryId' => $categoryId], ['initiator' => __FUNCTION__]);
+                return OperationResult::failure('Нельзя удалить категорию, у которой есть дочерние категории', 'delete_category_blocked', ['categoryId' => $categoryId]);
             }
             $sql_check_pages = "SELECT COUNT(*) FROM ?n WHERE category_id = ?i";
             $count_pages = SafeMySQL::gi()->getOne($sql_check_pages, Constants::PAGES_TABLE, $categoryId);
             if ($count_pages > 0) {
-                return new ErrorLogger('Нельзя удалить категорию, в которой есть страницы', __FUNCTION__, 'deleteCategory', ['categoryId' => $categoryId]);
+                Logger::warning('delete_category', 'Нельзя удалить категорию, в которой есть страницы', ['categoryId' => $categoryId], ['initiator' => __FUNCTION__]);
+                return OperationResult::failure('Нельзя удалить категорию, в которой есть страницы', 'delete_category_blocked', ['categoryId' => $categoryId]);
             }
             SafeMySQL::gi()->query("START TRANSACTION");
             $objectModelProperties = SysClass::getModelObject('admin', 'm_properties');
             $resProp = $objectModelProperties->deleteAllpropertiesValuesEntity($categoryId, 'category');
-            if (!is_array($resProp)) {
+            if ($resProp instanceof OperationResult && $resProp->isFailure()) {
+                SafeMySQL::gi()->query("ROLLBACK");
                 return $resProp;
             }
             $sql_delete_category = "DELETE FROM ?n WHERE category_id = ?i";
             $result = SafeMySQL::gi()->query($sql_delete_category, Constants::CATEGORIES_TABLE, $categoryId);
             if ($result && SafeMySQL::gi()->affectedRows() > 0) {
-                Hook::run('afterDeleteCategory', $categoryId, null, 'delete');
+                Hook::run('afterDeleteCategory', $categoryId, $categoryData, 'delete');
                 SafeMySQL::gi()->query("COMMIT");
-                return [];
+                return OperationResult::success(['category_id' => $categoryId], '', 'deleted');
             } else {
                 SafeMySQL::gi()->query("ROLLBACK");
-                return new ErrorLogger('Ошибка при выполнении запроса DELETE для категории ' . $categoryId . ' или категория не найдена', __FUNCTION__, 'deleteCategory', ['sql' => SafeMySQL::gi()->lastQuery()]);
+                Logger::error('delete_category', 'Ошибка при выполнении запроса DELETE для категории ' . $categoryId . ' или категория не найдена', ['sql' => SafeMySQL::gi()->lastQuery()], ['initiator' => __FUNCTION__]);
+                return OperationResult::failure('Ошибка при выполнении запроса DELETE для категории ' . $categoryId . ' или категория не найдена', 'delete_category_sql_error', ['sql' => SafeMySQL::gi()->lastQuery()]);
             }
         } catch (\Throwable $e) {
             SafeMySQL::gi()->query("ROLLBACK");
-            return new ErrorLogger('Исключение при удалении категории: ' . $e->getMessage(), __FUNCTION__, 'deleteCategory', ['categoryId' => $categoryId, 'exception' => $e]);
+            Logger::error('delete_category', 'Исключение при удалении категории: ' . $e->getMessage(), ['categoryId' => $categoryId, 'exception' => $e], ['initiator' => __FUNCTION__, 'include_trace' => true]);
+            return OperationResult::failure('Исключение при удалении категории: ' . $e->getMessage(), 'delete_category_exception', ['categoryId' => $categoryId]);
         }
     }
 

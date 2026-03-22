@@ -3,6 +3,8 @@
 use classes\plugins\SafeMySQL;
 use classes\system\Constants;
 use classes\system\SysClass;
+use classes\system\Logger;
+use classes\system\OperationResult;
 
 /**
  * Модель работы с сущностями
@@ -142,7 +144,7 @@ class ModelEntities {
      * @param string $language_code Код языка по стандарту ISO 3166-2. По умолчанию используется значение из константы ENV_DEF_LANG
      * @return int|bool Возвращает идентификатор обновленной сущности в случае успеха, или false в случае ошибки
      */
-    public function update_entity_data($entity_data = [], $language_code = ENV_DEF_LANG) {
+    public function update_entity_data($entity_data = [], $language_code = ENV_DEF_LANG): OperationResult {
         $entity_data = SafeMySQL::gi()->filterArray($entity_data, SysClass::ee_getFieldsTable(Constants::ENTITIES_TABLE));
         $entity_data = array_map('trim', $entity_data);
         $entity_data = SysClass::ee_convertArrayValuesToNumbers($entity_data);
@@ -150,20 +152,28 @@ class ModelEntities {
         $entity_data['category_id'] = isset($entity_data['parent_entity_id']) && (int) $entity_data['parent_entity_id'] !== 0 ? (int) SafeMySQL::gi()->getOne('SELECT category_id FROM ?n WHERE entity_id=?i', Constants::ENTITIES_TABLE, $entity_data['parent_entity_id']) : (int) $entity_data['category_id'];
         $entity_data['language_code'] = $language_code;  // добавлено
         if (empty($entity_data['title'])) {
-            return false;
+            return OperationResult::validation('Не указан заголовок сущности', $entity_data);
         }
         if (!empty($entity_data['entity_id']) && $entity_data['entity_id'] != 0) {
             $entity_id = $entity_data['entity_id'];
             unset($entity_data['entity_id']);
             $sql = "UPDATE ?n SET ?u WHERE entity_id = ?i";
             $result = SafeMySQL::gi()->query($sql, Constants::ENTITIES_TABLE, $entity_data, $entity_id);
-            return $result ? $entity_id : false;
+            if (!$result) {
+                Logger::error('entity', 'Ошибка обновления сущности', ['entity_data' => $entity_data, 'query' => SafeMySQL::gi()->lastQuery()], ['initiator' => __FUNCTION__]);
+                return OperationResult::failure('Ошибка обновления сущности', 'entity_update_error', ['entity_data' => $entity_data]);
+            }
+            return OperationResult::success((int) $entity_id, '', 'updated');
         } else {
             unset($entity_data['entity_id']);
         }
         $sql = "INSERT INTO ?n SET ?u";
         $result = SafeMySQL::gi()->query($sql, Constants::ENTITIES_TABLE, $entity_data);
-        return $result ? SafeMySQL::gi()->insertId() : false;
+        if (!$result) {
+            Logger::error('entity', 'Ошибка создания сущности', ['entity_data' => $entity_data, 'query' => SafeMySQL::gi()->lastQuery()], ['initiator' => __FUNCTION__]);
+            return OperationResult::failure('Ошибка создания сущности', 'entity_insert_error', ['entity_data' => $entity_data]);
+        }
+        return OperationResult::success((int) SafeMySQL::gi()->insertId(), '', 'created');
     }
 
     /**
@@ -176,13 +186,16 @@ class ModelEntities {
             $sql_check = "SELECT COUNT(*) FROM ?n WHERE parent_entity_id = ?i";
             $count = SafeMySQL::gi()->getOne($sql_check, Constants::ENTITIES_TABLE, $entity_id);
             if ($count > 0) {
-                return ['error' => 'Нельзя удалить сущность, так как она является родительской для других.'];
+                return OperationResult::failure('Нельзя удалить сущность, так как она является родительской для других.', 'entity_delete_blocked', ['entity_id' => $entity_id]);
             }
             $sql_delete = "DELETE FROM ?n WHERE entity_id = ?i";
             $result = SafeMySQL::gi()->query($sql_delete, Constants::ENTITIES_TABLE, $entity_id);
-            return $result ? [] : ['error' => 'Ошибка при выполнении запроса DELETE'];
+            return $result
+                ? OperationResult::success(['entity_id' => $entity_id], '', 'deleted')
+                : OperationResult::failure('Ошибка при выполнении запроса DELETE', 'entity_delete_error', ['entity_id' => $entity_id]);
         } catch (Exception $e) {
-            return ['error' => $e->getMessage()];
+            Logger::error('entity', $e->getMessage(), ['entity_id' => $entity_id, 'exception' => $e], ['initiator' => __FUNCTION__, 'include_trace' => true]);
+            return OperationResult::failure($e->getMessage(), 'entity_delete_exception', ['entity_id' => $entity_id]);
         }
     }
 

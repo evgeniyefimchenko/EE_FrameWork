@@ -1,4 +1,4 @@
-<?php if (!defined('ENV_SITE')) exit(header("Location: http://" . $_SERVER['HTTP_HOST'], true, 301)); ?>
+<?php if (!defined('ENV_SITE')) exit(header('Location: /', true, 301)); ?>
 <!-- Просмотр удалённого пользователя -->
 <main>
     <div class="container-fluid px-4">
@@ -7,6 +7,11 @@
                 <?= htmlspecialchars($deleted_user_data['name']) ?>
             </li>
         </ol>
+        <div class="mb-3">
+            <a href="/admin/restore_user/id/<?= (int) $deleted_user_data['user_id'] ?>" class="btn btn-success" onclick="return confirm('<?= htmlspecialchars($lang['sys.restore_user_confirm']) ?>');">
+                <?= $lang['sys.restore_user'] ?>
+            </a>
+        </div>
         <div class="row">
             <div class="col-md-6">
                 <div class="card mb-4">

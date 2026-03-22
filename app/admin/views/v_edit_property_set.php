@@ -1,4 +1,4 @@
-<?php if (!defined('ENV_SITE')) exit(header("Location: http://" . $_SERVER['HTTP_HOST'], true, 301)); ?>
+<?php if (!defined('ENV_SITE')) exit(header('Location: /', true, 301)); ?>
 <!-- Редактирование набора свойства -->
 <main>    
     <form id="edit_entity" method="POST" enctype="multipart/form-data" novalidate>
@@ -8,6 +8,7 @@
                class="btn btn-info mx-1 float-end<?= empty($property_set_data['set_id']) ? " d-none" : "" ?>">
                 <i class="fa fa-plus-circle"></i>&nbsp;<?= $lang['sys.add'] ?>
             </a>
+            <button type="submit" name="lifecycle_preview" value="1" class="btn btn-outline-secondary float-end mx-1">Preview</button>
             <button type="submit" class="btn btn-primary float-end"><?=$lang['sys.save']?></button>            
             <h1 class="mt-4"><?= !$property_set_data ? $lang['sys.add'] : $lang['sys.edit'] ?></h1>
             <ol class="breadcrumb mb-4">
@@ -16,6 +17,15 @@
                     <input type="hidden" name="set_id" class="form-control" value="<?= $property_set_data['set_id'] ? $property_set_data['set_id'] : 0 ?>">
                 </li>
             </ol>
+            <?php if (!empty($propertySetImpact['category_types_count'])) { ?>
+                <div class="alert alert-warning">
+                    <?= $lang['sys.used'] ?>:
+                    <?= (int) $propertySetImpact['category_types_count'] ?> type,
+                    <?= (int) $propertySetImpact['categories_count'] ?> category,
+                    <?= (int) $propertySetImpact['pages_count'] ?> page.
+                    При изменении состава запускается пересчёт зависимостей.
+                </div>
+            <?php } ?>
             <div class="row">
                 <div class="col">
                     <ul class="nav nav-tabs" id="eeTab" role="tablist">
@@ -87,6 +97,7 @@
             </div>
             <div class="row">
                 <div class="col">
+                    <button type="submit" name="lifecycle_preview" value="1" class="btn btn-outline-secondary my-3 me-2">Preview</button>
                     <button type="submit" class="btn btn-primary my-3"><?=$lang['sys.save']?></button>
                 </div>                    
             </div>              

@@ -5,6 +5,7 @@ $(document).ready(function () {
         e.preventDefault();
         var newField = $('#fields-container').clone();
         newField.find('[id]').removeAttr('id');
+        newField.find('input[name="field_uid[]"]').val('');
         newField.find('.form-select').after('<button class="btn btn-danger remove-field-btn" type="button"><i class="fa fa-minus-circle"></i></button>');
         newField.find('.add-field-btn').remove();
         $('#fields-tab-pane').append(newField);

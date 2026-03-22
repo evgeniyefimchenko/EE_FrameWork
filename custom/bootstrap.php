@@ -1,0 +1,3 @@
+<?php
+
+\custom\ProjectExtension::boot();

@@ -64,6 +64,18 @@
             return JSON.stringify(data);
         }
 
+        function parseJsonString(jsonString) {
+            if (!jsonString) {
+                return {};
+            }
+            try {
+                const parsed = JSON.parse(jsonString);
+                return typeof parsed === 'object' && parsed !== null ? parsed : {};
+            } catch (e) {
+                return {};
+            }
+        }
+
         // Настройки по умолчанию Не используются!
         var settings = $.extend({
             // Добавьте здесь настройки по умолчанию, если необходимо
@@ -71,14 +83,60 @@
 
         this.each(function () {
             var $input = $(this);
-            var property_name = $input.attr('name').match(/\[([^[\]]*)\]/)[1];
+            var inputName = $input.attr('name') || '';
+            var propertyMatch = inputName.match(/\[([^[\]]*)\]/);
+            var property_name = propertyMatch ? propertyMatch[1] : inputName;
             var fileObjectList = [];
-            var layout = $input.closest('.card').data('layout') || 'vertical';
+            var $uploaderCard = $input.closest('.ee-uploader-card');
+            var $hostForm = $input.closest('form');
+            var layout = $uploaderCard.data('layout') || 'vertical';
             var isMultiple = $input.prop('multiple');
-            var allowedExtensions = $input.data('allowed-extensions').split(',').map(function (item) {
+            var uploadLabel = $input.data('upload-label') || 'Upload';
+            var pendingDeleteLabel = $input.data('pending-delete-label') || 'Marked for deletion';
+            var undoDeleteLabel = $input.data('undo-delete-label') || 'Undo';
+            var allowedExtensions = String($input.data('allowed-extensions') || '').split(',').map(function (item) {
                 return item.trim().toLowerCase();
+            }).filter(function (item) {
+                return item !== '';
             });
             var $preloadedFilesData = $('#preloaded_' + $input.attr('id'));
+
+            function markUploaderDirty() {
+                $uploaderCard.find('input[name="ee_check_file[]"]').val('1');
+                $hostForm.find('input[name="property_data_changed"]').val('1');
+            }
+
+            function writeDataFilePayload($fileItem, payload) {
+                $fileItem.find('input[type="hidden"][name="ee_dataFiles[]"]').val(JSON.stringify(payload));
+            }
+
+            function readDataFilePayload($fileItem) {
+                return parseJsonString($fileItem.find('input[type="hidden"][name="ee_dataFiles[]"]').val());
+            }
+
+            function setPendingDeleteState($fileItem, shouldDelete) {
+                var payload = readDataFilePayload($fileItem);
+                payload.update = true;
+                payload.property_name = property_name;
+                if (shouldDelete) {
+                    payload.delete = true;
+                } else {
+                    delete payload.delete;
+                }
+                writeDataFilePayload($fileItem, payload);
+                $fileItem.toggleClass('pending-delete', shouldDelete);
+
+                var $toggleIcon = $fileItem.find('.deleteIcon, .restoreIcon').first();
+                if (shouldDelete) {
+                    if (!$fileItem.find('.pendingDeleteNotice').length) {
+                        $('<div class="pendingDeleteNotice"></div>').text(pendingDeleteLabel).appendTo($fileItem);
+                    }
+                    $toggleIcon.removeClass('deleteIcon fa-trash').addClass('restoreIcon fa-rotate-left').attr('title', undoDeleteLabel);
+                } else {
+                    $fileItem.find('.pendingDeleteNotice').remove();
+                    $toggleIcon.removeClass('restoreIcon fa-rotate-left').addClass('deleteIcon fa-trash').attr('title', '');
+                }
+            }
             /**
              * Проверяет, разрешено ли указанное расширение файла
              * @param {string} fileExtension - Расширение файла
@@ -97,18 +155,21 @@
              * @returns {jQuery} - jQuery-элемент контейнера файла
              */
             function createFileContainer(fileName, fileExtension, fileSrc, fileObject) {                
-                var fileContainer = $('<div class="fileItem"></div>').attr('data-unique-id', fileObject.uniqueID);
+                var uniqueID = fileObject && fileObject.uniqueID ? fileObject.uniqueID : generateUniqueID();
+                var fileContainer = $('<div class="fileItem"></div>').attr('data-unique-id', uniqueID);
                 var fileNameDiv = $('<div class="fileName mb-2"></div>').text(fileName);
-                $('[name^="ee_check_file"]').val('1');
                 fileContainer.append(fileNameDiv);
                 var data = {
-                    unique_id: fileObject.uniqueID,
+                    unique_id: uniqueID,
                     file_name: fileName,
                     property_name: property_name,
                     original_name: fileName
                 };
                 // Создаем скрытое поле с данными файла
-                var dataFileInput = $('<input type="hidden" name="ee_dataFiles[]" value=\'' + JSON.stringify(data) + '\'>');
+                var dataFileInput = $('<input>', {
+                    type: 'hidden',
+                    name: 'ee_dataFiles[]'
+                }).val(JSON.stringify(data));
                 fileContainer.append(dataFileInput);
                 if (fileObject) {
                     fileObjectList.push(fileObject);
@@ -143,7 +204,7 @@
                 return fileContainer;
             }
 
-            var $uploadButton = $('<span role="button" class="badge bg-secondary m-2 p-3">Загрузить</span>');
+            var $uploadButton = $('<span role="button" class="badge bg-secondary m-2 p-3"></span>').text(uploadLabel);
             var $uploadButton_url = '';// $('<span role="button" class="badge bg-secondary m-2 p-3">URL</span>');
             var $preloadedFilesContainer = $('<div style="display: none;" class="preloadedFiles text-center p-1 border bg-light rounded no-select fileContainer ' + layout + '"></div>');
             $input.after($preloadedFilesContainer, $uploadButton, $uploadButton_url);
@@ -160,9 +221,14 @@
              * Обновляет главный файл (первый в списке)
              */
             function updateMainFile() {
+                var $visibleItems = $preloadedFilesContainer.find('.fileItem:visible');
+                if (!$visibleItems.length) {
+                    $preloadedFilesContainer.hide();
+                    return;
+                }
                 $preloadedFilesContainer.show();
                 $preloadedFilesContainer.find('.fileItem').removeClass('main-file');
-                $preloadedFilesContainer.find('.fileItem').first().addClass('main-file');
+                $visibleItems.first().addClass('main-file');
             }
 
             // Инициализация SortableJS для сортировки загруженных файлов
@@ -170,6 +236,7 @@
                 animation: 150,
                 ghostClass: 'sortable-ghost',
                 onEnd: function (evt) {
+                    markUploaderDirty();
                     updateFileOrder();
                     updateMainFile();
                 }
@@ -195,6 +262,7 @@
                */
             // Обработчик изменения файлового input
             $input.on('change', function () {
+                markUploaderDirty();
                 if (!isMultiple) {
                     $preloadedFilesContainer.empty();
                     fileObjectList = [];
@@ -225,6 +293,7 @@
 
             $preloadedFilesContainer.on('click', '.deleteIcon', function (event) {
                 event.stopPropagation();
+                markUploaderDirty();
                 var $fileItem = $(this).closest('.fileItem');
                 var uniqueID = $fileItem.attr('data-unique-id');
                 // Удаляем файл из списка файлов
@@ -242,6 +311,9 @@
             $preloadedFilesContainer.on('click', '.editIcon', function (event) {
                 event.stopPropagation();
                 var $fileItem = $(this).closest('.fileItem');
+                if ($fileItem.hasClass('pending-delete')) {
+                    return;
+                }
                 var fileName = $fileItem.find('.fileName').text();
                 var modalId = '#addFileParamsModal_' + $input.attr('id');
                 // Заполняем поля в модальном окне значениями из выбранного файла
@@ -255,7 +327,7 @@
             // Обработка формы сохранения параметров файла
             $('#addFileParamsModal_' + $input.attr('id')).on('click', '#submit_' + $input.attr('id'), function (event) {
                 event.preventDefault();
-                $('[name^="ee_check_file"]').val('1');
+                markUploaderDirty();
                 var modalId = '#addFileParamsModal_' + $input.attr('id');
                 var data = {};
                 // Собираем все элементы с атрибутом name в модальном окне и их значения
@@ -297,11 +369,16 @@
                 var isFlippedV = $image.data('flippedV') || false;
                 var scaleX = isFlippedH ? -1 : 1;
                 var scaleY = isFlippedV ? -1 : 1;
-                $image.css('transform', 'rotate(' + rotation + 'deg) scale(' + scaleX + ', ' + scaleY + ')');
                 var $fileItem = $image.closest('.fileItem');
+                if ($fileItem.hasClass('pending-delete')) {
+                    return;
+                }
+                $image.css('transform', 'rotate(' + rotation + 'deg) scale(' + scaleX + ', ' + scaleY + ')');
                 var dataFileInput = $fileItem.find('input[type="hidden"][name="ee_dataFiles[]"]');
                 var dataFileValue = dataFileInput.val();
                 var transformations = {
+                    update: true,
+                    property_name: property_name,
                     transformations: {
                         rotation: rotation,
                         flipH: isFlippedH,
@@ -310,6 +387,7 @@
                 };
                 var newData = mergeJsonStringWithObject(dataFileValue, transformations);
                 dataFileInput.val(newData);
+                markUploaderDirty();
             }
 
             // Обработчик вращения изображения
@@ -359,30 +437,27 @@
                     animation: 150,
                     ghostClass: 'sortable-ghost',
                     onEnd: function (evt) {
-                        $('[name^="ee_check_file"]').val('1');
+                        markUploaderDirty();
                     }
                 });         
                 $preloadedFilesData.on('click', '.deleteIcon', function (event) {
                     event.stopPropagation();
+                    markUploaderDirty();
                     var $fileItem = $(this).closest('.fileItem');
-                    var uniqueID = $fileItem.attr('data-unique-id');
-                    var dataFileInput = $fileItem.find('input[type="hidden"][name="ee_dataFiles[]"]');
-                    var dataFileValue = dataFileInput.val();
-                    var deleteData = {
-                        unique_id: uniqueID,
-                        delete: true,
-                        property_name: property_name,
-                        update: true
-                    };
-                    var newData = mergeJsonStringWithObject(dataFileValue, deleteData);
-                    $fileItem.fadeOut(300, function () {
-                        dataFileInput.val(newData);
-                    });
-                    $('[name^="ee_check_file"]').val('1');
+                    setPendingDeleteState($fileItem, true);
+                });
+                $preloadedFilesData.on('click', '.restoreIcon', function (event) {
+                    event.stopPropagation();
+                    markUploaderDirty();
+                    var $fileItem = $(this).closest('.fileItem');
+                    setPendingDeleteState($fileItem, false);
                 });
                 $preloadedFilesData.on('click', '.editIcon', function (event) {
                     event.stopPropagation();
                     var $fileItem = $(this).closest('.fileItem');
+                    if ($fileItem.hasClass('pending-delete')) {
+                        return;
+                    }
                     var fileName = $fileItem.find('.fileName').text();
                     var modalId = '#addFileParamsModal_' + $input.attr('id');
                     $(modalId).find('#file_name_' + $input.attr('id')).val(fileName);

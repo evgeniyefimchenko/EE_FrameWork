@@ -71,12 +71,22 @@ trait EntitiesTrait {
             } else {
                 $id = 0; 
             }
+            $saveSucceeded = false;
             if (isset($post_data['title']) && $post_data['title']) {             
-                if (!$new_id = $this->models['m_entities']->update_entity_data($post_data)) {
-                    ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
-                } else {
-                    $id = $new_id;
+                $saveResult = $this->notifyOperationResult(
+                    $this->models['m_entities']->update_entity_data($post_data),
+                    [
+                        'success_message' => $this->lang['sys.saved'] ?? 'Сущность сохранена',
+                        'default_error_message' => $this->lang['sys.db_registration_error'] ?? 'Ошибка сохранения',
+                    ]
+                );
+                if ($saveResult->isSuccess()) {
+                    $id = $saveResult->getId();
+                    $saveSucceeded = true;
                 }
+            }
+            if ($saveSucceeded) {
+                $this->processPostParams($post_data, empty($id), $id);
             }
             $get_entity_data = (int)$id ? $this->models['m_entities']->get_entity_data($id) : $default_data;
             $get_entity_data = $get_entity_data ? $get_entity_data : $default_data;
@@ -134,10 +144,13 @@ trait EntitiesTrait {
             } else {
                 $id = 0; 
             }
-            $res = $this->models['m_entities']->delete_entity($id);
-            if (isset($res['error'])) {
-                ClassNotifications::addNotificationUser($this->logged_in, ['text' => $res['error'], 'status' => 'danger']);                
-            }
+            $this->notifyOperationResult(
+                $this->models['m_entities']->delete_entity($id),
+                [
+                    'success_message' => $this->lang['sys.removed'] ?? 'Удалено!',
+                    'default_error_message' => 'Ошибка удаления сущности',
+                ]
+            );
         }
         SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/entities');        
     }

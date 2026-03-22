@@ -1,9 +1,8 @@
 <?php
 
 /**
- * Класс AutoloadManager управляет автозагрузкой классов и трейтов
- * Он позволяет добавлять пространства имен и пути к файлам вручную,
- * а также читать их из composer.json плагинов
+ * Класс AutoloadManager управляет core автозагрузкой классов и трейтов.
+ * Пользовательский слой `custom/` подключается отдельно через bootstrap.
  */
 class AutoloadManager {
 
@@ -39,12 +38,19 @@ class AutoloadManager {
         if (self::$initialized) {
             return; // Если автозагрузчик уже инициализирован, выходим
         }
-        // Все дополнительные классы плагинов и расширений должны быть подключены тут
+        // Core плагины и системные зависимости подключаются тут
         AutoloadManager::addPluginFromComposerJson(ENV_SITE_PATH . 'classes' . ENV_DIRSEP . 'plugins' . ENV_DIRSEP . 'PHPMailer');
         // Далее подключаются системные классы
         self::setDefaultNamespaces();
         spl_autoload_register([self::class, 'loadClass']);
         self::$initialized = true;
+    }
+
+    /**
+     * Возвращает статус инициализации core autoloader.
+     */
+    public static function isInitialized(): bool {
+        return self::$initialized;
     }
 
     /**
@@ -108,7 +114,13 @@ class AutoloadManager {
      * @param string $autoloaderPath Путь к файлу автозагрузчика Composer
      */
     public static function addComposerAutoloader($autoloaderPath) {
-        self::$composerAutoloaders[] = $autoloaderPath;
+        $normalizedPath = self::normalizePath((string) $autoloaderPath);
+        if ($normalizedPath === '') {
+            return;
+        }
+        if (!in_array($normalizedPath, self::$composerAutoloaders, true)) {
+            self::$composerAutoloaders[] = $normalizedPath;
+        }
     }
 
     /**
@@ -175,5 +187,19 @@ class AutoloadManager {
      */
     public static function showClassMap() {
         return self::$classesMap;
+    }
+
+    private static function normalizePath(string $path): string {
+        $path = trim($path);
+        if ($path === '') {
+            return '';
+        }
+
+        $realPath = realpath($path);
+        if ($realPath !== false) {
+            return $realPath;
+        }
+
+        return str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $path);
     }
 }

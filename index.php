@@ -28,27 +28,8 @@ if ($debug && isset($_GET['phpinfo'])) {
     die;
 }
 
-function ee_startUp() {
-    require_once('inc/configuration.php');
-    require_once ('inc/startup.php');
-    AutoloadManager::init(); // Необходимо для hooks.php
-    require_once ('inc/hooks.php');
-}
-
-if (function_exists('opcache_get_status')) {
-    $opcache_status = opcache_get_status(); // Основные классы и автолоадер должны быть загружены в память из файла /inc/preloader.php
-    if (empty($opcache_status['preload_statistics'])) {
-        // Предзагрузка не используется
-        ee_startUp();
-    }
-} else {
-    // OPcache недоступен
-    ee_startUp();
-}
-
-// ВАЖНО: Всегда регистрируем автозагрузчик, повторная инициализация не произойдёт из за кеширования.
-// Это нюанс работы с opcache
-AutoloadManager::init();
+require_once('inc/bootstrap.php');
+ee_bootstrap_runtime();
 
 \classes\system\BotGuard::guard();
 $router = new \classes\system\Router();

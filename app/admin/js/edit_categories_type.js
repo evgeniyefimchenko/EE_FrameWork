@@ -12,6 +12,7 @@ $(document).ready(function () {
     });
     $('#type_id-input').on('change', function (event) {
         var type_id = $(this).val();
+        checkBoxs.prop('disabled', false);
         if (type_id) {
             AppCore.sendAjaxRequest('/admin/getParentCategoriesType',
                 {
@@ -20,8 +21,9 @@ $(document).ready(function () {
                 'POST',
                 'json',
                 function (response) {
-                    if (typeof event.originalEvent !== 'undefined')
-                        checkBoxs.prop('checked', false).prop('disabled', false);
+                    if (typeof event.originalEvent !== 'undefined') {
+                        checkBoxs.prop('checked', false);
+                    }
                     if (response.all_sets_ids) {
                         checkBoxs.each(function () {
                             if (response.all_sets_ids.includes($(this).val())) {
@@ -31,6 +33,8 @@ $(document).ready(function () {
                     }
                 }
             );
+        } else if (typeof event.originalEvent !== 'undefined') {
+            checkBoxs.prop('checked', false);
         }
     });
     $('#type_id-input').change();

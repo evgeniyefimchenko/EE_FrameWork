@@ -25,7 +25,7 @@ class Cookies {
         $cookie_value = self::pack($value, $cookie_expire);
         $cookie_value = self::authcode($cookie_value, 'ENCODE');
         if ($cookie_name && $cookie_value && $cookie_expire) {
-            setcookie($cookie_name, $cookie_value, $cookie_expire);
+            setcookie($cookie_name, $cookie_value, self::buildCookieOptions($cookie_expire));
         }
         $_COOKIE[$cookie_name] = $cookie_value;
     }
@@ -61,7 +61,7 @@ class Cookies {
                 $cookie_value = self::pack($value, $cookie_expire);
                 $cookie_value = self::authcode($cookie_value, 'ENCODE');
                 if ($cookie_name && $cookie_value && $cookie_expire) {
-                    setcookie($cookie_name, $cookie_value, $cookie_expire);
+                    setcookie($cookie_name, $cookie_value, self::buildCookieOptions($cookie_expire));
                     return true;
                 }
             }
@@ -75,7 +75,7 @@ class Cookies {
      */
     public static function clear(string $name): void {
         $cookie_name = self::getName($name);
-        setcookie($cookie_name, '', time() - self::$_expire);
+        setcookie($cookie_name, '', self::buildCookieOptions(time() - self::$_expire));
         if (isset($_COOKIE[$cookie_name]))
             unset($_COOKIE[$cookie_name]);
     }
@@ -107,6 +107,21 @@ class Cookies {
      */
     private static function getName(string $name): string {
         return self::$_prefix . '_' . $name;
+    }
+
+    private static function buildCookieOptions(int $expires): array {
+        $sameSite = defined('ENV_AUTH_COOKIE_SAMESITE') ? (string) ENV_AUTH_COOKIE_SAMESITE : 'Lax';
+        $secure = defined('ENV_AUTH_COOKIE_SECURE')
+            ? (bool) ENV_AUTH_COOKIE_SECURE
+            : (!empty($_SERVER['HTTPS']) && strtolower((string) $_SERVER['HTTPS']) !== 'off');
+
+        return [
+            'expires' => $expires,
+            'path' => '/',
+            'secure' => $secure,
+            'httponly' => true,
+            'samesite' => $sameSite,
+        ];
     }
 
     /**

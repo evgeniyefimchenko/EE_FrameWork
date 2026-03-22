@@ -115,12 +115,34 @@ $(document).ready(function () {
         updateCheckboxValues('.radio_container', $parentContainer, general_name, 'radio');
     });
 
+    $(document).on('click', '.choice-option-toggle', function () {
+        $('input[name=property_data_changed]').val(1);
+        var $button = $(this);
+        var $container = $button.closest('.choice-option-container');
+        var $parentContainer = $button.closest('.choice-definition-editor');
+        var selectorType = $button.data('selector-type') || 'checkbox';
+        var $newContainer = $container.clone();
+
+        if ($button.find('i').hasClass('fa-plus')) {
+            $newContainer.find('input[type="text"]').val('');
+            $newContainer.find('.choice-option-selected').prop('checked', false);
+            $newContainer.find('.fa-plus').removeClass('fa-plus').addClass('fa-minus');
+            var $newButton = $newContainer.find('.choice-option-toggle');
+            $newButton.attr('id', Date.now() + '_' + ($button.attr('id') || 'choice_option'));
+            $parentContainer.append($newContainer);
+        } else {
+            $container.remove();
+        }
+
+        updateChoiceOptionIndexes($parentContainer, selectorType);
+    });
+
     // Обработка мультиполей
     $('div.multicheck input:checked').each(function () {
         var name = $(this).attr('name');
         if (name && name.indexOf('_multiple') !== -1) {
             var newName = name.replace('_multiple', '_' + nameSuffix) + '[]';
-            if (newName.includes('image_') || newName.includes('file_')) {
+            if (newName.includes('image_') || newName.includes('file_') || newName.includes('select_') || newName.includes('checkbox_') || newName.includes('radio_')) {
                 return; // Пропускаем итерацию, если newName содержит "image_" или "file_"
             }
             var $defaultElement = $('[name="' + newName + '"]');
@@ -325,4 +347,17 @@ function updateCheckboxValues(container, $parentContainer, general_name, type) {
         count = count + 1;
     });
     $('#' + general_name + '_count').val(count);
+}
+
+function updateChoiceOptionIndexes($parentContainer, selectorType) {
+    $parentContainer.find('.choice-option-container').each(function (index) {
+        $(this).find('.choice-option-selected').attr('type', selectorType).val(index);
+        var $button = $(this).find('.choice-option-toggle');
+        var $icon = $button.find('i');
+        if (index === 0) {
+            $icon.removeClass('fa-minus').addClass('fa-plus');
+        } else {
+            $icon.removeClass('fa-plus').addClass('fa-minus');
+        }
+    });
 }

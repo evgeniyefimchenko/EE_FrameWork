@@ -116,9 +116,11 @@ $(document).ready(function () {
             if (data.error !== "") {
                 await shakeOrFadeModal(data['error']);
             } else {
-                await shakeOrFadeModal(AppCore.getLangVar('sys.welcome') + '!', true);
-                // Переход на адрес из параметра 'return', если он существует, иначе переход на '/admin'
-                window.location = returnUrl ? returnUrl : "/admin";
+                const successMessage = data.message !== "" ? data.message : AppCore.getLangVar('sys.welcome') + '!';
+                await shakeOrFadeModal(successMessage, true);
+                if (data.redirect) {
+                    window.location = returnUrl ? returnUrl : data.redirect;
+                }
             }
         });
     });
@@ -129,12 +131,13 @@ $(document).ready(function () {
         performAjaxRequest('/register', formData, function (data) {
             if (data.error !== "") {
                 shakeOrFadeModal(data['error']);
-                if (data.error === AppCore.getLangVar('sys.welcome')) {
-                    setTimeout($('#return_general').submit(), 5000);
-                    return false;
-                }
             } else {
-                shakeOrFadeModal(AppCore.getLangVar('sys.verify_email'), true);
+                const successMessage = data.message !== "" ? data.message : AppCore.getLangVar('sys.verify_email');
+                shakeOrFadeModal(successMessage, true).then(function () {
+                    if (data.redirect) {
+                        window.location = data.redirect;
+                    }
+                });
             }
         });
         return false;
@@ -147,7 +150,8 @@ $(document).ready(function () {
             if (data.error !== "") {
                 shakeOrFadeModal(data['error']);
             } else {
-                shakeOrFadeModal(AppCore.getLangVar('sys.new_password_in_email'), true);
+                const successMessage = data.message !== "" ? data.message : AppCore.getLangVar('sys.new_password_in_email');
+                shakeOrFadeModal(successMessage, true);
             }
         });
         return false;

@@ -1,7 +1,18 @@
+.ee-uploader-card {
+    align-items: center;
+    width: 100%;
+    max-width: 360px;
+}
+
+.ee-uploader-help {
+    line-height: 1.35;
+}
+
 .preloadedFiles {
-    max-width: 317px;
+    max-width: 100%;
     display: block;
-    min-width: 317px;
+    min-width: 0;
+    width: 100%;
 }
 /* При горизонтальном расположении */
 .fileContainer.horizontal {
@@ -27,6 +38,52 @@
     text-overflow: ellipsis;
     display: inline-block;
     margin-left: 2px;
+}
+
+.fileItem.pending-delete {
+    border-color: #dc3545;
+    opacity: 0.72;
+}
+
+.fileItem.legacy-file {
+    border-color: #6c757d;
+}
+
+.fileItem.legacy-file .fileName,
+.fileItem.legacy-file .actionIcons {
+    background: #6c757d;
+}
+
+.fileItem.pending-delete .fileName,
+.fileItem.pending-delete .actionIcons {
+    background: #dc3545;
+}
+
+.fileItem.pending-delete img,
+.fileItem.pending-delete .mt-2 {
+    filter: grayscale(1);
+}
+
+.fileItem.pending-delete .editIcon,
+.fileItem.pending-delete .rotateIcon,
+.fileItem.pending-delete .flipHIcon,
+.fileItem.pending-delete .flipVIcon {
+    display: none;
+}
+
+.pendingDeleteNotice {
+    position: absolute;
+    inset-inline: 4px;
+    bottom: 34px;
+    z-index: 3;
+    background: rgba(220, 53, 69, 0.92);
+    color: #fff;
+    border-radius: 4px;
+    padding: 3px 5px;
+    font-size: 11px;
+    text-align: center;
+    line-height: 1.2;
+    white-space: normal;
 }
 .fileItem img {
     width: 100%;
@@ -64,10 +121,10 @@
     display: flex;
 }
 .fileItem.main-file {
-    width: 304px;
+    width: 100%;
     height: 304px;
     max-height: 304px;
-    max-width: 304px;
+    max-width: 100%;
     display: block;
     margin-bottom: 5px;
     cursor: auto;
@@ -101,4 +158,8 @@
 
 .preloadedFilesData .actionIcons {
     padding: 0 3px;
+}
+
+.preloadedFilesData .fileItem.pending-delete .actionIcons {
+    display: flex;
 }

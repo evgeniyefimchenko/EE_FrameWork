@@ -1,0 +1,164 @@
+{
+  "title": "Документация EE_FrameWork",
+  "description": "Руководство по ядру, архитектуре, расширению, отладке и эксплуатации EE_FrameWork для PHP-разработчика.",
+  "intro": "Документация ориентирована на разработчика, который уверенно пишет на PHP, но только начинает работать с архитектурой EE_FrameWork. Материал построен от первого запуска к устройству ядра, затем к расширению и эксплуатации.",
+  "default_slug": "readme",
+  "aliases": {
+    "introduction": "readme",
+    "installation": "quick-start",
+    "app-routing": "routing",
+    "content": "content-model",
+    "imports-json": "imports",
+    "search-filters": "cache",
+    "deployment": "quick-start",
+    "safepostgresql": "models",
+    "api": "api-reference"
+  },
+  "groups": [
+    {
+      "id": "overview",
+      "title": "Введение и старт",
+      "description": "С чего начать и в каком порядке читать документацию.",
+      "items": [
+        {
+          "slug": "readme",
+          "title": "README и карта документации",
+          "summary": "Для кого этот фреймворк, как читать документацию и куда идти дальше.",
+          "description": "Обзор структуры документации и карты разделов EE_FrameWork.",
+          "file": "README.md",
+          "icon": "fa-book-open",
+          "keywords": ["readme", "overview", "structure", "docs"]
+        },
+        {
+          "slug": "quick-start",
+          "title": "Быстрый старт",
+          "summary": "Пять минут до первого запроса и минимального рабочего контроллера.",
+          "description": "Требования, bootstrap, запуск и первый контроллер в EE_FrameWork.",
+          "file": "00_QuickStart.md",
+          "icon": "fa-bolt",
+          "keywords": ["quick start", "install", "bootstrap", "controller"]
+        }
+      ]
+    },
+    {
+      "id": "core",
+      "title": "Ядро",
+      "description": "Основные слои обработки запроса и разработческие API.",
+      "items": [
+        {
+          "slug": "architecture",
+          "title": "Архитектура и поток запроса",
+          "summary": "От URL до layout: роли Router, Controller, Model, View и Layout.",
+          "description": "Архитектурная схема EE_FrameWork и границы ответственности слоёв.",
+          "file": "01_Architecture.md",
+          "icon": "fa-diagram-project",
+          "keywords": ["architecture", "request", "controller", "view", "layout"]
+        },
+        {
+          "slug": "routing",
+          "title": "Маршрутизация",
+          "summary": "Как Router разбирает URL и почему маршрут становится controller/action/args.",
+          "description": "Правила маршрутизации, fallback-логика, кэш маршрутов и отладка.",
+          "file": "02_Routing.md",
+          "icon": "fa-route",
+          "keywords": ["router", "routing", "args", "action", "route cache"]
+        },
+        {
+          "slug": "models",
+          "title": "Модели и работа с данными",
+          "summary": "Получение модели, работа с БД, валидация и стандарт OperationResult.",
+          "description": "Паттерны проектирования моделей, работа с SafeMySQL и возврат результатов.",
+          "file": "03_Models.md",
+          "icon": "fa-database",
+          "keywords": ["models", "database", "safemysql", "operationresult", "validation"]
+        },
+        {
+          "slug": "content-model",
+          "title": "Контентная модель и сущности",
+          "summary": "Как связаны property types, properties, sets, category types, categories и pages.",
+          "description": "Практическая схема хранения структуры и живых значений в контентной модели EE_FrameWork.",
+          "file": "09_ContentModel.md",
+          "icon": "fa-network-wired",
+          "keywords": ["content model", "entities", "properties", "categories", "pages", "property values"]
+        },
+        {
+          "slug": "views",
+          "title": "Views и Layouts",
+          "summary": "Как рендерятся шаблоны и как контроллер передаёт им данные.",
+          "description": "Работа с View, layout-контуром, переменными шаблона и ассетами.",
+          "file": "04_Views.md",
+          "icon": "fa-window-maximize",
+          "keywords": ["views", "layout", "template", "assets", "escaping"]
+        },
+        {
+          "slug": "hooks",
+          "title": "Hooks и расширяемость",
+          "summary": "Где регистрировать свои хуки и как расширять систему без правок ядра.",
+          "description": "Hook API, custom-слой, порядок выполнения обработчиков и практические примеры.",
+          "file": "05_Hooks.md",
+          "icon": "fa-plug",
+          "keywords": ["hooks", "custom", "plugin", "extension", "autoload"]
+        }
+      ]
+    },
+    {
+      "id": "operations",
+      "title": "Системные подсистемы",
+      "description": "Авторизация, кэш и поддержка production-среды.",
+      "items": [
+        {
+          "slug": "auth",
+          "title": "Аутентификация и права доступа",
+          "summary": "Users, роли, AuthService и проверка доступа в контроллерах.",
+          "description": "Модель доступа, user lifecycle, роли и практическая защита маршрутов.",
+          "file": "06_Auth.md",
+          "icon": "fa-user-shield",
+          "keywords": ["auth", "users", "roles", "access", "controller"]
+        },
+        {
+          "slug": "cache",
+          "title": "Кэширование и производительность",
+          "summary": "CacheManager, route cache, host-aware HTML cache и инвалидация.",
+          "description": "Стратегии кэширования и практические ограничения EE_FrameWork.",
+          "file": "07_Cache.md",
+          "icon": "fa-gauge-high",
+          "keywords": ["cache", "performance", "redis", "html cache", "router cache"]
+        },
+        {
+          "slug": "debug",
+          "title": "Отладка и диагностика",
+          "summary": "show_debug, Logger, error.php и чеклисты типовых проблем.",
+          "description": "Инструменты диагностики, логи и последовательность локализации ошибок.",
+          "file": "08_Debug.md",
+          "icon": "fa-bug",
+          "keywords": ["debug", "logger", "error", "troubleshooting", "logs"]
+        },
+        {
+          "slug": "imports",
+          "title": "Импорт типов, свойств и наборов",
+          "summary": "JSON-формат для структурного импорта property types, properties и property sets.",
+          "description": "Практический контракт JSON-импорта структуры свойств в EE_FrameWork.",
+          "file": "10_Imports.md",
+          "icon": "fa-file-import",
+          "keywords": ["imports", "json", "property types", "property sets", "properties"]
+        }
+      ]
+    },
+    {
+      "id": "reference",
+      "title": "Справочник",
+      "description": "Рабочая шпаргалка по ключевым классам и API ядра.",
+      "items": [
+        {
+          "slug": "api-reference",
+          "title": "API Reference",
+          "summary": "Ключевые публичные методы ядра, константы и служебные классы.",
+          "description": "Справочный раздел по основным developer-facing API EE_FrameWork.",
+          "file": "99_API_Reference.md",
+          "icon": "fa-code",
+          "keywords": ["api", "reference", "view", "router", "hook", "users", "logger"]
+        }
+      ]
+    }
+  ]
+}

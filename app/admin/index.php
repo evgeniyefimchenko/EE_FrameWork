@@ -3,6 +3,7 @@
 use classes\system\ControllerBase;
 use classes\system\SysClass;
 use classes\system\Constants;
+use classes\system\AuthService;
 use classes\system\Plugins;
 use classes\helpers\ClassNotifications;
 use classes\system\Hook;
@@ -14,6 +15,7 @@ use app\admin\CategoriesTrait;
 use app\admin\CategoriesTypesTrait;
 use app\admin\PagesTrait;
 use app\admin\PropertiesTrait;
+use app\admin\ImportTrait;
 use classes\helpers\ClassMessages;
 
 /*
@@ -30,15 +32,18 @@ use MessagesTrait,
     CategoriesTrait,
     CategoriesTypesTrait,
     PagesTrait,
-    PropertiesTrait;
+    PropertiesTrait,
+    ImportTrait;
 
     /**
      * Главная страница админ-панели
      */
     public function index($params = []): void {
-        $this->access = [Constants::ALL_AUTH];
-        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
-            SysClass::handleRedirect(200, '/show_login_form?return=admin');
+        if (!$this->requireAccess([Constants::ALL_AUTH], [
+            'return' => 'admin',
+            'initiator' => __METHOD__,
+        ])) {
+            return;
         }
         /* models */
         /* get user data - все переменные пользователя доступны в представлениях */
@@ -67,9 +72,11 @@ use MessagesTrait,
      * Формируем данные для таблицы дашборда администратора
      */
     public function get_admin_dashboard_data_table($params = []) {
-        $this->access = [Constants::ADMIN];
-        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
-            SysClass::handleRedirect(200, '/show_login_form?return=admin');
+        if (!$this->requireAccess([Constants::ADMIN], [
+            'return' => 'admin',
+            'initiator' => __METHOD__,
+        ])) {
+            return '';
         }
         /* Пример данных таблицы */
         $data_table = [
@@ -223,9 +230,11 @@ use MessagesTrait,
      * Коммерческое предложение
      */
     public function upgrade($params = []) {
-        $this->access = [Constants::ALL_AUTH];
-        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
-            SysClass::handleRedirect(200, '/show_login_form?return=admin');
+        if (!$this->requireAccess([Constants::ALL_AUTH], [
+            'return' => 'admin/upgrade',
+            'initiator' => __METHOD__,
+        ])) {
+            return;
         }
         /* view */
         $this->getStandardViews();
@@ -258,9 +267,13 @@ use MessagesTrait,
      * @param POST $postData - POST параметры update или get
      */
     public function ajax_admin(array $params = []) {
-        $this->access = [Constants::ALL_AUTH];
-        if (!SysClass::getAccessUser($this->logged_in, $this->access) || count($params) > 0) {
-            echo '{"error": "access denieded ' . var_export([$this->logged_in, $this->access], true) . '"}';
+        if (!$this->requireAccess([Constants::ALL_AUTH], [
+            'ajax' => true,
+            'initiator' => __METHOD__,
+        ]) || count($params) > 0) {
+            if (count($params) > 0) {
+                echo json_encode(['error' => 'access denied'], JSON_UNESCAPED_UNICODE);
+            }
             exit();
         }
         /* get data */
@@ -274,14 +287,34 @@ use MessagesTrait,
                         $user_data['options'][$key] = $value;
                     }
                 }
-                echo $this->users->setUserOptions($this->logged_in, $user_data['options']);
+                $saved = $this->users->setUserOptions($this->logged_in, $user_data['options']);
+                if (!$saved) {
+                    echo json_encode(['error' => 'update failed'], JSON_UNESCAPED_UNICODE);
+                    exit();
+                }
+                echo json_encode($this->buildAjaxAdminPayload($this->users->getUserOptions($this->logged_in)), JSON_UNESCAPED_UNICODE);
                 exit();
             case isset($postData['get']):
-                echo json_encode($user_data['options']);
+                echo json_encode($this->buildAjaxAdminPayload($user_data['options']), JSON_UNESCAPED_UNICODE);
                 exit();
             default:
-                echo '{"error": "no data"}';
+                echo json_encode(['error' => 'no data'], JSON_UNESCAPED_UNICODE);
         }
+    }
+
+    private function buildAjaxAdminPayload(array $options): array {
+        $notifications = ClassNotifications::getNotificationsUser((int) $this->logged_in, 10);
+        $messages = ClassMessages::get_unread_messages_user((int) $this->logged_in);
+        $payload = array_merge($options, [
+            'options' => $options,
+            'notifications' => $notifications,
+            'messages' => $messages,
+            'count_unread_messages' => ClassMessages::get_count_unread_messages((int) $this->logged_in),
+            'count_messages' => ClassMessages::get_count_messages((int) $this->logged_in),
+            'success' => true,
+        ]);
+
+        return $payload;
     }
 
     /**
@@ -290,10 +323,11 @@ use MessagesTrait,
      * @param type $params
      */
     public function user_edit($params) {
-        $this->access = [Constants::ADMIN, Constants::MODERATOR];
-        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
-            SysClass::handleRedirect();
-            exit();
+        if (!$this->requireAccess([Constants::ADMIN, Constants::MODERATOR], [
+            'return' => 'admin/user_edit',
+            'initiator' => __METHOD__,
+        ])) {
+            return;
         }
         /* get current user data */
         $user_data = $this->users->data;
@@ -321,11 +355,29 @@ use MessagesTrait,
             $get_user_context['created_at'] = '';
             $get_user_context['updated_at'] = '';
             $get_user_context['last_activ'] = '';
+            $get_user_context['auth_security'] = [
+                'must_set_password' => 0,
+                'failed_attempts' => 0,
+                'locked_until' => null,
+                'has_local_password' => false,
+                'linked_identities' => [],
+            ];
         }
         $this->loadModel('m_user_edit');
         /* Если не админ и не модератор и карточка не своя возвращаем */
         if ($this->users->data['user_role'] > 2 && $this->logged_in != $user_id) {
             SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/user_edit/id/' . $this->logged_in);
+        }
+        if (!empty($get_user_context['user_id'])) {
+            $get_user_context['auth_security'] = (new AuthService())->getUserSecurityState((int) $get_user_context['user_id']);
+        } elseif (empty($get_user_context['auth_security'])) {
+            $get_user_context['auth_security'] = [
+                'must_set_password' => 0,
+                'failed_attempts' => 0,
+                'locked_until' => null,
+                'has_local_password' => false,
+                'linked_identities' => [],
+            ];
         }
         /* get data */
         $get_user_context['active_text'] = $this->lang[Constants::USERS_STATUS[$get_user_context['active']]];
@@ -357,10 +409,10 @@ use MessagesTrait,
      * @return json сообщение об ошибке или no
      */
     public function ajax_user_edit($params) {
-        $this->access = [Constants::ALL_AUTH];
-        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
-            SysClass::handleRedirect();
-            echo json_encode(array('error' => 'error no access'));
+        if (!$this->requireAccess([Constants::ALL_AUTH], [
+            'ajax' => true,
+            'initiator' => __METHOD__,
+        ])) {
             exit();
         }
         $postData = SysClass::ee_cleanArray($_POST);
@@ -379,14 +431,21 @@ use MessagesTrait,
         if ($this->users->data['phone'] && $this->users->data['user_role'] > 2) {
             unset($postData['phone']);
         }
+        if (!empty($postData['email']) && !SysClass::validEmail($postData['email'])) {
+            echo json_encode(array('error' => $this->lang['sys.invalid_mail_format']));
+            exit();
+        }
 
         if (isset($postData['new']) && $postData['new'] == 1) {
-            if ($this->users->registrationNewUser($postData)) {
-                $new_id = $this->users->get_user_id(trim($postData['email']));
-                echo json_encode(array('error' => 'no', 'id' => $new_id));
+            if (!empty($postData['email']) && $this->users->getEmailExist(trim($postData['email']))) {
+                echo json_encode(array('error' => $this->lang['sys.the_mail_is_already_busy']));
+                exit();
+            }
+            if ($new_id = $this->users->registrationNewUser($postData)) {
+                echo json_encode(array('error' => 'no', 'id' => (int) $new_id, 'new' => 1));
                 exit();
             } else {
-                echo json_encode(array('error' => 'error ajax_user_edit isert user'));
+                echo json_encode(array('error' => $this->lang['sys.db_registration_error']));
                 exit();
             }
         }
@@ -395,10 +454,32 @@ use MessagesTrait,
         } else {
             $postData['subscribed'] = 0;
         }
+        if (!empty($postData['email']) && $this->users->getEmailExist(trim($postData['email']), (int) $user_id)) {
+            echo json_encode(array('error' => $this->lang['sys.the_mail_is_already_busy']));
+            exit();
+        }
         if ($this->users->setUserData($user_id, $postData)) {
+            $authService = new AuthService();
+            $authReason = trim((string) ($postData['auth_password_setup_reason'] ?? 'admin_update'));
+            $authService->markUserRequiresPasswordSetup(
+                (int) $user_id,
+                !empty($postData['auth_require_password_setup']),
+                $authReason !== '' ? $authReason : 'admin_update'
+            );
+            $options = $this->users->getUserOptions((int) $user_id);
+            $options['auth']['ip_restricted'] = !empty($postData['auth_ip_restricted']) ? 1 : 0;
+            $this->users->setUserOptions((int) $user_id, $options);
             $user_role = $this->users->getUserRole($user_id);
             if (isset($postData['user_role']) && $postData['user_role'] != $user_role) { // Сменилась роль пользователя, оповещаем админа и пишем лог                                
-                SysClass::preFile('users_edit', 'ajax_user_edit', 'Изменили роль пользователю', ['id_user' => $user_id, 'old' => $this->users->data['user_role'], 'new' => $postData['user_role']]);
+                \classes\system\Logger::audit('users_edit', 'Изменили роль пользователю', [
+                    'id_user' => $user_id,
+                    'old' => $this->users->data['user_role'],
+                    'new' => $postData['user_role'],
+                ], [
+                    'initiator' => 'ajax_user_edit',
+                    'details' => 'Изменили роль пользователю',
+                    'include_trace' => false,
+                ]);
             }
             echo json_encode(array('error' => 'no', 'id' => $user_id));
             exit();
@@ -414,10 +495,11 @@ use MessagesTrait,
      * @param arg - массив аргументов для поиска
      */
     public function users($params = array()) {
-        $this->access = [Constants::ADMIN, Constants::MODERATOR];
-        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
-            SysClass::handleRedirect();
-            exit();
+        if (!$this->requireAccess([Constants::ADMIN, Constants::MODERATOR], [
+            'return' => 'admin/users',
+            'initiator' => __METHOD__,
+        ])) {
+            return;
         }
         /* view */
         $this->getStandardViews();
@@ -436,10 +518,12 @@ use MessagesTrait,
      * Вернёт таблицу пользователей
      */
     public function get_users_table() {
-        $this->access = [Constants::ADMIN, Constants::MODERATOR];
-        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
-            SysClass::handleRedirect();
-            exit();
+        if (!$this->requireAccess([Constants::ADMIN, Constants::MODERATOR], [
+            'ajax' => !empty($_POST),
+            'return' => 'admin/users',
+            'initiator' => __METHOD__,
+        ])) {
+            return '';
         }
         $postData = SysClass::ee_cleanArray($_POST);
         $data_table = [
@@ -687,7 +771,14 @@ use MessagesTrait,
                 ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Невозможно удалить системные роли!', 'status' => 'danger']);
             } else {
                 $this->loadModel('m_user_edit');
-                $this->models['m_user_edit']->users_role_dell($id);
+                $this->notifyOperationResult(
+                    $this->models['m_user_edit']->users_role_dell($id),
+                    [
+                        'default_error_message' => $this->lang['sys.data_update_error'],
+                        'success_message' => $this->lang['sys.removed'],
+                        'failure_code' => 'user_role_delete_failed',
+                    ]
+                );
             }
         }
         SysClass::handleRedirect(200, '/admin/users_roles');
@@ -714,11 +805,15 @@ use MessagesTrait,
                 ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Невозможно удалить системные роли!', 'status' => 'danger']);
             } else {
                 $this->loadModel('m_user_edit');
-                if (!$this->models['m_user_edit']->delete_user($user_id)) {
-                    ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Ошибка удаления пользователя id=' . $user_id, 'status' => 'danger']);
-                } else {
-                    ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Помечен удалённым id=' . $user_id, 'status' => 'info']);
-                }
+                $this->notifyOperationResult(
+                    $this->models['m_user_edit']->delete_user($user_id),
+                    [
+                        'default_error_message' => 'Ошибка удаления пользователя id=' . $user_id,
+                        'success_message' => 'Помечен удалённым id=' . $user_id,
+                        'success_status' => 'info',
+                        'failure_code' => 'user_soft_delete_failed',
+                    ]
+                );
             }
         } else {
             ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Нет обязательного параметра id', 'status' => 'danger']);
@@ -765,10 +860,16 @@ use MessagesTrait,
                 $id = 0;
             }
             if (isset($postData['name']) && $postData['name']) {
-                if (!$new_id = $this->models['m_user_edit']->update_users_role_data($postData)) {
-                    ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.db_registration_error'], 'status' => 'danger']);
-                } else {
-                    $id = $new_id;
+                $saveResult = $this->notifyOperationResult(
+                    $this->models['m_user_edit']->update_users_role_data($postData),
+                    [
+                        'default_error_message' => $this->lang['sys.db_registration_error'],
+                        'success_message' => empty($id) ? 'Роль создана' : 'Роль обновлена',
+                        'failure_code' => 'user_role_save_failed',
+                    ]
+                );
+                if ($saveResult->isSuccess()) {
+                    $id = $saveResult->getId(['role_id', 'id']);
                 }
             }
             $get_users_role_data = (int) $id ? $this->models['m_user_edit']->get_users_role_data($id) : $default_data;
@@ -876,14 +977,15 @@ use MessagesTrait,
             $users_array = $this->users->getUsersData(false, false, false, 25, true);
         }
         foreach ($users_array['data'] as $item) {
-            $data_table['rows'][] = [
-                'user_id' => $item['user_id'],
-                'name' => $item['name'],
-                'email' => $item['email'],
-                'user_role_text' => $item['user_role_text'],
-                'last_ip' => $item['last_ip'],
-                'actions' => '<a href="/admin/deleted_user_edit/id/' . $item['user_id'] . '" class="btn btn-primary me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.edit'] . '"><i class="fas fa-edit"></i></a>',
-            ];
+                $data_table['rows'][] = [
+                    'user_id' => $item['user_id'],
+                    'name' => $item['name'],
+                    'email' => $item['email'],
+                    'user_role_text' => $item['user_role_text'],
+                    'last_ip' => $item['last_ip'],
+                    'actions' => '<a href="/admin/deleted_user_edit/id/' . $item['user_id'] . '" class="btn btn-primary me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.edit'] . '"><i class="fas fa-edit"></i></a>'
+                    . '<a href="/admin/restore_user/id/' . $item['user_id'] . '" onclick="return confirm(\'' . $this->lang['sys.restore_user_confirm'] . '\');" class="btn btn-success" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.restore_user'] . '"><i class="fas fa-rotate-left"></i></a>',
+                ];
         }
         $data_table['total_rows'] = $users_array['total_count'];
         if ($postData) {
@@ -938,6 +1040,39 @@ use MessagesTrait,
         $this->showLayout($this->parameters_layout);
     }
 
+    public function restore_user($params = []) {
+        $this->access = [Constants::ADMIN, Constants::MODERATOR];
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect();
+            exit();
+        }
+
+        if (!in_array('id', $params, true)) {
+            ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.error'], 'status' => 'danger']);
+            SysClass::handleRedirect(200, '/admin/deleted_users');
+            return;
+        }
+
+        $keyId = array_search('id', $params, true);
+        $user_id = ($keyId !== false && isset($params[$keyId + 1])) ? (int) filter_var($params[$keyId + 1], FILTER_VALIDATE_INT) : 0;
+        if ($user_id <= 0) {
+            ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.error'], 'status' => 'danger']);
+            SysClass::handleRedirect(200, '/admin/deleted_users');
+            return;
+        }
+
+        $this->loadModel('m_user_edit');
+        $this->notifyOperationResult(
+            $this->models['m_user_edit']->restore_user($user_id, true),
+            [
+                'default_error_message' => $this->lang['sys.data_update_error'],
+                'success_message' => $this->lang['sys.user_restored'],
+                'failure_code' => 'user_restore_failed',
+            ]
+        );
+        SysClass::handleRedirect(200, '/admin/deleted_users');
+    }
+
     /**
      * Добавит необходимые стили и скрипты для подключения редактора
      */
@@ -949,7 +1084,8 @@ use MessagesTrait,
         $this->parameters_layout["add_script"] .= '<script src="' . ENV_URL_SITE . '/assets/editor/summernote/plugin/text/text_manipulation.js" type="text/javascript"></script>';
         $this->parameters_layout["add_script"] .= '<script src="' . ENV_URL_SITE . '/assets/editor/summernote/plugin/cropper/summernote-cropper.js" type="text/javascript" type="text/javascript"></script>';
         $this->parameters_layout["add_script"] .= '<script src="' . ENV_URL_SITE . '/assets/editor/summernote/plugin/cropper/summernote-ext-image.js" type="text/javascript" type="text/javascript"></script>';
-        if (ENV_DEF_LANG == 'RU') {
+        $editorLangCode = strtoupper((string)(\classes\system\Session::get('lang') ?: ($this->users->data['options']['localize'] ?? ENV_DEF_LANG)));
+        if ($editorLangCode == 'RU') {
             $this->parameters_layout["add_script"] .= '<script src="' . ENV_URL_SITE . '/assets/editor/summernote/lang/summernote-ru-RU.min.js" type="text/javascript"></script>';
         } else {
             $this->parameters_layout["add_script"] .= '<script src="' . ENV_URL_SITE . '/assets/editor/summernote/lang/summernote-en-US.min.js" type="text/javascript"></script>';

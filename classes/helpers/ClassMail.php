@@ -5,6 +5,7 @@ namespace classes\helpers;
 use PHPMailer\PHPMailer\PHPMailer;
 use classes\system\SysClass;
 use classes\system\Constants;
+use classes\system\Logger;
 
 /**
  * Класс для работы с почтой.
@@ -42,8 +43,14 @@ class ClassMail {
             $this->mail_class->setFrom(ENV_SITE_EMAIL, ENV_SITE_NAME);
             $this->mail_class->addReplyTo(ENV_ADMIN_EMAIL);
         } catch (\Exception $e) {
-            error_log("ClassMail::__construct() - PHPMailer init error: " . $e->getMessage());
-            throw new RuntimeException("Ошибка инициализации PHPMailer: " . $e->getMessage());
+            Logger::error('mail_error', 'PHPMailer init error', [
+                'message' => $e->getMessage(),
+            ], [
+                'initiator' => __METHOD__,
+                'details' => $e->getMessage(),
+                'include_trace' => false,
+            ]);
+            throw new \RuntimeException("Ошибка инициализации PHPMailer: " . $e->getMessage());
         }
     }
 
@@ -60,16 +67,26 @@ class ClassMail {
     private function send(mixed $to, string $subject = '', array $fields = [], string|false $template = false): bool {
         try {
             $email = $this->resolveEmail($to);
+            $body = '';
+            $subjectTemplate = '';
             if ($template) {
-                list($body, $subjectTemplate) = $this->processTemplate($template, $fields);
-                if (!$body) {
+                $processedTemplate = $this->processTemplate($template, $fields);
+                if (!is_array($processedTemplate) || count($processedTemplate) < 2) {
                     return false;
                 }
+                [$body, $subjectTemplate] = $processedTemplate;
             } elseif (!empty($fields)) {
                 $body = var_export($fields, true);
             }
             if (!SysClass::validEmail($email)) {
-                error_log("ClassMail::send() - Invalid email address: $email");
+                Logger::warning('mail_error', 'Invalid email address for send', [
+                    'email' => $email,
+                    'template' => $template,
+                ], [
+                    'initiator' => __METHOD__,
+                    'details' => $email,
+                    'include_trace' => false,
+                ]);
                 return false;
             }
             $subject = !empty($subject) ? $subject : $subjectTemplate;
@@ -77,7 +94,16 @@ class ClassMail {
             $this->mail_class->send();
             return true;
         } catch (\Exception $e) {
-            error_log("ClassMail::send() - Send error: " . $e->getMessage());
+            Logger::error('mail_error', 'Mail send error', [
+                'message' => $e->getMessage(),
+                'to' => $to,
+                'subject' => $subject,
+                'template' => $template,
+            ], [
+                'initiator' => __METHOD__,
+                'details' => $e->getMessage(),
+                'include_trace' => false,
+            ]);
             return false;
         }
     }
@@ -154,8 +180,16 @@ class ClassMail {
         try {
             $this->mail_class->addAttachment($path, $name);
         } catch (\Exception $e) {
-            error_log("ClassMail::addAttachment() - Attachment error: " . $e->getMessage());
-            throw new RuntimeException("Ошибка добавления вложения: " . $e->getMessage());
+            Logger::error('mail_error', 'Attachment error', [
+                'message' => $e->getMessage(),
+                'path' => $path,
+                'name' => $name,
+            ], [
+                'initiator' => __METHOD__,
+                'details' => $e->getMessage(),
+                'include_trace' => false,
+            ]);
+            throw new \RuntimeException("Ошибка добавления вложения: " . $e->getMessage());
         }
     }
 

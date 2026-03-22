@@ -1,6 +1,7 @@
 <?php
 
 use classes\plugins\SafeMySQL;
+use classes\helpers\ClassMessages;
 use classes\system\Constants;
 use classes\system\SysClass;
 
@@ -44,8 +45,7 @@ class ModelMessages {
      * @param int $user_id - ID пользователя
      */
     public function read_all($user_id) {
-        $sql = 'UPDATE ?n SET `read_at` = NOW() WHERE `user_id` = ?i';
-        SafeMySQL::gI()->query($sql, Constants::USERS_MESSAGE_TABLE, $user_id);
+        return ClassMessages::markAllMessagesAsRead((int) $user_id);
     }
     
     /**
@@ -53,8 +53,7 @@ class ModelMessages {
      * @param int $user_id - ID пользователя
      */
     public function kill_all_message($user_id) {
-        $sql = 'DELETE FROM ?n WHERE `user_id` = ?i';
-        SafeMySQL::gI()->query($sql, Constants::USERS_MESSAGE_TABLE, $user_id);
+        return ClassMessages::deleteAllMessages((int) $user_id);
     }
     
     /**
@@ -64,12 +63,11 @@ class ModelMessages {
      */
     public function set_message_as_readed($message_id = 0, $user_id = 0) {
         if ($message_id) {
-            $sql = 'UPDATE ?n SET `read_at` = NOW() WHERE `id` = ?i';
-            SafeMySQL::gI()->query($sql, Constants::USERS_MESSAGE_TABLE, $message_id);
+            return ClassMessages::markMessageAsRead((int) $message_id, $user_id ? (int) $user_id : null);
         } elseif($user_id) {
-            $sql = 'UPDATE ?n SET `read_at` = NOW() WHERE `user_id` = ?i AND ISNULL(`read_at`)';
-            SafeMySQL::gI()->query($sql, Constants::USERS_MESSAGE_TABLE, $user_id);
+            return ClassMessages::markAllMessagesAsRead((int) $user_id);
         }
+        return false;
     }
 
     /**
@@ -77,11 +75,11 @@ class ModelMessages {
      * @param int $message_id - ID сообщения
      * @param int $user_id - ID пользователя нужен при удалении всех сообщений
      */
-    public function kill_message($message_id) {
+    public function kill_message($message_id, $user_id = 0) {
         if ($message_id) {
-            $sql = 'DELETE FROM ?n WHERE `id` = ?i';
-            SafeMySQL::gI()->query($sql, Constants::USERS_MESSAGE_TABLE, $message_id);
-         }
+            return ClassMessages::deleteMessage((int) $message_id, $user_id ? (int) $user_id : null);
+        }
+        return false;
     }
 
 }

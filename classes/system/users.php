@@ -13,10 +13,12 @@ use classes\helpers\ClassMail;
 class Users {
 
     const BASE_OPTIONS_USER = '{"localize": "", "user_logo_img": "uploads/images/avatars/face-0-lite.jpg","user_img": "/uploads/images/avatars/face-0.jpg",'
-            . '"skin": "skin-default", "notifications": false}';
+            . '"skin": "skin-default", "auth": {"require_password_setup": 0, "password_setup_reason": "", "last_password_prompt_at": null, "ip_restricted": 0}}';
 
     public $lang = []; // Языковые переменные для текущего класса
     public $data;
+    public array $lastAuthResult = [];
+    public int $lastCreatedUserId = 0;
 
     public function __construct($params = []) {
         $userId = 0;
@@ -32,7 +34,7 @@ class Users {
         if (empty($userId) && !$create_table) {
             $user_lang = ENV_DEF_LANG;
         } else {
-            $user_lang = Session::get('lang');
+            $user_lang = Session::get('lang') ?: ENV_DEF_LANG;
         }
         $this->data = $this->getUserData($userId, $create_table);
         $this->lang = !empty($user_lang) ? Lang::init($user_lang) : [];
@@ -53,7 +55,7 @@ class Users {
             if ($resArray) {
                 $resArray['count_unread_messages'] = ClassMessages::get_count_unread_messages($id);
                 $resArray['count_messages'] = ClassMessages::get_count_messages($id);
-                $resArray['messages'] = $resArray['count_unread_messages'] ? ClassMessages::get_messages_user($id) : [];
+                $resArray['messages'] = $resArray['count_unread_messages'] ? ClassMessages::get_unread_messages_user($id) : [];
                 $resArray['user_role_text'] = $this->getTextRole($resArray['user_role']);
                 $resArray['user_role_name'] = $this->getNameRole($resArray['user_role']);
                 $resArray['subscribed_text'] = $resArray['subscribed'] > 0 ? 'Подписан' : 'Не подписан';
@@ -71,9 +73,9 @@ class Users {
             }
         } else {
             $this->createTables(); //создаём необходимый набор таблиц в БД и первого пользователя с ролью администратора
-            $this->registrationNewUser(array('name' => 'admin', 'email' => 'test@test.com', 'active' => '2', 'user_role' => '1', 'subscribed' => '0', 'comment' => 'Смените пароль администратора', 'pwd' => 'admin'), true);
-            $this->registrationNewUser(array('name' => 'moderator', 'email' => 'test_moderator@test.com', 'active' => '2', 'user_role' => '2', 'subscribed' => '0', 'comment' => 'Смените пароль модератора', 'pwd' => 'moderator'), true);
-            $this->registrationNewUser(array('name' => 'system', 'email' => 'dont-answer@' . ENV_SITE_NAME, 'active' => '2', 'user_role' => '8', 'subscribed' => '0', 'comment' => '', 'pwd' => ''), true);
+            $this->registrationNewUser(array('name' => 'admin', 'email' => 'test@test.com', 'active' => '2', 'user_role' => '1', 'subscribed' => '0', 'comment' => 'Смените пароль администратора', 'pwd' => 'admin', 'skip_auth_password_setup' => 1), true);
+            $this->registrationNewUser(array('name' => 'moderator', 'email' => 'test_moderator@test.com', 'active' => '2', 'user_role' => '2', 'subscribed' => '0', 'comment' => 'Смените пароль модератора', 'pwd' => 'moderator', 'skip_auth_password_setup' => 1), true);
+            $this->registrationNewUser(array('name' => 'system', 'email' => 'dont-answer@' . ENV_SITE_NAME, 'active' => '2', 'user_role' => '8', 'subscribed' => '0', 'comment' => '', 'pwd' => '', 'skip_auth_password_setup' => 1), true);
         }
         return $resArray;
     }
@@ -114,13 +116,26 @@ class Users {
         $fields = SysClass::ee_removeEmptyValuesToArray(array_map('trim', $fields));
         if (!$fields)
             return 0;
+        $oldEmail = $this->getUserEmail($userId);
+        if (isset($fields['email']) && !SysClass::validEmail($fields['email'])) {
+            return 0;
+        }
+        if (isset($fields['email']) && $fields['email'] !== $oldEmail && $this->getEmailExist($fields['email'], $userId)) {
+            return 0;
+        }
         if (isset($fields['pwd']) && strlen($fields['pwd']) >= 5) {
-            $this->setUserPassword($userId, $fields['email'], $fields['pwd']);
+            $this->setUserPassword($userId, $fields['email'] ?? $oldEmail, $fields['pwd']);
         }
         unset($fields['pwd']);
         $sql_user = "UPDATE ?n SET ?u, updated_at = now() WHERE user_id = ?i";
         SafeMySQL::gi()->query($sql_user, Constants::USERS_TABLE, $fields, $userId);
-        SysClass::preFile('users_info', 'set_user_data', 'Обновление данных пользователю user_id=' . $userId, ['old' => $this->data['user_id'], 'new' => $fields]);
+        if (isset($fields['email']) && $fields['email'] !== $oldEmail) {
+            (new AuthService())->handleEmailChange($userId, (string) $oldEmail, (string) $fields['email']);
+        }
+        $this->logUserAudit('set_user_data', 'Обновление данных пользователю user_id=' . $userId, [
+            'old' => $this->data['user_id'],
+            'new' => $fields,
+        ]);
         return 1;
     }
 
@@ -164,7 +179,7 @@ class Users {
             $this->setUserOptions($userId);
             $options = self::BASE_OPTIONS_USER;
         }
-        return json_decode($options, true);
+        return $this->normalizeUserOptions($options);
     }
 
     /**
@@ -175,9 +190,9 @@ class Users {
      * @return true
      */
     public function setUserOptions($userId, $options = '') {
-        if (is_array($options)) {
-            $options = json_encode($options);
-        } else {
+        $normalizedOptions = $this->normalizeUserOptions($options);
+        $options = json_encode($normalizedOptions, JSON_UNESCAPED_UNICODE);
+        if ($options === false) {
             $options = self::BASE_OPTIONS_USER;
         }
         if ($this->issetOptionsUser($userId) > 0) {
@@ -186,6 +201,35 @@ class Users {
             $sql = 'INSERT INTO ?n SET options = ?s, user_id = ?i';
         }
         return SafeMySQL::gi()->query($sql, Constants::USERS_DATA_TABLE, $options, $userId);
+    }
+
+    private function normalizeUserOptions($options): array {
+        $baseOptions = json_decode(self::BASE_OPTIONS_USER, true);
+        if (!is_array($baseOptions)) {
+            $baseOptions = [];
+        }
+
+        if (is_string($options)) {
+            $decoded = json_decode($options, true);
+            $options = is_array($decoded) ? $decoded : [];
+        } elseif (!is_array($options)) {
+            $options = [];
+        }
+
+        unset($options['notifications']);
+        return $this->mergeOptionsRecursive($baseOptions, $options);
+    }
+
+    private function mergeOptionsRecursive(array $base, array $patch): array {
+        foreach ($patch as $key => $value) {
+            if (is_array($value) && is_array($base[$key] ?? null)) {
+                $base[$key] = $this->mergeOptionsRecursive($base[$key], $value);
+            } else {
+                $base[$key] = $value;
+            }
+        }
+
+        return $base;
     }
 
     /**
@@ -206,48 +250,22 @@ class Users {
      * @return string 
      */
     public function confirmUser($email, $psw, $force_login = false) {
-        $res = '';
-        $user_row = SafeMySQL::gi()->getRow('SELECT user_id, active, pwd FROM ?n WHERE email = ?s', Constants::USERS_TABLE, $email);
+        $authService = new AuthService();
+        $this->lastAuthResult = $authService->loginWithPassword((string) $email, (string) $psw, (bool) $force_login);
+        $status = (string) ($this->lastAuthResult['status'] ?? 'unknown');
         $ip = SysClass::getClientIp();
-        if ($user_row && ($user_row['active'] == 2 || $force_login)) {
-            if (password_verify($psw, $user_row['pwd']) || $force_login) {
-                $add_query = '';
-                if ($force_login) {
-                    $add_query = 'active = 2, ';
-                    $res = $this->lang['sys.welcome'];
-                }
-                $sql = 'UPDATE ?n SET ' . $add_query . 'last_ip = ?s, last_activ = ?s, session = ?s WHERE user_id = ?i';
-                $last_date = date("Y-m-d H:i:s", time());
-                $hash_login = $user_row['user_id'];
-                if (ENV_ONE_IP_ONE_USER) {
-                    $session = password_hash($hash_login, PASSWORD_DEFAULT);
-                } else {
-                    $session = md5($hash_login);
-                }
-                if (ENV_AUTH_USER == 0) {
-                    Session::set('user_session', $session);
-                }
-                if (ENV_AUTH_USER === 2) {
-                    Cookies::set('user_session', $session, ENV_TIME_AUTH_SESSION);
-                }
-                SafeMySQL::gi()->query($sql, Constants::USERS_TABLE, $ip, $last_date, $session, $user_row['user_id']);
-            } else {
-                $res = $this->lang['sys.the_password_was_not_verified'];
-            }
-        } elseif ($user_row && $user_row['active'] == 1) {
-            $res = $this->lang['sys.you_have_not_verified_your_email'];
-        } elseif ($user_row && $user_row['active'] == 3) {
-            $res = $this->lang['sys.account_is_blocked'];
-        } else {
+        if (in_array($status, ['user_not_found', 'invalid_credentials'], true)) {
             $badCount = (int) \classes\system\Session::get('botguard_account_bad_active');
             $badCount++;
             if ($badCount >= 5 && $badCount <= 10) {
                 \classes\system\BotGuard::addIpToBlacklist($ip, 3600, $this->lang['sys.no_such_data_was_found']);
             }
             \classes\system\Session::set('botguard_account_bad_active', $badCount);
-            $res = $this->lang['sys.no_such_data_was_found'] . \classes\system\Session::get('botguard_account_bad_active') . ' ' . session_id();
+        } elseif ($status === 'success') {
+            \classes\system\Session::un_set('botguard_account_bad_active');
         }
-        return $res;
+
+        return $this->mapAuthStatusToMessage($status);
     }
 
     /**
@@ -258,17 +276,13 @@ class Users {
      * ВАЖНО! Роль пользователя устанавливается по умолчанию в таблице БД
      */
     public function registrationUsers($email, $password) {
-        $newpassword = password_hash($password, PASSWORD_DEFAULT);
-        $sql = 'INSERT INTO ?n SET name = ?s, email = ?s, pwd = ?s, last_ip = ?s';
-        SafeMySQL::gi()->query($sql, Constants::USERS_TABLE, $email, $email, $newpassword, SysClass::getClientIp());
-        $sql = 'SELECT MAX(user_id) FROM ?n';
-        $userId = SafeMySQL::gi()->getOne($sql, Constants::USERS_TABLE);
-        SysClass::preFile('users_info', 'registrationUsers', 'Зарегистрирован новый пользователь', ['user_id' => $userId, 'email' => $email]);
-        $this->setUserOptions($userId); // Заполнить первичные данные из базы по шаблону
-        if ($system_id = $this->getUserIdByEmail('dont-answer@' . ENV_SITE_NAME)) {
-            ClassMessages::set_message_user($userId, $system_id, 'Fill in your personal information <a href="' . ENV_URL_SITE . '/admin/user_edit/id/' . $userId . '">link</a>', 'info');
-        }
-        return true;
+        $this->lastAuthResult = (new AuthService())->registerLocalUser((string) $email, (string) $password);
+        $this->lastCreatedUserId = (int) ($this->lastAuthResult['user_id'] ?? 0);
+        return in_array((string) ($this->lastAuthResult['status'] ?? ''), [
+            'registered_pending_activation',
+            'registered_activation_mail_failed',
+            'registered_active',
+        ], true);
     }
 
     /**
@@ -282,20 +296,55 @@ class Users {
         if (isset($this->data['user_role']) && $this->data['user_role'] > 2 && !$flag) {
             return 0;
         }
+        $requirePasswordSetup = !empty($fields['auth_require_password_setup']);
+        $passwordSetupReason = trim((string) ($fields['auth_password_setup_reason'] ?? 'admin_created'));
+        $ipRestricted = !empty($fields['auth_ip_restricted']);
+        $skipForcedPasswordSetup = !empty($fields['skip_auth_password_setup']);
+
         $fields = SafeMySQL::gi()->filterArray($fields, array('name', 'email', 'phone', 'active', 'user_role', 'subscribed', 'comment', 'pwd'));
-        $fields = array_map('trim', $fields);
-        if ($this->getEmailExist($fields['email'])) {
+        $fields = array_map(static function ($value) {
+            return is_string($value) ? trim($value) : $value;
+        }, $fields);
+        if (empty($fields['email']) || !SysClass::validEmail($fields['email']) || $this->getEmailExist($fields['email'])) {
             return 0;
         }
+        $placeholderPassword = password_hash(bin2hex(random_bytes(12)), PASSWORD_DEFAULT);
+        $payload = [
+            'name' => ($fields['name'] ?? '') !== '' ? $fields['name'] : $fields['email'],
+            'email' => $fields['email'],
+            'phone' => ($fields['phone'] ?? '') !== '' ? $fields['phone'] : null,
+            'active' => isset($fields['active']) ? (int) $fields['active'] : 2,
+            'user_role' => isset($fields['user_role']) ? (int) $fields['user_role'] : Constants::USER,
+            'subscribed' => isset($fields['subscribed']) ? (int) (bool) $fields['subscribed'] : 1,
+            'comment' => $fields['comment'] ?? '',
+            'pwd' => $placeholderPassword,
+            'last_ip' => SysClass::getClientIp(),
+        ];
         $sql = 'INSERT INTO ?n SET ?u';
-        SafeMySQL::gi()->query($sql, Constants::USERS_TABLE, $fields);
+        SafeMySQL::gi()->query($sql, Constants::USERS_TABLE, $payload);
         $userId = SafeMySQL::gi()->insertId();
-        SysClass::preFile('users_info', 'registration_new_user', 'Зарегистрирован новый пользователь', ['user_id' => $userId, 'data' => $fields]);
-        $this->setUserPassword($userId, $fields['email'], $fields['pwd']);
+        $this->lastCreatedUserId = (int) $userId;
+        $this->setUserOptions($userId);
+        $this->logUserAudit('registration_new_user', 'Зарегистрирован новый пользователь', [
+            'user_id' => $userId,
+            'data' => $payload,
+        ]);
+        if (!empty($fields['pwd']) && mb_strlen((string) $fields['pwd']) >= 5) {
+            $this->setUserPassword($userId, $fields['email'], (string) $fields['pwd']);
+        }
+        $authService = new AuthService();
+        if ($ipRestricted) {
+            $options = $this->getUserOptions($userId);
+            $options['auth']['ip_restricted'] = 1;
+            $this->setUserOptions($userId, $options);
+        }
+        if (!$skipForcedPasswordSetup && ($requirePasswordSetup || empty($fields['pwd']) || ($flag && in_array((int) $payload['user_role'], [Constants::ADMIN, Constants::MODERATOR], true)))) {
+            $authService->markUserRequiresPasswordSetup($userId, true, $passwordSetupReason !== '' ? $passwordSetupReason : 'admin_created');
+        }
         if ($system_id = $this->getUserIdByEmail('dont-answer@' . ENV_SITE_NAME)) {
             ClassMessages::set_message_user($userId, $system_id, 'Заполните свой профиль <a href="' . ENV_URL_SITE . '/admin/user_edit/id/' . $userId . '">тут</a>', 'info');
         }
-        return 1;
+        return (int) $userId;
     }
 
     /**
@@ -305,7 +354,7 @@ class Users {
     public function getAdminProfile() {
         $sql = 'SELECT 1 FROM ?n WHERE user_role = 1 LIMIT 1';
         if (!SafeMySQL::gi()->getOne($sql, Constants::USERS_TABLE)) {
-            $this->registrationNewUser(array('name' => 'admin', 'email' => 'test@test.com', 'active' => '2', 'user_role' => '1', 'subscribed' => '1', 'comment' => 'Смените пароль администратора', 'pwd' => 'admin'), true);
+            $this->registrationNewUser(array('name' => 'admin', 'email' => 'test@test.com', 'active' => '2', 'user_role' => '1', 'subscribed' => '1', 'comment' => 'Смените пароль администратора', 'pwd' => 'admin', 'skip_auth_password_setup' => 1), true);
         }
     }
 
@@ -326,7 +375,6 @@ class Users {
         }
 
         try {
-            $db = SafeMySQL::gi();
             if ($userId === 0) {
                 $userId = $this->getUserIdByEmail($email);
                 if ($userId === 0) {
@@ -336,30 +384,25 @@ class Users {
             if (empty($password)) {
                 $password = $this->generateRandomPassword(10);
             }
-            $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-            if ($hashedPassword === false) {
-                throw new \RuntimeException('Не удалось сгенерировать хеш пароля');
-            }
-            $sql = 'UPDATE ?n SET pwd = ?s WHERE user_id = ?i';
-            $affectedRows = $db->query($sql, Constants::USERS_TABLE, $hashedPassword, $userId);
-
-            if ($affectedRows === false || $db->affectedRows() === 0) {
-                throw new \RuntimeException("Не удалось обновить пароль для пользователя с ID $userId");
-            }
-            new \classes\system\ErrorLogger(
-                    'Пароль успешно обновлён',
-                    __FUNCTION__,
-                    'users_info',
-                    ['user_id' => $userId, 'email' => $email]
-            );
+            (new AuthService())->setPasswordForUser($userId, $password);
+            Logger::audit('users_info', 'Пароль успешно обновлён', [
+                'user_id' => $userId,
+                'email' => $email,
+            ], [
+                'initiator' => __FUNCTION__,
+                'details' => 'Пароль успешно обновлён',
+                'include_trace' => false,
+            ]);
             return $password;
         } catch (\Exception $e) {
-            new \classes\system\ErrorLogger(
-                    'Ошибка при установке пароля: ' . $e->getMessage(),
-                    __FUNCTION__,
-                    'users_error',
-                    ['user_id' => $userId, 'email' => $email, 'trace' => $e->getTraceAsString()]
-            );
+            Logger::error('users_error', 'Ошибка при установке пароля: ' . $e->getMessage(), [
+                'user_id' => $userId,
+                'email' => $email,
+                'trace' => $e->getTraceAsString(),
+            ], [
+                'initiator' => __FUNCTION__,
+                'details' => $e->getMessage(),
+            ]);
             throw $e; // Перебрасываем исключение для внешней обработки
         }
     }
@@ -413,7 +456,7 @@ class Users {
      * Поиск ID пользователя по почте
      */
     public function getUserIdByEmail($email) {
-        $sql = 'SELECT user_id FROM ?n WHERE email LIKE ?s';
+        $sql = 'SELECT user_id FROM ?n WHERE email = ?s LIMIT 1';
         return SafeMySQL::gi()->getOne($sql, Constants::USERS_TABLE, $email);
     }
 
@@ -430,8 +473,11 @@ class Users {
     /**
      * Проверка существования почты в БД
      */
-    public function getEmailExist($email) {
+    public function getEmailExist($email, int $excludeUserId = 0) {
         $sql = 'SELECT 1 FROM ?n WHERE email = ?s';
+        if ($excludeUserId > 0) {
+            $sql .= ' AND user_id != ' . (int) $excludeUserId;
+        }
         return SafeMySQL::gi()->getOne($sql, Constants::USERS_TABLE, $email);
     }
 
@@ -439,15 +485,18 @@ class Users {
      * Меняет и высылает на почту пользователя новый пароль к сайту     
      */
     public function sendRecoveryPassword($email) {
-        $password = $this->setUserPassword(0, $email, 0);
-        $mailIsSuccess = ClassMail::sendMail($email, '', 'password_recovery', ['PASSWORD' => $password]);
-        if ($mailIsSuccess) {
-            SysClass::preFile('users_info', 'send_recovery_password', 'Отправлен новый пароль', ['email' => $email]);
-            return true;
-        } else {
-            SysClass::preFile('users_info_errors', 'send_recovery_password', 'Отправка пароля завершилась неудачей', ['email' => $email]);
-            return false;
-        }
+        $this->lastAuthResult = (new AuthService())->requestPasswordRecovery((string) $email);
+        $status = (string) ($this->lastAuthResult['status'] ?? '');
+        $isSuccess = $status !== 'recovery_mail_failed';
+        $this->logUserEvent(
+            $isSuccess ? Logger::LEVEL_INFO : Logger::LEVEL_ERROR,
+            $isSuccess ? 'users_info' : 'users_info_errors',
+            'send_recovery_password',
+            $isSuccess ? 'Отправлена ссылка на восстановление пароля' : 'Отправка ссылки восстановления завершилась неудачей',
+            ['email' => $email, 'status' => $status],
+            !$isSuccess
+        );
+        return $isSuccess;
     }
 
     /**
@@ -459,55 +508,30 @@ class Users {
      * @throws \RuntimeException Если пользователь не найден или возникла ошибка при отправке/сохранении
      */
     public function sendRegistrationCode(string $email): bool {
-        if (empty($email)) {
-            throw new \InvalidArgumentException('Email не может быть пустым');
-        }
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            throw new \InvalidArgumentException('Некорректный формат email');
-        }
-        try {
-            $db = SafeMySQL::gi();
-            $userId = $this->getUserIdByEmail($email);
-            if ($userId === 0) {
-                throw new \RuntimeException("Пользователь с email '$email' не найден");
-            }
-            $activationCode = bin2hex(random_bytes(8));
-            $activationLink = ENV_URL_SITE . '/activation/' . $activationCode;
-            $resMail = ClassMail::sendMail(
-                    $email,
-                    '',
-                    'activation_code',
-                    ['activation_link' => '<a href="' . htmlspecialchars($activationLink) . '">Нажми меня</a>']
-            );
-            if ($resMail !== true) {
-                new \classes\system\ErrorLogger(
-                        'Ошибка отправки письма с кодом активации',
-                        __FUNCTION__,
-                        'users_error',
-                        ['email' => $email, 'activation_code' => $activationCode]
-                );
-                return false;
-            }
-            $stopTime = date('Y-m-d H:i:s', time() + (defined('ENV_TIME_ACTIVATION') ? ENV_TIME_ACTIVATION : 86400));
-            $sql = 'INSERT INTO ?n (user_id, email, code, stop_time) VALUES (?i, ?s, ?s, ?s)';
-            $db->query($sql, Constants::USERS_ACTIVATION_TABLE, $userId, $email, $activationCode, $stopTime);
-            // Логирование успеха
-            new \classes\system\ErrorLogger(
-                    'Письмо с кодом активации успешно отправлено',
-                    __FUNCTION__,
-                    'users_info',
-                    ['user_id' => $userId, 'email' => $email, 'activation_code' => $activationCode, 'stop_time' => $stopTime]
-            );
-            return true;
-        } catch (\Exception $e) {
-            new \classes\system\ErrorLogger(
-                    'Ошибка при отправке кода активации: ' . $e->getMessage(),
-                    __FUNCTION__,
-                    'users_error',
-                    ['email' => $email, 'trace' => $e->getTraceAsString()]
-            );
+        if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
             return false;
         }
+        AuthService::ensureInfrastructure();
+        $userId = $this->getUserIdByEmail($email);
+        if ($userId === 0) {
+            return false;
+        }
+
+        $challenge = AuthChallengeService::createChallenge(
+            (int) $userId,
+            'activation',
+            ['email' => $email],
+            (int) (defined('ENV_TIME_ACTIVATION') ? ENV_TIME_ACTIVATION : 86400)
+        );
+        $activationLink = ENV_URL_SITE . '/activation/' . $challenge['token'];
+        $isSuccess = ClassMail::sendMail(
+            $email,
+            '',
+            'activation_code',
+            ['activation_link' => '<a href="' . htmlspecialchars($activationLink, ENT_QUOTES) . '">Нажми меня</a>']
+        );
+        $this->lastAuthResult = ['status' => $isSuccess ? 'activation_requested' : 'activation_mail_failed', 'user_id' => (int) $userId];
+        return $isSuccess;
     }
 
     /**
@@ -520,68 +544,11 @@ class Users {
      * @throws \RuntimeException Если возникла ошибка при работе с базой данных
      */
     public function dellActivationCode(string $email, string $code): bool {
-        if (empty($email)) {
-            throw new \InvalidArgumentException('Email не может быть пустым');
-        }
         if (empty($code)) {
-            throw new \InvalidArgumentException('Код активации не может быть пустым');
-        }
-        try {
-            $db = SafeMySQL::gi();
-            $sql = 'SELECT user_id, stop_time FROM ?n WHERE email = ?s AND code = ?s';
-            $activationData = $db->getRow($sql, Constants::USERS_ACTIVATION_TABLE, $email, $code);
-            if (!$activationData) {
-                new \classes\system\ErrorLogger(
-                        'Код активации не найден',
-                        __FUNCTION__,
-                        'users_error',
-                        ['email' => $email, 'code' => $code]
-                );
-                return false;
-            }
-            $userId = (int) $activationData['user_id'];
-            $stopTime = $activationData['stop_time'];
-            if (strtotime($stopTime) > time()) {
-                $db->query('START TRANSACTION');
-                try {
-                    $sqlDelete = 'DELETE FROM ?n WHERE user_id = ?i AND code = ?s';
-                    $db->query($sqlDelete, Constants::USERS_ACTIVATION_TABLE, $userId, $code);
-                    $sqlUpdate = 'UPDATE ?n SET active = 2 WHERE user_id = ?i AND active = 1';
-                    $db->query($sqlUpdate, Constants::USERS_TABLE, $userId);
-                    if ($db->affectedRows() === 0) {
-                        throw new \RuntimeException('Пользователь уже активирован или не существует');
-                    }
-                    $db->query('COMMIT');
-                    new \classes\system\ErrorLogger(
-                            'Код активации удалён, пользователь активирован',
-                            __FUNCTION__,
-                            'users_info',
-                            ['user_id' => $userId, 'email' => $email, 'code' => $code]
-                    );
-                    return true;
-                } catch (\Exception $e) {
-                    $db->query('ROLLBACK');
-                    throw $e;
-                }
-            } else {
-                $this->dell_user_data($userId);
-                new \classes\system\ErrorLogger(
-                        'Код активации истёк, данные пользователя удалены',
-                        __FUNCTION__,
-                        'users_info',
-                        ['user_id' => $userId, 'email' => $email, 'code' => $code]
-                );
-                return false;
-            }
-        } catch (\Exception $e) {
-            new \classes\system\ErrorLogger(
-                    'Ошибка при удалении кода активации: ' . $e->getMessage(),
-                    __FUNCTION__,
-                    'users_error',
-                    ['email' => $email, 'code' => $code, 'trace' => $e->getTraceAsString()]
-            );
             return false;
         }
+        $this->lastAuthResult = (new AuthService())->activateByToken($code);
+        return in_array((string) ($this->lastAuthResult['status'] ?? ''), ['activation_completed', 'activation_not_modified'], true);
     }
 
     /**
@@ -592,10 +559,11 @@ class Users {
         SafeMySQL::gi()->query("START TRANSACTION");
         SafeMySQL::gi()->query("SET FOREIGN_KEY_CHECKS=1"); // Включаем проверку внешних ключей
         try {
-            $this->createUsersTable();
             $this->createUsersRolesTable();
             $this->insertDefaultRoles();
+            $this->createUsersTable();
             $this->createUsersDataTable();
+            $this->createUsersNotificationsTable();
             $this->createUsersMessageTable();
             $this->createUsersActivationTable();
             $this->createCategoriesTypesTable();
@@ -605,6 +573,7 @@ class Users {
             $this->createPropertiesTable();
             $this->createPropertySetsTable();
             $this->createPropertyValuesTable();
+            $this->createPropertyLifecycleJobsTable();
             $this->createCategoryTypeToPropertySetTable();
             $this->createPropertySetToPropertiesTable();
             $this->createFiltersTable();
@@ -612,51 +581,107 @@ class Users {
             $this->createGlobalOptionsTable();
             $this->createEmailTemplatesTable();
             $this->createEmailSnippetsTable();
+            AuthService::ensureInfrastructure(true);
             $this->createIpBlacklistTable();
             $this->createRequestLogsTable();
             $this->createOffensesTable();
             $this->createSearchIndexTable();
             $this->createSearchNgramsTable();
             $this->createSearchLogTable();
-            // Вставка начальных данных
-            $this->insertDefaultPropertyTypes();
+            $this->createImportTable();
+            // Вставка начальных данных            
             $this->insertDefaultEmailSnippets();
             $this->insertDefaultEmailTemplates();
-            // Тестовые данные
-            if (defined('ENV_INSERT_TEST_DATA') && ENV_INSERT_TEST_DATA) {
-                $this->insertTestData();
-            }
             SafeMySQL::gi()->query("COMMIT");
         } catch (Exception $e) {
             SafeMySQL::gi()->query("ROLLBACK");
             SysClass::pre($e);
             return false;
         }
-        SysClass::preFile('sql_info', 'create_tables', 'База данных успешно развёрнута', 'OK');
+        $this->logSqlInfo('create_tables', 'База данных успешно развёрнута');
+    }
+
+    private function logSqlInfo(string $initiator, string $message, array $context = []): void {
+        Logger::info('sql_info', $message, $context, [
+            'initiator' => $initiator,
+            'details' => 'OK',
+            'include_trace' => false,
+        ]);
+    }
+
+    private function logUserAudit(string $initiator, string $message, array $context = []): void {
+        $this->logUserEvent(Logger::LEVEL_AUDIT, 'users_info', $initiator, $message, $context, false);
+    }
+
+    private function logUserEvent(string $level, string $channel, string $initiator, string $message, array $context = [], bool $includeTrace = false): void {
+        Logger::log($level, $channel, $message, $context, [
+            'initiator' => $initiator,
+            'details' => $message,
+            'include_trace' => $includeTrace,
+        ]);
+    }
+
+    private function mapAuthStatusToMessage(string $status): string {
+        return match ($status) {
+            'success' => '',
+            'pending_activation' => $this->langValue('sys.you_have_not_verified_your_email', 'Please verify your email.'),
+            'blocked' => $this->langValue('sys.account_is_blocked', 'Account is blocked.'),
+            'deleted' => $this->langValue('sys.account_deleted', $this->langValue('sys.no_access', 'Access denied.')),
+            'password_setup_required' => $this->langValue('sys.password_setup_link_sent', $this->langValue('sys.verify_email', 'Check your email.')),
+            'password_setup_mail_failed' => $this->langValue('sys.password_setup_mail_failed', $this->langValue('sys.email_sending_error', 'Email sending error.')),
+            'invalid_credentials' => $this->langValue('sys.the_password_was_not_verified', 'The password was not verified.'),
+            'user_not_found' => $this->langValue('sys.no_such_data_was_found', 'No such data was found.'),
+            default => $this->langValue('sys.error', 'Error'),
+        };
+    }
+
+    private function langValue(string $key, string $fallback = ''): string {
+        if (is_array($this->lang) && array_key_exists($key, $this->lang) && is_string($this->lang[$key]) && $this->lang[$key] !== '') {
+            return $this->lang[$key];
+        }
+
+        return $fallback;
+    }
+
+    /**
+     * Метод для создания таблицы настроек импорта
+     */
+    private function createImportTable() {
+        $sql = "CREATE TABLE IF NOT EXISTS ?n (
+            `id` INT AUTO_INCREMENT PRIMARY KEY,
+            `importer_slug` VARCHAR(50) NOT NULL COMMENT 'Идентификатор импортера (e.g., \"wordpress\")',
+            `settings_name` VARCHAR(255) NOT NULL COMMENT 'Название этого профиля настроек (e.g., \"Мой основной сайт\")',
+            `settings_json` LONGTEXT NULL COMMENT 'Все настройки в формате JSON',
+            `last_run_at` TIMESTAMP NULL COMMENT 'Время последнего запуска',
+            `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=innodb DEFAULT CHARSET=utf8mb4 COMMENT='Профили настроек импорта';";
+        SafeMySQL::gi()->query($sql, Constants::IMPORT_SETTINGS_TABLE);
     }
 
     // Метод для создания таблицы пользователей
     private function createUsersTable() {
         $sql = "CREATE TABLE IF NOT EXISTS ?n (
-            user_id int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
-            name char(255) NOT NULL DEFAULT 'no name',
-            email char(255) NOT NULL,
-            pwd varchar(255) NOT NULL,
-            active tinyint(1) NOT NULL DEFAULT '1' COMMENT '1 - на подтверждении, 2 - активен, 3 - блокирован',
-            user_role tinyint(2) NOT NULL DEFAULT '4' COMMENT 'таблица user_roles',
-            last_ip char(20) DEFAULT NULL,
-            subscribed tinyint(1) DEFAULT '1' COMMENT 'подписка на рассылку',
-            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'дата регистрации',
-            last_activ datetime DEFAULT NULL COMMENT 'дата крайней активности',
+            user_id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            name VARCHAR(255) NOT NULL DEFAULT 'no name',
+            email VARCHAR(255) NOT NULL,
+            pwd VARCHAR(255) NOT NULL,
+            active TINYINT(1) NOT NULL DEFAULT '1' COMMENT '1 - на подтверждении, 2 - активен, 3 - блокирован',
+            user_role TINYINT UNSIGNED NOT NULL DEFAULT '4' COMMENT 'таблица user_roles',
+            last_ip VARCHAR(45) DEFAULT NULL,
+            subscribed TINYINT(1) DEFAULT '1' COMMENT 'подписка на рассылку',
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'дата регистрации',
+            last_activ DATETIME DEFAULT NULL COMMENT 'дата крайней активности',
             updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'дата обновления инф.',
-            phone varchar(255) NULL,
-            session varchar(512) NULL,
-            comment varchar(255) NOT NULL COMMENT 'Комментарий или дивиз пользователя',
+            phone VARCHAR(255) NULL,
+            session VARCHAR(512) NULL,
+            comment VARCHAR(255) NOT NULL COMMENT 'Комментарий или дивиз пользователя',
             deleted BOOLEAN NOT NULL DEFAULT 0 COMMENT 'Флаг удаленного пользователя',
             PRIMARY KEY (user_id),
-            UNIQUE KEY email (email)
-        ) ENGINE=innodb DEFAULT CHARSET=utf8 COMMENT='Пользователи сайта';";
-        SafeMySQL::gi()->query($sql, Constants::USERS_TABLE);
+            UNIQUE KEY uq_users_email (email),
+            KEY idx_users_role (user_role),
+            CONSTRAINT fk_users_role FOREIGN KEY (user_role) REFERENCES ?n(role_id) ON DELETE RESTRICT ON UPDATE RESTRICT
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Пользователи сайта';";
+        SafeMySQL::gi()->query($sql, Constants::USERS_TABLE, Constants::USERS_ROLES_TABLE);
     }
 
     /**
@@ -672,7 +697,7 @@ class Users {
         UNIQUE KEY (role_key)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица ролей пользователей';";
         SafeMySQL::gi()->query($sql, Constants::USERS_ROLES_TABLE);
-        SysClass::preFile('sql_info', 'create_users_roles_table', 'Таблица ролей пользователей создана', 'OK');
+        $this->logSqlInfo('create_users_roles_table', 'Таблица ролей пользователей создана');
     }
 
     // Метод для вставки ролей
@@ -696,12 +721,42 @@ class Users {
             data_id int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
             user_id int(11) UNSIGNED NOT NULL,
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Время любого изменения данных',
-            options text NOT NULL COMMENT 'Настройки интерфейса пользователя',
+            options MEDIUMTEXT NOT NULL COMMENT 'Настройки интерфейса пользователя',
             PRIMARY KEY (data_id),
             FOREIGN KEY (user_id) REFERENCES ?n(user_id) ON DELETE CASCADE
-        ) ENGINE=innodb DEFAULT CHARSET=utf8 COMMENT='Системные данные пользователей';";
+        ) ENGINE=innodb DEFAULT CHARSET=utf8mb4 COMMENT='Системные данные пользователей';";
         SafeMySQL::gi()->query($sql, Constants::USERS_DATA_TABLE, Constants::USERS_TABLE);
-        SysClass::preFile('sql_info', 'create_users_data_table', 'Таблица системных данных пользователей создана', 'OK');
+        $this->logSqlInfo('create_users_data_table', 'Таблица системных данных пользователей создана');
+    }
+
+    /**
+     * Создаёт таблицу users_notifications для хранения уведомлений пользователей
+     * @throws Exception Если запрос не удалось выполнить
+     */
+    private function createUsersNotificationsTable() {
+        $sql = "CREATE TABLE IF NOT EXISTS ?n (
+           notification_id int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
+           user_id int(11) UNSIGNED NOT NULL,
+           source_type varchar(32) NOT NULL DEFAULT 'system',
+           source_id int(11) UNSIGNED DEFAULT NULL,
+           text text NOT NULL,
+           status varchar(16) NOT NULL DEFAULT 'info',
+           showtime bigint(20) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Unix time in ms for deferred display',
+           url varchar(1024) DEFAULT NULL,
+           icon varchar(255) DEFAULT NULL,
+           color varchar(32) DEFAULT NULL,
+           payload_json JSON DEFAULT NULL,
+           created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+           updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+           PRIMARY KEY (notification_id),
+           KEY idx_notifications_user (user_id),
+           KEY idx_notifications_user_showtime (user_id, showtime),
+           KEY idx_notifications_source_lookup (source_type, source_id),
+           UNIQUE KEY uq_notifications_user_source (user_id, source_type, source_id),
+           CONSTRAINT fk_users_notifications_user FOREIGN KEY (user_id) REFERENCES ?n(user_id) ON DELETE CASCADE
+       ) ENGINE=innodb DEFAULT CHARSET=utf8mb4 COMMENT='Уведомления пользователей';";
+        SafeMySQL::gi()->query($sql, Constants::USERS_NOTIFICATIONS_TABLE, Constants::USERS_TABLE);
+        $this->logSqlInfo('create_users_notifications_table', 'Таблица уведомлений пользователей создана');
     }
 
     /**
@@ -719,11 +774,13 @@ class Users {
            read_at datetime DEFAULT NULL,
            status varchar(10) NOT NULL DEFAULT 'info',
            PRIMARY KEY (message_id),
+           KEY idx_users_message_user_read (user_id, read_at),
+           KEY idx_users_message_user_created (user_id, created_at),
            FOREIGN KEY (user_id) REFERENCES ?n(user_id) ON DELETE CASCADE,
            FOREIGN KEY (author_id) REFERENCES ?n(user_id) ON DELETE CASCADE
        ) ENGINE=innodb DEFAULT CHARSET=utf8;";
         SafeMySQL::gi()->query($sql, Constants::USERS_MESSAGE_TABLE, Constants::USERS_TABLE, Constants::USERS_TABLE);
-        SysClass::preFile('sql_info', 'create_users_message_table', 'Таблица сообщений пользователей создана', 'OK');
+        $this->logSqlInfo('create_users_message_table', 'Таблица сообщений пользователей создана');
     }
 
     /**
@@ -741,7 +798,7 @@ class Users {
             PRIMARY KEY (id)
         ) ENGINE=innodb DEFAULT CHARSET=utf8 COMMENT='Коды активации для зарегистрировавшихся пользователей';";
         SafeMySQL::gi()->query($sql, Constants::USERS_ACTIVATION_TABLE);
-        SysClass::preFile('sql_info', 'create_users_activation_table', 'Таблица кодов активации создана', 'OK');
+        $this->logSqlInfo('create_users_activation_table', 'Таблица кодов активации создана');
     }
 
     /**
@@ -752,15 +809,17 @@ class Users {
         $sql = "CREATE TABLE IF NOT EXISTS ?n (
         type_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
         parent_type_id INT UNSIGNED NULL,
-        name VARCHAR(255) NOT NULL UNIQUE,
+        name VARCHAR(255) NOT NULL,
         description VARCHAR(1000),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         language_code CHAR(2) NOT NULL DEFAULT 'RU' COMMENT 'Код языка по ISO 3166-2',
-        FOREIGN KEY (parent_type_id) REFERENCES ?n(type_id)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения типов сущностей и категорий';";
+        UNIQUE KEY uq_category_types_name_lang (name, language_code),
+        KEY idx_category_types_parent (parent_type_id),
+        CONSTRAINT fk_category_types_parent FOREIGN KEY (parent_type_id) REFERENCES ?n(type_id) ON DELETE RESTRICT ON UPDATE RESTRICT
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Таблица для хранения типов сущностей и категорий';";
         SafeMySQL::gi()->query($sql, Constants::CATEGORIES_TYPES_TABLE, Constants::CATEGORIES_TYPES_TABLE);
-        SysClass::preFile('sql_info', 'create_categories_types_table', 'Таблица типов категорий создана', 'OK');
+        $this->logSqlInfo('create_categories_types_table', 'Таблица типов категорий создана');
     }
 
     /**
@@ -768,29 +827,26 @@ class Users {
      * @throws Exception Если запрос не удалось выполнить
      */
     private function createCategoriesTable() {
-        // Шаг 1: Создание таблицы без внешних ключей
-        $sqlStep1 = "CREATE TABLE IF NOT EXISTS ?n (
+        $sql = "CREATE TABLE IF NOT EXISTS ?n (
         category_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
         type_id INT UNSIGNED NOT NULL,
         title VARCHAR(255) NOT NULL,
-        description mediumtext,
+        description MEDIUMTEXT,
         short_description VARCHAR(1000),
-        parent_id INT UNSIGNED,
+        parent_id INT UNSIGNED NULL,
         status ENUM('active', 'hidden', 'disabled') NOT NULL DEFAULT 'active',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         language_code CHAR(2) NOT NULL DEFAULT 'RU' COMMENT 'Код языка по ISO 3166-2',
-        INDEX (type_id),
-        INDEX (parent_id)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения категорий сущностей';";
-        SafeMySQL::gi()->query($sqlStep1, Constants::CATEGORIES_TABLE);
-        // Шаг 2: Добавление внешних ключей
-        $sqlStep2 = "ALTER TABLE ?n 
-        ADD FOREIGN KEY (type_id) REFERENCES ?n(type_id),
-        ADD FOREIGN KEY (parent_id) REFERENCES ?n(category_id);";
-        SafeMySQL::gi()->query($sqlStep2, Constants::CATEGORIES_TABLE, Constants::CATEGORIES_TYPES_TABLE, Constants::CATEGORIES_TABLE);
-
-        SysClass::preFile('sql_info', 'create_categories_table', 'Таблица категорий создана', 'OK');
+        UNIQUE KEY uq_categories_title_type_lang (title, type_id, language_code),
+        KEY idx_categories_type (type_id),
+        KEY idx_categories_parent (parent_id),
+        KEY idx_categories_lang (language_code),
+        CONSTRAINT fk_categories_type FOREIGN KEY (type_id) REFERENCES ?n(type_id) ON DELETE RESTRICT ON UPDATE RESTRICT,
+        CONSTRAINT fk_categories_parent FOREIGN KEY (parent_id) REFERENCES ?n(category_id) ON DELETE RESTRICT ON UPDATE RESTRICT
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Таблица для хранения категорий сущностей';";
+        SafeMySQL::gi()->query($sql, Constants::CATEGORIES_TABLE, Constants::CATEGORIES_TYPES_TABLE, Constants::CATEGORIES_TABLE);
+        $this->logSqlInfo('create_categories_table', 'Таблица категорий создана');
     }
 
     /**
@@ -801,7 +857,7 @@ class Users {
         $sql = "CREATE TABLE IF NOT EXISTS ?n (
         page_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
         parent_page_id INT UNSIGNED NULL,
-        category_id INT UNSIGNED,
+        category_id INT UNSIGNED NOT NULL,
         status ENUM('active', 'hidden', 'disabled') NOT NULL DEFAULT 'active',
         title VARCHAR(255) NOT NULL,
         short_description VARCHAR(255),
@@ -809,11 +865,14 @@ class Users {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         language_code CHAR(2) NOT NULL DEFAULT 'RU' COMMENT 'Код языка по ISO 3166-2',
-        FOREIGN KEY (category_id) REFERENCES ?n(category_id),
-        INDEX (category_id)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения страниц';";
-        SafeMySQL::gi()->query($sql, Constants::PAGES_TABLE, Constants::CATEGORIES_TABLE);
-        SysClass::preFile('sql_info', 'create_pages_table', 'Таблица страниц создана', 'OK');
+        KEY idx_pages_category (category_id),
+        KEY idx_pages_parent (parent_page_id),
+        KEY idx_pages_category_lang (category_id, language_code),
+        CONSTRAINT fk_pages_category FOREIGN KEY (category_id) REFERENCES ?n(category_id) ON DELETE RESTRICT ON UPDATE RESTRICT,
+        CONSTRAINT fk_pages_parent FOREIGN KEY (parent_page_id) REFERENCES ?n(page_id) ON DELETE RESTRICT ON UPDATE RESTRICT
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Таблица для хранения страниц';";
+        SafeMySQL::gi()->query($sql, Constants::PAGES_TABLE, Constants::CATEGORIES_TABLE, Constants::PAGES_TABLE);
+        $this->logSqlInfo('create_pages_table', 'Таблица страниц создана');
     }
 
     /**
@@ -826,13 +885,15 @@ class Users {
         name VARCHAR(255) NOT NULL,
         status ENUM('active', 'hidden', 'disabled') NOT NULL DEFAULT 'active',
         fields JSON NOT NULL,
+        schema_version INT UNSIGNED NOT NULL DEFAULT 1,
         description VARCHAR(1000),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        language_code CHAR(2) NOT NULL DEFAULT 'RU' COMMENT 'Код языка по ISO 3166-2'
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения типов свойств';";
+        language_code CHAR(2) NOT NULL DEFAULT 'RU' COMMENT 'Код языка по ISO 3166-2',
+        UNIQUE KEY uq_property_types_name_lang (name, language_code)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Таблица для хранения типов свойств';";
         SafeMySQL::gi()->query($sql, Constants::PROPERTY_TYPES_TABLE);
-        SysClass::preFile('sql_info', 'create_property_types_table', 'Таблица типов свойств создана', 'OK');
+        $this->logSqlInfo('create_property_types_table', 'Таблица типов свойств создана');
     }
 
     /**
@@ -847,6 +908,7 @@ class Users {
         status ENUM('active', 'hidden', 'disabled') NOT NULL DEFAULT 'active',
         sort INT UNSIGNED NOT NULL DEFAULT 100,
         default_values JSON NOT NULL,
+        schema_version INT UNSIGNED NOT NULL DEFAULT 1,
         is_multiple BOOLEAN NOT NULL,
         is_required BOOLEAN NOT NULL,
         description VARCHAR(1000),
@@ -854,11 +916,13 @@ class Users {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         language_code CHAR(2) NOT NULL DEFAULT 'RU' COMMENT 'Код языка по ISO 3166-2',
-        FOREIGN KEY (type_id) REFERENCES ?n(type_id),
-        INDEX (type_id)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения свойств';";
+        UNIQUE KEY uq_properties_name_type_lang (name, type_id, language_code),
+        KEY idx_properties_type (type_id),
+        KEY idx_properties_entity_type (entity_type),
+        CONSTRAINT fk_properties_type FOREIGN KEY (type_id) REFERENCES ?n(type_id) ON DELETE RESTRICT ON UPDATE RESTRICT
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Таблица для хранения свойств';";
         SafeMySQL::gi()->query($sql, Constants::PROPERTIES_TABLE, Constants::PROPERTY_TYPES_TABLE);
-        SysClass::preFile('sql_info', 'create_properties_table', 'Таблица свойств создана', 'OK');
+        $this->logSqlInfo('create_properties_table', 'Таблица свойств создана');
     }
 
     /**
@@ -872,11 +936,12 @@ class Users {
         description MEDIUMTEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        language_code CHAR(2) NOT NULL DEFAULT 'RU' COMMENT 'Код языка по ISO 3166-2'
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения наборов свойств';";
+        language_code CHAR(2) NOT NULL DEFAULT 'RU' COMMENT 'Код языка по ISO 3166-2',
+        UNIQUE KEY uq_property_sets_name_lang (name, language_code)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Таблица для хранения наборов свойств';";
 
         SafeMySQL::gi()->query($sql, Constants::PROPERTY_SETS_TABLE);
-        SysClass::preFile('sql_info', 'create_property_sets_table', 'Таблица наборов свойств создана', 'OK');
+        $this->logSqlInfo('create_property_sets_table', 'Таблица наборов свойств создана');
     }
 
     /**
@@ -894,13 +959,51 @@ class Users {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         language_code CHAR(2) NOT NULL DEFAULT 'RU' COMMENT 'Код языка по ISO 3166-2',
-        FOREIGN KEY (property_id) REFERENCES ?n(property_id),
-        FOREIGN KEY (set_id) REFERENCES ?n(set_id),
-        INDEX (property_id),
-        INDEX (entity_id)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения значений свойств в формате JSON';";
+        UNIQUE KEY uq_property_values_entity_property_set_lang (entity_id, property_id, entity_type, set_id, language_code),
+        KEY idx_property_values_property (property_id),
+        KEY idx_property_values_set (set_id),
+        KEY idx_property_values_entity_lookup (entity_type, entity_id, language_code),
+        KEY idx_property_values_exact_lookup (entity_id, entity_type, property_id, set_id, language_code),
+        CONSTRAINT fk_property_values_property FOREIGN KEY (property_id) REFERENCES ?n(property_id) ON DELETE CASCADE ON UPDATE RESTRICT,
+        CONSTRAINT fk_property_values_set FOREIGN KEY (set_id) REFERENCES ?n(set_id) ON DELETE CASCADE ON UPDATE RESTRICT
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Таблица для хранения значений свойств в формате JSON';";
         SafeMySQL::gi()->query($sql, Constants::PROPERTY_VALUES_TABLE, Constants::PROPERTIES_TABLE, Constants::PROPERTY_SETS_TABLE);
-        SysClass::preFile('sql_info', 'create_property_values_table', 'Таблица значений свойств создана', 'OK');
+        $this->logSqlInfo('create_property_values_table', 'Таблица значений свойств создана');
+    }
+
+    /**
+     * Создаёт таблицу фоновых lifecycle jobs для тяжёлых пересчётов свойств
+     * @throws Exception Если запрос не удалось выполнить
+     */
+    private function createPropertyLifecycleJobsTable() {
+        $sql = "CREATE TABLE IF NOT EXISTS ?n (
+        job_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        scope VARCHAR(50) NOT NULL,
+        target_id INT UNSIGNED NOT NULL DEFAULT 0,
+        status ENUM('queued', 'running', 'completed', 'failed', 'cancelled') NOT NULL DEFAULT 'queued',
+        requested_by INT UNSIGNED NULL,
+        dry_run TINYINT(1) NOT NULL DEFAULT 0,
+        is_async TINYINT(1) NOT NULL DEFAULT 1,
+        priority TINYINT UNSIGNED NOT NULL DEFAULT 5,
+        total_steps INT UNSIGNED NOT NULL DEFAULT 0,
+        processed_steps INT UNSIGNED NOT NULL DEFAULT 0,
+        progress_percent DECIMAL(5,2) NOT NULL DEFAULT 0.00,
+        cursor_json LONGTEXT NULL,
+        payload_json LONGTEXT NULL,
+        result_json LONGTEXT NULL,
+        error_message MEDIUMTEXT NULL,
+        lock_key VARCHAR(191) NULL,
+        started_at DATETIME NULL,
+        finished_at DATETIME NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_status_priority (status, priority, job_id),
+        INDEX idx_scope_target (scope, target_id),
+        INDEX idx_requested_by (requested_by),
+        CONSTRAINT fk_property_lifecycle_job_user FOREIGN KEY (requested_by) REFERENCES ?n(user_id) ON DELETE SET NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Фоновые и пакетные пересчёты свойств';";
+        SafeMySQL::gi()->query($sql, Constants::PROPERTY_LIFECYCLE_JOBS_TABLE, Constants::USERS_TABLE);
+        $this->logSqlInfo('create_property_lifecycle_jobs_table', 'Таблица lifecycle jobs создана');
     }
 
     /**
@@ -916,7 +1019,7 @@ class Users {
         FOREIGN KEY (set_id) REFERENCES ?n(set_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для связи типов категорий и наборов свойств';";
         SafeMySQL::gi()->query($sql, Constants::CATEGORY_TYPE_TO_PROPERTY_SET_TABLE, Constants::CATEGORIES_TYPES_TABLE, Constants::PROPERTY_SETS_TABLE);
-        SysClass::preFile('sql_info', 'create_category_type_to_property_set_table', 'Таблица связи типов категорий и наборов свойств создана', 'OK');
+        $this->logSqlInfo('create_category_type_to_property_set_table', 'Таблица связи типов категорий и наборов свойств создана');
     }
 
     /**
@@ -932,7 +1035,7 @@ class Users {
         FOREIGN KEY (property_id) REFERENCES ?n(property_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для связи наборов свойств и свойств';";
         SafeMySQL::gi()->query($sql, Constants::PROPERTY_SET_TO_PROPERTIES_TABLE, Constants::PROPERTY_SETS_TABLE, Constants::PROPERTIES_TABLE);
-        SysClass::preFile('sql_info', 'create_property_set_to_properties_table', 'Таблица связи наборов свойств и свойств создана', 'OK');
+        $this->logSqlInfo('create_property_set_to_properties_table', 'Таблица связи наборов свойств и свойств создана');
     }
 
     /**
@@ -949,10 +1052,11 @@ class Users {
             version INT NOT NULL DEFAULT 1 COMMENT 'Версия для контроля кеша',
             language_code VARCHAR(5) NOT NULL COMMENT 'Код языка',
             recalculated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Дата последнего пересчета',
-            UNIQUE KEY uq_filter (entity_type, entity_id, property_id, language_code)
+            UNIQUE KEY uq_filter (entity_type, entity_id, property_id, language_code),
+            KEY idx_filters_lookup (language_code, entity_type, entity_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Предварительно рассчитанные фильтры для сущностей';";
         SafeMySQL::gi()->query($createSql, Constants::FILTERS_TABLE);
-        SysClass::preFile('sql_info', 'create_filters_table', 'Таблица ee_filters создана', 'OK');
+        $this->logSqlInfo('create_filters_table', 'Таблица ee_filters создана');
     }
 
     /**
@@ -981,7 +1085,7 @@ class Users {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         COMMENT='Централизованный поисковый индекс сайта';";
         SafeMySQL::gi()->query($sql, Constants::SEARCH_INDEX_TABLE);
-        SysClass::preFile('sql_info', __FUNCTION__, 'Таблица search_index создана или уже существует', 'OK');
+        $this->logSqlInfo(__FUNCTION__, 'Таблица search_index создана или уже существует');
     }
 
     /**
@@ -1000,7 +1104,7 @@ class Users {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
         COMMENT='Индекс N-грамм (триграмм) для нечеткого поиска'";
         SafeMySQL::gi()->query($sql, Constants::SEARCH_NGRAMS_TABLE, Constants::SEARCH_INDEX_TABLE);
-        SysClass::preFile('sql_info', __FUNCTION__, 'Таблица search_ngrams создана или уже существует', 'OK');
+        $this->logSqlInfo(__FUNCTION__, 'Таблица search_ngrams создана или уже существует');
     }
 
     /**
@@ -1022,7 +1126,7 @@ class Users {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         COMMENT='Лог поисковых запросов и их частота'";
         SafeMySQL::gi()->query($sql, Constants::SEARCH_LOG_TABLE);
-        SysClass::preFile('sql_info', __FUNCTION__, 'Таблица search_log создана или уже существует', 'OK');
+        $this->logSqlInfo(__FUNCTION__, 'Таблица search_log создана или уже существует');
     }
 
     /**
@@ -1047,7 +1151,7 @@ class Users {
         FOREIGN KEY (user_id) REFERENCES ?n(user_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для сохранения информации о файлах';";
         SafeMySQL::gi()->query($sql, Constants::FILES_TABLE, Constants::USERS_TABLE);
-        SysClass::preFile('sql_info', 'create_files_table', 'Таблица файлов создана', 'OK');
+        $this->logSqlInfo('create_files_table', 'Таблица файлов создана');
     }
 
     /**
@@ -1064,7 +1168,7 @@ class Users {
         UNIQUE KEY (option_key) COMMENT 'Уникальность ключа опции'
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения глобальных опций';";
         SafeMySQL::gi()->query($sql, Constants::GLOBAL_OPTIONS);
-        SysClass::preFile('sql_info', 'create_global_options_table', 'Таблица глобальных опций создана', 'OK');
+        $this->logSqlInfo('create_global_options_table', 'Таблица глобальных опций создана');
     }
 
     /**
@@ -1084,7 +1188,7 @@ class Users {
         UNIQUE KEY (name, language_code)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения почтовых шаблонов';";
         SafeMySQL::gi()->query($sql, Constants::EMAIL_TEMPLATES_TABLE);
-        SysClass::preFile('sql_info', 'create_email_templates_table', 'Таблица почтовых шаблонов создана', 'OK');
+        $this->logSqlInfo('create_email_templates_table', 'Таблица почтовых шаблонов создана');
     }
 
     /**
@@ -1103,7 +1207,7 @@ class Users {
         UNIQUE KEY (name, language_code)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения HTML сниппетов';";
         SafeMySQL::gi()->query($sql, Constants::EMAIL_SNIPPETS_TABLE);
-        SysClass::preFile('sql_info', 'create_email_snippets_table', 'Таблица HTML-сниппетов создана', 'OK');
+        $this->logSqlInfo('create_email_snippets_table', 'Таблица HTML-сниппетов создана');
     }
 
     /**
@@ -1120,7 +1224,7 @@ class Users {
         INDEX ip_range_idx (ip_range)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для хранения заблокированных IP-адресов и диапазонов';";
         SafeMySQL::gi()->query($sql, Constants::IP_BLACKLIST_TABLE);
-        SysClass::preFile('sql_info', 'create_ip_blacklist_table', 'Таблица заблокированных IP-адресов создана', 'OK');
+        $this->logSqlInfo('create_ip_blacklist_table', 'Таблица заблокированных IP-адресов создана');
     }
 
     /**
@@ -1134,7 +1238,7 @@ class Users {
           PRIMARY KEY (`ip`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Счетчики запросов для Rate Limit';";
         SafeMySQL::gi()->query($sql, Constants::IP_REQUEST_LOGS_TABLE);
-        SysClass::preFile('sql_info', 'create_request_logs_table', 'Таблица для Rate Limit создана', 'OK');
+        $this->logSqlInfo('create_request_logs_table', 'Таблица для Rate Limit создана');
     }
 
     /**
@@ -1149,252 +1253,6 @@ class Users {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Счетчики нарушений IP-адресов';";
 
         SafeMySQL::gi()->query($sql, Constants::IP_OFFENSES_TABLE);
-    }
-
-    /**
-     * Вставляет начальные данные о типах свойств и связанных свойствах
-     * @throws Exception Если запрос не удалось выполнить
-     */
-    private function insertDefaultPropertyTypes() {
-        // Определяем начальные типы свойств
-        $propertyTypes = [
-            [
-                'name' => 'Строка',
-                'description' => 'Тип свойства для хранения строковых данных',
-                'status' => 'active',
-                'fields' => '["text"]'
-            ],
-            [
-                'name' => 'Число',
-                'description' => 'Тип свойства для хранения числовых данных',
-                'status' => 'active',
-                'fields' => '["number"]'
-            ],
-            [
-                'name' => 'Дата',
-                'description' => 'Тип свойства для хранения дат',
-                'status' => 'active',
-                'fields' => '["date"]'
-            ],
-            [
-                'name' => 'Интервал дат',
-                'description' => 'Тип свойства для хранения интервалов дат',
-                'status' => 'active',
-                'fields' => '["date", "date"]'
-            ],
-            [
-                'name' => 'Картинка',
-                'description' => 'Тип свойства для хранения изображений',
-                'status' => 'active',
-                'fields' => '["image"]'
-            ],
-            [
-                'name' => 'SEO-параметры',
-                'description' => "meta_title (string): заголовок, отображающийся в title\n" .
-                "slug (text): ЧПУ/короткий URL\n" .
-                "meta_description (text): мета-описание\n" .
-                "meta_keywords (text): ключевые слова (менее актуально, но может пригодиться)\n" .
-                "canonical_url (text): канонический URL\n" .
-                "robots_meta (select): директивы для роботов (index, noindex, follow, nofollow и т.д.)\n" .
-                "open_graph_title (text): заголовок для соцсетей (если не заполнено, используется meta_title)\n" .
-                "open_graph_description (text): описание для соцсетей (если не заполнено, используется meta_description)\n" .
-                "open_graph_image (image): изображение для соцсетей (Open Graph)\n" .
-                "Комментарий: Поля open_graph_* дают гибкость в оформлении публикации в соцсетях. Обычно нужны «для всех» — чтобы и категориям, и страницам при желании настраивать SEO.",
-                'status' => 'active',
-                'fields' => '["text", "text", "text", "text", "text", "select", "text", "text", "image"]'
-            ],
-            [
-                'name' => 'Основные свойства страницы',
-                'description' => "author (text): автор материала\n" .
-                "visibility (select): публичная, приватная, черновик и т.д.\n" .
-                "page_status (select): опубликована, черновик, на проверке и т.д.\n" .
-                "Комментарий: Обычно эти поля нужны только для страниц, но в некоторых случаях (например, content или last_updated) могут использоваться и в категориях.",
-                'status' => 'active',
-                'fields' => '["text", "select", "select"]'
-            ],
-            [
-                'name' => 'Социальные элементы',
-                'description' => "allow_comments (Разрешить комментарии: да/нет)\n" .
-                "allow_sharing (Разрешить поделиться в соцсетях: да/нет)\n" .
-                "comment_count (Количество комментариев)\n" .
-                "like_count (Количество лайков)",
-                'status' => 'active',
-                'fields' => '["checkbox", "checkbox", "number", "number"]'
-            ],
-            [
-                'name' => 'Параметры для карточек товаров',
-                'description' => "price (Цена товара)\n" .
-                "list_price (Рекомендованная цена)\n" .
-                "discount (Скидка)\n" .
-                "stock_status (Наличие на складе)\n" .
-                "sku (Артикул)\n" .
-                "brand (Бренд товара)\n" .
-                "rating (Рейтинг товара)\n" .
-                "review_count (Количество отзывов)",
-                'status' => 'active',
-                'fields' => '["text", "text", "number", "text", "text", "number", "number"]'
-            ],
-            [
-                'name' => 'Мультимедийные элементы',
-                'description' => "featured_image (Изображение страницы)\n" .
-                "gallery (Галерея изображений)\n" .
-                "video_url (URL видео)\n" .
-                "file_attachments (Вложения файлов)",
-                'status' => 'active',
-                'fields' => '["image", "image", "text", "file"]'
-            ],
-            [
-                'name' => 'Структурные свойства',
-                'description' => "parent_category (Родительская категория)\n" .
-                "related_pages (Связанные страницы)\n" .
-                "breadcrumb_navigation (Навигация по хлебным крошкам)",
-                'status' => 'active',
-                'fields' => '["text", "text", "text"]'
-            ],
-            [
-                'name' => 'Дополнительные параметры',
-                'description' => "custom_css (Пользовательский CSS)\n" .
-                "custom_js (Пользовательский JavaScript)\n" .
-                "redirect_url (URL для редиректа)",
-                'status' => 'active',
-                'fields' => '["text", "text", "text"]'
-            ],
-        ];
-        // Очистка description от лишних пробелов и TAB
-        foreach ($propertyTypes as &$type) {
-            if (isset($type['description'])) {
-                $type['description'] = preg_replace('/[ \t]+/', ' ', $type['description']); // Заменяем группы пробелов и TAB на один пробел
-                $type['description'] = preg_replace('/\s*\n\s*/', "\n", $type['description']); // Убираем пробелы и TAB вокруг переноса строк
-            }
-        }
-
-        // Получаем модель для работы с типами свойств
-        $objectModelProperties = SysClass::getModelObject('admin', 'm_properties');
-        if (!$objectModelProperties) {
-            SysClass::preFile('sql_error', 'insert_default_property_types', 'Не удалось загрузить модель m_properties', 'ERROR');
-            throw new Exception('Не удалось загрузить модель m_properties');
-        }
-        // Вставка типов свойств и создание связанных свойств
-        foreach ($propertyTypes as &$type) {
-            // Сохраняем тип свойства
-            $type['type_id'] = $objectModelProperties->updatePropertyTypeData($type);
-            // Подготавливаем данные для создания свойства
-            $propertyData = [
-                'type_id' => $type['type_id'],
-                'name' => $type['name'],
-                'entity_type' => 'all',
-                'default_values' => [],
-                'description' => $type['description']
-            ];
-
-            // Определяем параметры свойства в зависимости от типа
-            $propParams = [];
-            switch ($type['name']) {
-                case 'SEO-параметры':
-                    $propParams = [
-                        'Заголовок, отображающийся в title' => 'text',
-                        'ЧПУ/короткий URL' => 'text',
-                        'Мета-описание' => 'text',
-                        'Ключевые слова' => 'text',
-                        'Канонический URL' => 'text',
-                        'Директивы для роботов' => ['select', '{|}index=index{|}noindex=noindex{|}follow=follow{|}nofollow=nofollow'],
-                        'Заголовок для соцсетей' => 'text',
-                        'Описание для соцсетей' => 'text',
-                        'Изображение для соцсетей' => 'image'
-                    ];
-                    break;
-                case 'Основные свойства страницы':
-                    $propertyData['entity_type'] = 'page';
-                    $propParams = [
-                        'Автор материала' => 'text',
-                        'Видимость' => 'select',
-                        'Публичный статус' => 'select'
-                    ];
-                    break;
-                case 'Социальные элементы':
-                    $propParams = [
-                        'Разрешить комментарии' => 'checkbox',
-                        'Разрешить поделиться в соцсетях' => 'checkbox',
-                        'Количество комментариев' => 'number',
-                        'Количество лайков' => 'number'
-                    ];
-                    break;
-                case 'Параметры для карточек товаров':
-                    $propertyData['entity_type'] = 'page';
-                    $propParams = [
-                        'Цена товара' => 'text',
-                        'Скидка' => 'text',
-                        'Наличие на складе' => 'number',
-                        'Артикул' => 'text',
-                        'Бренд товара' => 'text',
-                        'Рейтинг товара' => 'number',
-                        'Количество отзывов' => 'number'
-                    ];
-                    break;
-                case 'Мультимедийные элементы':
-                    $propParams = [
-                        'Изображение страницы' => 'image',
-                        'Галерея изображений' => 'image',
-                        'URL видео' => 'text',
-                        'Вложения файлов' => 'file'
-                    ];
-                    break;
-                case 'Структурные свойства':
-                    $propertyData['entity_type'] = 'category';
-                    $propParams = [
-                        'Родительская категория' => 'text',
-                        'Связанные страницы' => 'text',
-                        'Навигация по хлебным крошкам' => 'text'
-                    ];
-                    break;
-                case 'Дополнительные параметры':
-                    $propParams = [
-                        'Пользовательский CSS' => 'text',
-                        'Пользовательский JavaScript' => 'text',
-                        'URL для редиректа' => 'text'
-                    ];
-                    break;
-                default:
-                    break;
-            }
-            // Формируем default_values для свойства
-            foreach ($propParams as $itemLabel => $fieldType) {
-                if (is_array($fieldType)) { // Для select
-                    $propertyData['default_values'][] = [
-                        'type' => $fieldType[0],
-                        'label' => $itemLabel,
-                        'default' => $fieldType[1],
-                        'multiple' => 0,
-                        'required' => 0
-                    ];
-                } else {
-                    if ($fieldType == 'checkbox' || $fieldType == 'radio') {
-                        $propertyData['default_values'][] = [
-                            'title' => $itemLabel,
-                            'count' => 1,
-                            'type' => $fieldType,
-                            'label' => [$itemLabel],
-                            'default' => '',
-                            'multiple' => 0,
-                            'required' => 0
-                        ];
-                    } else {
-                        $propertyData['default_values'][] = [
-                            'type' => $fieldType,
-                            'label' => $itemLabel,
-                            'default' => '',
-                            'multiple' => 0,
-                            'required' => 0
-                        ];
-                    }
-                }
-            }
-            // Создаём свойство, если есть default_values
-            if (count($propertyData['default_values'])) {
-                $objectModelProperties->updatePropertyData($propertyData);
-            }
-        }
-        SysClass::preFile('sql_info', 'insert_default_property_types', 'Начальные типы свойств и свойства добавлены', 'OK');
     }
 
     /**
@@ -1460,7 +1318,7 @@ class Users {
                     $snippet['language_code']
             );
         }
-        SysClass::preFile('sql_info', 'insert_default_email_snippets', 'Начальные HTML-сниппеты добавлены', 'OK');
+        $this->logSqlInfo('insert_default_email_snippets', 'Начальные HTML-сниппеты добавлены');
     }
 
     /**
@@ -1556,190 +1414,7 @@ class Users {
             );
         }
 
-        SysClass::preFile('sql_info', 'insert_default_email_templates', 'Начальные почтовые шаблоны добавлены', 'OK');
+        $this->logSqlInfo('insert_default_email_templates', 'Начальные почтовые шаблоны добавлены');
     }
 
-    /**
-     * Вставляет тестовые данные для категорий, страниц и наборов свойств.
-     * Используется только в тестовой среде.
-     * @throws Exception Если запрос не удалось выполнить.
-     */
-    private function insertTestData() {
-        // Получаем необходимые модели
-        $objectModelCategoriesTypes = SysClass::getModelObject('admin', 'm_categories_types');
-        $objectModelCategories = SysClass::getModelObject('admin', 'm_categories');
-        $objectModelProperties = SysClass::getModelObject('admin', 'm_properties');
-        $objectModelPages = SysClass::getModelObject('admin', 'm_pages');
-
-        if (!$objectModelCategoriesTypes || !$objectModelCategories || !$objectModelProperties || !$objectModelPages) {
-            SysClass::preFile('sql_error', 'insert_test_data', 'Не удалось загрузить одну из моделей', 'ERROR');
-            throw new Exception('Не удалось загрузить одну из моделей');
-        }
-
-        // 1. Создаём наборы свойств
-        $setsData = [
-            [
-                'set_id' => '0',
-                'name' => 'Курорты',
-                'description' => 'Для категории курорты'
-            ],
-            [
-                'set_id' => '0',
-                'name' => 'Объекты',
-                'description' => 'Для страниц объектов'
-            ],
-            [
-                'set_id' => '0',
-                'name' => 'Социалочка',
-                'description' => 'Для дополнения'
-            ]
-        ];
-        foreach ($setsData as $setData) {
-            $objectModelProperties->updatePropertySetData($setData);
-        }
-
-        // 2. Связываем наборы свойств с определёнными свойствами
-        $objectModelProperties->addPropertiesToSet(1, [1, 5, 6]); // Для курортов: Строка, Картинка, SEO-параметры
-        $objectModelProperties->addPropertiesToSet(2, [1, 2, 4, 7]); // Для объектов: Строка, Число, Интервал дат, Основные свойства страницы
-        $objectModelProperties->addPropertiesToSet(3, [3]); // Для дополнения: Социальные элементы
-        // 3. Создаём типы категорий и связываем их с наборами свойств
-        $categoriesTypeData = [
-            [
-                'typeData' => [
-                    'type_id' => '0',
-                    'name' => 'Для курортов',
-                    'parent_type_id' => NULL,
-                    'description' => ''
-                ],
-                'catSetData' => [1, 3] // Курорты + Социалочка
-            ],
-            [
-                'typeData' => [
-                    'type_id' => '0',
-                    'name' => 'Для объектов',
-                    'parent_type_id' => 1,
-                    'description' => ''
-                ],
-                'catSetData' => [2] // Объекты
-            ]
-        ];
-        foreach ($categoriesTypeData as $catTypeData) {
-            $type_id = $objectModelCategoriesTypes->updateCategoriesTypeData($catTypeData['typeData']);
-            $objectModelCategoriesTypes->updateCategoriesTypeSetsData($type_id, $catTypeData['catSetData']);
-        }
-
-        // 4. Создаём категории
-        $categoriesData = [
-            [
-                'category_id' => 0,
-                'title' => 'Курорты',
-                'type_id' => 1,
-                'parent_id' => 0,
-                'status' => 'active',
-                'short_description' => 'Главная',
-                'description' => 'Главная'
-            ],
-            [
-                'category_id' => 0,
-                'title' => 'Курорты Азовского моря в России',
-                'type_id' => 1,
-                'parent_id' => 1,
-                'status' => 'active',
-                'short_description' => '-Дочерняя',
-                'description' => '-Дочерняя'
-            ],
-            [
-                'category_id' => 0,
-                'title' => 'Курорты Черного моря в Абхазии',
-                'type_id' => 1,
-                'parent_id' => 1,
-                'status' => 'active',
-                'short_description' => '-Дочерняя',
-                'description' => '-Дочерняя'
-            ],
-            [
-                'category_id' => 0,
-                'title' => 'Голубицкая',
-                'type_id' => 2,
-                'parent_id' => 2,
-                'status' => 'active',
-                'short_description' => '--Дочерняя',
-                'description' => '--Дочерняя'
-            ],
-            [
-                'category_id' => 0,
-                'title' => 'Должанская',
-                'type_id' => 2,
-                'parent_id' => 2,
-                'status' => 'active',
-                'short_description' => '--Дочерняя',
-                'description' => '--Дочерняя'
-            ],
-            [
-                'category_id' => 0,
-                'title' => 'Сухум',
-                'type_id' => 2,
-                'parent_id' => 3,
-                'status' => 'active',
-                'short_description' => '--Дочерняя',
-                'description' => '--Дочерняя'
-            ]
-        ];
-        foreach ($categoriesData as $catData) {
-            $objectModelCategories->updateCategoryData($catData);
-        }
-
-        // 5. Создаём страницы
-        $pages = [
-            [
-                'page_id' => 0,
-                'title' => 'Гостиница «Морской компотик»',
-                'category_id' => 4,
-                'parent_page_id' => 0,
-                'status' => 'active',
-                'short_description' => 'Голубицкая, ул. Курортная, 69',
-                'description' => ''
-            ],
-            [
-                'page_id' => 0,
-                'title' => 'Гостевой дом у моря',
-                'category_id' => 4,
-                'parent_page_id' => 0,
-                'status' => 'active',
-                'short_description' => 'Десантников освободителей 20',
-                'description' => ''
-            ],
-            [
-                'page_id' => 0,
-                'title' => 'Гостиничный комплекс «МЫС»',
-                'category_id' => 5,
-                'parent_page_id' => 0,
-                'status' => 'active',
-                'short_description' => 'Должанская, Знаменский переулок, 16а',
-                'description' => ''
-            ],
-            [
-                'page_id' => 0,
-                'title' => 'Студия в центре Сухум на Чачба',
-                'category_id' => 6,
-                'parent_page_id' => 0,
-                'status' => 'active',
-                'short_description' => 'Абхазия, Сухум, Чачба',
-                'description' => ''
-            ],
-            [
-                'page_id' => 0,
-                'title' => 'Hotel in Sukhum',
-                'category_id' => 6,
-                'parent_page_id' => 0,
-                'status' => 'active',
-                'short_description' => 'Сухум, ул. Званба, 21',
-                'description' => ''
-            ]
-        ];
-        foreach ($pages as $page) {
-            $objectModelPages->updatePageData($page);
-        }
-        SysClass::preFile('sql_info', 'insert_test_data', 'Тестовые данные добавлены', 'OK');
-    }
 }

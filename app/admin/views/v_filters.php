@@ -1,5 +1,5 @@
 <?php
-if (!defined('ENV_SITE')) exit(header("Location: http://" . $_SERVER['HTTP_HOST'], true, 301));
+if (!defined('ENV_SITE')) exit(header('Location: /', true, 301));
 
 // ==================================================================
 // БЛОК 1: Рендеринг только таблицы (для AJAX-запросов)
@@ -66,8 +66,9 @@ if (empty($is_full_page_load)) {
                                 <option value="0" selected="selected">-- <?= $lang['sys.not_selected'] ?? 'Не выбрано' ?> --</option>
                                 <?php if (!empty($categories)): ?>
                                     <?php foreach ($categories as $category): ?>
+                                        <?php if (!is_array($category) || empty($category['category_id'])) continue; ?>
                                         <option value="<?= (int)$category['category_id'] ?>">
-                                            <?= htmlspecialchars($category['title']) ?> (ID: <?= (int)$category['category_id'] ?>)
+                                            <?= htmlspecialchars((string) ($category['title'] ?? 'Без названия')) ?> (ID: <?= (int)$category['category_id'] ?>)
                                         </option>
                                     <?php endforeach; ?>
                                 <?php endif; ?>

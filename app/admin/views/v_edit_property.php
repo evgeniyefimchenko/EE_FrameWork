@@ -1,5 +1,5 @@
-<?php if (!defined('ENV_SITE')) exit(header("Location: http://" . $_SERVER['HTTP_HOST'], true, 301)); ?>
-<!-- Редактирование свойства -->
+﻿<?php if (!defined('ENV_SITE')) exit(header('Location: /', true, 301)); ?>
+<!-- Р РµРґР°РєС‚РёСЂРѕРІР°РЅРёРµ СЃРІРѕР№СЃС‚РІР° -->
 <?php if (!$allPropertyTypes) \classes\system\SysClass::handleRedirect(200, '/admin/types_properties');?> 
 <main>    
     <form id="edit_entity" action="/admin/edit_property/id/<?= $propertyData['property_id'] ?>" method="POST" enctype="multipart/form-data" novalidate>
@@ -9,6 +9,7 @@
                class="btn btn-info mx-1 float-end<?= empty($propertyData['property_id']) ? " d-none" : "" ?>">
                 <i class="fa fa-plus-circle"></i>&nbsp;<?= $lang['sys.add'] ?>
             </a>
+            <button type="submit" name="lifecycle_preview" value="1" class="btn btn-outline-secondary float-end mx-1">Preview</button>
             <button type="submit" class="btn btn-primary float-end"><?=$lang['sys.save']?></button>
             <h1 class="mt-4"><?= !$propertyData['property_id'] ? $lang['sys.add'] : $lang['sys.edit'] ?></h1>
             <ol class="breadcrumb mb-4">
@@ -17,6 +18,16 @@
                     <input type="hidden" name="property_id" class="form-control" value="<?= $propertyData['property_id'] ? $propertyData['property_id'] : 0 ?>">
                 </li>              
             </ol>
+            <?php if (!empty($propertyImpact['sets_count'])) { ?>
+                <div class="alert alert-warning">
+                    <?= $lang['sys.used'] ?>:
+                    <?= (int) $propertyImpact['sets_count'] ?> <?= $lang['sys.sets'] ?>,
+                    <?= (int) $propertyImpact['values_count'] ?> values,
+                    <?= (int) $propertyImpact['pages_count'] ?> page,
+                    <?= (int) $propertyImpact['categories_count'] ?> category.
+                    После сохранения система пересчитает зависимости автоматически.
+                </div>
+            <?php } ?>
             <div class="row">
                 <div class="col-16">
                     <ul class="nav nav-tabs" id="eeTab" role="tablist">
@@ -26,7 +37,7 @@
                         </li>
                     </ul>
                     <div class="tab-content" id="eeTabContent">
-                        <!-- Основное содержимое -->
+                        <!-- РћСЃРЅРѕРІРЅРѕРµ СЃРѕРґРµСЂР¶РёРјРѕРµ -->
                         <div class="tab-pane fade show active mt-3" id="basic-tab-pane" role="tabpanel" aria-labelledby="basic-tab">
                             <div class="row mb-3">
                                 <div class="col-3 col-sm-3">
@@ -35,9 +46,8 @@
                                            value="<?= $propertyData['name'] ?>">                                    
                                 </div>
                                 <div class="col-3 col-sm-3">
-                                    <label <?=$isExistSetsWithProperty ? '' : 'for="type_id-input"'?>><?=$lang['sys.type']?>:</label>
+                                    <label for="type_id-input"><?=$lang['sys.type']?>:</label>
                                     <div role="group" class="input-group">
-                                        <?php if (!$isExistSetsWithProperty) { ?>
                                         <select type="text" id="type_id-input" name="type_id" class="form-control">
                                             <option><?=$lang['sys.empty']?></option>
                                             <?php foreach ($allPropertyTypes as $item) { ?>
@@ -45,10 +55,6 @@
                                                 <?=$item['name']?></option>
                                             <?php } ?>
                                         </select>
-                                        <?php } else { ?>
-                                            <input type="hidden" name="type_id" value="<?=$propertyData['type_id']?>">
-                                            <input type="text" class="form-control" value="<?=$allPropertyTypes[$propertyData['type_id']]['name']?>" disabled/>
-                                        <?php } ?>
                                     </div>
                                 </div>
                                 <div class="col-3 col-sm-3">
@@ -64,16 +70,11 @@
                                 <div class="col-3 col-sm-3">
                                     <label for="status-input"><?=$lang['sys.entities']?>:</label>
                                     <div role="group" class="input-group">
-                                        <?php if (!$isExistSetsWithProperty) { ?>
                                         <select type="text" id="entity_type-input" name="entity_type" class="form-control">
                                             <?php foreach ($allEntityType as $key => $value) { ?>
                                                 <option <?=($propertyData['entity_type'] == $key ? 'selected ' : '')?>value="<?= $key ?>"><?= $value ?></option>
                                             <?php } ?>
                                         </select>
-                                        <?php } else { ?>
-                                            <input type="hidden" name="entity_type" value="<?=$propertyData['entity_type']?>">
-                                            <input type="text" class="form-control" value="<?=$allEntityType[$propertyData['entity_type']]?>" disabled/>
-                                        <?php } ?>
                                     </div>
                                 </div>
                             </div>
@@ -86,9 +87,6 @@
                                     </div>
                                 </div>
                             </div>
-                            <?php
-                                if (1 == 2) { // TODO Убрал для упрощения понимания структуры
-                            ?>
                             <div class="row mb-3">
                                 <div class="col-3 col-sm-3">
                                     <label for="is_multiple-input"><?=$lang['sys.multiple_choice']?>:</label>
@@ -99,7 +97,6 @@
                                     <input type="checkbox" id="is_required" name="is_required" <?= ($propertyData['is_required'] ? 'checked' : '') ?>/>
                                 </div>
                             </div>
-                            <?php } ?>
                             <div class="row mb-3">
                                 <div class="col-12 col-sm-12 card">
                                     <div class="card-body border-primary" id="fields_contents">
@@ -132,6 +129,7 @@
             </div>
             <div class="row">
                 <div class="col">
+                    <button type="submit" name="lifecycle_preview" value="1" class="btn btn-outline-secondary my-3 me-2">Preview</button>
                     <button type="submit" class="btn btn-primary my-3"><?=$lang['sys.save']?></button>
                 </div>                    
             </div>
