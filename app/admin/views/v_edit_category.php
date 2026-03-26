@@ -9,7 +9,8 @@ $countPages = count($categoryPages);
 <main>
     <form id="edit_category" action="/admin/category_edit/id/<?= $categoryData['category_id'] ?>" method="POST" enctype="multipart/form-data" novalidate>
         <input type="hidden" name="fake" value="1" />
-        <input type="hidden" name="language_code" value="<?= htmlspecialchars((string)($categoryData['language_code'] ?? (\classes\system\Session::get('lang') ?: ENV_DEF_LANG)), ENT_QUOTES, 'UTF-8') ?>" />
+        <input type="hidden" name="language_code" value="<?= htmlspecialchars((string)($currentLanguageCode ?? ($categoryData['language_code'] ?? (\classes\system\Session::get('lang') ?: ENV_DEF_LANG))), ENT_QUOTES, 'UTF-8') ?>" />
+        <input type="hidden" name="translation_source_id" value="<?= (int)($translationSourceId ?? 0) ?>" />
         <input type="hidden" id="count_pages" value="<?=$countPages?>" />
         <div class="container-fluid px-4">
             <a href="/admin/category_edit/id" data-bs-toggle="tooltip" data-bs-placement="top" title="<?= $lang['sys.add'] ?>" type="button"
@@ -24,6 +25,46 @@ $countPages = count($categoryPages);
                     <input type="hidden" name="category_id" class="form-control" value="<?= $categoryData['category_id'] ? $categoryData['category_id'] : 0 ?>">
                 </li>              
             </ol>
+            <?php
+            $availableLanguageCodes = is_array($availableLanguageCodes ?? null) ? $availableLanguageCodes : [];
+            $currentLanguageCode = strtoupper((string) ($currentLanguageCode ?? (\classes\system\Session::get('lang') ?: ENV_DEF_LANG)));
+            $translationUi = is_array($translationUi ?? null) ? $translationUi : [];
+            ?>
+            <?php if (!empty($translationUi) || !empty($availableLanguageCodes)): ?>
+                <div class="card shadow-sm border-0 mb-3">
+                    <div class="card-body py-3">
+                        <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                            <span class="small text-muted"><?= htmlspecialchars((string)($lang['sys.content_language'] ?? 'Язык содержимого')) ?>:</span>
+                            <?php foreach ((array)($translationUi['existing'] ?? []) as $translationItem): ?>
+                                <a
+                                    href="<?= htmlspecialchars((string)($translationItem['edit_url'] ?? '#'), ENT_QUOTES, 'UTF-8') ?>"
+                                    class="btn btn-sm <?= !empty($translationItem['is_current']) ? 'btn-primary active' : 'btn-outline-secondary' ?>"
+                                >
+                                    <?= htmlspecialchars((string)($translationItem['language_code'] ?? '')) ?>
+                                </a>
+                            <?php endforeach; ?>
+                            <?php foreach ((array)($translationUi['missing'] ?? []) as $translationItem): ?>
+                                <a
+                                    href="<?= htmlspecialchars((string)($translationItem['create_url'] ?? '#'), ENT_QUOTES, 'UTF-8') ?>"
+                                    class="btn btn-sm btn-outline-success"
+                                >
+                                    +<?= htmlspecialchars((string)($translationItem['language_code'] ?? '')) ?>
+                                </a>
+                            <?php endforeach; ?>
+                        </div>
+                        <?php if (!empty($translationUi['is_draft'])): ?>
+                            <div class="small text-muted">
+                                <?= htmlspecialchars((string)($lang['sys.translation_draft_help'] ?? 'Создаётся новый перевод на основе выбранной исходной версии.')) ?>
+                                <?php if (!empty($translationUi['source_edit_url'])): ?>
+                                    <a href="<?= htmlspecialchars((string)$translationUi['source_edit_url'], ENT_QUOTES, 'UTF-8') ?>" class="ms-1"><?= htmlspecialchars((string)($lang['sys.translation_source'] ?? 'Исходник')) ?></a>
+                                <?php endif; ?>
+                            </div>
+                        <?php else: ?>
+                            <div class="small text-muted"><?= htmlspecialchars((string)($lang['sys.language_switch_help'] ?? 'Переключение открывает существующую языковую версию или создаёт новый перевод.')) ?></div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            <?php endif; ?>
             <div class="row">
                 <div class="col">
                     <ul class="nav nav-tabs" id="eeTab" role="tablist">

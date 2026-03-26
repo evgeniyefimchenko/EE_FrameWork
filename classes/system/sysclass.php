@@ -1000,40 +1000,42 @@ class SysClass {
     }
 
     /**
-     * Проверяет языковые переменные и создает JS-файл с этими переменными, если файл не существует
-     * @param string $langCode Код языка, например 'ru', 'en'.
+     * Проверяет языковые переменные и создает/обновляет JS-файл с ними.
+     * @param string $langCode Код языка, например 'RU', 'EN'.
      * @param array $lang Массив языковых переменных, который будет экспортирован в JS
-     * Если файл с языковыми переменными уже существует или в массиве $lang присутствует ключ 'error', функция ничего не делает
-     * Иначе создает файл с именем "{$langCode}.js" в директории временных файлов и записывает в него переменную 
-     * JavaScript `window.LANG_VARS` с языковыми данными.
-     * В случае ошибок записи или пустого файла, логирует их с помощью класса `ErrorLogger`
-     * Логика работы:
-     * - Если файл уже существует или обнаружена ошибка в массиве $lang, завершить выполнение
-     * - Иначе создать содержимое JS-файла и записать его.
-     * - Проверить результат записи: если произошла ошибка или размер файла 0 байт, записать ошибку в лог
      * @return void
      */
     public static function checkLangVars(string $langCode, array $lang): void {
-        $langJsPath = ENV_TMP_PATH . $langCode . '.js';
-        if (file_exists($langJsPath) || !empty($lang['error'])) {
+        $langCode = Lang::resolveLangCode($langCode);
+        if ($langCode === '' || empty($lang)) {
             return;
         }
+
+        $langJsPath = ENV_TMP_PATH . $langCode . '.js';
         $global = [
             'ENV_SITE_NAME' => ENV_SITE_NAME,
             'ENV_DOMEN_NAME' => ENV_DOMEN_NAME,
             'ENV_URL_SITE' => ENV_URL_SITE,
             'ENV_DEF_LANG' => ENV_DEF_LANG,
+            'ENV_PROTO_LANGUAGE' => ENV_PROTO_LANGUAGE,
+            'ENV_CURRENT_LANG' => $langCode,
+            'ENV_CURRENT_LANG_LOCALE' => function_exists('ee_get_lang_locale') ? ee_get_lang_locale($langCode) : strtolower($langCode),
+            'ENV_AVAILABLE_LANGS' => Lang::getLangFilesWithoutExtension(),
             'ENV_VERSION_CORE' => ENV_VERSION_CORE,
-            'ENV_COMPRESS_HTML' => ENV_COMPRESS_HTML
+            'ENV_COMPRESS_HTML' => ENV_COMPRESS_HTML,
         ];
-        $jsContent = "window.LANG_VARS = " . json_encode(array_merge($lang, $global), JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) . ";";
-        $result = file_put_contents($langJsPath, $jsContent);
-        if ($result === false) {
+        $jsContent = "window.LANG_VARS = " . json_encode(array_merge($lang, $global), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) . ";\n";
+        $existingContent = is_file($langJsPath) ? (string) @file_get_contents($langJsPath) : '';
+        if ($existingContent === $jsContent) {
+            return;
+        }
+
+        if (!ee_runtime_write_file($langJsPath, $jsContent, LOCK_EX, 0664, true)) {
             Logger::error('lang', "Не удалось записать файл: $langJsPath", ['path' => $langJsPath], [
                 'initiator' => __FUNCTION__,
                 'details' => $langJsPath,
             ]);
-        } elseif ($result === 0) {
+        } elseif (!is_file($langJsPath) || (int) @filesize($langJsPath) === 0) {
             Logger::warning('lang', "Файл записан, но его размер равен 0 байт: $langJsPath", ['path' => $langJsPath], [
                 'initiator' => __FUNCTION__,
                 'details' => $langJsPath,
@@ -1360,7 +1362,8 @@ class SysClass {
             string $password,
             string $database,
             string $backupDir,
-            string $archivePassword
+            string $archivePassword,
+            array $includeTables = []
     ): string {
         if (!is_dir($backupDir) && !@mkdir($backupDir, 0775, true) && !is_dir($backupDir)) {
             throw new \RuntimeException("Не удалось создать директорию резервных копий: {$backupDir}");
@@ -1376,12 +1379,21 @@ class SysClass {
         ]);
         $hasMysqldump = (bool) shell_exec('command -v mysqldump');
         if ($hasMysqldump) {
+            $tableArguments = '';
+            if ($includeTables !== []) {
+                $tableArguments = ' ' . implode(' ', array_map(
+                    static fn(string $tableName): string => escapeshellarg($tableName),
+                    array_values(array_unique(array_filter($includeTables, static fn($tableName): bool => is_string($tableName) && $tableName !== '')))
+                ));
+            }
+
             $command = sprintf(
-                'mysqldump -h %s -u %s -p%s %s > %s',
+                'mysqldump -h %s -u %s -p%s %s%s > %s',
                 escapeshellarg($host),
                 escapeshellarg($user),
                 escapeshellarg($password),
                 escapeshellarg($database),
+                $tableArguments,
                 escapeshellarg($backupFilePath)
             );
             exec($command, $output, $returnVar);
@@ -1389,6 +1401,9 @@ class SysClass {
                 throw new \RuntimeException("Ошибка при выполнении mysqldump: " . implode("\n", $output));
             }
         } else {
+            if ($includeTables !== []) {
+                throw new \RuntimeException('Для выборочного дампа таблиц требуется mysqldump.');
+            }
             $dump = $db->dump();
             if (file_put_contents($backupFilePath, $dump) === false) {
                 throw new \RuntimeException("Не удалось записать дамп базы данных в файл.");
@@ -1698,7 +1713,9 @@ class SysClass {
         }
         $constantTableName = str_replace(ENV_DB_PREF, '', $tableName) . '_table';
         $fieldsKey = strtoupper($constantTableName) . '_FIELDS';
-        $fields = $reflection->getConstant($fieldsKey);
+        $fields = $reflection->hasConstant($fieldsKey)
+            ? $reflection->getConstant($fieldsKey)
+            : [];
         if (!empty($fields) && is_array($fields)) {
             return $fields;
         }

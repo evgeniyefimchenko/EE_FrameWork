@@ -48,6 +48,48 @@ class CronAgentRegistry {
                     'result_limit' => 5,
                     'decay_factor' => 0.95,
                 ],
+                'payload_fields' => [
+                    [
+                        'key' => 'min_hits',
+                        'type' => 'int',
+                        'min' => 1,
+                        'max' => 100000,
+                        'step' => 1,
+                        'default' => 3,
+                        'label_key' => 'sys.cron_agent_payload_min_hits',
+                        'help_key' => 'sys.cron_agent_payload_min_hits_help',
+                    ],
+                    [
+                        'key' => 'query_limit',
+                        'type' => 'int',
+                        'min' => 1,
+                        'max' => 1000,
+                        'step' => 1,
+                        'default' => 100,
+                        'label_key' => 'sys.cron_agent_payload_query_limit',
+                        'help_key' => 'sys.cron_agent_payload_query_limit_help',
+                    ],
+                    [
+                        'key' => 'result_limit',
+                        'type' => 'int',
+                        'min' => 1,
+                        'max' => 100,
+                        'step' => 1,
+                        'default' => 5,
+                        'label_key' => 'sys.cron_agent_payload_result_limit',
+                        'help_key' => 'sys.cron_agent_payload_result_limit_help',
+                    ],
+                    [
+                        'key' => 'decay_factor',
+                        'type' => 'float',
+                        'min' => 0.01,
+                        'max' => 1,
+                        'step' => 0.01,
+                        'default' => 0.95,
+                        'label_key' => 'sys.cron_agent_payload_decay_factor',
+                        'help_key' => 'sys.cron_agent_payload_decay_factor_help',
+                    ],
+                ],
                 'required_payload_keys' => [],
                 'default_agent' => [
                     'code' => 'search-popularity-update',
@@ -73,8 +115,116 @@ class CronAgentRegistry {
                 'payload_example' => [
                     'job_id' => 15,
                 ],
+                'payload_fields' => [
+                    [
+                        'key' => 'job_id',
+                        'type' => 'int',
+                        'min' => 1,
+                        'max' => 999999999,
+                        'step' => 1,
+                        'default' => 15,
+                        'label_key' => 'sys.cron_agent_payload_job_id',
+                        'help_key' => 'sys.cron_agent_payload_job_id_help',
+                    ],
+                ],
                 'required_payload_keys' => ['job_id'],
                 'default_agent' => null,
+            ],
+            'media.mirror.worker' => [
+                'title_key' => 'sys.cron_handler_media_mirror',
+                'description_key' => 'sys.cron_handler_media_mirror_desc',
+                'payload_example' => [
+                    'batch_limit' => 10,
+                    'retry_delay_sec' => 900,
+                    'time_budget_sec' => 40,
+                ],
+                'payload_fields' => [
+                    [
+                        'key' => 'batch_limit',
+                        'type' => 'int',
+                        'min' => 1,
+                        'max' => 100,
+                        'step' => 1,
+                        'default' => 10,
+                        'label_key' => 'sys.cron_agent_payload_batch_limit',
+                        'help_key' => 'sys.cron_agent_payload_batch_limit_help',
+                    ],
+                    [
+                        'key' => 'retry_delay_sec',
+                        'type' => 'int',
+                        'min' => 60,
+                        'max' => 86400,
+                        'step' => 60,
+                        'default' => 900,
+                        'label_key' => 'sys.cron_agent_payload_media_retry_delay',
+                        'help_key' => 'sys.cron_agent_payload_media_retry_delay_help',
+                    ],
+                    [
+                        'key' => 'time_budget_sec',
+                        'type' => 'int',
+                        'min' => 10,
+                        'max' => 120,
+                        'step' => 5,
+                        'default' => 40,
+                        'label_key' => 'sys.cron_agent_payload_media_time_budget',
+                        'help_key' => 'sys.cron_agent_payload_media_time_budget_help',
+                    ],
+                ],
+                'required_payload_keys' => [],
+                'default_agent' => [
+                    'code' => 'media-mirror-worker',
+                    'auto_create' => 1,
+                    'required_system' => 1,
+                    'schedule_mode' => 'interval',
+                    'interval_minutes' => 1,
+                    'priority' => 20,
+                    'weight' => 2,
+                    'max_runtime_sec' => 240,
+                    'lock_ttl_sec' => 360,
+                    'retry_delay_sec' => 300,
+                    'is_active' => 1,
+                    'title_ru' => 'Фоновая догрузка импортированных медиа',
+                    'title_en' => 'Background import media mirror',
+                    'description_ru' => 'Дозагружает внешние изображения и файлы из очереди импорта в локальное хранилище.',
+                    'description_en' => 'Mirrors imported external images and files into local storage.',
+                ],
+            ],
+            'backup.queue.worker' => [
+                'title_key' => 'sys.cron_handler_backup_worker',
+                'description_key' => 'sys.cron_handler_backup_worker_desc',
+                'payload_example' => [
+                    'stale_after_sec' => 7200,
+                ],
+                'payload_fields' => [
+                    [
+                        'key' => 'stale_after_sec',
+                        'type' => 'int',
+                        'min' => 300,
+                        'max' => 86400,
+                        'step' => 300,
+                        'default' => 7200,
+                        'label_key' => 'sys.cron_agent_payload_backup_stale_after',
+                        'help_key' => 'sys.cron_agent_payload_backup_stale_after_help',
+                    ],
+                ],
+                'required_payload_keys' => [],
+                'default_agent' => [
+                    'code' => 'backup-queue-worker',
+                    'auto_create' => 1,
+                    'required_system' => 1,
+                    'schedule_mode' => 'interval',
+                    'interval_minutes' => 1,
+                    'priority' => 25,
+                    'weight' => 4,
+                    'max_runtime_sec' => 3600,
+                    'lock_ttl_sec' => 7200,
+                    'retry_delay_sec' => 300,
+                    'is_active' => 1,
+                    'title_ru' => 'Фоновая обработка резервных копий',
+                    'title_en' => 'Background backup queue worker',
+                    'description_ru' => 'Подхватывает queued backup-задачи, создаёт локальные снапшоты и отправляет их на удалённые хосты.',
+                    'description_en' => 'Processes queued backups, creates local snapshots and uploads them to remote hosts.',
+                ],
             ],
             'ops.health_check' => [
                 'title_key' => 'sys.cron_handler_health_check',
@@ -140,6 +290,8 @@ class CronAgentRegistry {
             'property_lifecycle.next' => self::runPropertyLifecycleNext($payload, $context),
             'search.popularity.update' => self::runSearchPopularityUpdate($payload, $context),
             'import.profile' => self::runImportProfile($payload, $context),
+            'media.mirror.worker' => self::runMediaMirrorWorker($payload, $context),
+            'backup.queue.worker' => self::runBackupWorker($payload, $context),
             'ops.health_check' => self::runHealthCheck($payload, $context),
             default => [
                 'success' => false,
@@ -257,6 +409,14 @@ class CronAgentRegistry {
                 'decay_factor' => $decayFactor,
             ],
         ];
+    }
+
+    private static function runMediaMirrorWorker(array $payload = [], array $context = []): array {
+        return ImportMediaQueueService::processDueQueue($payload);
+    }
+
+    private static function runBackupWorker(array $payload = [], array $context = []): array {
+        return BackupService::runNextQueuedJob($payload);
     }
 
     private static function runImportProfile(array $payload = [], array $context = []): array {

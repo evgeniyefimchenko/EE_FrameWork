@@ -3,6 +3,7 @@
 namespace app\admin;
 
 use classes\system\Constants;
+use classes\system\CronAgentService;
 use classes\system\SysClass;
 
 /**
@@ -27,6 +28,8 @@ trait CronAgentsTrait {
         $this->view->set('cron_agents', $this->models['m_cron_agents']->getAgents(200));
         $this->view->set('cron_agent_runs', $this->models['m_cron_agents']->getRecentRuns(20));
         $this->view->set('cron_handlers', $this->models['m_cron_agents']->getHandlers());
+        $this->view->set('media_mirror_agent', $this->models['m_cron_agents']->getAgentByCode('media-mirror-worker'));
+        $this->view->set('media_queue_summary', $this->models['m_cron_agents']->getMediaQueueSummary());
         $this->view->set('body_view', $this->view->read('v_cron_agents'));
         $this->html = $this->view->read('v_dashboard');
         $this->parameters_layout["layout_content"] = $this->html;
@@ -73,6 +76,7 @@ trait CronAgentsTrait {
 
         if (!empty($_POST)) {
             $postData = $_POST;
+            $payloadJson = $this->buildCronAgentPayloadJsonFromPost($postData);
             $saveResult = $this->notifyOperationResult(
                 $this->models['m_cron_agents']->saveAgent([
                     'agent_id' => $agentId,
@@ -83,7 +87,7 @@ trait CronAgentsTrait {
                     'schedule_mode' => $postData['schedule_mode'] ?? 'interval',
                     'interval_minutes' => $postData['interval_minutes'] ?? 1,
                     'cron_expression' => $postData['cron_expression'] ?? '',
-                    'payload_json' => $postData['payload_json'] ?? '{}',
+                    'payload_json' => $payloadJson,
                     'is_active' => !empty($postData['is_active']) ? 1 : 0,
                     'priority' => $postData['priority'] ?? 100,
                     'weight' => $postData['weight'] ?? 1,
@@ -115,7 +119,7 @@ trait CronAgentsTrait {
                     'schedule_mode' => trim((string) ($postData['schedule_mode'] ?? 'interval')),
                     'interval_minutes' => (int) ($postData['interval_minutes'] ?? 1),
                     'cron_expression' => trim((string) ($postData['cron_expression'] ?? '')),
-                    'payload_json' => (string) ($postData['payload_json'] ?? '{}'),
+                    'payload_json' => $payloadJson,
                     'is_active' => !empty($postData['is_active']) ? 1 : 0,
                     'priority' => (int) ($postData['priority'] ?? 100),
                     'weight' => (int) ($postData['weight'] ?? 1),
@@ -206,6 +210,65 @@ trait CronAgentsTrait {
                 'default_error_message' => $this->lang['sys.error'] ?? 'Ошибка',
             ]
         );
+        SysClass::handleRedirect(200, '/admin/cron_agents');
+    }
+
+    public function update_media_mirror_worker($params = []): void {
+        if (!$this->requireAccess([Constants::ADMIN], [
+            'return' => 'admin/cron_agents',
+            'initiator' => __METHOD__,
+        ])) {
+            return;
+        }
+
+        $this->loadModel('m_cron_agents');
+        $agent = $this->models['m_cron_agents']->getAgentByCode('media-mirror-worker');
+        if (!$agent) {
+            $this->notifyOperationResult(false, [
+                'default_error_message' => $this->lang['sys.cron_agent_not_found'] ?? 'Cron-агент не найден.',
+            ]);
+            SysClass::handleRedirect(200, '/admin/cron_agents');
+            return;
+        }
+
+        $postData = [
+            'handler' => (string) ($agent['handler'] ?? 'media.mirror.worker'),
+            'payload_json' => (string) ($agent['payload_json'] ?? '{}'),
+            'payload_field' => [
+                'batch_limit' => $_POST['batch_limit'] ?? (($agent['payload']['batch_limit'] ?? 10)),
+                'retry_delay_sec' => $_POST['media_retry_delay_sec'] ?? (($agent['payload']['retry_delay_sec'] ?? 900)),
+                'time_budget_sec' => $_POST['media_time_budget_sec'] ?? (($agent['payload']['time_budget_sec'] ?? 40)),
+            ],
+        ];
+        $payloadJson = $this->buildCronAgentPayloadJsonFromPost($postData);
+
+        $result = $this->models['m_cron_agents']->saveAgent([
+            'agent_id' => (int) ($agent['agent_id'] ?? 0),
+            'code' => (string) ($agent['code'] ?? ''),
+            'title' => (string) ($agent['title'] ?? ''),
+            'description' => (string) ($agent['description'] ?? ''),
+            'handler' => (string) ($agent['handler'] ?? ''),
+            'schedule_mode' => (string) ($agent['schedule_mode'] ?? 'interval'),
+            'interval_minutes' => (int) ($agent['interval_minutes'] ?? 1),
+            'cron_expression' => (string) ($agent['cron_expression'] ?? ''),
+            'payload_json' => $payloadJson,
+            'is_active' => !empty($agent['is_active']) ? 1 : 0,
+            'priority' => (int) ($agent['priority'] ?? 100),
+            'weight' => (int) ($agent['weight'] ?? 1),
+            'max_runtime_sec' => (int) ($agent['max_runtime_sec'] ?? 300),
+            'lock_ttl_sec' => (int) ($agent['lock_ttl_sec'] ?? 360),
+            'retry_delay_sec' => (int) ($agent['retry_delay_sec'] ?? 300),
+            'next_run_at' => (string) ($agent['next_run_at'] ?? ''),
+        ]);
+
+        $this->notifyOperationResult(
+            $result,
+            [
+                'success_message' => $this->lang['sys.media_queue_worker_settings_saved'] ?? 'Параметры media-worker обновлены.',
+                'default_error_message' => $this->lang['sys.error'] ?? 'Ошибка',
+            ]
+        );
+
         SysClass::handleRedirect(200, '/admin/cron_agents');
     }
 
@@ -333,5 +396,60 @@ trait CronAgentsTrait {
         }
 
         return $prefill;
+    }
+
+    private function buildCronAgentPayloadJsonFromPost(array $postData): string {
+        $rawPayload = trim((string) ($postData['payload_json'] ?? '{}'));
+        $payload = json_decode($rawPayload, true);
+        if (!is_array($payload)) {
+            $payload = [];
+        }
+
+        $handler = trim((string) ($postData['handler'] ?? ''));
+        $handlerMeta = CronAgentService::getHandlers()[$handler] ?? null;
+        $payloadFieldMeta = is_array($handlerMeta['payload_fields'] ?? null) ? $handlerMeta['payload_fields'] : [];
+        $postedPayloadFields = is_array($postData['payload_field'] ?? null) ? $postData['payload_field'] : [];
+
+        foreach ($payloadFieldMeta as $fieldMeta) {
+            if (!is_array($fieldMeta) || empty($fieldMeta['key'])) {
+                continue;
+            }
+
+            $key = (string) $fieldMeta['key'];
+            if (!array_key_exists($key, $postedPayloadFields)) {
+                continue;
+            }
+
+            $type = (string) ($fieldMeta['type'] ?? 'string');
+            $rawValue = $postedPayloadFields[$key];
+
+            if ($type === 'int') {
+                $value = (int) $rawValue;
+                if (isset($fieldMeta['min'])) {
+                    $value = max((int) $fieldMeta['min'], $value);
+                }
+                if (isset($fieldMeta['max'])) {
+                    $value = min((int) $fieldMeta['max'], $value);
+                }
+                $payload[$key] = $value;
+                continue;
+            }
+
+            if ($type === 'float') {
+                $value = (float) $rawValue;
+                if (isset($fieldMeta['min'])) {
+                    $value = max((float) $fieldMeta['min'], $value);
+                }
+                if (isset($fieldMeta['max'])) {
+                    $value = min((float) $fieldMeta['max'], $value);
+                }
+                $payload[$key] = $value;
+                continue;
+            }
+
+            $payload[$key] = is_scalar($rawValue) ? trim((string) $rawValue) : '';
+        }
+
+        return json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '{}';
     }
 }

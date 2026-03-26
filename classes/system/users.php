@@ -31,6 +31,9 @@ class Users {
         } else {
             $userId = (int) $params;
         }
+        if (!$create_table) {
+            LegalConsentService::ensureInfrastructure();
+        }
         if (empty($userId) && !$create_table) {
             $user_lang = ENV_DEF_LANG;
         } else {
@@ -53,6 +56,7 @@ class Users {
             $sql_user = 'SELECT * FROM ?n WHERE user_id = ?i';
             $resArray = SafeMySQL::gi()->getRow($sql_user, Constants::USERS_TABLE, (int) $id);
             if ($resArray) {
+                $resArray = $this->applyConsentState($resArray);
                 $resArray['count_unread_messages'] = ClassMessages::get_count_unread_messages($id);
                 $resArray['count_messages'] = ClassMessages::get_count_messages($id);
                 $resArray['messages'] = $resArray['count_unread_messages'] ? ClassMessages::get_unread_messages_user($id) : [];
@@ -65,17 +69,18 @@ class Users {
                 $resArray['new_user'] = 1;
                 $resArray['user_role'] = 4;
                 $resArray['active'] = 1;
-                $resArray['subscribed'] = 1;
+                $resArray['subscribed'] = 0;
                 $resArray['options'] = json_decode(self::BASE_OPTIONS_USER, true);
                 $resArray['user_role_text'] = $this->getTextRole($resArray['user_role']);
                 $resArray['user_role_name'] = $this->getNameRole($resArray['user_role']);
-                $resArray['subscribed_text'] = 'Подписан';
+                $resArray['subscribed_text'] = 'Не подписан';
+                $resArray = $this->applyConsentState($resArray);
             }
         } else {
             $this->createTables(); //создаём необходимый набор таблиц в БД и первого пользователя с ролью администратора
-            $this->registrationNewUser(array('name' => 'admin', 'email' => 'test@test.com', 'active' => '2', 'user_role' => '1', 'subscribed' => '0', 'comment' => 'Смените пароль администратора', 'pwd' => 'admin', 'skip_auth_password_setup' => 1), true);
-            $this->registrationNewUser(array('name' => 'moderator', 'email' => 'test_moderator@test.com', 'active' => '2', 'user_role' => '2', 'subscribed' => '0', 'comment' => 'Смените пароль модератора', 'pwd' => 'moderator', 'skip_auth_password_setup' => 1), true);
-            $this->registrationNewUser(array('name' => 'system', 'email' => 'dont-answer@' . ENV_SITE_NAME, 'active' => '2', 'user_role' => '8', 'subscribed' => '0', 'comment' => '', 'pwd' => '', 'skip_auth_password_setup' => 1), true);
+            $this->registrationNewUser(array('name' => 'admin', 'email' => 'test@test.com', 'active' => '2', 'user_role' => '1', 'subscribed' => '0', 'privacy_policy_accepted' => 1, 'personal_data_consent_accepted' => 1, 'comment' => 'Смените пароль администратора', 'pwd' => 'admin', 'skip_auth_password_setup' => 1), true);
+            $this->registrationNewUser(array('name' => 'moderator', 'email' => 'test_moderator@test.com', 'active' => '2', 'user_role' => '2', 'subscribed' => '0', 'privacy_policy_accepted' => 1, 'personal_data_consent_accepted' => 1, 'comment' => 'Смените пароль модератора', 'pwd' => 'moderator', 'skip_auth_password_setup' => 1), true);
+            $this->registrationNewUser(array('name' => 'system', 'email' => 'dont-answer@' . ENV_SITE_NAME, 'active' => '2', 'user_role' => '8', 'subscribed' => '0', 'privacy_policy_accepted' => 1, 'personal_data_consent_accepted' => 1, 'comment' => '', 'pwd' => '', 'skip_auth_password_setup' => 1), true);
         }
         return $resArray;
     }
@@ -109,9 +114,9 @@ class Users {
             return 0;
         }
         if (isset($this->data['user_id']) && $this->data['user_id'] == $userId) { // Сам пользователь
-            $fields = SafeMySQL::gi()->filterArray($fields, array('name', 'email', 'phone', 'subscribed', 'comment', 'pwd'));
+            $fields = SafeMySQL::gi()->filterArray($fields, array('name', 'email', 'phone', 'subscribed', 'comment', 'pwd', 'privacy_policy_accepted', 'personal_data_consent_accepted'));
         } else { // Модераторы 
-            $fields = SafeMySQL::gi()->filterArray($fields, array('name', 'email', 'phone', 'active', 'user_role', 'subscribed', 'comment', 'pwd', 'element_id', 'element_name'));
+            $fields = SafeMySQL::gi()->filterArray($fields, array('name', 'email', 'phone', 'active', 'user_role', 'subscribed', 'comment', 'pwd', 'element_id', 'element_name', 'privacy_policy_accepted', 'personal_data_consent_accepted'));
         }
         $fields = SysClass::ee_removeEmptyValuesToArray(array_map('trim', $fields));
         if (!$fields)
@@ -122,6 +127,30 @@ class Users {
         }
         if (isset($fields['email']) && $fields['email'] !== $oldEmail && $this->getEmailExist($fields['email'], $userId)) {
             return 0;
+        }
+        $currentRole = (int) $this->getUserRole($userId);
+        if (isset($fields['user_role'])) {
+            $targetRole = (int) $fields['user_role'];
+            if ($targetRole === Constants::ADMIN && $this->hasAnotherActiveUserWithRole(Constants::ADMIN, $userId)) {
+                return 0;
+            }
+            if ($currentRole === Constants::ADMIN && $targetRole !== Constants::ADMIN && !$this->hasAnotherActiveUserWithRole(Constants::ADMIN, $userId)) {
+                return 0;
+            }
+        }
+        $currentRow = SafeMySQL::gi()->getRow('SELECT * FROM ?n WHERE user_id = ?i LIMIT 1', Constants::USERS_TABLE, $userId);
+        if (!is_array($currentRow)) {
+            return 0;
+        }
+        if (array_key_exists('privacy_policy_accepted', $fields) || array_key_exists('personal_data_consent_accepted', $fields)) {
+            $fields = array_merge(
+                $fields,
+                LegalConsentService::buildStoragePayload(
+                    $fields,
+                    $currentRow,
+                    isset($this->data['user_id']) && $this->data['user_id'] == $userId ? 'profile_update' : 'admin_user_edit'
+                )
+            );
         }
         if (isset($fields['pwd']) && strlen($fields['pwd']) >= 5) {
             $this->setUserPassword($userId, $fields['email'] ?? $oldEmail, $fields['pwd']);
@@ -301,7 +330,7 @@ class Users {
         $ipRestricted = !empty($fields['auth_ip_restricted']);
         $skipForcedPasswordSetup = !empty($fields['skip_auth_password_setup']);
 
-        $fields = SafeMySQL::gi()->filterArray($fields, array('name', 'email', 'phone', 'active', 'user_role', 'subscribed', 'comment', 'pwd'));
+        $fields = SafeMySQL::gi()->filterArray($fields, array('name', 'email', 'phone', 'active', 'user_role', 'subscribed', 'comment', 'pwd', 'privacy_policy_accepted', 'personal_data_consent_accepted'));
         $fields = array_map(static function ($value) {
             return is_string($value) ? trim($value) : $value;
         }, $fields);
@@ -315,11 +344,15 @@ class Users {
             'phone' => ($fields['phone'] ?? '') !== '' ? $fields['phone'] : null,
             'active' => isset($fields['active']) ? (int) $fields['active'] : 2,
             'user_role' => isset($fields['user_role']) ? (int) $fields['user_role'] : Constants::USER,
-            'subscribed' => isset($fields['subscribed']) ? (int) (bool) $fields['subscribed'] : 1,
+            'subscribed' => isset($fields['subscribed']) ? (int) (bool) $fields['subscribed'] : 0,
             'comment' => $fields['comment'] ?? '',
             'pwd' => $placeholderPassword,
             'last_ip' => SysClass::getClientIp(),
         ];
+        $payload = array_merge($payload, LegalConsentService::buildStoragePayload($fields, [], 'admin_user_create'));
+        if ((int) $payload['user_role'] === Constants::ADMIN && $this->hasAnotherActiveUserWithRole(Constants::ADMIN)) {
+            return 0;
+        }
         $sql = 'INSERT INTO ?n SET ?u';
         SafeMySQL::gi()->query($sql, Constants::USERS_TABLE, $payload);
         $userId = SafeMySQL::gi()->insertId();
@@ -354,8 +387,17 @@ class Users {
     public function getAdminProfile() {
         $sql = 'SELECT 1 FROM ?n WHERE user_role = 1 LIMIT 1';
         if (!SafeMySQL::gi()->getOne($sql, Constants::USERS_TABLE)) {
-            $this->registrationNewUser(array('name' => 'admin', 'email' => 'test@test.com', 'active' => '2', 'user_role' => '1', 'subscribed' => '1', 'comment' => 'Смените пароль администратора', 'pwd' => 'admin', 'skip_auth_password_setup' => 1), true);
+            $this->registrationNewUser(array('name' => 'admin', 'email' => 'test@test.com', 'active' => '2', 'user_role' => '1', 'subscribed' => '0', 'privacy_policy_accepted' => 1, 'personal_data_consent_accepted' => 1, 'comment' => 'Смените пароль администратора', 'pwd' => 'admin', 'skip_auth_password_setup' => 1), true);
         }
+    }
+
+    public function hasAnotherActiveUserWithRole(int $roleId, int $excludeUserId = 0): bool {
+        return (int) SafeMySQL::gi()->getOne(
+            'SELECT COUNT(*) FROM ?n WHERE user_role = ?i AND deleted = 0 AND user_id != ?i',
+            Constants::USERS_TABLE,
+            $roleId,
+            $excludeUserId
+        ) > 0;
     }
 
     /**
@@ -569,6 +611,8 @@ class Users {
             $this->createCategoriesTypesTable();
             $this->createCategoriesTable();
             $this->createPagesTable();
+            $this->createEntityTranslationsTable();
+            $this->createPageUserLinksTable();
             $this->createPropertyTypesTable();
             $this->createPropertiesTable();
             $this->createPropertySetsTable();
@@ -664,7 +708,7 @@ class Users {
      */
     private function createCronAgentsInfrastructure(): void {
         CronAgentService::ensureInfrastructure(true);
-        $this->logSqlInfo('create_cron_agents_infrastructure', 'Инфраструктура cron-агентов создана');
+        $this->logSqlInfo('create_cron_agents_infrastructure', 'Инфраструктура cron-агентов и очередей медиа создана');
     }
 
     // Метод для создания таблицы пользователей
@@ -678,6 +722,16 @@ class Users {
             user_role TINYINT UNSIGNED NOT NULL DEFAULT '4' COMMENT 'таблица user_roles',
             last_ip VARCHAR(45) DEFAULT NULL,
             subscribed TINYINT(1) DEFAULT '1' COMMENT 'подписка на рассылку',
+            privacy_policy_accepted TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'согласие с политикой обработки ПДн',
+            privacy_policy_accepted_at DATETIME DEFAULT NULL,
+            privacy_policy_accept_ip VARCHAR(45) DEFAULT NULL,
+            privacy_policy_accept_user_agent VARCHAR(255) DEFAULT NULL,
+            privacy_policy_version VARCHAR(50) DEFAULT NULL,
+            personal_data_consent_accepted TINYINT(1) NOT NULL DEFAULT 0 COMMENT 'согласие на обработку ПДн',
+            personal_data_consent_accepted_at DATETIME DEFAULT NULL,
+            personal_data_consent_accept_ip VARCHAR(45) DEFAULT NULL,
+            personal_data_consent_accept_user_agent VARCHAR(255) DEFAULT NULL,
+            personal_data_consent_version VARCHAR(50) DEFAULT NULL,
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'дата регистрации',
             last_activ DATETIME DEFAULT NULL COMMENT 'дата крайней активности',
             updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'дата обновления инф.',
@@ -691,6 +745,15 @@ class Users {
             CONSTRAINT fk_users_role FOREIGN KEY (user_role) REFERENCES ?n(role_id) ON DELETE RESTRICT ON UPDATE RESTRICT
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Пользователи сайта';";
         SafeMySQL::gi()->query($sql, Constants::USERS_TABLE, Constants::USERS_ROLES_TABLE);
+    }
+
+    private function applyConsentState(array $row): array {
+        $state = LegalConsentService::normalizeState($row);
+        $row = array_merge($row, $state);
+        $row['legal_consents_complete'] = LegalConsentService::hasRequiredConsents($row) ? 1 : 0;
+        $row['privacy_policy_accepted_text'] = !empty($row['privacy_policy_accepted']) ? 'Принято' : 'Не принято';
+        $row['personal_data_consent_accepted_text'] = !empty($row['personal_data_consent_accepted']) ? 'Принято' : 'Не принято';
+        return $row;
     }
 
     /**
@@ -851,10 +914,15 @@ class Users {
         KEY idx_categories_type (type_id),
         KEY idx_categories_parent (parent_id),
         KEY idx_categories_lang (language_code),
+        KEY idx_categories_lang_title (language_code, title),
         CONSTRAINT fk_categories_type FOREIGN KEY (type_id) REFERENCES ?n(type_id) ON DELETE RESTRICT ON UPDATE RESTRICT,
         CONSTRAINT fk_categories_parent FOREIGN KEY (parent_id) REFERENCES ?n(category_id) ON DELETE RESTRICT ON UPDATE RESTRICT
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Таблица для хранения категорий сущностей';";
         SafeMySQL::gi()->query($sql, Constants::CATEGORIES_TABLE, Constants::CATEGORIES_TYPES_TABLE, Constants::CATEGORIES_TABLE);
+        SafeMySQL::gi()->query(
+            'ALTER TABLE ?n ADD INDEX IF NOT EXISTS idx_categories_lang_title (language_code, title)',
+            Constants::CATEGORIES_TABLE
+        );
         $this->logSqlInfo('create_categories_table', 'Таблица категорий создана');
     }
 
@@ -877,11 +945,52 @@ class Users {
         KEY idx_pages_category (category_id),
         KEY idx_pages_parent (parent_page_id),
         KEY idx_pages_category_lang (category_id, language_code),
+        KEY idx_pages_lang_title (language_code, title),
+        KEY idx_pages_lang_status (language_code, status),
         CONSTRAINT fk_pages_category FOREIGN KEY (category_id) REFERENCES ?n(category_id) ON DELETE RESTRICT ON UPDATE RESTRICT,
         CONSTRAINT fk_pages_parent FOREIGN KEY (parent_page_id) REFERENCES ?n(page_id) ON DELETE RESTRICT ON UPDATE RESTRICT
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Таблица для хранения страниц';";
         SafeMySQL::gi()->query($sql, Constants::PAGES_TABLE, Constants::CATEGORIES_TABLE, Constants::PAGES_TABLE);
+        SafeMySQL::gi()->query(
+            'ALTER TABLE ?n ADD INDEX IF NOT EXISTS idx_pages_lang_title (language_code, title)',
+            Constants::PAGES_TABLE
+        );
+        SafeMySQL::gi()->query(
+            'ALTER TABLE ?n ADD INDEX IF NOT EXISTS idx_pages_lang_status (language_code, status)',
+            Constants::PAGES_TABLE
+        );
         $this->logSqlInfo('create_pages_table', 'Таблица страниц создана');
+    }
+
+    /**
+     * Создаёт таблицу связей переводов страниц и категорий.
+     */
+    private function createEntityTranslationsTable(): void {
+        EntityTranslationService::ensureInfrastructure(true);
+        $this->logSqlInfo('create_entity_translations_table', 'Таблица связей переводов создана');
+    }
+
+    /**
+     * Создаёт таблицу связей страниц и пользователей.
+     * Один и тот же пользователь может иметь разные типы связи со страницей,
+     * но для одного page/user/relation_type допускается только одна запись.
+     */
+    private function createPageUserLinksTable(): void {
+        $sql = "CREATE TABLE IF NOT EXISTS ?n (
+        link_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        page_id INT UNSIGNED NOT NULL,
+        user_id INT UNSIGNED NOT NULL,
+        relation_type VARCHAR(32) NOT NULL DEFAULT 'owner',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_page_user_relation (page_id, user_id, relation_type),
+        KEY idx_page_user_links_user (user_id),
+        KEY idx_page_user_links_relation (relation_type),
+        CONSTRAINT fk_page_user_links_page FOREIGN KEY (page_id) REFERENCES ?n(page_id) ON DELETE CASCADE ON UPDATE RESTRICT,
+        CONSTRAINT fk_page_user_links_user FOREIGN KEY (user_id) REFERENCES ?n(user_id) ON DELETE CASCADE ON UPDATE RESTRICT
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Связи страниц и пользователей';";
+        SafeMySQL::gi()->query($sql, Constants::PAGE_USER_LINKS_TABLE, Constants::PAGES_TABLE, Constants::USERS_TABLE);
+        $this->logSqlInfo('create_page_user_links_table', 'Таблица связей страниц и пользователей создана');
     }
 
     /**

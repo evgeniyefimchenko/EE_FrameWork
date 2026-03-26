@@ -2,6 +2,7 @@
 
 use classes\plugins\SafeMySQL;
 use classes\system\Constants;
+use classes\system\EntityTranslationService;
 use classes\system\SysClass;
 use classes\system\Hook;
 use classes\system\Logger;
@@ -23,8 +24,10 @@ class ModelPages {
      */
     public function getPagesData($order = 'page_id ASC', $where = null, $start = 0, $limit = 100, $language_code = ENV_DEF_LANG) {
         $start = $start ? $start : 0;
+        $order = is_string($order) ? trim($order) : '';
+        $where = is_string($where) ? trim($where) : '';
         // РџСЂРѕРІРµСЂРєР°, СЃРѕРґРµСЂР¶РёС‚ Р»Рё $where РёР»Рё $order type_id
-        $needsJoin = strpos($where, 'type_id') !== false || strpos($order, 'type_id') !== false;
+        $needsJoin = str_contains($where, 'type_id') || str_contains($order, 'type_id');
         $languageCondition = "language_code = ?s";
         if ($where) {
             $where = "($where) AND $languageCondition";
@@ -48,13 +51,14 @@ class ModelPages {
             $res_array = SafeMySQL::gi()->getAll($sql_pages, Constants::PAGES_TABLE, Constants::CATEGORIES_TABLE, Constants::CATEGORIES_TYPES_TABLE, $language_code, $start, $limit);
         } else {
             // Р•СЃР»Рё type_id РѕС‚СЃСѓС‚СЃС‚РІСѓРµС‚, РїСЂРёРјРµРЅСЏРµРј РїСЂРѕСЃС‚РѕР№ Р·Р°РїСЂРѕСЃ
-            $orderString = $order ? $order : 'e.page_id ASC';
-            $sql_pages = "SELECT e.page_id FROM ?n as e WHERE $where ORDER BY $orderString LIMIT ?i, ?i";
+            $normalizedWhere = preg_replace('/\b[a-zA-Z_][a-zA-Z0-9_]*\./', '', $where) ?: $where;
+            $orderString = $order ? (preg_replace('/\b[a-zA-Z_][a-zA-Z0-9_]*\./', '', $order) ?: $order) : 'page_id ASC';
+            $sql_pages = "SELECT e.page_id FROM ?n as e WHERE $normalizedWhere ORDER BY $orderString LIMIT ?i, ?i";
             $res_array = SafeMySQL::gi()->getAll($sql_pages, Constants::PAGES_TABLE, $language_code, $start, $limit);
         }
         $res = [];
         foreach ($res_array as $page) {
-            $res[] = $this->getPageData($page['page_id']);
+            $res[] = $this->getPageData($page['page_id'], $language_code);
         }
         if ($needsJoin) {
             $sql_count = "
@@ -65,7 +69,8 @@ class ModelPages {
             WHERE $where";
             $total_count = SafeMySQL::gi()->getOne($sql_count, Constants::PAGES_TABLE, Constants::CATEGORIES_TABLE, Constants::CATEGORIES_TYPES_TABLE, $language_code);
         } else {
-            $sql_count = "SELECT COUNT(*) as total_count FROM ?n WHERE $where";
+            $normalizedWhere = preg_replace('/\b[a-zA-Z_][a-zA-Z0-9_]*\./', '', $where) ?: $where;
+            $sql_count = "SELECT COUNT(*) as total_count FROM ?n WHERE $normalizedWhere";
             $total_count = SafeMySQL::gi()->getOne($sql_count, Constants::PAGES_TABLE, $language_code);
         }
         return [
@@ -170,7 +175,8 @@ class ModelPages {
                 return OperationResult::validation('Отсутствует category_id или title', ['pageData' => $pageData]);
             }
             $pageData['parent_page_id'] = isset($pageData['parent_page_id']) && $pageData['parent_page_id'] !== 0 ? $pageData['parent_page_id'] : NULL;
-            $resolvedLanguageCode = strtoupper(trim((string) $language_code));
+            $requestedLanguageCode = strtoupper(trim((string) ($pageData['language_code'] ?? $language_code)));
+            $resolvedLanguageCode = $requestedLanguageCode;
             if (!empty($pageData['parent_page_id'])) {
                 $parentPageData = SafeMySQL::gi()->getRow(
                     'SELECT category_id, language_code FROM ?n WHERE page_id = ?i LIMIT 1',
@@ -191,7 +197,7 @@ class ModelPages {
                 Constants::CATEGORIES_TABLE,
                 (int) $pageData['category_id']
             );
-            if (!empty($categoryLanguageCode)) {
+            if ($resolvedLanguageCode === '' && !empty($categoryLanguageCode)) {
                 $resolvedLanguageCode = strtoupper(trim((string) $categoryLanguageCode));
             }
             if ($resolvedLanguageCode === '') {
@@ -247,6 +253,7 @@ class ModelPages {
                 return OperationResult::failure('Не удалось сохранить страницу', 'page_sql_error', ['pageData' => $pageData]);
             }
 
+            EntityTranslationService::ensureEntity('page', (int) $pageId);
             Hook::run('afterUpdatePageData', $pageId, $pageData, $method);
             return OperationResult::success((int) $pageId, '', $method === 'insert' ? 'created' : 'updated');
         } catch (\Throwable $e) {
@@ -321,6 +328,7 @@ class ModelPages {
             $sql_delete_page = "DELETE FROM ?n WHERE page_id = ?i";
             $result = SafeMySQL::gi()->query($sql_delete_page, Constants::PAGES_TABLE, $pageId);
             if ($result) {
+                EntityTranslationService::removeEntityTranslation('page', (int) $pageId);
                 $sql_delete_properties = "DELETE FROM ?n WHERE entity_id = ?i AND entity_type = 'page'";
                 SafeMySQL::gi()->query($sql_delete_properties, Constants::PROPERTY_VALUES_TABLE, $pageId);
                 Hook::run('afterDeletePage', $pageId, $pageData, 'delete');

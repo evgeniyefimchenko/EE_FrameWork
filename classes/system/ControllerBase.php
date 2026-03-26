@@ -79,8 +79,37 @@ abstract class ControllerBase {
         }
         $this->users = new Users($this->logged_in);
         $userData = $this->users->data;
+        $this->guardRequiredLegalConsents($userData);
         // Прогрузка пользовательских данных в представления и языковой массив        
         $this->setUserData($userData);
+    }
+
+    private function guardRequiredLegalConsents(array $userData): void {
+        if (get_class($this) !== 'ControllerAdmin' || empty($this->logged_in)) {
+            return;
+        }
+        if (LegalConsentService::hasRequiredConsents($userData)) {
+            return;
+        }
+
+        $currentPath = trim((string) parse_url((string) ($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_PATH), '/');
+        if ($currentPath === 'required_consents' || $currentPath === 'logout' || $currentPath === 'exit_login') {
+            return;
+        }
+
+        $redirect = '/required_consents?return=' . rawurlencode($currentPath !== '' ? $currentPath : 'admin');
+        if (SysClass::isAjaxRequestFromSameSite()) {
+            http_response_code(428);
+            echo json_encode([
+                'error' => 'legal_consents_required',
+                'status' => 'legal_consents_required',
+                'redirect' => $redirect,
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            exit();
+        }
+
+        SysClass::handleRedirect(200, $redirect);
+        exit();
     }
 
     /**
@@ -137,6 +166,7 @@ abstract class ControllerBase {
             Session::set('lang', $langCode);
         }
         $this->lang = Lang::init($langCode);
+        $langCode = Lang::getCurrentLangCode() ?: $langCode;
         Session::set('lang', $langCode);
         SysClass::checkLangVars($langCode, $this->lang);
         $this->view->set('lang', $this->lang);
@@ -152,6 +182,44 @@ abstract class ControllerBase {
             $langCode = strtoupper((string) ENV_PROTO_LANGUAGE);
         }
         return $langCode;
+    }
+
+    protected function applyInterfaceLanguage(string $langCode): string {
+        $availableLangs = array_map('strtoupper', Lang::getLangFilesWithoutExtension());
+        $langCode = strtoupper(trim($langCode));
+        if (!in_array($langCode, $availableLangs, true)) {
+            $langCode = Lang::resolveLangCode($langCode);
+        }
+        if ($langCode === '') {
+            $langCode = strtoupper((string) ENV_DEF_LANG);
+        }
+        if ($langCode === '') {
+            $langCode = strtoupper((string) ENV_PROTO_LANGUAGE);
+        }
+
+        Session::set('lang', $langCode);
+        if (!empty($this->logged_in) && !empty($this->users->data['options']) && is_array($this->users->data['options'])) {
+            $this->users->data['options']['localize'] = $langCode;
+            $this->users->setUserOptions((int) $this->logged_in, $this->users->data['options']);
+        }
+
+        $this->lang = Lang::init($langCode);
+        $langCode = Lang::getCurrentLangCode() ?: $langCode;
+        Session::set('lang', $langCode);
+        SysClass::checkLangVars($langCode, $this->lang);
+        $this->view->set('lang', $this->lang, true);
+        $this->users->lang = $this->lang;
+
+        return $langCode;
+    }
+
+    protected function syncAdminUiLanguageFromRequest(string $queryKey = 'ui_lang'): string {
+        $requestedLangCode = strtoupper(trim((string) ($_GET[$queryKey] ?? '')));
+        if ($requestedLangCode === '') {
+            return $this->getAdminUiLanguageCode();
+        }
+
+        return $this->applyInterfaceLanguage($requestedLangCode);
     }
 
     protected function normalizeOperationResult(mixed $result, array $options = []): OperationResult {

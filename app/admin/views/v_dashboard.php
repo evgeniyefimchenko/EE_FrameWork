@@ -5,7 +5,7 @@
 <?= $main_menu ?>                  
     <!-- Content -->
     <div id="layoutSidenav_content" class="pt-5">
-        <?= $body_view ?>
+        <?= $body_view ?? '' ?>
         <!-- End Content -->
 <?= $page_footer ?>
         <input type="hidden" id="ee_tour_storage">

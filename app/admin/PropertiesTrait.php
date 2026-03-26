@@ -848,8 +848,14 @@ trait PropertiesTrait {
         foreach ($setIds as $setId) {
             $hasNewPropertyValues = false;
             $propertiesData = $this->models['m_properties']->getPropertySetData($setId, $languageCode);
+            if (!is_array($propertiesData) || empty($propertiesData['properties']) || !is_array($propertiesData['properties'])) {
+                continue;
+            }
             foreach ($propertiesData['properties'] as $k_prop => &$prop) {
-                if ($prop['property_entity_type'] != $typeEntity && $prop['property_entity_type'] != 'all') continue;
+                if (($prop['property_entity_type'] ?? '') != $typeEntity && ($prop['property_entity_type'] ?? '') != 'all') {
+                    unset($propertiesData['properties'][$k_prop]);
+                    continue;
+                }
                 $defaultValues = [];
                 if (!empty($prop['default_values'])) {
                     $decodedDefaultValues = json_decode((string)$prop['default_values'], true);
@@ -895,6 +901,11 @@ trait PropertiesTrait {
                    $defaultValues = []; 
                 }
             }
+            unset($prop);
+            if (empty($propertiesData['properties'])) {
+                continue;
+            }
+            $propertiesData['properties'] = array_values($propertiesData['properties']);
             usort($propertiesData['properties'], function ($a, $b) {
                 return $a['sort'] <=> $b['sort'];
             });

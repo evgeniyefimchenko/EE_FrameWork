@@ -109,7 +109,7 @@ $menuItems = [
                         ],
                         [
                             'title' => $lang['sys.logs'],
-                            'link' => '/admin/logs',
+                            'link' => '/admin/system_logs',
                             'icon' => 'fa-solid fa-table-list',
                         ],
                         [

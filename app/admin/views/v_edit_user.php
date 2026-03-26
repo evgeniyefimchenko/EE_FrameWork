@@ -83,11 +83,44 @@
                                 </div>
                             </div>
                             <div class="mb-3">
-                                <div class="form-check">
-                                    <input class="form-check-input" name="subscribed" type="checkbox" id="subscription-check" <?= $user_context['subscribed'] ? 'checked' : '' ?>>
-                                    <label class="form-check-label" for="subscription-check">
-                                        Подписка на рассылку
-                                    </label>
+                                <div class="card border-0 bg-light">
+                                    <div class="card-body">
+                                        <h5 class="card-title mb-3"><?= $lang['sys.required_consents'] ?? 'Обязательные согласия' ?></h5>
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" name="privacy_policy_accepted" type="checkbox" id="privacy-policy-check" <?= !empty($user_context['privacy_policy_accepted']) ? 'checked' : '' ?>>
+                                            <label class="form-check-label" for="privacy-policy-check">
+                                                <?= htmlspecialchars((string) ($lang['sys.accept_privacy_policy'] ?? 'Я ознакомлен(а) и принимаю Политику в отношении обработки персональных данных')) ?>
+                                                <a href="/privacy_policy" target="_blank" rel="noopener"><?= htmlspecialchars((string) ($lang['sys.open_document'] ?? 'Открыть документ')) ?></a>
+                                            </label>
+                                            <?php if (!empty($user_context['privacy_policy_accepted_at'])) { ?>
+                                                <div class="small text-muted mt-1">
+                                                    <?= htmlspecialchars((string) ($lang['sys.accepted_at'] ?? 'Принято')) ?>:
+                                                    <?= htmlspecialchars((string) $user_context['privacy_policy_accepted_at']) ?>
+                                                    <?php if (!empty($user_context['privacy_policy_version'])) { ?>
+                                                        , <?= htmlspecialchars((string) ($lang['sys.document_version'] ?? 'Версия документа')) ?>:
+                                                        <?= htmlspecialchars((string) $user_context['privacy_policy_version']) ?>
+                                                    <?php } ?>
+                                                </div>
+                                            <?php } ?>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" name="personal_data_consent_accepted" type="checkbox" id="personal-data-consent-check" <?= !empty($user_context['personal_data_consent_accepted']) ? 'checked' : '' ?>>
+                                            <label class="form-check-label" for="personal-data-consent-check">
+                                                <?= htmlspecialchars((string) ($lang['sys.accept_personal_data_consent'] ?? 'Я даю согласие на обработку персональных данных')) ?>
+                                                <a href="/consent_personal_data" target="_blank" rel="noopener"><?= htmlspecialchars((string) ($lang['sys.open_document'] ?? 'Открыть документ')) ?></a>
+                                            </label>
+                                            <?php if (!empty($user_context['personal_data_consent_accepted_at'])) { ?>
+                                                <div class="small text-muted mt-1">
+                                                    <?= htmlspecialchars((string) ($lang['sys.accepted_at'] ?? 'Принято')) ?>:
+                                                    <?= htmlspecialchars((string) $user_context['personal_data_consent_accepted_at']) ?>
+                                                    <?php if (!empty($user_context['personal_data_consent_version'])) { ?>
+                                                        , <?= htmlspecialchars((string) ($lang['sys.document_version'] ?? 'Версия документа')) ?>:
+                                                        <?= htmlspecialchars((string) $user_context['personal_data_consent_version']) ?>
+                                                    <?php } ?>
+                                                </div>
+                                            <?php } ?>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>

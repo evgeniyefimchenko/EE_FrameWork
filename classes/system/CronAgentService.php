@@ -19,6 +19,11 @@ class CronAgentService {
     private const DEFAULT_DISPATCH_LOCK_TIMEOUT = 0;
     private const DEFAULT_DUE_FETCH_LIMIT = 25;
     private const DEFAULT_STALE_GRACE_SEC = 15;
+    private const DEFAULT_RUN_HISTORY_RETENTION_DAYS = 30;
+    private const DEFAULT_RUN_HISTORY_MAX_ROWS = 50000;
+    private const DEFAULT_TICK_TIME_BUDGET_SEC = 45;
+    private const DEFAULT_MEMORY_SOFT_LIMIT_MB = 256;
+    private const DEFAULT_AGENT_MEMORY_SOFT_LIMIT_MB = 224;
 
     public static function ensureInfrastructure(bool $force = false): void {
         if (self::$infrastructureReady && !$force) {
@@ -32,6 +37,8 @@ class CronAgentService {
 
         self::createCronAgentsTable();
         self::createCronAgentRunsTable();
+        ImportMediaQueueService::ensureInfrastructure($force);
+        BackupService::ensureInfrastructure($force);
         self::$infrastructureReady = true;
         self::seedDefaultAgents();
     }
@@ -48,6 +55,11 @@ class CronAgentService {
             'global_lock_timeout' => max(0, (int) (defined('ENV_CRON_AGENTS_GLOBAL_LOCK_TIMEOUT') ? ENV_CRON_AGENTS_GLOBAL_LOCK_TIMEOUT : self::DEFAULT_GLOBAL_LOCK_TIMEOUT)),
             'dispatch_lock_timeout' => max(0, (int) (defined('ENV_CRON_AGENTS_DISPATCH_LOCK_TIMEOUT') ? ENV_CRON_AGENTS_DISPATCH_LOCK_TIMEOUT : self::DEFAULT_DISPATCH_LOCK_TIMEOUT)),
             'due_fetch_limit' => max(5, (int) (defined('ENV_CRON_AGENTS_DUE_FETCH_LIMIT') ? ENV_CRON_AGENTS_DUE_FETCH_LIMIT : self::DEFAULT_DUE_FETCH_LIMIT)),
+            'run_history_retention_days' => max(1, (int) (defined('ENV_CRON_AGENTS_RUN_HISTORY_RETENTION_DAYS') ? ENV_CRON_AGENTS_RUN_HISTORY_RETENTION_DAYS : self::DEFAULT_RUN_HISTORY_RETENTION_DAYS)),
+            'run_history_max_rows' => max(100, (int) (defined('ENV_CRON_AGENTS_RUN_HISTORY_MAX_ROWS') ? ENV_CRON_AGENTS_RUN_HISTORY_MAX_ROWS : self::DEFAULT_RUN_HISTORY_MAX_ROWS)),
+            'tick_time_budget_sec' => max(5, (int) (defined('ENV_CRON_TICK_TIME_BUDGET_SEC') ? ENV_CRON_TICK_TIME_BUDGET_SEC : self::DEFAULT_TICK_TIME_BUDGET_SEC)),
+            'memory_soft_limit_mb' => max(0, (int) (defined('ENV_CRON_MEMORY_SOFT_LIMIT_MB') ? ENV_CRON_MEMORY_SOFT_LIMIT_MB : self::DEFAULT_MEMORY_SOFT_LIMIT_MB)),
+            'agent_memory_soft_limit_mb' => max(0, (int) (defined('ENV_CRON_AGENT_MEMORY_SOFT_LIMIT_MB') ? ENV_CRON_AGENT_MEMORY_SOFT_LIMIT_MB : self::DEFAULT_AGENT_MEMORY_SOFT_LIMIT_MB)),
         ];
     }
 
@@ -79,6 +91,7 @@ class CronAgentService {
                AND (last_success_at IS NULL OR last_error_at >= last_success_at)",
             Constants::CRON_AGENTS_TABLE
         );
+        $runsTotal = (int) SafeMySQL::gi()->getOne('SELECT COUNT(*) FROM ?n', Constants::CRON_AGENT_RUNS_TABLE);
 
         return [
             'total' => $total,
@@ -86,6 +99,7 @@ class CronAgentService {
             'due' => $due,
             'locked' => $locked,
             'failed' => $failed,
+            'runs_total' => $runsTotal,
             'config' => self::getSchedulerConfig(),
             'scheduler_command' => 'php ' . ENV_SITE_PATH . 'app/cron/run.php',
             'one_off_import_command_template' => 'php ' . ENV_SITE_PATH . 'inc/cli.php cron:import <job_id>',
@@ -153,7 +167,7 @@ class CronAgentService {
         $limit = max(1, min($limit, 500));
         if ($agentId !== null && $agentId > 0) {
             return SafeMySQL::gi()->getAll(
-                'SELECT * FROM ?n WHERE agent_id = ?i ORDER BY run_id DESC LIMIT ?i',
+                'SELECT * FROM ?n FORCE INDEX (idx_cron_agent_runs_agent_run) WHERE agent_id = ?i ORDER BY run_id DESC LIMIT ?i',
                 Constants::CRON_AGENT_RUNS_TABLE,
                 $agentId,
                 $limit
@@ -399,8 +413,14 @@ class CronAgentService {
             'max_agents_per_tick' => (int) $config['max_agents_per_tick'],
             'max_weight_per_tick' => (int) $config['max_weight_per_tick'],
             'consumed_weight' => 0,
+            'tick_time_budget_sec' => (int) $config['tick_time_budget_sec'],
+            'memory_soft_limit_mb' => (int) $config['memory_soft_limit_mb'],
+            'agent_memory_soft_limit_mb' => (int) $config['agent_memory_soft_limit_mb'],
+            'stopped_by_guard' => false,
+            'stop_reason' => '',
             'runs' => [],
         ];
+        $tickStartedAt = microtime(true);
 
         try {
             $recovered = self::recoverStaleAgents();
@@ -412,6 +432,12 @@ class CronAgentService {
             $summary['selected'] = count($candidates);
 
             foreach ($candidates as $agent) {
+                if (self::shouldStopSchedulerTick($config, $tickStartedAt, $stopReason)) {
+                    $summary['stopped_by_guard'] = true;
+                    $summary['stop_reason'] = $stopReason;
+                    break;
+                }
+
                 if ($summary['executed'] >= (int) $config['max_agents_per_tick']) {
                     break;
                 }
@@ -450,10 +476,22 @@ class CronAgentService {
                     $summary['failed']++;
                 }
                 $summary['runs'][] = $execution;
+
+                if (self::shouldStopSchedulerTick($config, $tickStartedAt, $stopReason)) {
+                    $summary['stopped_by_guard'] = true;
+                    $summary['stop_reason'] = $stopReason;
+                    break;
+                }
             }
+
+            $summary['pruned_run_history'] = self::pruneRunHistory();
         } finally {
             self::releaseLock(self::getSchedulerLockName());
         }
+
+        $summary['memory_usage_mb'] = round(memory_get_usage(true) / 1048576, 2);
+        $summary['peak_memory_mb'] = round(memory_get_peak_usage(true) / 1048576, 2);
+        $summary['tick_duration_ms'] = (int) round((microtime(true) - $tickStartedAt) * 1000);
 
         Logger::info('cron_agents', 'Выполнен минутный проход scheduler-а cron-агентов', $summary, [
             'initiator' => __METHOD__,
@@ -786,6 +824,21 @@ class CronAgentService {
             'code' => 'ok',
             'message' => '',
         ];
+    }
+
+    private static function shouldStopSchedulerTick(array $config, float $tickStartedAt, ?string &$reason = null): bool {
+        $timeBudgetSec = max(5, (int) ($config['tick_time_budget_sec'] ?? self::DEFAULT_TICK_TIME_BUDGET_SEC));
+        if ((microtime(true) - $tickStartedAt) >= $timeBudgetSec) {
+            $reason = 'tick_time_budget_exceeded';
+            return true;
+        }
+
+        if (function_exists('ee_runtime_memory_guard_exceeded') && ee_runtime_memory_guard_exceeded('cron_scheduler', 8 * 1024 * 1024)) {
+            $reason = 'scheduler_memory_guard_exceeded';
+            return true;
+        }
+
+        return false;
     }
 
     private static function normalizeAgentData(array $agentData): array|OperationResult {
@@ -1140,6 +1193,7 @@ class CronAgentService {
                 created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (run_id),
                 KEY idx_cron_agent_runs_agent_started (agent_id, started_at),
+                KEY idx_cron_agent_runs_agent_run (agent_id, run_id),
                 KEY idx_cron_agent_runs_status_started (status, started_at),
                 KEY idx_cron_agent_runs_token (run_token),
                 CONSTRAINT fk_cron_agent_runs_agent FOREIGN KEY (agent_id) REFERENCES ?n(agent_id) ON DELETE CASCADE
@@ -1147,6 +1201,62 @@ class CronAgentService {
             Constants::CRON_AGENT_RUNS_TABLE,
             Constants::CRON_AGENTS_TABLE
         );
+        SafeMySQL::gi()->query(
+            'ALTER TABLE ?n ADD INDEX IF NOT EXISTS idx_cron_agent_runs_agent_run (agent_id, run_id)',
+            Constants::CRON_AGENT_RUNS_TABLE
+        );
+    }
+
+    private static function pruneRunHistory(): array {
+        $config = self::getSchedulerConfig();
+        $deleted = 0;
+        $deletedByRetention = 0;
+        $deletedByMaxRows = 0;
+
+        $retentionDays = max(1, (int) ($config['run_history_retention_days'] ?? self::DEFAULT_RUN_HISTORY_RETENTION_DAYS));
+        $maxRows = max(100, (int) ($config['run_history_max_rows'] ?? self::DEFAULT_RUN_HISTORY_MAX_ROWS));
+
+        SafeMySQL::gi()->query(
+            "DELETE FROM ?n
+             WHERE status <> 'running'
+               AND started_at < DATE_SUB(NOW(), INTERVAL ?i DAY)",
+            Constants::CRON_AGENT_RUNS_TABLE,
+            $retentionDays
+        );
+        $deletedByRetention = max(0, (int) SafeMySQL::gi()->affectedRows());
+        $deleted += $deletedByRetention;
+
+        $totalRows = (int) SafeMySQL::gi()->getOne('SELECT COUNT(*) FROM ?n', Constants::CRON_AGENT_RUNS_TABLE);
+        if ($totalRows > $maxRows) {
+            $thresholdRunId = (int) SafeMySQL::gi()->getOne(
+                "SELECT run_id FROM ?n
+                 WHERE status <> 'running'
+                 ORDER BY run_id DESC
+                 LIMIT ?i, 1",
+                Constants::CRON_AGENT_RUNS_TABLE,
+                $maxRows - 1
+            );
+
+            if ($thresholdRunId > 0) {
+                SafeMySQL::gi()->query(
+                    "DELETE FROM ?n
+                     WHERE status <> 'running'
+                       AND run_id < ?i",
+                    Constants::CRON_AGENT_RUNS_TABLE,
+                    $thresholdRunId
+                );
+                $deletedByMaxRows = max(0, (int) SafeMySQL::gi()->affectedRows());
+                $deleted += $deletedByMaxRows;
+            }
+        }
+
+        return [
+            'deleted' => $deleted,
+            'deleted_by_retention' => $deletedByRetention,
+            'deleted_by_max_rows' => $deletedByMaxRows,
+            'retention_days' => $retentionDays,
+            'max_rows' => $maxRows,
+        ];
     }
 
     private static function seedDefaultAgents(): void {

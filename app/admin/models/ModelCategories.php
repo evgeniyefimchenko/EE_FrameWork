@@ -2,6 +2,7 @@
 
 use classes\plugins\SafeMySQL;
 use classes\system\Constants;
+use classes\system\EntityTranslationService;
 use classes\system\SysClass;
 use classes\system\Hook;
 use classes\system\Logger;
@@ -410,6 +411,7 @@ class ModelCategories {
                     throw new \Exception('Не удалось получить модель m_properties для создания свойств');
                 }
             }
+            EntityTranslationService::ensureEntity('category', (int) $categoryId);
             Hook::run('afterUpdateCategoryData', $categoryId, $categoryData, $method);
             return OperationResult::success($categoryId, '', $method === 'insert' ? 'created' : 'updated');
         } catch (\Throwable $e) {
@@ -457,6 +459,7 @@ class ModelCategories {
             $sql_delete_category = "DELETE FROM ?n WHERE category_id = ?i";
             $result = SafeMySQL::gi()->query($sql_delete_category, Constants::CATEGORIES_TABLE, $categoryId);
             if ($result && SafeMySQL::gi()->affectedRows() > 0) {
+                EntityTranslationService::removeEntityTranslation('category', (int) $categoryId);
                 Hook::run('afterDeleteCategory', $categoryId, $categoryData, 'delete');
                 SafeMySQL::gi()->query("COMMIT");
                 return OperationResult::success(['category_id' => $categoryId], '', 'deleted');

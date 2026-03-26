@@ -36,6 +36,9 @@
     <a href="/docs/cron-agents" class="list-group-item list-group-item-action" data-doc="cron-agents">
         <i class="fas fa-clock-rotate-left"></i> Cron-агенты
     </a>
+    <a href="/docs/backup" class="list-group-item list-group-item-action" data-doc="backup">
+        <i class="fas fa-box-archive"></i> Резервное копирование
+    </a>
     <a href="/docs/debug" class="list-group-item list-group-item-action" data-doc="debug">
         <i class="fas fa-bug"></i> Отладка
     </a>

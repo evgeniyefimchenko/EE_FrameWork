@@ -8,7 +8,6 @@ $(document).ready(function () {
     const logOutput = $('#log-output');
     const tableContainer = $('#filters-table-container');
     
-    const modalInstance = new bootstrap.Modal(document.getElementById('filterDetailModal'));
     const modalTitle = $('#filterDetailModalLabel span');
     const modalBody = $('#filterDetailModal .modal-body');
 
@@ -94,9 +93,6 @@ $(document).ready(function () {
 
         modalTitle.text(entityName + ' (ID: ' + entityId + ')');
         modalBody.html('<p class="text-center">Загрузка...</p>');
-        
-        // Вручную открываем окно
-        modalInstance.show(); 
         
         AppCore.sendAjaxRequest('/admin/get_filter_details', {entity_id: entityId}, 'POST', 'json',
             function(response) {

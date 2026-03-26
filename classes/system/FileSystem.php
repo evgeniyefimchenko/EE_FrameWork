@@ -234,6 +234,67 @@ class FileSystem {
         ]);
     }
 
+    private static function getPublicBaseUrl(): string {
+        $baseUrl = rtrim((string) ENV_URL_SITE, '/');
+        $parsedHost = strtolower((string) parse_url($baseUrl, PHP_URL_HOST));
+        if ($parsedHost !== '' && !in_array($parsedHost, ['localhost', '127.0.0.1', '::1'], true)) {
+            return $baseUrl;
+        }
+
+        $fallbackHost = strtolower(trim((string) (defined('ENV_SITE_NAME') ? ENV_SITE_NAME : '')));
+        if ($fallbackHost !== '' && !in_array($fallbackHost, ['localhost', '127.0.0.1', '::1'], true)) {
+            return 'https://' . $fallbackHost;
+        }
+
+        return $baseUrl;
+    }
+
+    private static function resolveUploaderUserId(?int $userId = null): int {
+        $candidate = (int) ($userId ?? SysClass::getCurrentUserId());
+        if ($candidate > 0) {
+            return $candidate;
+        }
+
+        $systemUserId = (int) SafeMySQL::gi()->getOne(
+            'SELECT user_id FROM ?n WHERE deleted = 0 AND user_role = ?i ORDER BY user_id ASC LIMIT 1',
+            Constants::USERS_TABLE,
+            Constants::SYSTEM
+        );
+        if ($systemUserId > 0) {
+            return $systemUserId;
+        }
+
+        $adminUserId = (int) SafeMySQL::gi()->getOne(
+            'SELECT user_id FROM ?n WHERE deleted = 0 AND user_role = ?i ORDER BY user_id ASC LIMIT 1',
+            Constants::USERS_TABLE,
+            Constants::ADMIN
+        );
+
+        return $adminUserId > 0 ? $adminUserId : 1;
+    }
+
+    private static function buildShardedStorageLocation(string $transliterateFileTypeName, ?string $seed = null): array {
+        $dateDirectory = date('d.m.Y');
+        $normalizedSeed = strtolower(preg_replace('~[^a-f0-9]~i', '', (string) ($seed ?? '')));
+        if (strlen($normalizedSeed) < 4) {
+            $normalizedSeed = md5(uniqid((string) mt_rand(), true));
+        }
+
+        $shardOne = substr($normalizedSeed, 0, 2);
+        $shardTwo = substr($normalizedSeed, 2, 2);
+        $relativeDirectory = 'uploads/files/' . $transliterateFileTypeName . '/' . $dateDirectory . '/' . $shardOne . '/' . $shardTwo;
+        $targetDirectory = ENV_SITE_PATH . str_replace('/', ENV_DIRSEP, $relativeDirectory);
+        $publicDirectoryUrl = self::getPublicBaseUrl() . '/uploads/files/' . $transliterateFileTypeName . '/' . $dateDirectory . '/' . $shardOne . '/' . $shardTwo;
+
+        return [
+            'date_directory' => $dateDirectory,
+            'shard_one' => $shardOne,
+            'shard_two' => $shardTwo,
+            'target_directory' => $targetDirectory,
+            'public_directory_url' => $publicDirectoryUrl,
+        ];
+    }
+
     private static function notifyFileIssue(string $message, mixed $details = null, string $level = Logger::LEVEL_ERROR, string $status = 'danger', ?string $initiator = null): void {
         self::logFileIssue($message, $details, $level, $initiator);
         ClassNotifications::addNotificationUser(SysClass::getCurrentUserId(), ['text' => $message, 'status' => $status]);
@@ -394,28 +455,20 @@ class FileSystem {
             unlink($tmpFilePath);
             return NULL;
         }
-        // 2. Генерация уникального имени файла        
-        $transliterateFileTypeName = SysClass::transliterateFileName($mime);
-        $targetDirectory = ENV_SITE_PATH . 'uploads' . ENV_DIRSEP . 'files' . ENV_DIRSEP . $transliterateFileTypeName . ENV_DIRSEP . date('d.m.Y');
-        $fileName = self::generateUniqueFileName($fileExtension, $targetDirectory);
-        $destination = $targetDirectory . ENV_DIRSEP . $fileName;
         // 3. Обработка изображения (конвертация в WebP и определение размера)
         $imageSize = null;
         $shouldConvertToWebp = defined('ENV_CREATE_WEBP') && ENV_CREATE_WEBP === true && strpos($mime, 'image/') !== false;
         try {
             if ($shouldConvertToWebp) {
                 $fileExtension = 'webp';
-                $fileName = pathinfo($fileName, PATHINFO_FILENAME) . '.' . $fileExtension;
                 $mime = 'image/webp';
-                $transliterateFileTypeName = 'webp';
-                $targetDirectory = ENV_SITE_PATH . 'uploads' . ENV_DIRSEP . 'files' . ENV_DIRSEP . $transliterateFileTypeName . ENV_DIRSEP . date('d.m.Y');
-                $destination = $targetDirectory . ENV_DIRSEP . $fileName;
                 $imageSize = self::processImage($tmpFilePath);
             } elseif (strpos($mime, 'image/') !== false) {
                 $imageSize = self::getImageSizeFromFile($tmpFilePath);
             }
             // Проверка хеша файла
             $fileHash = md5_file($tmpFilePath);
+            $transliterateFileTypeName = SysClass::transliterateFileName($mime);
             $checkDataFiles = SafeMySQL::gi()->getRow('SELECT * FROM ?n WHERE file_hash = ?s', Constants::FILES_TABLE, $fileHash);
             if ($checkDataFiles) { // Есть дубль файла в системе
                 $fileData['name'] = $checkDataFiles['name'];
@@ -429,6 +482,10 @@ class FileSystem {
                 $fileData['file_hash'] = $fileHash;
                 $fileData['file_id'] = $checkDataFiles['file_id'];
             } else {
+                $storage = self::buildShardedStorageLocation($transliterateFileTypeName, $fileHash);
+                $targetDirectory = $storage['target_directory'];
+                $fileName = self::generateUniqueFileName($fileExtension, $targetDirectory);
+                $destination = $targetDirectory . ENV_DIRSEP . $fileName;
                 // Создать папку, если ещё не существует, для каждого MIME типа файла
                 if (!SysClass::createDirectoriesForFile($destination) || !move_uploaded_file($tmpFilePath, $destination)) {
                     $message = "Не удалось переместить файл в: $destination";
@@ -437,7 +494,7 @@ class FileSystem {
                 } else {
                     $fileData['name'] = $fileName;
                     $fileData['file_path'] = $destination;
-                    $fileData['file_url'] = ENV_URL_SITE . '/uploads/files/' . $transliterateFileTypeName . '/' . date('d.m.Y') . '/' . $fileName;
+                    $fileData['file_url'] = $storage['public_directory_url'] . '/' . $fileName;
                     $fileData['mime_type'] = $mime;
                     $fileData['size'] = $file['size'];
                     $fileData['uploaded_at'] = date('Y-m-d H:i:s');
@@ -455,6 +512,362 @@ class FileSystem {
             @unlink($tmpFilePath);
         }
         return $fileData;
+    }
+
+    /**
+     * Загружает внешний файл в локальное хранилище и регистрирует его в ee_files.
+     * Используется миграционными и интеграционными сценариями, где файла нет в $_FILES.
+     */
+    public static function importExternalFile(string $sourceUrl, array $policy = [], ?string $originalName = null, ?int $userId = null): ?int {
+        $result = self::importExternalFileDetailed($sourceUrl, $policy, $originalName, $userId);
+        return !empty($result['success']) ? (int) ($result['file_id'] ?? 0) : null;
+    }
+
+    /**
+     * Расширенный импорт внешнего файла с диагностикой для фоновых воркеров.
+     */
+    public static function importExternalFileDetailed(string $sourceUrl, array $policy = [], ?string $originalName = null, ?int $userId = null): array {
+        $sourceUrl = trim($sourceUrl);
+        if ($sourceUrl === '' || !filter_var($sourceUrl, FILTER_VALIDATE_URL)) {
+            return [
+                'success' => false,
+                'file_id' => 0,
+                'error_code' => 'invalid_url',
+                'error_message' => 'Указан некорректный URL внешнего файла.',
+                'http_code' => 0,
+                'is_terminal' => true,
+            ];
+        }
+
+        $tmpFilePath = tempnam(sys_get_temp_dir(), 'ee_ext_');
+        if ($tmpFilePath === false) {
+            self::logFileIssue('Не удалось создать временный файл для внешнего импорта', ['url' => $sourceUrl], Logger::LEVEL_ERROR, __FUNCTION__);
+            return [
+                'success' => false,
+                'file_id' => 0,
+                'error_code' => 'temp_file_create_failed',
+                'error_message' => 'Не удалось создать временный файл для внешнего импорта.',
+                'http_code' => 0,
+                'is_terminal' => false,
+            ];
+        }
+
+        try {
+            $download = self::downloadExternalFileToTempDetailed($sourceUrl, $tmpFilePath);
+            if (empty($download['success']) || !is_file($tmpFilePath) || filesize($tmpFilePath) <= 0) {
+                $downloadErrorMessage = trim((string) ($download['error_message'] ?? ''));
+                if ($downloadErrorMessage === '') {
+                    $downloadErrorMessage = 'Не удалось скачать внешний файл.';
+                }
+                self::logFileIssue(
+                    $downloadErrorMessage,
+                    ['url' => $sourceUrl, 'http_code' => (int) ($download['http_code'] ?? 0)],
+                    !empty($download['is_terminal']) ? Logger::LEVEL_WARNING : Logger::LEVEL_ERROR,
+                    __FUNCTION__
+                );
+                return [
+                    'success' => false,
+                    'file_id' => 0,
+                    'error_code' => (string) ($download['error_code'] ?? 'download_failed'),
+                    'error_message' => $downloadErrorMessage,
+                    'http_code' => (int) ($download['http_code'] ?? 0),
+                    'is_terminal' => !empty($download['is_terminal']),
+                ];
+            }
+
+            $mime = self::detectMimeType($tmpFilePath) ?: 'application/octet-stream';
+            $resolvedOriginalName = trim((string)($originalName ?? ''));
+            if ($resolvedOriginalName === '') {
+                $path = (string) parse_url($sourceUrl, PHP_URL_PATH);
+                $resolvedOriginalName = basename($path);
+            }
+            $resolvedOriginalName = preg_replace('~[?#].*$~', '', $resolvedOriginalName) ?? $resolvedOriginalName;
+            $resolvedOriginalName = trim($resolvedOriginalName);
+            if ($resolvedOriginalName === '') {
+                $resolvedOriginalName = 'external-file';
+            }
+
+            $extension = strtolower((string) pathinfo($resolvedOriginalName, PATHINFO_EXTENSION));
+            if ($extension === '' || !in_array($extension, self::$allowedExtensions, true) || in_array($extension, self::$dangerousExtensions, true)) {
+                $extension = self::guessExtensionByMime($mime);
+                $baseName = (string) pathinfo($resolvedOriginalName, PATHINFO_FILENAME);
+                if ($baseName === '') {
+                    $baseName = 'external-file';
+                }
+                $resolvedOriginalName = $extension !== '' ? ($baseName . '.' . $extension) : $baseName;
+            }
+            if ($extension === '') {
+                self::logFileIssue('Не удалось определить расширение внешнего файла', ['url' => $sourceUrl, 'mime' => $mime], Logger::LEVEL_ERROR, __FUNCTION__);
+                return [
+                    'success' => false,
+                    'file_id' => 0,
+                    'error_code' => 'extension_resolve_failed',
+                    'error_message' => 'Не удалось определить расширение внешнего файла.',
+                    'http_code' => (int) ($download['http_code'] ?? 0),
+                    'is_terminal' => false,
+                ];
+            }
+
+            $fileStub = [
+                'tmp_name' => $tmpFilePath,
+                'name' => $resolvedOriginalName,
+                'type' => $mime,
+                'size' => (int) filesize($tmpFilePath),
+                'error' => UPLOAD_ERR_OK,
+            ];
+
+            if (!self::validateFile($fileStub, $extension, self::normalizeUploadPolicy($policy))) {
+                return [
+                    'success' => false,
+                    'file_id' => 0,
+                    'error_code' => 'validation_failed',
+                    'error_message' => 'Внешний файл не прошёл валидацию политики загрузки.',
+                    'http_code' => (int) ($download['http_code'] ?? 0),
+                    'is_terminal' => false,
+                ];
+            }
+
+            $imageSize = null;
+            if (defined('ENV_CREATE_WEBP') && ENV_CREATE_WEBP === true && str_starts_with($mime, 'image/')) {
+                $extension = 'webp';
+                $mime = 'image/webp';
+                $imageSize = self::processImage($tmpFilePath);
+            } elseif (str_starts_with($mime, 'image/')) {
+                $imageSize = self::getImageSizeFromFile($tmpFilePath);
+            }
+
+            $fileHash = @md5_file($tmpFilePath) ?: '';
+            if ($fileHash !== '') {
+                $existing = SafeMySQL::gi()->getRow('SELECT * FROM ?n WHERE file_hash = ?s', Constants::FILES_TABLE, $fileHash);
+                if (is_array($existing) && !empty($existing['file_id'])) {
+                    return [
+                        'success' => true,
+                        'file_id' => (int) $existing['file_id'],
+                        'error_code' => '',
+                        'error_message' => '',
+                        'http_code' => (int) ($download['http_code'] ?? 0),
+                        'is_terminal' => false,
+                        'reused' => true,
+                    ];
+                }
+            }
+
+            $transliterateFileTypeName = SysClass::transliterateFileName($mime);
+            $storage = self::buildShardedStorageLocation($transliterateFileTypeName, $fileHash !== '' ? $fileHash : md5($sourceUrl));
+            $targetDirectory = $storage['target_directory'];
+            $fileName = self::generateUniqueFileName($extension, $targetDirectory);
+            $destination = $targetDirectory . ENV_DIRSEP . $fileName;
+
+            if (!SysClass::createDirectoriesForFile($destination) || !@rename($tmpFilePath, $destination)) {
+                if (!@copy($tmpFilePath, $destination)) {
+                    self::logFileIssue('Не удалось переместить внешний файл в локальное хранилище', ['url' => $sourceUrl, 'destination' => $destination], Logger::LEVEL_ERROR, __FUNCTION__);
+                    return [
+                        'success' => false,
+                        'file_id' => 0,
+                        'error_code' => 'move_to_storage_failed',
+                        'error_message' => 'Не удалось переместить внешний файл в локальное хранилище.',
+                        'http_code' => (int) ($download['http_code'] ?? 0),
+                        'is_terminal' => false,
+                    ];
+                }
+                @unlink($tmpFilePath);
+            }
+
+            $fileData = [
+                'name' => $fileName,
+                'original_name' => $resolvedOriginalName,
+                'file_path' => $destination,
+                'file_url' => $storage['public_directory_url'] . '/' . $fileName,
+                'mime_type' => $mime,
+                'size' => (int) filesize($destination),
+                'image_size' => $imageSize,
+                'uploaded_at' => date('Y-m-d H:i:s'),
+                'updated_at' => date('Y-m-d H:i:s'),
+                'file_hash' => $fileHash,
+                'user_id' => self::resolveUploaderUserId($userId),
+            ];
+
+            $savedFileId = (int) (self::saveFileInfo($fileData) ?: 0);
+            if ($savedFileId <= 0) {
+                return [
+                    'success' => false,
+                    'file_id' => 0,
+                    'error_code' => 'save_file_info_failed',
+                    'error_message' => 'Не удалось сохранить запись о внешнем файле.',
+                    'http_code' => (int) ($download['http_code'] ?? 0),
+                    'is_terminal' => false,
+                ];
+            }
+
+            return [
+                'success' => true,
+                'file_id' => $savedFileId,
+                'error_code' => '',
+                'error_message' => '',
+                'http_code' => (int) ($download['http_code'] ?? 0),
+                'is_terminal' => false,
+                'reused' => false,
+            ];
+        } catch (\Throwable $e) {
+            self::logFileIssue('Ошибка импорта внешнего файла: ' . $e->getMessage(), ['url' => $sourceUrl], Logger::LEVEL_ERROR, __FUNCTION__);
+            return [
+                'success' => false,
+                'file_id' => 0,
+                'error_code' => 'exception',
+                'error_message' => 'Ошибка импорта внешнего файла: ' . $e->getMessage(),
+                'http_code' => 0,
+                'is_terminal' => false,
+            ];
+        } finally {
+            if (is_file($tmpFilePath)) {
+                @unlink($tmpFilePath);
+            }
+        }
+    }
+
+    private static function downloadExternalFileToTemp(string $sourceUrl, string $tmpFilePath): bool {
+        $result = self::downloadExternalFileToTempDetailed($sourceUrl, $tmpFilePath);
+        return !empty($result['success']);
+    }
+
+    private static function downloadExternalFileToTempDetailed(string $sourceUrl, string $tmpFilePath): array {
+        if (function_exists('curl_init')) {
+            $fp = fopen($tmpFilePath, 'wb');
+            if ($fp === false) {
+                return [
+                    'success' => false,
+                    'http_code' => 0,
+                    'error_code' => 'temp_file_open_failed',
+                    'error_message' => 'Не удалось открыть временный файл для скачивания.',
+                    'is_terminal' => false,
+                ];
+            }
+            $ch = curl_init($sourceUrl);
+            curl_setopt_array($ch, [
+                CURLOPT_FILE => $fp,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_MAXREDIRS => 5,
+                CURLOPT_CONNECTTIMEOUT => 15,
+                CURLOPT_TIMEOUT => 120,
+                CURLOPT_FAILONERROR => false,
+                CURLOPT_SSL_VERIFYPEER => false,
+                CURLOPT_SSL_VERIFYHOST => false,
+                CURLOPT_USERAGENT => 'EE_FrameWork Importer/5.x',
+            ]);
+            $result = curl_exec($ch);
+            $httpCode = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+            $curlError = trim((string) curl_error($ch));
+            curl_close($ch);
+            fclose($fp);
+            if ($result !== false && $httpCode >= 200 && $httpCode < 400) {
+                return [
+                    'success' => true,
+                    'http_code' => $httpCode,
+                    'error_code' => '',
+                    'error_message' => '',
+                    'is_terminal' => false,
+                ];
+            }
+
+            return [
+                'success' => false,
+                'http_code' => $httpCode,
+                'error_code' => self::resolveExternalDownloadErrorCode($httpCode, $curlError),
+                'error_message' => self::buildExternalDownloadErrorMessage($httpCode, $curlError),
+                'is_terminal' => in_array($httpCode, [404, 410], true),
+            ];
+        }
+
+        $context = stream_context_create([
+            'http' => [
+                'timeout' => 120,
+                'follow_location' => 1,
+                'user_agent' => 'EE_FrameWork Importer/5.x',
+            ],
+            'ssl' => [
+                'verify_peer' => false,
+                'verify_peer_name' => false,
+            ],
+        ]);
+        $content = @file_get_contents($sourceUrl, false, $context);
+        $headers = is_array($http_response_header ?? null) ? $http_response_header : [];
+        $httpCode = self::extractHttpCodeFromHeaders($headers);
+        if (!is_string($content) || $content === '') {
+            return [
+                'success' => false,
+                'http_code' => $httpCode,
+                'error_code' => self::resolveExternalDownloadErrorCode($httpCode, ''),
+                'error_message' => self::buildExternalDownloadErrorMessage($httpCode, ''),
+                'is_terminal' => in_array($httpCode, [404, 410], true),
+            ];
+        }
+        if (file_put_contents($tmpFilePath, $content) === false) {
+            return [
+                'success' => false,
+                'http_code' => $httpCode,
+                'error_code' => 'temp_file_write_failed',
+                'error_message' => 'Не удалось записать внешний файл во временное хранилище.',
+                'is_terminal' => false,
+            ];
+        }
+
+        return [
+            'success' => true,
+            'http_code' => $httpCode,
+            'error_code' => '',
+            'error_message' => '',
+            'is_terminal' => false,
+        ];
+    }
+
+    private static function buildExternalDownloadErrorMessage(int $httpCode, string $transportError): string {
+        if ($httpCode > 0) {
+            return 'Внешний источник вернул HTTP ' . $httpCode . ' при загрузке файла.';
+        }
+        if ($transportError !== '') {
+            return 'Ошибка транспорта при загрузке внешнего файла: ' . $transportError;
+        }
+        return 'Не удалось скачать внешний файл.';
+    }
+
+    private static function resolveExternalDownloadErrorCode(int $httpCode, string $transportError): string {
+        return match (true) {
+            $httpCode === 404 => 'download_http_not_found',
+            $httpCode === 410 => 'download_http_gone',
+            $httpCode > 0 => 'download_http_error',
+            $transportError !== '' => 'download_transport_error',
+            default => 'download_failed',
+        };
+    }
+
+    private static function extractHttpCodeFromHeaders(array $headers): int {
+        foreach ($headers as $headerLine) {
+            if (preg_match('~^HTTP/\\d+(?:\\.\\d+)?\\s+(\\d{3})~i', (string) $headerLine, $matches)) {
+                return (int) ($matches[1] ?? 0);
+            }
+        }
+
+        return 0;
+    }
+
+    private static function guessExtensionByMime(string $mime): string {
+        $mime = strtolower(trim($mime));
+        return match ($mime) {
+            'image/jpeg' => 'jpg',
+            'image/png' => 'png',
+            'image/gif' => 'gif',
+            'image/bmp' => 'bmp',
+            'image/tiff' => 'tiff',
+            'image/webp' => 'webp',
+            'image/x-icon' => 'ico',
+            'application/pdf' => 'pdf',
+            'application/zip', 'application/x-zip-compressed' => 'zip',
+            'text/plain' => 'txt',
+            'text/csv' => 'csv',
+            'application/json', 'text/json' => 'json',
+            'application/xml', 'text/xml' => 'xml',
+            default => '',
+        };
     }
 
     /**
@@ -702,7 +1115,7 @@ class FileSystem {
         $fileData = [];
         $fileData['name'] = $fileName;
         $fileData['file_path'] = $destination;
-        $fileData['file_url'] = ENV_URL_SITE . '/uploads/files/' . $transliterateFileName . '/' . $fileName;
+        $fileData['file_url'] = self::getPublicBaseUrl() . '/uploads/files/' . $transliterateFileName . '/' . $fileName;
         $fileData['mime_type'] = $mime;
         $fileData['size'] = $fileSize;
         $fileData['uploaded_at'] = date('Y-m-d H:i:s');
@@ -973,7 +1386,7 @@ class FileSystem {
                 ];
             }
 
-            $missingUrl = ENV_URL_SITE . '/uploads/images/image_collections/no-image.svg';
+            $missingUrl = self::getPublicBaseUrl() . '/uploads/images/image_collections/no-image.svg';
             return [
                 'kind' => 'missing_local',
                 'reference' => (string) $fileId,
@@ -1001,9 +1414,9 @@ class FileSystem {
             $trimmedPath = ltrim($reference, '/');
             $candidatePath = ENV_SITE_PATH . $trimmedPath;
             if (is_file($candidatePath)) {
-                $fileUrl = ENV_URL_SITE . '/' . $trimmedPath;
+                $fileUrl = self::getPublicBaseUrl() . '/' . $trimmedPath;
             } elseif (str_starts_with($reference, '/')) {
-                $fileUrl = ENV_URL_SITE . $reference;
+                $fileUrl = self::getPublicBaseUrl() . $reference;
             } else {
                 $fileUrl = '';
             }
@@ -1340,10 +1753,8 @@ class FileSystem {
     public static function extractBase64Images(string $text): string {
         if (empty(ENV_CREATE_WEBP)) return $text;
         $decodedText = html_entity_decode($text);
-        $targetDirectory = ENV_SITE_PATH . 'uploads' . ENV_DIRSEP . 'files' . ENV_DIRSEP . 'images' . ENV_DIRSEP . date('d.m.Y');
-        SysClass::createDirectoriesForFile($targetDirectory . '/temp.txt');
         $pattern = '/<img[^>]*src="data:image\/(png|jpeg|gif);base64,([^"]*)"[^>]*>/i';        
-        $result = preg_replace_callback($pattern, function ($matches) use ($targetDirectory) {
+        $result = preg_replace_callback($pattern, function ($matches) {
             $message = 'Ошибка при декодировании!';
             $imageData = $matches[2];
             $imageFormat = $matches[1];
@@ -1352,10 +1763,13 @@ class FileSystem {
                 ClassNotifications::addNotificationUser(SysClass::getCurrentUserId(), ['text' => $message, 'status' => 'danger']);
                 return $matches[0];
             }
+            $storage = self::buildShardedStorageLocation('images', md5($decodedData));
+            $targetDirectory = $storage['target_directory'];
+            SysClass::createDirectoriesForFile($targetDirectory . ENV_DIRSEP . 'temp.txt');
             $fileName = self::generateUniqueFileName('webp', $targetDirectory);
             $filePath = $targetDirectory . ENV_DIRSEP . $fileName;
             if (self::saveBase64ImageAsWebp($decodedData, $filePath)) {
-                $fileUrl = ENV_URL_SITE . '/uploads/files/images/' . date('d.m.Y') . '/' . $fileName;
+                $fileUrl = $storage['public_directory_url'] . '/' . $fileName;
                 return '<img src="' . $fileUrl . '">';
             } else {
                 ClassNotifications::addNotificationUser(SysClass::getCurrentUserId(), ['text' => $message, 'status' => 'danger']);

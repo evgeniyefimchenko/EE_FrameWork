@@ -12,6 +12,24 @@ use classes\system\OperationResult;
  */
 class ModelEmailTemplates {
 
+    private function getLanguageFallbacks(string $languageCode = ENV_DEF_LANG): array {
+        $candidates = [
+            strtoupper(trim($languageCode)),
+            defined('ENV_PROTO_LANGUAGE') ? strtoupper(trim((string) ENV_PROTO_LANGUAGE)) : '',
+            'RU',
+            'EN',
+        ];
+
+        $fallbacks = [];
+        foreach ($candidates as $candidate) {
+            if ($candidate !== '' && !in_array($candidate, $fallbacks, true)) {
+                $fallbacks[] = $candidate;
+            }
+        }
+
+        return $fallbacks;
+    }
+
     /**
      * Получает почтовые шаблоны с возможностью фильтрации, сортировки и пагинации
      * @param string $order Строка, определяющая порядок сортировки (по умолчанию: 'template_id ASC')
@@ -48,7 +66,18 @@ class ModelEmailTemplates {
      */
     public function getEmailTemplateData(int $templateId, string $languageCode = ENV_DEF_LANG): ?array {
         $sqlTemplate = "SELECT * FROM ?n WHERE template_id = ?i AND language_code = ?s";
-        return SafeMySQL::gi()->getRow($sqlTemplate, Constants::EMAIL_TEMPLATES_TABLE, $templateId, $languageCode) ?: null;
+        foreach ($this->getLanguageFallbacks($languageCode) as $fallbackLanguage) {
+            $row = SafeMySQL::gi()->getRow($sqlTemplate, Constants::EMAIL_TEMPLATES_TABLE, $templateId, $fallbackLanguage);
+            if (!empty($row)) {
+                return $row;
+            }
+        }
+
+        return SafeMySQL::gi()->getRow(
+            "SELECT * FROM ?n WHERE template_id = ?i LIMIT 1",
+            Constants::EMAIL_TEMPLATES_TABLE,
+            $templateId
+        ) ?: null;
     }
 
     /**
@@ -59,7 +88,18 @@ class ModelEmailTemplates {
      */
     public function getEmailTemplateDataByName(string $name, string $languageCode = ENV_DEF_LANG): ?array {
         $sqlTemplate = "SELECT * FROM ?n WHERE name = ?s AND language_code = ?s";
-        return SafeMySQL::gi()->getRow($sqlTemplate, Constants::EMAIL_TEMPLATES_TABLE, $name, $languageCode) ?: null;
+        foreach ($this->getLanguageFallbacks($languageCode) as $fallbackLanguage) {
+            $row = SafeMySQL::gi()->getRow($sqlTemplate, Constants::EMAIL_TEMPLATES_TABLE, $name, $fallbackLanguage);
+            if (!empty($row)) {
+                return $row;
+            }
+        }
+
+        return SafeMySQL::gi()->getRow(
+            "SELECT * FROM ?n WHERE name = ?s LIMIT 1",
+            Constants::EMAIL_TEMPLATES_TABLE,
+            $name
+        ) ?: null;
     }
 
     /**
@@ -98,7 +138,18 @@ class ModelEmailTemplates {
      */
     public function getEmailSnippetData(int $snippetId, string $languageCode = ENV_DEF_LANG): ?array {
         $sql_snippet = "SELECT * FROM ?n WHERE snippet_id = ?i AND language_code = ?s";
-        return SafeMySQL::gi()->getRow($sql_snippet, Constants::EMAIL_SNIPPETS_TABLE, $snippetId, $languageCode) ?: null;
+        foreach ($this->getLanguageFallbacks($languageCode) as $fallbackLanguage) {
+            $row = SafeMySQL::gi()->getRow($sql_snippet, Constants::EMAIL_SNIPPETS_TABLE, $snippetId, $fallbackLanguage);
+            if (!empty($row)) {
+                return $row;
+            }
+        }
+
+        return SafeMySQL::gi()->getRow(
+            "SELECT * FROM ?n WHERE snippet_id = ?i LIMIT 1",
+            Constants::EMAIL_SNIPPETS_TABLE,
+            $snippetId
+        ) ?: null;
     }
 
     /**
@@ -108,8 +159,19 @@ class ModelEmailTemplates {
      * @return array|null Массив с данными сниппета или NULL, если сниппет не найден
      */
     public function getEmailSnippetDataByName(string $name, string $languageCode = ENV_DEF_LANG): ?array {
-        $sql_snippet = "SELECT * FROM ?n WHERE name = ?i AND language_code = ?s";
-        return SafeMySQL::gi()->getRow($sql_snippet, Constants::EMAIL_SNIPPETS_TABLE, $name, $languageCode) ?: null;
+        $sql_snippet = "SELECT * FROM ?n WHERE name = ?s AND language_code = ?s";
+        foreach ($this->getLanguageFallbacks($languageCode) as $fallbackLanguage) {
+            $row = SafeMySQL::gi()->getRow($sql_snippet, Constants::EMAIL_SNIPPETS_TABLE, $name, $fallbackLanguage);
+            if (!empty($row)) {
+                return $row;
+            }
+        }
+
+        return SafeMySQL::gi()->getRow(
+            "SELECT * FROM ?n WHERE name = ?s LIMIT 1",
+            Constants::EMAIL_SNIPPETS_TABLE,
+            $name
+        ) ?: null;
     }
 
     /**
@@ -214,7 +276,18 @@ class ModelEmailTemplates {
      */
     private function getSnippetNameById(int $snippetId, string $languageCode = ENV_DEF_LANG): ?string {
         $sql = "SELECT name FROM ?n WHERE snippet_id = ?i AND language_code = ?s";
-        return SafeMySQL::gi()->getOne($sql, Constants::EMAIL_SNIPPETS_TABLE, $snippetId, $languageCode) ?: null;
+        foreach ($this->getLanguageFallbacks($languageCode) as $fallbackLanguage) {
+            $name = SafeMySQL::gi()->getOne($sql, Constants::EMAIL_SNIPPETS_TABLE, $snippetId, $fallbackLanguage);
+            if (!empty($name)) {
+                return $name;
+            }
+        }
+
+        return SafeMySQL::gi()->getOne(
+            "SELECT name FROM ?n WHERE snippet_id = ?i LIMIT 1",
+            Constants::EMAIL_SNIPPETS_TABLE,
+            $snippetId
+        ) ?: null;
     }
 
     /**
@@ -227,8 +300,21 @@ class ModelEmailTemplates {
         preg_match_all('/\{\{([^}]+)\}\}/', $templateBody, $matches);
         if (isset($matches[1]) && count($matches[1]) > 0) {
             foreach ($matches[1] as $snippetName) {
-                $sql = "SELECT content FROM ?n WHERE name = ?s AND language_code = ?s";
-                $snippetContent = SafeMySQL::gi()->getOne($sql, Constants::EMAIL_SNIPPETS_TABLE, $snippetName, $languageCode);
+                $snippetContent = null;
+                foreach ($this->getLanguageFallbacks($languageCode) as $fallbackLanguage) {
+                    $sql = "SELECT content FROM ?n WHERE name = ?s AND language_code = ?s";
+                    $snippetContent = SafeMySQL::gi()->getOne($sql, Constants::EMAIL_SNIPPETS_TABLE, $snippetName, $fallbackLanguage);
+                    if ($snippetContent) {
+                        break;
+                    }
+                }
+                if (!$snippetContent) {
+                    $snippetContent = SafeMySQL::gi()->getOne(
+                        "SELECT content FROM ?n WHERE name = ?s LIMIT 1",
+                        Constants::EMAIL_SNIPPETS_TABLE,
+                        $snippetName
+                    );
+                }
                 if ($snippetContent) {
                     $templateBody = str_replace('{{' . $snippetName . '}}', $snippetContent, $templateBody);
                 }

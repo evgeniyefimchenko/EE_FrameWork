@@ -32,8 +32,12 @@
                                     <td><?= htmlspecialchars($deleted_user_data['last_ip']) ?></td>
                                 </tr>
                                 <tr>
-                                    <th><?= $lang['sys.subscribed'] ?>:</th>
-                                    <td><?= $deleted_user_data['subscribed'] == 1 ? $lang['sys.yes'] : $lang['sys.no'] ?></td>
+                                    <th><?= $lang['sys.privacy_policy'] ?? 'Политика в отношении обработки персональных данных' ?>:</th>
+                                    <td><?= !empty($deleted_user_data['privacy_policy_accepted']) ? $lang['sys.yes'] : $lang['sys.no'] ?></td>
+                                </tr>
+                                <tr>
+                                    <th><?= $lang['sys.personal_data_consent'] ?? 'Согласие на обработку персональных данных' ?>:</th>
+                                    <td><?= !empty($deleted_user_data['personal_data_consent_accepted']) ? $lang['sys.yes'] : $lang['sys.no'] ?></td>
                                 </tr>
                                 <tr>
                                     <th><?= $lang['sys.sign_up_text'] ?>:</th>

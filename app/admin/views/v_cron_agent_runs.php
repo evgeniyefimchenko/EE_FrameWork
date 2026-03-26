@@ -54,8 +54,8 @@ $agent = is_array($cron_agent ?? null) ? $cron_agent : null;
                                         <td><?= htmlspecialchars((string) ($run['trigger_source'] ?? '')) ?></td>
                                         <td><?= htmlspecialchars((string) ($run['status'] ?? '')) ?></td>
                                         <td class="small"><?= htmlspecialchars((string) ($run['worker_id'] ?? '')) ?></td>
-                                        <td><?= !empty($run['started_at']) ? htmlspecialchars(date('d.m.Y H:i:s', strtotime((string) $run['started_at']))) : '' ?></td>
-                                        <td><?= !empty($run['finished_at']) ? htmlspecialchars(date('d.m.Y H:i:s', strtotime((string) $run['finished_at']))) : '<span class="text-muted">-</span>' ?></td>
+                                        <td><?= !empty($run['started_at']) ? htmlspecialchars(ee_format_utc_datetime((string) $run['started_at'], 'd.m.Y H:i:s')) : '' ?></td>
+                                        <td><?= !empty($run['finished_at']) ? htmlspecialchars(ee_format_utc_datetime((string) $run['finished_at'], 'd.m.Y H:i:s')) : '<span class="text-muted">-</span>' ?></td>
                                         <td><?= (int) ($run['duration_ms'] ?? 0) ?></td>
                                     </tr>
                                     <?php if (!empty($run['error_message']) || !empty($run['output_text'])): ?>

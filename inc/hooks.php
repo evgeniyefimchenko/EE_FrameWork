@@ -23,6 +23,12 @@ if (!function_exists('ee_add_core_hook')) {
     }
 }
 
+if (!function_exists('ee_is_bulk_import_mode')) {
+    function ee_is_bulk_import_mode(): bool {
+        return defined('ENV_BULK_IMPORT_MODE') && (bool) ENV_BULK_IMPORT_MODE;
+    }
+}
+
 /**
  * Вызывается перед получением стандартных представлений в контроллере
  * @param View $view Объект представления
@@ -119,6 +125,10 @@ function scheduleSearchEntityReindex(string $entityType, int $entityId, ?string 
     static $queue = [];
     static $shutdownRegistered = false;
 
+    if (ee_is_bulk_import_mode()) {
+        return;
+    }
+
     $entityType = strtolower(trim($entityType));
     if ($entityId <= 0 || !in_array($entityType, ['page', 'category'], true)) {
         return;
@@ -169,6 +179,10 @@ function scheduleSearchEntityReindex(string $entityType, int $entityId, ?string 
 function scheduleCategoryFiltersRefresh(array|int $categoryIds, ?string $languageCode = null): void {
     static $queue = [];
     static $shutdownRegistered = false;
+
+    if (ee_is_bulk_import_mode()) {
+        return;
+    }
 
     if (!is_array($categoryIds)) {
         $categoryIds = [$categoryIds];
@@ -241,6 +255,10 @@ function scheduleCategoryFiltersRefresh(array|int $categoryIds, ?string $languag
 function schedulePublicHtmlCacheClear(string $reason = 'content_mutation', array $context = []): void {
     static $scheduled = false;
     static $reasons = [];
+
+    if (ee_is_bulk_import_mode()) {
+        return;
+    }
 
     $reasons[] = [
         'reason' => $reason,

@@ -173,8 +173,14 @@ class Logger {
             $file,
             $line
         );
-        @file_put_contents(ENV_LOGS_PATH . 'fatal_errors.txt', $formattedError, FILE_APPEND | LOCK_EX);
-        @chmod(ENV_LOGS_PATH . 'fatal_errors.txt', 0664);
+        $fatalLogPath = ENV_LOGS_PATH . 'fatal_errors.txt';
+        if (function_exists('ee_runtime_append_managed_log')) {
+            ee_runtime_append_managed_log($fatalLogPath, $formattedError, FILE_APPEND | LOCK_EX);
+            return;
+        }
+
+        @file_put_contents($fatalLogPath, $formattedError, FILE_APPEND | LOCK_EX);
+        @chmod($fatalLogPath, 0664);
     }
 
     /**

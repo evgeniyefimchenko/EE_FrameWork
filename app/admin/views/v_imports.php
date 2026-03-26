@@ -61,7 +61,7 @@
                                     </td>
                                     <td>
                                         <?php if (!empty($job['last_run_at'])): ?>
-                                            <?= date('d.m.Y H:i', strtotime((string)$job['last_run_at'])) ?>
+                                            <?= htmlspecialchars(ee_format_utc_datetime((string) $job['last_run_at'], 'd.m.Y H:i')) ?>
                                         <?php else: ?>
                                             <span class="text-muted">-</span>
                                         <?php endif; ?>

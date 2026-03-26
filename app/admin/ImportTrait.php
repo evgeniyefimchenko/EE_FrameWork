@@ -9,6 +9,7 @@ use classes\system\Constants;
 use classes\system\CronAgentService;
 use classes\system\FileSystem;
 use classes\system\Hook;
+use classes\system\ImportMediaQueueService;
 use classes\system\Logger;
 use classes\system\OperationResult;
 use classes\system\SysClass;
@@ -129,6 +130,7 @@ trait ImportTrait {
             'meta_exclude_patterns' => '',
             'source_type_map' => '',
             'source_set_map' => '',
+            'source_property_map' => '',
             'composite_properties_map' => '[]',
             'excluded_property_source_ids' => '',
             'wizard_core_completed_at' => '',
@@ -237,6 +239,7 @@ trait ImportTrait {
         $this->view->set('cron_import_command', $cron_import_command);
         $this->view->set('cron_agent_create_link', $cron_agent_create_link);
         $this->view->set('import_cron_agent', $this->getImportCronAgent($job_id));
+        $this->view->set('import_media_queue', $this->getImportMediaQueueSummary($job_id));
         $this->view->set('max_file_size_bytes', $file_limit);
         $this->view->set('max_file_size_human', round($file_limit / 1024 / 1024, 1) . ' MB');
         $this->view->set('package_manifest', $package_manifest);
@@ -426,6 +429,7 @@ trait ImportTrait {
             'meta_exclude_patterns' => trim((string)($postData['meta_exclude_patterns'] ?? '')),
             'source_type_map' => trim((string)($postData['source_type_map'] ?? '')),
             'source_set_map' => trim((string)($postData['source_set_map'] ?? '')),
+            'source_property_map' => trim((string)($postData['source_property_map'] ?? '')),
             'composite_properties_map' => trim((string)($postData['composite_properties_map'] ?? '[]')),
             'excluded_property_source_ids' => trim((string)($postData['excluded_property_source_ids'] ?? '')),
             'wizard_core_completed_at' => $wizardCoreCompletedAt,
@@ -808,6 +812,7 @@ trait ImportTrait {
         try {
             $importer = new WordpressImporter($settings);
             $importer->run();
+            $importMediaQueueSummary = $this->getImportMediaQueueSummary($job_id);
 
             if ($isStepModeRequest && !$isCronRun) {
                 $stepLog = $readLogDelta($stepLogFile, $stepLogOffset);
@@ -845,6 +850,16 @@ trait ImportTrait {
                             );
                         }
                     }
+
+                    if (($importMediaQueueSummary['pending'] ?? 0) > 0) {
+                        ClassNotifications::addNotificationUser($this->logged_in, [
+                            'text' => sprintf(
+                                $this->lang['sys.import_media_queue_notification'] ?? 'Импорт завершён. Медиа поставлены в фоновую очередь системному агенту (%d).',
+                                (int) ($importMediaQueueSummary['pending'] ?? 0)
+                            ),
+                            'status' => 'info',
+                        ]);
+                    }
                 }
 
                 BaseImporter::preLog(
@@ -863,6 +878,17 @@ trait ImportTrait {
                     'scope' => $stepScope,
                     'wizard_core_completed_at' => $wizardCoreCompletedAt,
                     'wizard_content_completed_at' => $wizardContentCompletedAt,
+                    'media_queue' => $importMediaQueueSummary,
+                ]);
+            }
+
+            if (!$isCronRun && !$isStepModeRequest && ($importMediaQueueSummary['pending'] ?? 0) > 0) {
+                ClassNotifications::addNotificationUser($this->logged_in, [
+                    'text' => sprintf(
+                        $this->lang['sys.import_media_queue_notification'] ?? 'Импорт завершён. Медиа поставлены в фоновую очередь системному агенту (%d).',
+                        (int) ($importMediaQueueSummary['pending'] ?? 0)
+                    ),
+                    'status' => 'info',
                 ]);
             }
         } catch (\Throwable $e) {
@@ -989,6 +1015,7 @@ trait ImportTrait {
         } catch (\Throwable $e) {
             BaseImporter::preLog('WARNING: failed to cleanup import_map for profile=' . $job_id . ' (' . $e->getMessage() . ')', $job_id);
         }
+        ImportMediaQueueService::deleteJobQueue($job_id);
 
         \classes\helpers\ClassNotifications::addNotificationUser($this->logged_in, [
             'text' => 'Профиль импорта удалён.',
@@ -1057,6 +1084,27 @@ trait ImportTrait {
         };
 
         return $agent;
+    }
+
+    private function getImportMediaQueueSummary(int $jobId): array {
+        if ($jobId <= 0) {
+            return [
+                'job_id' => 0,
+                'total' => 0,
+                'queued' => 0,
+                'running' => 0,
+                'failed' => 0,
+                'terminal_failed' => 0,
+                'done' => 0,
+                'pending' => 0,
+                'last_completed_at' => '',
+                'last_updated_at' => '',
+                'agent_code' => 'media-mirror-worker',
+                'agent' => CronAgentService::getAgentByCode('media-mirror-worker'),
+            ];
+        }
+
+        return ImportMediaQueueService::getSummary($jobId);
     }
 
     private function syncImportCronAgent(int $jobId): OperationResult {
@@ -3800,30 +3848,38 @@ trait ImportTrait {
                 $options = [['label' => 'Вариант 1', 'value' => 'option_1', 'selected' => false]];
             }
 
-            $labels = [];
-            $checkedIndexes = [];
+            $normalizedOptions = [];
+            $selectedKeys = [];
             foreach ($options as $index => $option) {
                 $optionLabel = trim((string)($option['label'] ?? ''));
                 if ($optionLabel === '') {
                     $optionLabel = 'Вариант ' . ($index + 1);
                 }
-
-                $labels[] = $optionLabel;
+                $optionValue = trim((string)($option['value'] ?? ''));
+                if ($optionValue === '') {
+                    $optionValue = 'option_' . ($index + 1);
+                }
+                $normalizedOptions[] = [
+                    'label' => $optionLabel,
+                    'value' => $optionValue,
+                    'selected' => !empty($option['selected']),
+                ];
                 if (!empty($option['selected'])) {
-                    if ($newFieldType === 'radio' && $checkedIndexes !== []) {
+                    if ($newFieldType === 'radio' && $selectedKeys !== []) {
                         continue;
                     }
-                    $checkedIndexes[] = (string)$index;
+                    $selectedKeys[] = $optionValue;
                 }
             }
 
             return [
                 'type' => $newFieldType,
-                'label' => $labels,
+                'label' => $fieldName,
                 'title' => $fieldName,
-                'default' => $checkedIndexes,
+                'options' => $normalizedOptions,
+                'default' => $selectedKeys,
                 'required' => $required,
-                'multiple' => 0,
+                'multiple' => $newFieldType === 'checkbox' ? 1 : 0,
             ];
         }
 
@@ -3866,6 +3922,38 @@ trait ImportTrait {
 
         if (!in_array($fieldType, ['checkbox', 'radio'], true)) {
             return [];
+        }
+
+        if (is_array($defaultValue['options'] ?? null)) {
+            $selectedLookup = [];
+            foreach ($this->normalizeChoiceSelectionInput($defaultValue['default'] ?? [], 'preview.default') as $selectedKey) {
+                $selectedLookup[(string)$selectedKey] = true;
+            }
+
+            $options = [];
+            foreach (array_values($defaultValue['options']) as $index => $option) {
+                if (!is_array($option)) {
+                    continue;
+                }
+                $label = trim((string)($option['label'] ?? ''));
+                if ($label === '') {
+                    $label = 'Вариант ' . ($index + 1);
+                }
+                $value = trim((string)($option['value'] ?? ($option['key'] ?? '')));
+                if ($value === '') {
+                    $value = 'option_' . ($index + 1);
+                }
+                $selected = $selectedLookup !== []
+                    ? isset($selectedLookup[$value])
+                    : !empty($option['selected']) || !empty($option['checked']);
+                $options[] = [
+                    'label' => $label,
+                    'value' => $value,
+                    'selected' => $selected,
+                ];
+            }
+
+            return $options;
         }
 
         $labels = is_array($defaultValue['label'] ?? null) ? array_values($defaultValue['label']) : [];
@@ -3920,6 +4008,12 @@ trait ImportTrait {
     }
 
     private function applyPropertyDefinitionsFieldNameEdit(array &$defaultValue, string $fieldName): void {
+        if (is_array($defaultValue['options'] ?? null)) {
+            $defaultValue['label'] = $fieldName;
+            $defaultValue['title'] = $fieldName;
+            return;
+        }
+
         if (is_array($defaultValue['label'] ?? null)) {
             $defaultValue['title'] = $fieldName;
             return;
@@ -4617,8 +4711,15 @@ trait ImportTrait {
             }
 
             if (in_array($fieldType, ['checkbox', 'radio'], true)) {
-                $this->ensureAllowedKeys($item, ['type', 'title', 'required', 'options'], $fieldPath);
-                $normalized[] = $this->normalizeChoiceDefaultValue($item, $fieldType, $fieldPath, $propertyIsRequired);
+                $this->ensureAllowedKeys($item, ['type', 'label', 'title', 'required', 'multiple', 'default', 'options'], $fieldPath);
+                $normalized[] = $this->normalizeChoiceDefaultValue(
+                    $item,
+                    $fieldType,
+                    $fieldPath,
+                    $propertyName,
+                    $propertyIsMultiple,
+                    $propertyIsRequired
+                );
                 continue;
             }
 
@@ -4783,41 +4884,118 @@ trait ImportTrait {
         array $item,
         string $fieldType,
         string $path,
+        string $propertyName,
+        int $propertyIsMultiple,
         int $propertyIsRequired
     ): array {
         $required = $this->normalizeBinaryFlag($item['required'] ?? $propertyIsRequired, $path . '.required');
+        $label = $this->normalizeOptionalString($item['label'] ?? '');
+        if ($label === '') {
+            $label = $propertyName;
+        }
+        $title = $this->normalizeOptionalString($item['title'] ?? '');
+        if ($title === '') {
+            $title = $label;
+        }
         $options = $item['options'] ?? null;
         if (!is_array($options) || !$this->isSequentialArray($options) || empty($options)) {
             throw new \RuntimeException('Поле ' . $path . '.options должно быть непустым списком.');
         }
 
-        $labels = [];
-        $checkedIndexes = [];
+        $multiple = $fieldType === 'checkbox'
+            ? 1
+            : $this->normalizeBinaryFlag($item['multiple'] ?? $propertyIsMultiple, $path . '.multiple');
+        if ($fieldType === 'radio') {
+            $multiple = 0;
+        }
+
+        $defaultLookup = [];
+        $hasExplicitDefault = array_key_exists('default', $item);
+        if ($hasExplicitDefault) {
+            foreach ($this->normalizeChoiceSelectionInput($item['default'], $path . '.default') as $selectedKey) {
+                $defaultLookup[(string)$selectedKey] = true;
+            }
+        }
+
+        $normalizedOptions = [];
+        $selectedKeys = [];
         foreach ($options as $index => $option) {
             $optionPath = $path . '.options[' . $index . ']';
             if (!is_array($option)) {
                 throw new \RuntimeException('Элемент ' . $optionPath . ' должен быть объектом.');
             }
-            $this->ensureAllowedKeys($option, ['label', 'checked'], $optionPath);
+            $this->ensureAllowedKeys($option, ['label', 'value', 'key', 'checked', 'selected', 'sort', 'disabled'], $optionPath);
 
-            $labels[] = $this->normalizeRequiredString($option['label'] ?? '', $optionPath . '.label');
-            if ($this->normalizeBinaryFlag($option['checked'] ?? 0, $optionPath . '.checked')) {
-                $checkedIndexes[] = (string)$index;
+            $optionLabel = $this->normalizeRequiredString($option['label'] ?? '', $optionPath . '.label');
+            $optionKey = $this->normalizeOptionalString($option['key'] ?? ($option['value'] ?? ''));
+            if ($optionKey === '') {
+                $optionKey = 'option_' . ($index + 1);
+            }
+            $normalizedOption = [
+                'label' => $optionLabel,
+                'value' => $optionKey,
+                'disabled' => $this->normalizeBinaryFlag($option['disabled'] ?? 0, $optionPath . '.disabled'),
+                'sort' => isset($option['sort']) ? (int)$option['sort'] : (($index + 1) * 10),
+            ];
+            $normalizedOptions[] = $normalizedOption;
+
+            $isSelected = $hasExplicitDefault
+                ? isset($defaultLookup[$optionKey])
+                : $this->normalizeBinaryFlag(($option['selected'] ?? ($option['checked'] ?? 0)), $optionPath . '.selected');
+            if ($isSelected) {
+                $selectedKeys[] = $optionKey;
             }
         }
 
-        if ($fieldType === 'radio' && count($checkedIndexes) > 1) {
+        $selectedKeys = array_values(array_unique(array_map('strval', $selectedKeys)));
+        if ($fieldType === 'radio' && count($selectedKeys) > 1) {
             throw new \RuntimeException('В ' . $path . '.options для radio можно отметить только один пункт.');
+        }
+        if ($fieldType === 'radio' && $selectedKeys !== []) {
+            $selectedKeys = [reset($selectedKeys)];
         }
 
         return [
             'type' => $fieldType,
-            'label' => $labels,
-            'title' => $this->normalizeOptionalString($item['title'] ?? ''),
-            'default' => $checkedIndexes,
+            'label' => $label,
+            'title' => $title,
+            'options' => $normalizedOptions,
+            'default' => $selectedKeys,
             'required' => $required,
-            'multiple' => 0,
+            'multiple' => $multiple,
         ];
+    }
+
+    private function normalizeChoiceSelectionInput(mixed $value, string $path): array {
+        if (is_string($value)) {
+            $trimmed = trim($value);
+            if ($trimmed !== '' && SysClass::ee_isValidJson($trimmed)) {
+                $decoded = json_decode($trimmed, true);
+                if (is_array($decoded)) {
+                    $value = $decoded;
+                }
+            }
+        }
+
+        if (!is_array($value)) {
+            if ($value === null) {
+                return [];
+            }
+            $value = [trim((string)$value)];
+        }
+
+        $result = [];
+        foreach ($value as $index => $item) {
+            if (!is_scalar($item) && $item !== null) {
+                throw new \RuntimeException('Поле ' . $path . '[' . $index . '] должно быть строкой.');
+            }
+            $candidate = trim((string)$item);
+            if ($candidate !== '') {
+                $result[] = $candidate;
+            }
+        }
+
+        return array_values(array_unique($result));
     }
 
     private function normalizeScalarOrList(mixed $value, string $path, bool $multiple): string|array {

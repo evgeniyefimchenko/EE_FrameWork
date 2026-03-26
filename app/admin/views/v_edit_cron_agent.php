@@ -85,6 +85,13 @@ $isNew = (int) ($agent['agent_id'] ?? 0) <= 0;
                     </div>
 
                     <div class="col-12">
+                        <label class="form-label"><?= htmlspecialchars((string)($lang['sys.cron_agent_handler_settings'] ?? 'Параметры handler-а')) ?></label>
+                        <div class="border rounded p-3 bg-light-subtle" id="cron-agent-payload-fields-container">
+                            <div class="text-muted small"><?= htmlspecialchars((string)($lang['sys.cron_agent_handler_settings_empty'] ?? 'Для этого handler-а нет отдельных параметров.')) ?></div>
+                        </div>
+                    </div>
+
+                    <div class="col-12">
                         <label class="form-label"><?= htmlspecialchars((string)($lang['sys.cron_agent_payload_json'] ?? 'Payload JSON')) ?></label>
                         <textarea class="form-control font-monospace" name="payload_json" id="cron-agent-payload" rows="8"><?= htmlspecialchars((string)($agent['payload_json'] ?? '{}')) ?></textarea>
                         <div class="form-text"><?= htmlspecialchars((string)($lang['sys.cron_agent_payload_help'] ?? 'В payload храните только параметры запуска handler-а. Код обработчика живёт в проекте.')) ?></div>
@@ -134,7 +141,97 @@ $isNew = (int) ($agent['agent_id'] ?? 0) <= 0;
     const scheduleSelect = document.getElementById('cron-agent-schedule-mode');
     const descriptionNode = document.getElementById('cron-agent-handler-description');
     const payloadExampleNode = document.getElementById('cron-agent-payload-example');
+    const payloadTextarea = document.getElementById('cron-agent-payload');
+    const payloadFieldsContainer = document.getElementById('cron-agent-payload-fields-container');
     const handlers = handlersNode ? JSON.parse(handlersNode.textContent || '{}') : {};
+    let payloadFieldsSyncLock = false;
+
+    function readPayload() {
+        if (!payloadTextarea) return {};
+        try {
+            const parsed = JSON.parse(payloadTextarea.value || '{}');
+            return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+        } catch (error) {
+            return {};
+        }
+    }
+
+    function writePayload(payload) {
+        if (!payloadTextarea) return;
+        payloadFieldsSyncLock = true;
+        payloadTextarea.value = JSON.stringify(payload || {}, null, 2);
+        payloadFieldsSyncLock = false;
+    }
+
+    function buildPayloadFieldNode(fieldMeta, currentPayload) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'col-12 col-lg-6';
+
+        const label = document.createElement('label');
+        label.className = 'form-label';
+        label.textContent = fieldMeta.label || fieldMeta.key;
+
+        const input = document.createElement('input');
+        input.className = 'form-control';
+        input.name = 'payload_field[' + fieldMeta.key + ']';
+        input.setAttribute('data-payload-key', fieldMeta.key);
+        input.type = fieldMeta.type === 'float' || fieldMeta.type === 'int' ? 'number' : 'text';
+        if (fieldMeta.min !== null && fieldMeta.min !== undefined) input.min = String(fieldMeta.min);
+        if (fieldMeta.max !== null && fieldMeta.max !== undefined) input.max = String(fieldMeta.max);
+        if (fieldMeta.step !== null && fieldMeta.step !== undefined) input.step = String(fieldMeta.step);
+
+        const currentValue = Object.prototype.hasOwnProperty.call(currentPayload, fieldMeta.key)
+            ? currentPayload[fieldMeta.key]
+            : fieldMeta.default;
+        input.value = currentValue === null || currentValue === undefined ? '' : String(currentValue);
+
+        input.addEventListener('input', () => {
+            if (payloadFieldsSyncLock) return;
+            const payload = readPayload();
+            const rawValue = input.value;
+            if (fieldMeta.type === 'int') {
+                payload[fieldMeta.key] = rawValue === '' ? 0 : parseInt(rawValue, 10) || 0;
+            } else if (fieldMeta.type === 'float') {
+                payload[fieldMeta.key] = rawValue === '' ? 0 : parseFloat(rawValue) || 0;
+            } else {
+                payload[fieldMeta.key] = rawValue;
+            }
+            writePayload(payload);
+        });
+
+        wrapper.appendChild(label);
+        wrapper.appendChild(input);
+
+        if (fieldMeta.help) {
+            const help = document.createElement('div');
+            help.className = 'form-text';
+            help.textContent = fieldMeta.help;
+            wrapper.appendChild(help);
+        }
+
+        return wrapper;
+    }
+
+    function refreshPayloadFieldSettings() {
+        if (!payloadFieldsContainer) return;
+        const code = handlerSelect ? handlerSelect.value : '';
+        const meta = handlers[code] || null;
+        const payloadFields = Array.isArray(meta && meta.payload_fields) ? meta.payload_fields : [];
+        const currentPayload = readPayload();
+        payloadFieldsContainer.innerHTML = '';
+
+        if (!payloadFields.length) {
+            payloadFieldsContainer.innerHTML = '<div class="text-muted small"><?= htmlspecialchars((string)($lang['sys.cron_agent_handler_settings_empty'] ?? 'Для этого handler-а нет отдельных параметров.'), ENT_QUOTES, 'UTF-8') ?></div>';
+            return;
+        }
+
+        const row = document.createElement('div');
+        row.className = 'row g-3';
+        payloadFields.forEach((fieldMeta) => {
+            row.appendChild(buildPayloadFieldNode(fieldMeta, currentPayload));
+        });
+        payloadFieldsContainer.appendChild(row);
+    }
 
     function refreshScheduleMode() {
         const mode = scheduleSelect ? scheduleSelect.value : 'interval';
@@ -158,6 +255,7 @@ $isNew = (int) ($agent['agent_id'] ?? 0) <= 0;
         if (payloadExampleNode) {
             payloadExampleNode.textContent = meta.payload_example_pretty || '{}';
         }
+        refreshPayloadFieldSettings();
     }
 
     if (scheduleSelect) {
@@ -165,6 +263,12 @@ $isNew = (int) ($agent['agent_id'] ?? 0) <= 0;
     }
     if (handlerSelect) {
         handlerSelect.addEventListener('change', refreshHandlerMeta);
+    }
+    if (payloadTextarea) {
+        payloadTextarea.addEventListener('input', () => {
+            if (payloadFieldsSyncLock) return;
+            refreshPayloadFieldSettings();
+        });
     }
     refreshScheduleMode();
     refreshHandlerMeta();

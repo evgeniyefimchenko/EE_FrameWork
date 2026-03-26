@@ -6,7 +6,13 @@
  */
 ?>
 <!DOCTYPE html>
-<html lang="ru">
+<?php
+$documentLangCode = ee_get_current_lang_code();
+$documentLang = ee_get_lang_html_attr($documentLangCode);
+$documentLocale = ee_get_lang_locale($documentLangCode);
+$langBundleUrl = ee_get_lang_bundle_url($documentLangCode);
+?>
+<html lang="<?= htmlspecialchars($documentLang, ENT_QUOTES, 'UTF-8') ?>">
     <head>
         <?php
         $meta_subject = $meta_subject ?? ENV_SITE_NAME;
@@ -16,7 +22,7 @@
         $meta_copyright = $meta_copyright ?? ENV_SITE_AUTHOR;
         ?>
         <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
-        <meta http-equiv="content-language" content="ru-RU">
+        <meta http-equiv="content-language" content="<?= htmlspecialchars($documentLocale, ENT_QUOTES, 'UTF-8') ?>">
         <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
         <meta content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=1, shrink-to-fit=no" name="viewport" />
         <meta name="SKYPE_TOOLBAR" content="SKYPE_TOOLBAR_PARSER_COMPATIBLE" />
@@ -103,7 +109,7 @@
             <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" type="text/javascript"></script>
         <?php } ?>
         <!-- core -->
-        <script src="<?= ENV_URL_SITE ?>/uploads/tmp/<?= \classes\system\Session::get('lang') ?>.js" type="text/javascript"></script>
+        <script src="<?= htmlspecialchars($langBundleUrl, ENT_QUOTES, 'UTF-8') ?>" type="text/javascript"></script>
         <script src="<?= ENV_URL_SITE ?>/assets/js/core.js" type="text/javascript"></script>
         <!-- General scripts -->
         <script src="<?= ENV_URL_SITE . '/' . ENV_APP_DIRECTORY ?>/index/js/index.js" type="text/javascript" /></script>

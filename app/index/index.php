@@ -5,8 +5,11 @@ use classes\system\SysClass;
 use classes\system\Session;
 use classes\system\AuthService;
 use classes\system\AuthSessionService;
+use classes\system\LegalConsentService;
+use classes\system\Logger;
 use classes\helpers\ClassMail;
 use classes\system\Hook;
+use custom\legal\LegalDocumentService;
 
 /**
  * Класс контроллера главной страницы сайта
@@ -199,6 +202,7 @@ class ControllerIndex Extends ControllerBase {
         $email = trim($postData['email']);
         $pass = trim($postData['password']);
         $conf_pass = trim($postData['password_confirmation']);
+        $consentFlags = LegalConsentService::getSubmittedFlags($postData);
         if (!SysClass::validEmail($email)) {
             $json['error'] .= $this->lang['sys.invalid_mail_format'];
         }
@@ -209,7 +213,20 @@ class ControllerIndex Extends ControllerBase {
             $json['error'] .= $this->lang['sys.password_too_short'];
         }
         if (!$json['error']) {
-            $result = (new AuthService())->registerLocalUser($email, $pass);
+            $missingConsentKeys = LegalConsentService::getMissingRequiredKeys($postData);
+            if ($missingConsentKeys !== []) {
+                $messages = [];
+                if (in_array('privacy_policy_accepted', $missingConsentKeys, true)) {
+                    $messages[] = $this->lang['sys.privacy_policy_acceptance_required'] ?? 'Необходимо принять Политику в отношении обработки персональных данных.';
+                }
+                if (in_array('personal_data_consent_accepted', $missingConsentKeys, true)) {
+                    $messages[] = $this->lang['sys.personal_data_consent_required'] ?? 'Необходимо дать согласие на обработку персональных данных.';
+                }
+                $json['error'] .= implode(' ', $messages);
+            }
+        }
+        if (!$json['error']) {
+            $result = (new AuthService())->registerLocalUser($email, $pass, $consentFlags);
             $json['status'] = (string) ($result['status'] ?? '');
             switch ($json['status']) {
                 case 'email_taken':
@@ -217,6 +234,9 @@ class ControllerIndex Extends ControllerBase {
                     break;
                 case 'invalid_email':
                     $json['error'] = $this->lang['sys.invalid_mail_format'];
+                    break;
+                case 'consent_required':
+                    $json['error'] = $this->lang['sys.required_consents_missing'] ?? 'Для регистрации необходимо принять обязательные документы.';
                     break;
                 case 'registered_pending_activation':
                     $json['message'] = $this->lang['sys.verify_email'];
@@ -235,7 +255,29 @@ class ControllerIndex Extends ControllerBase {
         }
         $json['error'] = $json['error'] ? $json['error'] : '';
         if ($json['error'] != '') {
-            SysClass::preFile('index_error', 'register', 'Ошибка регистрации', ['error' => $json['error'], 'email' => $email]);
+            $status = (string) ($json['status'] ?? '');
+            $isValidationRejection = $status === '';
+            if (in_array($status, ['invalid_email', 'email_taken', 'consent_required'], true) || $isValidationRejection) {
+                Logger::info('auth', 'Регистрация отклонена валидацией', [
+                    'status' => $status,
+                    'email' => $email,
+                ], [
+                    'initiator' => 'register',
+                    'details' => $json['error'],
+                    'include_trace' => false,
+                ]);
+            } elseif ($status === 'registered_activation_mail_failed') {
+                Logger::warning('auth', 'Регистрация создана, но письмо активации не отправлено', [
+                    'status' => $status,
+                    'email' => $email,
+                ], [
+                    'initiator' => 'register',
+                    'details' => $json['error'],
+                    'include_trace' => false,
+                ]);
+            } else {
+                SysClass::preFile('index_error', 'register', 'Ошибка регистрации', ['error' => $json['error'], 'email' => $email]);
+            }
         }
         echo json_encode($json, JSON_UNESCAPED_UNICODE);
     }
@@ -450,6 +492,10 @@ class ControllerIndex Extends ControllerBase {
         }
 
         if ($providerAction === 'start') {
+            if (empty($this->logged_in) && !LegalConsentService::hasProviderConsent($provider)) {
+                SysClass::handleRedirect(302, '/auth_consent/provider/' . rawurlencode($provider));
+                return;
+            }
             $result = $authService->startProviderAuth($provider);
             if (($result['status'] ?? '') === 'redirect' && !empty($result['redirect_url'])) {
                 header('Location: ' . $result['redirect_url'], true, 302);
@@ -464,10 +510,18 @@ class ControllerIndex Extends ControllerBase {
             return;
         }
 
-        $result = $authService->handleProviderCallback($provider, $_GET);
+        $providerConsent = empty($this->logged_in) ? LegalConsentService::getProviderConsent($provider) : [];
+        $result = $authService->handleProviderCallback($provider, $_GET, $providerConsent);
         $status = (string) ($result['status'] ?? '');
+        if (in_array($status, ['success', 'registered_pending_activation'], true)) {
+            LegalConsentService::clearProviderConsent($provider);
+        }
         if ($status === 'success') {
             SysClass::handleRedirect(302, '/admin');
+            return;
+        }
+        if ($status === 'consent_required') {
+            SysClass::handleRedirect(302, '/auth_consent/provider/' . rawurlencode($provider));
             return;
         }
 
@@ -485,13 +539,122 @@ class ControllerIndex Extends ControllerBase {
         $this->renderAuthMessagePage($this->lang['sys.authorization'], $message, ENV_URL_SITE . '/show_login_form');
     }
 
+    public function auth_consent($params = []): void {
+        $provider = strtolower(trim((string) ($params[1] ?? '')));
+        if (strtolower(trim((string) ($params[0] ?? ''))) !== 'provider' || $provider === '') {
+            SysClass::handleRedirect(200, '/show_login_form');
+            return;
+        }
+
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $postData = SysClass::ee_cleanArray($_POST);
+            $missingConsentKeys = LegalConsentService::getMissingRequiredKeys($postData);
+            if ($missingConsentKeys === []) {
+                LegalConsentService::storeProviderConsent($provider, $postData);
+                SysClass::handleRedirect(302, '/auth/' . rawurlencode($provider) . '/start');
+                return;
+            }
+
+            $this->renderLegalConsentsForm(
+                $this->lang['sys.provider_consent_title'] ?? 'Подтверждение обязательных документов',
+                $this->lang['sys.provider_consent_intro'] ?? 'Перед продолжением через внешний провайдер подтвердите обязательные документы платформы.',
+                ENV_URL_SITE . '/auth_consent/provider/' . rawurlencode($provider),
+                $this->lang['sys.continue_with_google'],
+                $this->buildConsentErrorMessage($missingConsentKeys),
+                [
+                    'provider' => $provider,
+                    'privacy_policy_accepted' => !empty($postData['privacy_policy_accepted']) ? 1 : 0,
+                    'personal_data_consent_accepted' => !empty($postData['personal_data_consent_accepted']) ? 1 : 0,
+                ]
+            );
+            return;
+        }
+
+        $this->renderLegalConsentsForm(
+            $this->lang['sys.provider_consent_title'] ?? 'Подтверждение обязательных документов',
+            $this->lang['sys.provider_consent_intro'] ?? 'Перед продолжением через внешний провайдер подтвердите обязательные документы платформы.',
+            ENV_URL_SITE . '/auth_consent/provider/' . rawurlencode($provider),
+            $provider === 'google' ? ($this->lang['sys.continue_with_google'] ?? 'Продолжить через Google') : ($this->lang['sys.continue'] ?? 'Продолжить'),
+            '',
+            [
+                'provider' => $provider,
+            ]
+        );
+    }
+
+    public function required_consents($params = []): void {
+        unset($params);
+        if (empty($this->logged_in)) {
+            SysClass::handleRedirect(302, '/show_login_form');
+            return;
+        }
+
+        $returnPath = LegalConsentService::sanitizeReturnPath($_REQUEST['return'] ?? '/admin', '/admin');
+        if (LegalConsentService::hasRequiredConsents($this->users->data)) {
+            SysClass::handleRedirect(302, $returnPath);
+            return;
+        }
+
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $postData = SysClass::ee_cleanArray($_POST);
+            $returnPath = LegalConsentService::sanitizeReturnPath($postData['return'] ?? $returnPath, '/admin');
+            $missingConsentKeys = LegalConsentService::getMissingRequiredKeys($postData);
+            if ($missingConsentKeys === []) {
+                LegalConsentService::updateUserConsents((int) $this->logged_in, $postData, 'required_consents_gate');
+                SysClass::handleRedirect(302, $returnPath);
+                return;
+            }
+            $this->renderLegalConsentsForm(
+                $this->lang['sys.required_consents_title'] ?? 'Обязательные документы',
+                $this->lang['sys.required_consents_intro'] ?? 'Для продолжения работы примите обязательные документы платформы.',
+                ENV_URL_SITE . '/required_consents',
+                $this->lang['sys.save_consents'] ?? 'Сохранить согласия',
+                $this->buildConsentErrorMessage($missingConsentKeys),
+                [
+                    'return' => $returnPath,
+                    'privacy_policy_accepted' => !empty($postData['privacy_policy_accepted']) ? 1 : 0,
+                    'personal_data_consent_accepted' => !empty($postData['personal_data_consent_accepted']) ? 1 : 0,
+                ]
+            );
+            return;
+        }
+
+        $this->renderLegalConsentsForm(
+            $this->lang['sys.required_consents_title'] ?? 'Обязательные документы',
+            $this->lang['sys.required_consents_intro'] ?? 'Для продолжения работы примите обязательные документы платформы.',
+            ENV_URL_SITE . '/required_consents',
+            $this->lang['sys.save_consents'] ?? 'Сохранить согласия',
+            '',
+            [
+                'return' => $returnPath,
+                'privacy_policy_accepted' => !empty($this->users->data['privacy_policy_accepted']) ? 1 : 0,
+                'personal_data_consent_accepted' => !empty($this->users->data['personal_data_consent_accepted']) ? 1 : 0,
+            ]
+        );
+    }
+
+    public function privacy_policy($params = null): void {
+        if ($params) {
+            SysClass::handleRedirect();
+        }
+        $this->renderLegalDocumentPage('privacy_policy');
+    }
+
+    public function consent_personal_data($params = null): void {
+        if ($params) {
+            SysClass::handleRedirect();
+        }
+        $this->renderLegalDocumentPage('consent_personal_data');
+    }
+
     /**
      * Преключение языка AJAX
      * И обновление всех параметров пользователя, если есть авторизация
      */
     public function set_options($params = []) {
         $allExistingLanguages = classes\system\Lang::getLangFilesWithoutExtension();
-        if (count($params) > 1 || count($params) == 0 || !SysClass::isAjaxRequestFromSameSite() || !in_array(strtoupper($params[0]), $allExistingLanguages)) {
+        $requestedLangCode = ee_normalize_lang_code((string) ($params[0] ?? ''));
+        if (count($params) > 1 || count($params) == 0 || !SysClass::isAjaxRequestFromSameSite() || $requestedLangCode === '' || !in_array($requestedLangCode, $allExistingLanguages, true)) {
             die(json_encode(array('error' => 'it`s a lie')));
         }
         $postData = SysClass::ee_cleanArray($_POST);
@@ -500,8 +663,8 @@ class ControllerIndex Extends ControllerBase {
             if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
                 die(json_encode(array('error' => 'access denieded')));
             }                          
-            Session::set('lang', $params[0]);
-            $postData['localize'] = $params[0];
+            Session::set('lang', $requestedLangCode);
+            $postData['localize'] = $requestedLangCode;
             $this->loadModel('m_index');
             $user_data = $this->users->data;
             foreach ($postData as $key => $value) {
@@ -511,7 +674,7 @@ class ControllerIndex Extends ControllerBase {
             }
             $this->users->setUserOptions($this->logged_in, $user_data['options']);
         } else {
-            Session::set('lang', $params[0]);
+            Session::set('lang', $requestedLangCode);
         }
         die(json_encode(array('error' => 'no')));
     }
@@ -544,6 +707,60 @@ class ControllerIndex Extends ControllerBase {
         $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION;
         $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="' . $this->getPathController() . '/css/login-register.css"/>';
         $this->showLayout($this->parameters_layout);
+    }
+
+    private function renderLegalConsentsForm(string $title, string $intro, string $actionUrl, string $submitLabel, string $error = '', array $options = []): void {
+        $this->getStandardViews();
+        $this->view->set('legal_form_title', $title);
+        $this->view->set('legal_form_intro', $intro);
+        $this->view->set('legal_form_action', $actionUrl);
+        $this->view->set('legal_form_submit', $submitLabel);
+        $this->view->set('legal_form_error', $error);
+        $this->view->set('legal_form_provider', (string) ($options['provider'] ?? ''));
+        $this->view->set('legal_form_return', (string) ($options['return'] ?? ''));
+        $this->view->set('legal_form_privacy_policy_accepted', !empty($options['privacy_policy_accepted']) ? 1 : 0);
+        $this->view->set('legal_form_personal_data_consent_accepted', !empty($options['personal_data_consent_accepted']) ? 1 : 0);
+        $this->html = $this->view->read('v_legal_consents_form');
+        $this->parameters_layout["layout"] = 'login_form';
+        $this->parameters_layout["layout_content"] = $this->html;
+        $this->parameters_layout["title"] = $title;
+        $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION;
+        $this->parameters_layout["canonical_href"] = $actionUrl;
+        $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="' . $this->getPathController() . '/css/login-register.css"/>';
+        $this->showLayout($this->parameters_layout);
+    }
+
+    private function renderLegalDocumentPage(string $slug): void {
+        $service = new LegalDocumentService();
+        $meta = $service->getDocumentMeta($slug);
+        $documentHtml = $service->renderDocumentHtml($slug);
+        if ($meta === [] || $documentHtml === '') {
+            SysClass::handleRedirect(404);
+            return;
+        }
+
+        $this->getStandardViews();
+        $this->view->set('legal_document_title', $meta['title']);
+        $this->view->set('legal_document_version', $meta['version']);
+        $this->view->set('legal_document_html', $documentHtml);
+        $this->html = $this->view->read('v_legal_document');
+        $this->parameters_layout["layout"] = 'index';
+        $this->parameters_layout["layout_content"] = $this->html;
+        $this->parameters_layout["title"] = $meta['title'];
+        $this->parameters_layout["description"] = $meta['title'] . ' - ' . ENV_SITE_NAME;
+        $this->parameters_layout["canonical_href"] = $meta['canonical'];
+        $this->showLayout($this->parameters_layout);
+    }
+
+    private function buildConsentErrorMessage(array $missingConsentKeys): string {
+        $messages = [];
+        if (in_array('privacy_policy_accepted', $missingConsentKeys, true)) {
+            $messages[] = $this->lang['sys.privacy_policy_acceptance_required'] ?? 'Необходимо принять Политику в отношении обработки персональных данных.';
+        }
+        if (in_array('personal_data_consent_accepted', $missingConsentKeys, true)) {
+            $messages[] = $this->lang['sys.personal_data_consent_required'] ?? 'Необходимо дать согласие на обработку персональных данных.';
+        }
+        return implode(' ', $messages);
     }
     
 }

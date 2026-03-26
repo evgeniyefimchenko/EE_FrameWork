@@ -5,8 +5,12 @@ use classes\system\SysClass;
 use classes\system\Constants;
 use classes\system\AuthService;
 use classes\system\Plugins;
+use classes\plugins\SafeMySQL;
 use classes\helpers\ClassNotifications;
 use classes\system\Hook;
+use classes\system\CronAgentService;
+use classes\system\BackupService;
+use classes\system\ImportMediaQueueService;
 use app\admin\MessagesTrait;
 use app\admin\NotificationsTrait;
 use app\admin\SystemsTrait;
@@ -52,14 +56,8 @@ use MessagesTrait,
         $user_data = $this->users->data;
         /* views */
         $this->getStandardViews();
-        /* Отобразить контент согласно уровня доступа */
-        if ($user_data['user_role'] == 1) { // Доступ для администратора
-            $data_table = $this->get_admin_dashboard_data_table();
-            $this->view->set('data_table', $data_table);
-            $this->view->set('body_view', $this->view->read('v_dashboard_admin'));
-            $this->parameters_layout["add_script"] .= '<script src="/assets/js/plugins/Chart.js" ></script>';
-            $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/dashboard_admin.js" type="text/javascript" /></script>';
-        }
+        $this->view->set('dashboard_overview', $this->getAdminDashboardOverview($user_data));
+        $this->view->set('body_view', $this->view->read('v_dashboard_admin'));
         $this->html = $this->view->read('v_dashboard');
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
@@ -70,162 +68,559 @@ use MessagesTrait,
         $this->showLayout($this->parameters_layout);
     }
 
-    /**
-     * Формируем данные для таблицы дашборда администратора
-     */
-    public function get_admin_dashboard_data_table($params = []) {
-        if (!$this->requireAccess([Constants::ADMIN], [
-            'return' => 'admin',
-            'initiator' => __METHOD__,
-        ])) {
+    private function getAdminDashboardOverview(array $userData): array {
+        $isAdmin = (int) ($userData['user_role'] ?? 0) === Constants::ADMIN;
+        $overview = [
+            'is_admin' => $isAdmin,
+            'generated_at' => date('c'),
+            'generated_at_pretty' => date('d.m.Y H:i'),
+            'quick_actions' => $this->getAdminDashboardQuickActions($isAdmin),
+            'user_summary' => [
+                'name' => (string) ($userData['name'] ?? ''),
+                'email' => (string) ($userData['email'] ?? ''),
+                'notifications_count' => count((array) ($userData['notifications'] ?? [])),
+                'messages_count' => (int) ($userData['count_messages'] ?? 0),
+            ],
+        ];
+
+        if (!$isAdmin || !SysClass::checkDatabaseConnection()) {
+            return $overview;
+        }
+
+        $operations = $this->getAdminDashboardOperations();
+        $recentBackups = BackupService::getRecentJobs(10);
+        $overview['catalog'] = $this->getAdminDashboardCatalogStats();
+        $overview['quality'] = $this->getAdminDashboardContentQuality();
+        $overview['operations'] = $operations;
+        $overview['recent_imports'] = $this->getAdminDashboardRecentImports();
+        $overview['recent_runs'] = CronAgentService::getRecentRuns(10);
+        $overview['recent_backups'] = $recentBackups;
+        $overview['health_alerts'] = array_slice((array) ($operations['alerts'] ?? []), 0, 6);
+
+        return $overview;
+    }
+
+    private function getAdminDashboardQuickActions(bool $isAdmin): array {
+        if (!$isAdmin) {
+            return [
+                [
+                    'label' => $this->lang['sys.edit_profile'] ?? 'Редактировать профиль',
+                    'href' => '/admin/user_edit',
+                    'icon' => 'fa-user-pen',
+                    'class' => 'btn-outline-primary',
+                ],
+            ];
+        }
+
+        return [
+            [
+                'label' => $this->lang['sys.health'] ?? 'Состояние системы',
+                'href' => '/admin/health',
+                'icon' => 'fa-heart-pulse',
+                'class' => 'btn-outline-primary',
+            ],
+            [
+                'label' => $this->lang['sys.imports_profiles_list'] ?? 'Импорт',
+                'href' => '/admin/imports',
+                'icon' => 'fa-upload',
+                'class' => 'btn-outline-secondary',
+            ],
+            [
+                'label' => $this->lang['sys.cron_agents'] ?? 'Cron-агенты',
+                'href' => '/admin/cron_agents',
+                'icon' => 'fa-clock-rotate-left',
+                'class' => 'btn-outline-secondary',
+            ],
+            [
+                'label' => $this->lang['sys.pages'] ?? 'Страницы',
+                'href' => '/admin/pages',
+                'icon' => 'fa-file',
+                'class' => 'btn-outline-secondary',
+            ],
+            [
+                'label' => $this->lang['sys.backup'] ?? 'Резервное копирование',
+                'href' => '/admin/backup',
+                'icon' => 'fa-box-archive',
+                'class' => 'btn-primary',
+            ],
+        ];
+    }
+
+    private function getAdminDashboardCatalogStats(): array {
+        $db = SafeMySQL::gi();
+        $pageStatus = [
+            'total' => 0,
+            'active' => 0,
+            'hidden' => 0,
+            'disabled' => 0,
+        ];
+        foreach ((array) $db->getAll('SELECT status, COUNT(*) AS total FROM ?n GROUP BY status', Constants::PAGES_TABLE) as $row) {
+            $status = (string) ($row['status'] ?? '');
+            $count = (int) ($row['total'] ?? 0);
+            if (array_key_exists($status, $pageStatus)) {
+                $pageStatus[$status] = $count;
+                $pageStatus['total'] += $count;
+            }
+        }
+
+        $categoryStatus = [
+            'total' => 0,
+            'active' => 0,
+            'hidden' => 0,
+            'disabled' => 0,
+        ];
+        foreach ((array) $db->getAll('SELECT status, COUNT(*) AS total FROM ?n GROUP BY status', Constants::CATEGORIES_TABLE) as $row) {
+            $status = (string) ($row['status'] ?? '');
+            $count = (int) ($row['total'] ?? 0);
+            if (array_key_exists($status, $categoryStatus)) {
+                $categoryStatus[$status] = $count;
+                $categoryStatus['total'] += $count;
+            }
+        }
+
+        return [
+            'pages' => $pageStatus,
+            'categories' => [
+                'total' => $categoryStatus['total'],
+                'active' => $categoryStatus['active'],
+                'with_photos' => $this->countDistinctPropertyEntities(19, 'category', 'active'),
+                'with_map' => $this->countDistinctPropertyEntities(20, 'category', 'active'),
+            ],
+            'users' => [
+                'total' => (int) $db->getOne('SELECT COUNT(*) FROM ?n WHERE deleted = 0', Constants::USERS_TABLE),
+                'owners_linked' => (int) $db->getOne(
+                    "SELECT COUNT(DISTINCT l.page_id)
+                     FROM ?n AS l
+                     INNER JOIN ?n AS p ON p.page_id = l.page_id
+                     WHERE l.relation_type = 'owner' AND p.status = 'active'",
+                    Constants::PAGE_USER_LINKS_TABLE,
+                    Constants::PAGES_TABLE
+                ),
+            ],
+            'files' => [
+                'total' => (int) $db->getOne('SELECT COUNT(*) FROM ?n', Constants::FILES_TABLE),
+            ],
+        ];
+    }
+
+    private function getAdminDashboardContentQuality(): array {
+        $db = SafeMySQL::gi();
+        $activePages = (int) $db->getOne("SELECT COUNT(*) FROM ?n WHERE status = 'active'", Constants::PAGES_TABLE);
+        $propertyIds = $this->getPropertyIdsByName([
+            'Телефоны',
+            'Электронная почта',
+            'Фотографии объекта',
+            'Номера и цены',
+            'Контакты проверены',
+            'Режим размещения',
+            'Размещение активно до',
+        ], 'page');
+
+        $ownerPages = (int) $db->getOne(
+            "SELECT COUNT(DISTINCT p.page_id)
+             FROM ?n AS p
+             INNER JOIN ?n AS l ON l.page_id = p.page_id AND l.relation_type = 'owner'
+             WHERE p.status = 'active'",
+            Constants::PAGES_TABLE,
+            Constants::PAGE_USER_LINKS_TABLE
+        );
+
+        $contactPages = $this->countActivePagesWithPropertyIds([
+            (int) ($propertyIds['Телефоны'] ?? 0),
+            (int) ($propertyIds['Электронная почта'] ?? 0),
+        ]);
+        $photoPages = $this->countActivePagesWithPropertyIds([(int) ($propertyIds['Фотографии объекта'] ?? 0)]);
+        $roomPages = $this->countActivePagesWithPropertyIds([(int) ($propertyIds['Номера и цены'] ?? 0)]);
+        $readyPages = $this->countReadyPages(
+            [(int) ($propertyIds['Телефоны'] ?? 0), (int) ($propertyIds['Электронная почта'] ?? 0)],
+            (int) ($propertyIds['Фотографии объекта'] ?? 0),
+            (int) ($propertyIds['Номера и цены'] ?? 0)
+        );
+        $contactsVerified = $this->countActivePagesByJsonValue((int) ($propertyIds['Контакты проверены'] ?? 0), 'yes');
+        $paidPlacements = $this->countActivePagesByJsonValues((int) ($propertyIds['Режим размещения'] ?? 0), ['paid', 'urgent']);
+        $expiringSoon = $this->countPagesWithDatePropertyWithinDays((int) ($propertyIds['Размещение активно до'] ?? 0), 30);
+
+        return [
+            'active_pages' => $activePages,
+            'ready_pages' => $readyPages,
+            'readiness_percent' => $activePages > 0 ? round(($readyPages / $activePages) * 100, 1) : 0,
+            'without_owner' => max(0, $activePages - $ownerPages),
+            'without_contacts' => max(0, $activePages - $contactPages),
+            'without_photos' => max(0, $activePages - $photoPages),
+            'without_rooms' => max(0, $activePages - $roomPages),
+            'contacts_verified' => $contactsVerified,
+            'paid_placements' => $paidPlacements,
+            'expiring_soon' => $expiringSoon,
+        ];
+    }
+
+    private function getAdminDashboardOperations(): array {
+        $cron = CronAgentService::getSummary();
+        $backup = BackupService::getSummary();
+        $mediaQueue = ImportMediaQueueService::getSummary();
+        $storage = $this->getDashboardStorageSummary();
+        $mail = $this->getDashboardMailSummary();
+        $lastRunAt = (string) (SafeMySQL::gi()->getOne(
+            'SELECT MAX(started_at) FROM ?n',
+            Constants::CRON_AGENT_RUNS_TABLE
+        ) ?? '');
+        $minutesSinceLastRun = $this->minutesSince($lastRunAt);
+
+        $alerts = [];
+        if (!SysClass::checkDatabaseConnection()) {
+            $alerts[] = $this->makeDashboardAlert('critical', $this->lang['sys.health_alert_db_down_title'] ?? 'База данных недоступна', $this->lang['sys.health_alert_db_down_message'] ?? 'Приложение не может подключиться к базе данных.', '/admin/health', $this->lang['sys.health'] ?? 'Состояние системы');
+        }
+        if (!empty($mail['transport_available']) === false) {
+            $severity = !empty($mail['confirm_email_required']) ? 'critical' : 'warning';
+            $alerts[] = $this->makeDashboardAlert($severity, $this->lang['sys.health_alert_mail_transport_title'] ?? 'Почтовый транспорт недоступен', strtr((string) ($this->lang['sys.health_alert_mail_transport_message'] ?? 'Режим {mode}, транспорт {transport}.'), [
+                '{mode}' => (string) ($mail['mode'] ?? 'mail'),
+                '{transport}' => (string) (($mail['sendmail_path'] ?? '') !== '' ? $mail['sendmail_path'] : ($mail['mode'] ?? 'mail')),
+            ]), '/admin/health', $this->lang['sys.health'] ?? 'Состояние системы');
+        }
+        if ($storage['free_bytes'] > 0 && $storage['free_bytes'] <= 2147483648) {
+            $alerts[] = $this->makeDashboardAlert('critical', $this->lang['sys.health_alert_disk_critical_title'] ?? 'Критически мало места на диске', strtr((string) ($this->lang['sys.health_alert_disk_critical_message'] ?? 'Свободно {free} из {total}.'), [
+                '{free}' => (string) ($storage['free_pretty'] ?? '0 B'),
+                '{total}' => (string) ($storage['total_pretty'] ?? '0 B'),
+                '{used_percent}' => (string) ($storage['used_percent'] ?? '0'),
+            ]), '/admin/backup', $this->lang['sys.backup'] ?? 'Резервное копирование');
+        } elseif ($storage['free_bytes'] > 0 && $storage['free_bytes'] <= 5368709120) {
+            $alerts[] = $this->makeDashboardAlert('warning', $this->lang['sys.health_alert_disk_warning_title'] ?? 'На диске мало места', strtr((string) ($this->lang['sys.health_alert_disk_warning_message'] ?? 'Свободно {free} из {total}.'), [
+                '{free}' => (string) ($storage['free_pretty'] ?? '0 B'),
+                '{total}' => (string) ($storage['total_pretty'] ?? '0 B'),
+                '{used_percent}' => (string) ($storage['used_percent'] ?? '0'),
+            ]), '/admin/backup', $this->lang['sys.backup'] ?? 'Резервное копирование');
+        }
+        if ($minutesSinceLastRun >= 10 || $lastRunAt === '') {
+            $alerts[] = $this->makeDashboardAlert('critical', $this->lang['sys.health_alert_cron_stalled_title'] ?? 'Cron-агенты давно не запускались', strtr((string) ($this->lang['sys.health_alert_cron_stalled_message'] ?? 'Последний запуск был {minutes} минут назад.'), [
+                '{minutes}' => $minutesSinceLastRun >= 0 ? (string) $minutesSinceLastRun : 'n/a',
+            ]), '/admin/cron_agents', $this->lang['sys.cron_agents'] ?? 'Cron-агенты');
+        } elseif ($minutesSinceLastRun >= 5) {
+            $alerts[] = $this->makeDashboardAlert('warning', $this->lang['sys.health_alert_cron_delayed_title'] ?? 'Cron-агенты выполняются с задержкой', strtr((string) ($this->lang['sys.health_alert_cron_delayed_message'] ?? 'Последний запуск был {minutes} минут назад.'), [
+                '{minutes}' => (string) $minutesSinceLastRun,
+            ]), '/admin/cron_agents', $this->lang['sys.cron_agents'] ?? 'Cron-агенты');
+        }
+        if ((int) ($cron['failed'] ?? 0) > 0) {
+            $alerts[] = $this->makeDashboardAlert('warning', $this->lang['sys.health_alert_cron_failed_title'] ?? 'Есть cron-агенты с ошибками', strtr((string) ($this->lang['sys.health_alert_cron_failed_message'] ?? 'Количество: {count}.'), [
+                '{count}' => (string) ((int) ($cron['failed'] ?? 0)),
+            ]), '/admin/cron_agents', $this->lang['sys.cron_agents'] ?? 'Cron-агенты');
+        }
+        if ((int) ($mediaQueue['failed'] ?? 0) > 0 || (int) ($mediaQueue['terminal_failed'] ?? 0) > 0) {
+            $alerts[] = $this->makeDashboardAlert('warning', $this->lang['sys.health_alert_media_failed_title'] ?? 'Очередь медиа требует внимания', (($this->lang['sys.media_queue_failed'] ?? 'С ошибкой') . ': ' . (int) ($mediaQueue['failed'] ?? 0) . ', ' . ($this->lang['sys.media_queue_terminal_failed'] ?? 'Без повтора') . ': ' . (int) ($mediaQueue['terminal_failed'] ?? 0)), '/admin/cron_agents', $this->lang['sys.cron_agents'] ?? 'Cron-агенты');
+        }
+        if ((int) (($backup['jobs']['failed'] ?? 0)) > 0) {
+            $alerts[] = $this->makeDashboardAlert('warning', $this->lang['sys.health_alert_backup_failed_title'] ?? 'Есть backup-задачи с ошибками', strtr((string) ($this->lang['sys.health_alert_backup_failed_message'] ?? 'Количество: {count}.'), [
+                '{count}' => (string) ((int) (($backup['jobs']['failed'] ?? 0))),
+            ]), '/admin/backup', $this->lang['sys.backup'] ?? 'Резервное копирование');
+        }
+
+        return [
+            'database_connected' => SysClass::checkDatabaseConnection(),
+            'storage' => $storage,
+            'mail' => $mail,
+            'cron' => array_merge($cron, [
+                'last_run_at' => $lastRunAt,
+                'minutes_since_last_run' => $minutesSinceLastRun,
+            ]),
+            'media_queue' => $mediaQueue,
+            'backup' => $backup,
+            'alerts' => $alerts,
+            'alerts_summary' => $this->summarizeDashboardAlerts($alerts),
+        ];
+    }
+
+    private function getAdminDashboardRecentImports(): array {
+        return SafeMySQL::gi()->getAll(
+            "SELECT id, importer_slug, settings_name, created_at, last_run_at
+             FROM ?n
+             ORDER BY COALESCE(last_run_at, created_at) DESC, id DESC
+             LIMIT 10",
+            Constants::IMPORT_SETTINGS_TABLE
+        );
+    }
+
+    private function getPropertyIdsByName(array $names, string $entityType): array {
+        $lookup = array_fill_keys($names, 0);
+        $rows = SafeMySQL::gi()->getAll(
+            'SELECT property_id, name FROM ?n WHERE entity_type = ?s',
+            Constants::PROPERTIES_TABLE,
+            $entityType
+        );
+        foreach ((array) $rows as $row) {
+            $name = (string) ($row['name'] ?? '');
+            if (array_key_exists($name, $lookup)) {
+                $lookup[$name] = (int) ($row['property_id'] ?? 0);
+            }
+        }
+        return $lookup;
+    }
+
+    private function countDistinctPropertyEntities(int $propertyId, string $entityType, ?string $status = null): int {
+        if ($propertyId <= 0) {
+            return 0;
+        }
+
+        if ($status === null) {
+            return (int) SafeMySQL::gi()->getOne(
+                'SELECT COUNT(DISTINCT entity_id) FROM ?n WHERE property_id = ?i AND entity_type = ?s',
+                Constants::PROPERTY_VALUES_TABLE,
+                $propertyId,
+                $entityType
+            );
+        }
+
+        $tableName = $entityType === 'category' ? Constants::CATEGORIES_TABLE : Constants::PAGES_TABLE;
+        $idField = $entityType === 'category' ? 'category_id' : 'page_id';
+
+        return (int) SafeMySQL::gi()->getOne(
+            "SELECT COUNT(DISTINCT v.entity_id)
+             FROM ?n AS v
+             INNER JOIN ?n AS e ON e.{$idField} = v.entity_id
+             WHERE v.property_id = ?i
+               AND v.entity_type = ?s
+               AND e.status = ?s",
+            Constants::PROPERTY_VALUES_TABLE,
+            $tableName,
+            $propertyId,
+            $entityType,
+            $status
+        );
+    }
+
+    private function countActivePagesWithPropertyIds(array $propertyIds): int {
+        $propertyIds = array_values(array_filter(array_map('intval', $propertyIds)));
+        if ($propertyIds === []) {
+            return 0;
+        }
+
+        return (int) SafeMySQL::gi()->getOne(
+            "SELECT COUNT(DISTINCT p.page_id)
+             FROM ?n AS p
+             INNER JOIN ?n AS v ON v.entity_id = p.page_id AND v.entity_type = 'page'
+             WHERE p.status = 'active'
+               AND v.property_id IN (?a)",
+            Constants::PAGES_TABLE,
+            Constants::PROPERTY_VALUES_TABLE,
+            $propertyIds
+        );
+    }
+
+    private function countReadyPages(array $contactPropertyIds, int $photoPropertyId, int $roomPropertyId): int {
+        $contactPropertyIds = array_values(array_filter(array_map('intval', $contactPropertyIds)));
+        if ($contactPropertyIds === [] || $photoPropertyId <= 0 || $roomPropertyId <= 0) {
+            return 0;
+        }
+
+        return (int) SafeMySQL::gi()->getOne(
+            "SELECT COUNT(DISTINCT p.page_id)
+             FROM ?n AS p
+             INNER JOIN ?n AS l ON l.page_id = p.page_id AND l.relation_type = 'owner'
+             INNER JOIN ?n AS vc ON vc.entity_id = p.page_id AND vc.entity_type = 'page' AND vc.property_id IN (?a)
+             INNER JOIN ?n AS vp ON vp.entity_id = p.page_id AND vp.entity_type = 'page' AND vp.property_id = ?i
+             INNER JOIN ?n AS vr ON vr.entity_id = p.page_id AND vr.entity_type = 'page' AND vr.property_id = ?i
+             WHERE p.status = 'active'",
+            Constants::PAGES_TABLE,
+            Constants::PAGE_USER_LINKS_TABLE,
+            Constants::PROPERTY_VALUES_TABLE,
+            $contactPropertyIds,
+            Constants::PROPERTY_VALUES_TABLE,
+            $photoPropertyId,
+            Constants::PROPERTY_VALUES_TABLE,
+            $roomPropertyId
+        );
+    }
+
+    private function countActivePagesByJsonValue(int $propertyId, string $needle): int {
+        if ($propertyId <= 0 || $needle === '') {
+            return 0;
+        }
+
+        return (int) SafeMySQL::gi()->getOne(
+            "SELECT COUNT(DISTINCT p.page_id)
+             FROM ?n AS p
+             INNER JOIN ?n AS v ON v.entity_id = p.page_id AND v.entity_type = 'page' AND v.property_id = ?i
+             WHERE p.status = 'active'
+               AND v.property_values LIKE ?s",
+            Constants::PAGES_TABLE,
+            Constants::PROPERTY_VALUES_TABLE,
+            $propertyId,
+            '%"' . $needle . '"%'
+        );
+    }
+
+    private function countActivePagesByJsonValues(int $propertyId, array $needles): int {
+        if ($propertyId <= 0) {
+            return 0;
+        }
+
+        $matches = [];
+        foreach ($needles as $needle) {
+            $needle = trim((string) $needle);
+            if ($needle !== '') {
+                $matches[] = '%"' . $needle . '"%';
+            }
+        }
+        if ($matches === []) {
+            return 0;
+        }
+
+        $conditions = [];
+        $params = [Constants::PAGES_TABLE, Constants::PROPERTY_VALUES_TABLE, $propertyId];
+        foreach ($matches as $pattern) {
+            $conditions[] = 'v.property_values LIKE ?s';
+            $params[] = $pattern;
+        }
+
+        return (int) SafeMySQL::gi()->getOne(
+            "SELECT COUNT(DISTINCT p.page_id)
+             FROM ?n AS p
+             INNER JOIN ?n AS v ON v.entity_id = p.page_id AND v.entity_type = 'page' AND v.property_id = ?i
+             WHERE p.status = 'active'
+               AND (" . implode(' OR ', $conditions) . ")",
+            ...$params
+        );
+    }
+
+    private function countPagesWithDatePropertyWithinDays(int $propertyId, int $days): int {
+        if ($propertyId <= 0 || $days <= 0) {
+            return 0;
+        }
+
+        $rows = SafeMySQL::gi()->getAll(
+            "SELECT p.page_id, v.property_values
+             FROM ?n AS p
+             INNER JOIN ?n AS v ON v.entity_id = p.page_id AND v.entity_type = 'page' AND v.property_id = ?i
+             WHERE p.status = 'active'",
+            Constants::PAGES_TABLE,
+            Constants::PROPERTY_VALUES_TABLE,
+            $propertyId
+        );
+
+        $now = time();
+        $deadline = strtotime('+' . $days . ' days', $now);
+        $count = 0;
+        foreach ((array) $rows as $row) {
+            $value = $this->extractPrimaryFieldValue((string) ($row['property_values'] ?? ''));
+            if ($value === '') {
+                continue;
+            }
+            $timestamp = strtotime($value);
+            if ($timestamp === false) {
+                continue;
+            }
+            if ($timestamp >= $now && $timestamp <= $deadline) {
+                $count++;
+            }
+        }
+
+        return $count;
+    }
+
+    private function extractPrimaryFieldValue(string $payload): string {
+        $decoded = json_decode($payload, true);
+        if (!is_array($decoded) || $decoded === []) {
             return '';
         }
-        /* Пример данных таблицы */
-        $data_table = [
-            'columns' => [
-                [
-                    'field' => 'name', // Имя поля в данных
-                    'title' => 'Имя', // Заголовок столбца
-                    'sorted' => 'ASC', // Направление сортировки (ASC, DESC или false, если сортировка не применена)
-                    'filterable' => true    // Возможность фильтрации по этому столбцу (true или false)
-                ],
-                [
-                    'field' => 'age',
-                    'title' => 'Возраст',
-                    'sorted' => true,
-                    'filterable' => true
-                ],
-                [
-                    'field' => 'address',
-                    'title' => 'Адрес',
-                    'sorted' => false,
-                    'filterable' => true
-                ],
-                [
-                    'field' => 'gender',
-                    'title' => 'Пол',
-                    'sorted' => true,
-                    'filterable' => true
-                ],
-                [
-                    'field' => 'registration_date',
-                    'title' => 'Дата регистрации',
-                    'sorted' => false,
-                    'filterable' => true
-                ],
-            // ... другие столбцы ...
-            ],
-            'rows' => [
-                [
-                    'name' => 'Джон',
-                    'age' => 25,
-                    'address' => 'ул. Ленина, 5',
-                    'gender' => 'Мужской',
-                    'registration_date' => '2021-01-15',
-                    'nested_table' => [
-                        'columns' => [
-                            ['field' => 'detail_id', 'title' => 'Detail ID', 'width' => 20, 'align' => 'left'],
-                            ['field' => 'description', 'title' => 'Description', 'width' => 80, 'align' => 'left'],
-                        // ...
-                        ],
-                        'rows' => [
-                            ['detail_id' => 1, 'description' => 'Detail 1'],
-                            ['detail_id' => 2, 'description' => 'Detail 2'],
-                        // ...
-                        ],
-                    ],
-                ],
-                [
-                    'name' => 'Джейн',
-                    'age' => 30,
-                    'address' => 'пр. Мира, 15',
-                    'gender' => 'Женский',
-                    'registration_date' => '2020-10-07'
-                ],
-                [
-                    'name' => 'Иван',
-                    'age' => 35,
-                    'address' => 'ул. Комсомольская, 4',
-                    'gender' => 'Мужской',
-                    'registration_date' => '2019-02-14'
-                ],
-                [
-                    'name' => 'Мария',
-                    'age' => 28,
-                    'address' => 'ул. Ленина, 22',
-                    'gender' => 'Женский',
-                    'registration_date' => '2018-05-21'
-                ],
-                [
-                    'name' => 'Александр',
-                    'age' => 42,
-                    'address' => 'пр. Революции, 7',
-                    'gender' => 'Мужской',
-                    'registration_date' => '2016-12-12'
-                ],
-                [
-                    'name' => 'Анна',
-                    'age' => 23,
-                    'address' => 'ул. Московская, 19',
-                    'gender' => 'Женский',
-                    'registration_date' => '2020-01-15'
-                ],
-                [
-                    'name' => 'Дмитрий',
-                    'age' => 37,
-                    'address' => 'пр. Строителей, 8',
-                    'gender' => 'Мужской',
-                    'registration_date' => '2017-03-03'
-                ],
-                [
-                    'name' => 'Ольга',
-                    'age' => 31,
-                    'address' => 'ул. Зеленая, 33',
-                    'gender' => 'Женский',
-                    'registration_date' => '2018-08-10'
-                ],
-                [
-                    'name' => 'Сергей',
-                    'age' => 40,
-                    'address' => 'ул. Парковая, 5',
-                    'gender' => 'Мужской',
-                    'registration_date' => '2015-06-30'
-                ],
-                [
-                    'name' => 'Екатерина',
-                    'age' => 29,
-                    'address' => 'пр. Королева, 50',
-                    'gender' => 'Женский',
-                    'registration_date' => '2019-09-09'
-                ],
-                [
-                    'name' => 'Андрей',
-                    'age' => 33,
-                    'address' => 'ул. Приморская, 70',
-                    'gender' => 'Мужской',
-                    'registration_date' => '2020-04-20'
-                ],
-                [
-                    'name' => 'Татьяна',
-                    'age' => 26,
-                    'address' => 'пр. Ветеранов, 2',
-                    'gender' => 'Женский',
-                    'registration_date' => '2021-02-28'
-                ],
-            // ... другие строки ...
-            ],
-            'total_rows' => 1110  // Общее количество записей (используется для пагинации)
-        ];
-        $filters = [];
-        $postData = SysClass::ee_cleanArray($_POST);
-        if ($postData && SysClass::isAjaxRequestFromSameSite()) { // AJAX						
-            list($params, $filters, $selected_sorting) = Plugins::ee_showTablePrepareParams($postData, $data_table['columns']);
-            echo Plugins::ee_show_table('example_table', $data_table, 'get_admin_dashboard_data_table', $filters, $postData["page"], $postData["rows_per_page"], $selected_sorting);
-            die;
-        } else {
-            $html = Plugins::ee_show_table('example_table', $data_table, 'get_admin_dashboard_data_table', $filters);
+
+        $first = $decoded[0] ?? null;
+        if (!is_array($first)) {
+            return '';
         }
-        return $html;
+
+        $value = $first['value'] ?? '';
+        if (is_array($value)) {
+            $value = $value[0] ?? '';
+        }
+
+        return trim((string) $value);
+    }
+
+    private function getDashboardStorageSummary(): array {
+        $path = rtrim((string) ENV_SITE_PATH, '/\\');
+        $freeBytes = @disk_free_space($path);
+        $totalBytes = @disk_total_space($path);
+        $freeBytes = $freeBytes !== false ? (int) $freeBytes : 0;
+        $totalBytes = $totalBytes !== false ? (int) $totalBytes : 0;
+        $usedPercent = $totalBytes > 0 ? round((1 - ($freeBytes / $totalBytes)) * 100, 1) : 0.0;
+
+        return [
+            'path' => $path,
+            'free_bytes' => $freeBytes,
+            'total_bytes' => $totalBytes,
+            'used_percent' => $usedPercent,
+            'free_pretty' => $this->formatBytes($freeBytes),
+            'total_pretty' => $this->formatBytes($totalBytes),
+        ];
+    }
+
+    private function getDashboardMailSummary(): array {
+        $mode = !empty(ENV_SMTP) ? 'smtp' : 'mail';
+        $sendmailPath = trim((string) ini_get('sendmail_path'));
+        $sendmailBinary = '';
+        if ($sendmailPath !== '') {
+            $parts = preg_split('/\s+/', $sendmailPath);
+            $sendmailBinary = trim((string) ($parts[0] ?? ''));
+        }
+
+        $smtpConfigured = !empty(ENV_SMTP)
+            && trim((string) ENV_SMTP_SERVER) !== ''
+            && (int) ENV_SMTP_PORT > 0
+            && trim((string) ENV_SMTP_LOGIN) !== ''
+            && trim((string) ENV_SMTP_PASSWORD) !== '';
+
+        $transportAvailable = !empty(ENV_SMTP)
+            ? $smtpConfigured
+            : ($sendmailBinary !== '' && is_file($sendmailBinary) && is_executable($sendmailBinary));
+
+        return [
+            'mode' => $mode,
+            'transport_available' => $transportAvailable,
+            'sendmail_path' => $sendmailPath,
+            'confirm_email_required' => (int) (defined('ENV_CONFIRM_EMAIL') ? ENV_CONFIRM_EMAIL : 0),
+        ];
+    }
+
+    private function makeDashboardAlert(string $severity, string $title, string $message, string $url, string $label): array {
+        return [
+            'severity' => $severity,
+            'title' => $title,
+            'message' => $message,
+            'action_url' => $url,
+            'action_label' => $label,
+        ];
+    }
+
+    private function summarizeDashboardAlerts(array $alerts): array {
+        $summary = [
+            'total' => 0,
+            'critical' => 0,
+            'warning' => 0,
+            'info' => 0,
+        ];
+
+        foreach ($alerts as $alert) {
+            $severity = (string) ($alert['severity'] ?? 'info');
+            if (!isset($summary[$severity])) {
+                continue;
+            }
+            $summary[$severity]++;
+            $summary['total']++;
+        }
+
+        return $summary;
+    }
+
+    private function minutesSince(string $dateTime): int {
+        return ee_minutes_since_utc_datetime($dateTime);
+    }
+
+    private function formatBytes(int $bytes): string {
+        $bytes = max(0, $bytes);
+        $units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        $power = $bytes > 0 ? (int) floor(log($bytes, 1024)) : 0;
+        $power = min($power, count($units) - 1);
+        $value = $bytes > 0 ? $bytes / (1024 ** $power) : 0;
+
+        return number_format($value, $power === 0 ? 0 : 1, '.', ' ') . ' ' . $units[$power];
     }
 
     /**
@@ -385,7 +780,7 @@ use MessagesTrait,
         $get_user_context['active_text'] = $this->lang[Constants::USERS_STATUS[$get_user_context['active']]];
         $free_active_status = Constants::USERS_STATUS;
         unset($free_active_status[$get_user_context['active']]);
-        $get_free_roles = $this->models['m_user_edit']->get_free_roles($get_user_context['user_role']); // Получим свободные роли
+        $get_free_roles = $this->models['m_user_edit']->get_free_roles($get_user_context['user_role'], (int) ($get_user_context['user_id'] ?? 0)); // Получим свободные роли
         $this->view->set('free_active_status', $free_active_status);
         $this->view->set('get_free_roles', $get_free_roles);
 
@@ -437,10 +832,17 @@ use MessagesTrait,
             echo json_encode(array('error' => $this->lang['sys.invalid_mail_format']));
             exit();
         }
+        $postData['subscribed'] = isset($postData['subscribed']) && $postData['subscribed'] ? 1 : 0;
+        $postData['privacy_policy_accepted'] = isset($postData['privacy_policy_accepted']) && $postData['privacy_policy_accepted'] ? 1 : 0;
+        $postData['personal_data_consent_accepted'] = isset($postData['personal_data_consent_accepted']) && $postData['personal_data_consent_accepted'] ? 1 : 0;
 
         if (isset($postData['new']) && $postData['new'] == 1) {
             if (!empty($postData['email']) && $this->users->getEmailExist(trim($postData['email']))) {
                 echo json_encode(array('error' => $this->lang['sys.the_mail_is_already_busy']));
+                exit();
+            }
+            if (isset($postData['user_role']) && (int) $postData['user_role'] === Constants::ADMIN && $this->users->hasAnotherActiveUserWithRole(Constants::ADMIN)) {
+                echo json_encode(array('error' => $this->lang['sys.single_admin_only'] ?? 'В системе может быть только один администратор'));
                 exit();
             }
             if ($new_id = $this->users->registrationNewUser($postData)) {
@@ -451,13 +853,18 @@ use MessagesTrait,
                 exit();
             }
         }
-        if (isset($postData['subscribed']) && $postData['subscribed']) {
-            $postData['subscribed'] = 1;
-        } else {
-            $postData['subscribed'] = 0;
-        }
         if (!empty($postData['email']) && $this->users->getEmailExist(trim($postData['email']), (int) $user_id)) {
             echo json_encode(array('error' => $this->lang['sys.the_mail_is_already_busy']));
+            exit();
+        }
+        $currentUserRole = (int) $this->users->getUserRole($user_id);
+        $requestedUserRole = isset($postData['user_role']) ? (int) $postData['user_role'] : $currentUserRole;
+        if ($requestedUserRole === Constants::ADMIN && $this->users->hasAnotherActiveUserWithRole(Constants::ADMIN, (int) $user_id)) {
+            echo json_encode(array('error' => $this->lang['sys.single_admin_only'] ?? 'В системе может быть только один администратор'));
+            exit();
+        }
+        if ($currentUserRole === Constants::ADMIN && $requestedUserRole !== Constants::ADMIN && !$this->users->hasAnotherActiveUserWithRole(Constants::ADMIN, (int) $user_id)) {
+            echo json_encode(array('error' => $this->lang['sys.single_admin_demotion_forbidden'] ?? 'Нельзя снять роль у единственного администратора'));
             exit();
         }
         if ($this->users->setUserData($user_id, $postData)) {
@@ -471,11 +878,10 @@ use MessagesTrait,
             $options = $this->users->getUserOptions((int) $user_id);
             $options['auth']['ip_restricted'] = !empty($postData['auth_ip_restricted']) ? 1 : 0;
             $this->users->setUserOptions((int) $user_id, $options);
-            $user_role = $this->users->getUserRole($user_id);
-            if (isset($postData['user_role']) && $postData['user_role'] != $user_role) { // Сменилась роль пользователя, оповещаем админа и пишем лог                                
+            if (isset($postData['user_role']) && (int) $postData['user_role'] !== $currentUserRole) { // Сменилась роль пользователя, оповещаем админа и пишем лог
                 \classes\system\Logger::audit('users_edit', 'Изменили роль пользователю', [
                     'id_user' => $user_id,
-                    'old' => $this->users->data['user_role'],
+                    'old' => $currentUserRole,
                     'new' => $postData['user_role'],
                 ], [
                     'initiator' => 'ajax_user_edit',
@@ -620,7 +1026,7 @@ use MessagesTrait,
             ],
         ];
         $this->loadModel('m_user_edit');
-        $get_free_roles = $this->models['m_user_edit']->get_free_roles(0); // Получим все роли
+        $get_free_roles = $this->models['m_user_edit']->get_free_roles(0, 0, false); // Получим все роли
         $filters['user_role']['options'][] = ['value' => '', 'label' => ''];
         foreach ($get_free_roles as $item) {
             $filters['user_role']['options'][] = ['value' => $item['role_id'], 'label' => $item['name']];

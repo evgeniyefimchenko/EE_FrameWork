@@ -16,9 +16,20 @@ class ModelUserEdit {
      * Возвращает все свободные роли пользователей
      * кроме переданной и роли система
      */
-    public function get_free_roles($role_id = 1) {
-        $sql = 'SELECT role_id, name FROM ?n WHERE role_id NOT IN (?i, 8)';
-        return SafeMySQL::gi()->getAll($sql, Constants::USERS_ROLES_TABLE, $role_id);
+    public function get_free_roles($role_id = 1, int $user_id = 0, bool $enforceSingleAdmin = true) {
+        $excludedRoles = [(int) $role_id, Constants::SYSTEM];
+        $hasAnotherAdmin = (int) SafeMySQL::gi()->getOne(
+            'SELECT COUNT(*) FROM ?n WHERE user_role = ?i AND deleted = 0 AND user_id != ?i',
+            Constants::USERS_TABLE,
+            Constants::ADMIN,
+            $user_id
+        ) > 0;
+        if ($enforceSingleAdmin && (int) $role_id !== Constants::ADMIN && $hasAnotherAdmin) {
+            $excludedRoles[] = Constants::ADMIN;
+        }
+        $excludedRoles = array_values(array_unique(array_map('intval', $excludedRoles)));
+        $sql = 'SELECT role_id, name FROM ?n WHERE role_id NOT IN (?a) ORDER BY role_id ASC';
+        return SafeMySQL::gi()->getAll($sql, Constants::USERS_ROLES_TABLE, $excludedRoles);
     }
 
     /**
@@ -92,23 +103,30 @@ class ModelUserEdit {
      * - Если 'role_id' не передан или равен 0, создает новую запись.
      * - При ошибке SQL логирует её через Logger.
      */
-    public function update_users_role_data(array $usersRoleData = [], $language_code = ENV_DEF_LANG): OperationResult {
+    public function update_users_role_data(array $usersRoleData = []): OperationResult {
         $usersRoleData = SafeMySQL::gi()->filterArray($usersRoleData, SysClass::ee_getFieldsTable(Constants::USERS_ROLES_TABLE));
-        $usersRoleData = array_map('trim', $usersRoleData);
+        $usersRoleData = array_map(static fn($value) => is_string($value) ? trim($value) : $value, $usersRoleData);
         $usersRoleData = SysClass::ee_convertArrayValuesToNumbers($usersRoleData);
-        $usersRoleData['language_code'] = $language_code;
-        if (!isset($usersRoleData['name'])) {
+        if (empty($usersRoleData['name'])) {
             return OperationResult::validation('Не указано имя роли', $usersRoleData);
         }
-        if (!empty($usersRoleData['role_id']) && $usersRoleData['role_id'] != 0) {
-            $role_id = $usersRoleData['role_id'];
+        $roleId = (int) ($usersRoleData['role_id'] ?? 0);
+        $existingRole = $roleId > 0 ? $this->get_users_role_data($roleId) : null;
+        $roleKey = trim((string) ($existingRole['role_key'] ?? $usersRoleData['role_key'] ?? ''));
+        if ($roleKey === '') {
+            $roleKey = $this->generateRoleKey((string) $usersRoleData['name']);
+        }
+        $usersRoleData['role_key'] = $this->ensureUniqueRoleKey($roleKey, $roleId);
+
+        if ($roleId > 0) {
+            $role_id = $roleId;
             unset($usersRoleData['role_id']);
-            $sql = "UPDATE ?n SET ?u WHERE role_id = ?i AND language_code = ?s";
-            $result = SafeMySQL::gi()->query($sql, Constants::USERS_ROLES_TABLE, $usersRoleData, $role_id, $language_code);
+            $sql = "UPDATE ?n SET ?u WHERE role_id = ?i";
+            $result = SafeMySQL::gi()->query($sql, Constants::USERS_ROLES_TABLE, $usersRoleData, $role_id);
             if (!$result) {
                 $message = 'error SQL';
                 Logger::error('user_role_edit', $message, [
-                    'sql' => SafeMySQL::gi()->parse($sql, Constants::USERS_ROLES_TABLE, $usersRoleData, $role_id, $language_code),
+                    'sql' => SafeMySQL::gi()->parse($sql, Constants::USERS_ROLES_TABLE, $usersRoleData, $role_id),
                 ], [
                     'initiator' => __FUNCTION__,
                     'details' => $message,
@@ -136,6 +154,32 @@ class ModelUserEdit {
             : OperationResult::failure('Ошибка создания роли пользователя', 'user_role_insert_error', ['role_data' => $usersRoleData]);
     }
 
+    private function generateRoleKey(string $name): string {
+        $transliterated = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $name);
+        $normalized = strtolower((string) ($transliterated !== false ? $transliterated : $name));
+        $normalized = preg_replace('/[^a-z0-9]+/', '_', $normalized) ?? '';
+        $normalized = trim($normalized, '_');
+        return $normalized !== '' ? $normalized : 'role';
+    }
+
+    private function ensureUniqueRoleKey(string $roleKey, int $excludeRoleId = 0): string {
+        $baseKey = $roleKey !== '' ? $roleKey : 'role';
+        $candidate = $baseKey;
+        $suffix = 1;
+        while (true) {
+            $existingRoleId = (int) SafeMySQL::gi()->getOne(
+                'SELECT role_id FROM ?n WHERE role_key = ?s LIMIT 1',
+                Constants::USERS_ROLES_TABLE,
+                $candidate
+            );
+            if ($existingRoleId === 0 || $existingRoleId === $excludeRoleId) {
+                return $candidate;
+            }
+            $candidate = $baseKey . '_' . $suffix;
+            $suffix++;
+        }
+    }
+
     /**
      * Удаляет роль пользователя из базы данных
      * @param int $role_id Идентификатор роли пользователя, которую необходимо удалить
@@ -160,6 +204,22 @@ class ModelUserEdit {
     }
 
     public function restore_user(int $user_id, bool $forcePasswordSetup = true): OperationResult {
+        $restoredRole = (int) SafeMySQL::gi()->getOne(
+            'SELECT user_role FROM ?n WHERE user_id = ?i LIMIT 1',
+            Constants::USERS_TABLE,
+            $user_id
+        );
+        if ($restoredRole === Constants::ADMIN) {
+            $hasAnotherAdmin = (int) SafeMySQL::gi()->getOne(
+                'SELECT COUNT(*) FROM ?n WHERE user_role = ?i AND deleted = 0 AND user_id != ?i',
+                Constants::USERS_TABLE,
+                Constants::ADMIN,
+                $user_id
+            ) > 0;
+            if ($hasAnotherAdmin) {
+                return OperationResult::failure('В системе уже есть активный администратор', 'admin_restore_conflict', ['user_id' => $user_id]);
+            }
+        }
         return (new AuthService())->restoreUser($user_id, $forcePasswordSetup, 'admin_restore')
             ? OperationResult::success(['user_id' => $user_id], '', 'restored')
             : OperationResult::failure('Ошибка восстановления пользователя', 'user_restore_error', ['user_id' => $user_id]);

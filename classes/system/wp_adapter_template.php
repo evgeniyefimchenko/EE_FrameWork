@@ -9,7 +9,7 @@ declare(strict_types=1);
  * под администратором.
  *
  * Скрипт по шагам формирует JSONL-пакет универсального формата
- * для импорта сущностей в skku.shop.
+ * для импорта сущностей в EE_FrameWork.
  */
 
 $wpLoad = __DIR__ . DIRECTORY_SEPARATOR . 'wp-load.php';
@@ -1439,7 +1439,7 @@ function ee_export_phase_categories(array $ctx, array &$state, int $batch): arra
                     'title' => $name,
                     'short_description' => trim((string)($row['slug'] ?? '')),
                     'description' => trim((string)($row['description'] ?? '')) !== ''
-                        ? (string)$row['description']
+                        ? ee_export_normalize_rich_text((string)$row['description'])
                         : $name,
                     'status' => 'active',
                     'language_code' => 'RU',
@@ -1503,6 +1503,7 @@ function ee_export_phase_categories(array $ctx, array &$state, int $batch): arra
 function ee_export_phase_pages(array $ctx, array &$state, int $batch): array {
     $wpdb = $ctx['wpdb'];
     $postsTable = (string)$ctx['tables']['posts'];
+    $usersTable = (string)$ctx['tables']['users'];
 
     if (!ee_export_table_exists($ctx, $postsTable)) {
         return ['done' => true, 'processed' => 0, 'written' => 0, 'skipped' => 0, 'log' => "pages: таблица posts отсутствует, пропуск.\n"];
@@ -1517,7 +1518,7 @@ function ee_export_phase_pages(array $ctx, array &$state, int $batch): array {
     $lastId = (int)($phaseState['last_id'] ?? 0);
 
     $inPostTypes = ee_export_prepare_string_in($postTypes);
-    $sql = "SELECT ID, post_type, post_status, post_title, post_excerpt, post_content, post_parent
+    $sql = "SELECT ID, post_type, post_status, post_title, post_excerpt, post_content, post_parent, post_author
         FROM {$postsTable}
         WHERE post_type IN ({$inPostTypes['placeholders']}) AND ID > %d AND post_status <> 'auto-draft'
         ORDER BY ID ASC
@@ -1537,6 +1538,31 @@ function ee_export_phase_pages(array $ctx, array &$state, int $batch): array {
         return (int)($row['ID'] ?? 0);
     }, $rows)));
     $postIdSql = empty($postIds) ? '' : implode(',', array_map('intval', $postIds));
+
+    $authorMap = [];
+    $authorIds = array_values(array_unique(array_filter(array_map(static function (array $row) {
+        return (int)($row['post_author'] ?? 0);
+    }, $rows))));
+    if (!empty($authorIds) && ee_export_table_exists($ctx, $usersTable)) {
+        $authorIdsSql = implode(',', array_map('intval', $authorIds));
+        $authorRows = $wpdb->get_results(
+            "SELECT ID, user_login, user_email, display_name FROM {$usersTable} WHERE ID IN ({$authorIdsSql})",
+            ARRAY_A
+        );
+        if (is_array($authorRows)) {
+            foreach ($authorRows as $authorRow) {
+                $authorId = (int)($authorRow['ID'] ?? 0);
+                if ($authorId <= 0) {
+                    continue;
+                }
+                $authorMap[$authorId] = [
+                    'login' => trim((string)($authorRow['user_login'] ?? '')),
+                    'email' => trim((string)($authorRow['user_email'] ?? '')),
+                    'name' => trim((string)($authorRow['display_name'] ?? '')),
+                ];
+            }
+        }
+    }
 
     $firstCategoryByPost = [];
     $taxonomies = ee_export_get_export_taxonomies($state);
@@ -1616,7 +1642,7 @@ function ee_export_phase_pages(array $ctx, array &$state, int $batch): array {
             'category_source_id' => $categorySourceId,
             'title' => $title,
             'short_description' => (string)($row['post_excerpt'] ?? ''),
-            'description' => (string)($row['post_content'] ?? ''),
+            'description' => ee_export_normalize_rich_text((string)($row['post_content'] ?? '')),
             'status' => ee_export_map_status((string)($row['post_status'] ?? 'publish')),
             'language_code' => 'RU',
         ];
@@ -1626,6 +1652,23 @@ function ee_export_phase_pages(array $ctx, array &$state, int $batch): array {
             $parentType = (string)($parentTypeMap[$parentId] ?? '');
             if ($parentType !== '' && isset($allowedPostTypes[$parentType])) {
                 $payload['parent_source_id'] = (string)$parentId;
+            }
+        }
+
+        $ownerUserSourceId = (int)($row['post_author'] ?? 0);
+        if ($ownerUserSourceId > 0) {
+            $payload['owner_user_source_id'] = (string)$ownerUserSourceId;
+            if (isset($authorMap[$ownerUserSourceId]) && is_array($authorMap[$ownerUserSourceId])) {
+                $ownerData = $authorMap[$ownerUserSourceId];
+                if ($ownerData['login'] !== '') {
+                    $payload['owner_user_login'] = $ownerData['login'];
+                }
+                if ($ownerData['email'] !== '') {
+                    $payload['owner_user_email'] = $ownerData['email'];
+                }
+                if ($ownerData['name'] !== '') {
+                    $payload['owner_user_name'] = $ownerData['name'];
+                }
             }
         }
 
@@ -1646,6 +1689,38 @@ function ee_export_phase_pages(array $ctx, array &$state, int $batch): array {
         'skipped' => $skipped,
         'log' => "pages: обработано={$processed}, записано={$written}, пропущено={$skipped}, последний_id={$lastId}\n",
     ];
+}
+
+function ee_export_normalize_rich_text(string $value): string {
+    $value = trim(str_replace(["\r\n", "\r"], "\n", $value));
+    if ($value === '') {
+        return '';
+    }
+
+    if (function_exists('wpautop')) {
+        $formatted = trim((string)wpautop($value));
+        if ($formatted !== '') {
+            return $formatted;
+        }
+    }
+
+    $blocks = preg_split("/\n{2,}/u", $value) ?: [];
+    $paragraphs = [];
+    foreach ($blocks as $block) {
+        $block = trim($block);
+        if ($block === '') {
+            continue;
+        }
+
+        $decoded = html_entity_decode($block, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $escaped = htmlspecialchars($decoded, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $escaped = preg_replace("/\n/u", "<br>\n", $escaped) ?? $escaped;
+        $paragraphs[] = '<p>' . $escaped . '</p>';
+    }
+
+    return $paragraphs === []
+        ? '<p>' . htmlspecialchars(html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</p>'
+        : implode("\n", $paragraphs);
 }
 
 function ee_export_phase_property_values(array $ctx, array &$state, int $batch): array {
@@ -3178,6 +3253,10 @@ function ee_export_should_include_meta_key(array $state, string $metaKey): bool 
         return true;
     }
 
+    if (ee_export_is_hard_excluded_meta_key($metaKey)) {
+        return false;
+    }
+
     $includePrivate = !empty($state['include_private_meta_keys']);
     if (!$includePrivate && str_starts_with($metaKey, '_')) {
         return false;
@@ -3193,6 +3272,67 @@ function ee_export_should_include_meta_key(array $state, string $metaKey): bool 
     }
 
     return true;
+}
+
+function ee_export_is_hard_excluded_meta_key(string $metaKey): bool {
+    $metaKey = strtolower(trim($metaKey));
+    if ($metaKey === '' || $metaKey === '_thumbnail_id') {
+        return false;
+    }
+
+    if ((bool)preg_match('/^_?field_[a-z0-9]+$/i', $metaKey)) {
+        return true;
+    }
+
+    if (ee_export_is_known_technical_meta_key($metaKey)) {
+        return true;
+    }
+
+    if (str_starts_with($metaKey, '_')) {
+        $publicMetaKey = ltrim($metaKey, '_');
+        if ($publicMetaKey !== '' && ee_export_is_acf_meta_key($publicMetaKey)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function ee_export_is_known_technical_meta_key(string $metaKey): bool {
+    $metaKey = strtolower(trim($metaKey));
+    if ($metaKey === '') {
+        return false;
+    }
+
+    static $exactMatch = [
+        '_edit_last',
+        '_edit_lock',
+        '_pingme',
+        '_encloseme',
+        '_trackbackme',
+        '_wp_old_slug',
+        '_wp_page_template',
+        '_wp_desired_post_slug',
+    ];
+
+    if (in_array($metaKey, $exactMatch, true)) {
+        return true;
+    }
+
+    static $patternMatch = [
+        '/^_oembed_/i',
+        '/^_wp_trash_/i',
+        '/^_wp_attachment_/i',
+        '/^_menu_item_/i',
+    ];
+
+    foreach ($patternMatch as $pattern) {
+        if ((bool)preg_match($pattern, $metaKey)) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 function ee_export_prepare_meta_value($raw) {

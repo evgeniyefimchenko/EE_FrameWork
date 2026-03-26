@@ -26,7 +26,7 @@
                                 </form>
                                 <?php if (defined('ENV_AUTH_GOOGLE_CLIENT_ID') && trim((string) ENV_AUTH_GOOGLE_CLIENT_ID) !== '') { ?>
                                     <div class="mt-3 text-center">
-                                        <a class="btn btn-outline-dark w-100" href="/auth/google/start"><?= $lang['sys.continue_with_google'] ?></a>
+                                        <a class="btn btn-outline-dark w-100" href="/auth_consent/provider/google"><?= $lang['sys.continue_with_google'] ?></a>
                                     </div>
                                 <?php } ?>
                             </div>
@@ -45,11 +45,25 @@
                                     <div class="form-group">
                                         <input id="reg_password_confirmation" class="form-control" autocomplete="off" type="password" placeholder="<?= $lang['sys.confirm_password'] ?>" name="password_confirmation" data-validator="confirm_password" required="true" data-toggle="tooltip" title="<?= $lang['sys.confirm_password'] ?>">
                                     </div>
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" id="reg_privacy_policy_accepted" name="privacy_policy_accepted" value="1" required>
+                                        <label class="form-check-label" for="reg_privacy_policy_accepted">
+                                            <?= htmlspecialchars((string) ($lang['sys.accept_privacy_policy'] ?? 'Я ознакомлен(а) и принимаю Политику в отношении обработки персональных данных')) ?>
+                                            <a href="/privacy_policy" target="_blank" rel="noopener"><?= htmlspecialchars((string) ($lang['sys.open_document'] ?? 'Открыть документ')) ?></a>
+                                        </label>
+                                    </div>
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" id="reg_personal_data_consent_accepted" name="personal_data_consent_accepted" value="1" required>
+                                        <label class="form-check-label" for="reg_personal_data_consent_accepted">
+                                            <?= htmlspecialchars((string) ($lang['sys.accept_personal_data_consent'] ?? 'Я даю согласие на обработку персональных данных')) ?>
+                                            <a href="/consent_personal_data" target="_blank" rel="noopener"><?= htmlspecialchars((string) ($lang['sys.open_document'] ?? 'Открыть документ')) ?></a>
+                                        </label>
+                                    </div>
                                     <input class="btn btn-default btn-register" type="submit" value="<?= $lang['sys.sign_up'] ?>" name="commit">
                                 </form>
                                 <?php if (defined('ENV_AUTH_GOOGLE_CLIENT_ID') && trim((string) ENV_AUTH_GOOGLE_CLIENT_ID) !== '') { ?>
                                     <div class="mt-3 text-center">
-                                        <a class="btn btn-outline-dark w-100" href="/auth/google/start"><?= $lang['sys.continue_with_google'] ?></a>
+                                        <a class="btn btn-outline-dark w-100" href="/auth_consent/provider/google"><?= $lang['sys.continue_with_google'] ?></a>
                                     </div>
                                 <?php } ?>
                             </div>

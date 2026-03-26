@@ -100,6 +100,8 @@ class WordpressImporter extends BaseImporter {
     private array $excludedPropertySourceIds = [];
     private array $sourceTypeMap = [];
     private array $sourceSetMap = [];
+    private array $sourcePropertyMap = [];
+    private array $additionalTypeSetLinks = [];
     private array $compositePropertyDefinitions = [];
     private array $compositeByMemberSourceId = [];
     private bool $strictCompositePropertyMapping = false;
@@ -129,7 +131,11 @@ class WordpressImporter extends BaseImporter {
         $this->metaExcludePatterns = $this->normalizeListSetting($settings['meta_exclude_patterns'] ?? []);
         $this->excludedPropertySourceIds = $this->normalizeListSetting($settings['excluded_property_source_ids'] ?? []);
         $this->sourceTypeMap = $this->normalizeIdMapSetting($settings['source_type_map'] ?? []);
-        $this->sourceSetMap = [];
+        $this->sourceSetMap = $this->normalizeIdMapSetting($settings['source_set_map'] ?? []);
+        $this->sourcePropertyMap = $this->mergeRecommendedPropertyMappings(
+            $this->normalizePropertyMapSetting($settings['source_property_map'] ?? [])
+        );
+        $this->additionalTypeSetLinks = $this->normalizeTypeSetLinksSetting($settings['additional_type_set_links'] ?? []);
         [$this->compositePropertyDefinitions, $this->compositeByMemberSourceId] = $this->normalizeCompositePropertiesSetting(
             $settings['composite_properties_map'] ?? []
         );
@@ -147,6 +153,7 @@ class WordpressImporter extends BaseImporter {
     protected function _execute() {
         $this->ensureImporterModels();
         $this->ensureImportMapTable();
+        $this->ensurePageUserLinksTable();
 
         if ($this->webStepMode && !empty($this->settings['web_step_restart'])) {
             $this->resetStateFiles(true);
@@ -205,11 +212,56 @@ class WordpressImporter extends BaseImporter {
         $this->log($title);
         $done = $this->processJsonlPhase($phase, $handler);
         if ($done) {
+            $this->runPhasePostActions($phase);
             $this->logPhaseSummary($phase, $phase . ' finished');
             $this->advancePhase($nextPhase);
             return;
         }
         $this->log('WEB STEP: in_progress (next=' . $phase . ')');
+    }
+
+    private function runPhasePostActions(string $phase): void {
+        if ($phase === 'pass_type_set_links') {
+            $this->applyAdditionalTypeSetLinks();
+        }
+    }
+
+    private function applyAdditionalTypeSetLinks(): void {
+        if (empty($this->additionalTypeSetLinks)) {
+            return;
+        }
+
+        $created = 0;
+        $updated = 0;
+        $skipped = 0;
+        $failed = 0;
+
+        foreach ($this->additionalTypeSetLinks as $row) {
+            $result = $this->importTypeSetLinkRow($row);
+            $status = strtolower(trim((string)($result['status'] ?? '')));
+            switch ($status) {
+                case 'created':
+                    $created++;
+                    break;
+                case 'updated':
+                    $updated++;
+                    break;
+                case 'failed':
+                    $failed++;
+                    break;
+                default:
+                    $skipped++;
+                    break;
+            }
+        }
+
+        $this->log(sprintf(
+            'Additional type-set links applied: created=%d updated=%d skipped=%d failed=%d',
+            $created,
+            $updated,
+            $skipped,
+            $failed
+        ));
     }
 
     private function phaseInit(): void {
@@ -240,6 +292,33 @@ class WordpressImporter extends BaseImporter {
             }
             $this->log(sprintf('Summary %s: processed=%d created=%d updated=%d skipped=%d failed=%d', $phase, (int)$stats['processed'], (int)$stats['created'], (int)$stats['updated'], (int)$stats['skipped'], (int)$stats['failed']));
         }
+        $lifecycleSummary = ProductLifecycleStructureService::ensureObjectLifecycleSet(
+            $this->languageCode,
+            $this->job_id > 0 ? (int) $this->job_id : null
+        );
+        $this->state['product_lifecycle_summary'] = $lifecycleSummary;
+        $this->log(sprintf(
+            'Product lifecycle summary: set_id=%d linked_types=%d pages_seeded=%d inserted=%d status_updates=%d source_updates=%d',
+            (int) ($lifecycleSummary['set_id'] ?? 0),
+            count((array) ($lifecycleSummary['linked_type_ids'] ?? [])),
+            (int) (($lifecycleSummary['seed']['pages_total'] ?? 0)),
+            (int) (($lifecycleSummary['seed']['inserted_values'] ?? 0)),
+            (int) (($lifecycleSummary['seed']['updated_status'] ?? 0)),
+            (int) (($lifecycleSummary['seed']['updated_source'] ?? 0))
+        ));
+        $mediaQueueSummary = ImportMediaQueueService::queueImportJobMedia($this->job_id, $this->languageCode);
+        $this->state['media_queue_summary'] = $mediaQueueSummary;
+        $this->log(sprintf(
+            'Media queue summary: discovered=%d queued=%d requeued=%d existing_done=%d existing_pending=%d pending=%d done=%d failed=%d',
+            (int) ($mediaQueueSummary['discovered'] ?? 0),
+            (int) ($mediaQueueSummary['queued'] ?? 0),
+            (int) ($mediaQueueSummary['requeued'] ?? 0),
+            (int) ($mediaQueueSummary['existing_done'] ?? 0),
+            (int) ($mediaQueueSummary['existing_pending'] ?? 0),
+            (int) (($mediaQueueSummary['summary']['pending'] ?? 0)),
+            (int) (($mediaQueueSummary['summary']['done'] ?? 0)),
+            (int) (($mediaQueueSummary['summary']['failed'] ?? 0))
+        ));
         $sourceDir = (string)($this->state['source_dir'] ?? '');
         if ($sourceDir !== '' && is_dir($sourceDir)) {
             $this->removeDirectory($sourceDir);
@@ -413,6 +492,7 @@ class WordpressImporter extends BaseImporter {
             $email = 'imported_user_' . $sourceId . '@example.local';
         }
 
+        $login = $this->rowString($row, ['login', 'user_login'], '');
         $name = $this->rowString($row, ['name', 'display_name', 'login', 'user_login'], $email);
         $existingUserId = $this->getMappedId('user', $sourceId);
         if ($existingUserId <= 0) {
@@ -423,13 +503,8 @@ class WordpressImporter extends BaseImporter {
             );
         }
 
-        $pwd = $this->rowString($row, ['pwd', 'pwd_hash', 'password_hash'], '');
-        if ($pwd === '' && $existingUserId <= 0) {
-            $pwd = password_hash('wp-import-' . $sourceId . '-' . $email, PASSWORD_DEFAULT);
-            if (!is_string($pwd) || $pwd === '') {
-                $pwd = password_hash('wp-import-' . $sourceId, PASSWORD_DEFAULT);
-            }
-        }
+        $legacyPasswordHash = $this->rowString($row, ['pwd', 'pwd_hash', 'password_hash'], '');
+        $placeholderPasswordHash = $this->buildImportedUserPlaceholderPasswordHash($sourceId, $email);
 
         $userData = [
             'name' => $name !== '' ? $name : $email,
@@ -442,18 +517,13 @@ class WordpressImporter extends BaseImporter {
             'comment' => $this->rowString($row, ['comment', 'bio', 'description'], ''),
             'last_ip' => $this->rowString($row, ['last_ip', 'ip'], ''),
         ];
-        if ($pwd !== '') {
-            $userData['pwd'] = $pwd;
-        }
 
         if ($existingUserId > 0) {
             SafeMySQL::gi()->query('UPDATE ?n SET ?u WHERE user_id = ?i', Constants::USERS_TABLE, $userData, $existingUserId);
             $status = 'updated';
             $userId = $existingUserId;
         } else {
-            if (empty($userData['pwd'])) {
-                $userData['pwd'] = password_hash('import-' . $sourceId, PASSWORD_DEFAULT);
-            }
+            $userData['pwd'] = $placeholderPasswordHash;
             SafeMySQL::gi()->query('INSERT INTO ?n SET ?u', Constants::USERS_TABLE, $userData);
             $userId = (int)SafeMySQL::gi()->insertId();
             if ($userId <= 0) {
@@ -464,21 +534,92 @@ class WordpressImporter extends BaseImporter {
 
         $this->saveMappedId('user', $sourceId, $userId);
 
+        $this->ensureImportedUserDataRow($userId);
+        $this->applyImportedUserOptions($userId, $row, $sourceId, $login, $legacyPasswordHash);
+        (new AuthService())->markUserRequiresPasswordSetup($userId, true, 'wp_migration');
+
+        return $this->result($status);
+    }
+
+    private function buildImportedUserPlaceholderPasswordHash(string $sourceId, string $email): string {
+        $seed = 'wp-import-user-' . $sourceId . '-' . $email;
+        $hash = password_hash($seed, PASSWORD_DEFAULT);
+        if (!is_string($hash) || $hash === '') {
+            $hash = password_hash('wp-import-user-' . $sourceId, PASSWORD_DEFAULT);
+        }
+        return is_string($hash) && $hash !== '' ? $hash : sha1($seed);
+    }
+
+    private function ensureImportedUserDataRow(int $userId): void {
         $dataId = (int)SafeMySQL::gi()->getOne(
             'SELECT data_id FROM ?n WHERE user_id = ?i LIMIT 1',
             Constants::USERS_DATA_TABLE,
             $userId
         );
-        if ($dataId <= 0) {
-            SafeMySQL::gi()->query(
-                'INSERT INTO ?n SET ?u',
-                Constants::USERS_DATA_TABLE,
-                ['user_id' => $userId, 'options' => '{}']
-            );
+        if ($dataId > 0) {
+            return;
         }
 
-        return $this->result($status);
+        $baseOptions = AuthService::decodeJsonPayload(Users::BASE_OPTIONS_USER);
+        $encoded = json_encode($baseOptions, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        SafeMySQL::gi()->query(
+            'INSERT INTO ?n SET ?u',
+            Constants::USERS_DATA_TABLE,
+            ['user_id' => $userId, 'options' => is_string($encoded) ? $encoded : '{}']
+        );
     }
+
+    private function applyImportedUserOptions(int $userId, array $row, string $sourceId, string $login, string $legacyPasswordHash): void {
+        $rawOptions = SafeMySQL::gi()->getOne(
+            'SELECT options FROM ?n WHERE user_id = ?i LIMIT 1',
+            Constants::USERS_DATA_TABLE,
+            $userId
+        );
+        $currentOptions = AuthService::decodeJsonPayload($rawOptions);
+        $baseOptions = AuthService::decodeJsonPayload(Users::BASE_OPTIONS_USER);
+        $mergedOptions = $this->mergeImportOptions($baseOptions, $currentOptions);
+
+        $mergedOptions['auth'] = $this->mergeImportOptions(
+            is_array($mergedOptions['auth'] ?? null) ? $mergedOptions['auth'] : [],
+            [
+                'require_password_setup' => 1,
+                'password_setup_reason' => 'wp_migration',
+                'last_password_prompt_at' => date('c'),
+            ]
+        );
+
+        $mergedOptions['migration'] = $this->mergeImportOptions(
+            is_array($mergedOptions['migration'] ?? null) ? $mergedOptions['migration'] : [],
+            [
+                'wordpress' => [
+                    'source_id' => $sourceId,
+                    'login' => $login,
+                    'legacy_password_hash_imported' => $legacyPasswordHash !== '' ? 1 : 0,
+                    'imported_at' => date('c'),
+                ],
+            ]
+        );
+
+        $encoded = json_encode($mergedOptions, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        SafeMySQL::gi()->query(
+            'UPDATE ?n SET options = ?s, updated_at = NOW() WHERE user_id = ?i',
+            Constants::USERS_DATA_TABLE,
+            is_string($encoded) ? $encoded : '{}',
+            $userId
+        );
+    }
+
+    private function mergeImportOptions(array $base, array $patch): array {
+        foreach ($patch as $key => $value) {
+            if (is_array($value) && is_array($base[$key] ?? null)) {
+                $base[$key] = $this->mergeImportOptions($base[$key], $value);
+            } else {
+                $base[$key] = $value;
+            }
+        }
+        return $base;
+    }
+
     private function importCategoryTypeRow(array $row): array {
         $sourceId = $this->normalizeSourceId($this->rowValue($row, ['source_id', 'type_source_id', 'taxonomy', 'id'], ''));
         if (!$this->isAllowedTypeSource($sourceId)) {
@@ -932,7 +1073,9 @@ class WordpressImporter extends BaseImporter {
             'type_id' => $typeId,
             'title' => $title,
             'short_description' => $this->rowString($row, ['short_description', 'excerpt'], ''),
-            'description' => $this->rowString($row, ['description'], $title),
+            'description' => self::normalizeImportedRichText(
+                $this->rowString($row, ['description'], $title)
+            ),
             'status' => $this->normalizeStatus($this->rowValue($row, ['status'], 'active')),
             'parent_id' => 0,
         ];
@@ -1045,7 +1188,9 @@ class WordpressImporter extends BaseImporter {
             'status' => $this->normalizeStatus($this->rowValue($row, ['status'], 'active')),
             'title' => $title,
             'short_description' => $this->rowString($row, ['short_description', 'excerpt'], ''),
-            'description' => $this->rowString($row, ['description', 'content'], ''),
+            'description' => self::normalizeImportedRichText(
+                $this->rowString($row, ['description', 'content'], '')
+            ),
         ];
 
         $pageSaveResult = OperationResult::fromLegacy(
@@ -1055,6 +1200,11 @@ class WordpressImporter extends BaseImporter {
         $pageId = $pageSaveResult->isSuccess() ? $pageSaveResult->getId(['page_id', 'id']) : 0;
         if ($pageId <= 0) {
             return $this->result('failed', $pageSaveResult->getMessage('Failed to import page source=' . $sourceId));
+        }
+
+        $ownerUserId = $this->resolveImportedPageOwnerUserId($row);
+        if ($ownerUserId > 0) {
+            $this->syncImportedPageUserLink($pageId, $ownerUserId, 'owner');
         }
 
         $this->saveMappedId('page', $sourceId, (int)$pageId);
@@ -1110,6 +1260,75 @@ class WordpressImporter extends BaseImporter {
         }
         return $this->result('updated');
     }
+
+    private function resolveImportedPageOwnerUserId(array $row): int {
+        $ownerSourceId = $this->normalizeSourceId($this->rowValue(
+            $row,
+            ['owner_user_source_id', 'author_user_source_id', 'user_source_id'],
+            ''
+        ));
+        if ($ownerSourceId !== '') {
+            $mappedUserId = $this->getMappedOrLocal('user', $ownerSourceId, $this->rowValue($row, ['owner_user_id', 'author_user_id'], 0));
+            if ($mappedUserId > 0) {
+                return $mappedUserId;
+            }
+        }
+
+        $ownerEmail = strtolower($this->rowString($row, ['owner_user_email', 'author_user_email'], ''));
+        if ($ownerEmail !== '') {
+            $userId = (int)SafeMySQL::gi()->getOne(
+                'SELECT user_id FROM ?n WHERE email = ?s LIMIT 1',
+                Constants::USERS_TABLE,
+                $ownerEmail
+            );
+            if ($userId > 0) {
+                return $userId;
+            }
+        }
+
+        $ownerName = trim($this->rowString($row, ['owner_user_name', 'author_user_name'], ''));
+        if ($ownerName !== '') {
+            $rows = SafeMySQL::gi()->getAll(
+                'SELECT user_id FROM ?n WHERE name = ?s AND deleted = 0 LIMIT 2',
+                Constants::USERS_TABLE,
+                $ownerName
+            );
+            if (is_array($rows) && count($rows) === 1) {
+                return (int)($rows[0]['user_id'] ?? 0);
+            }
+        }
+
+        return 0;
+    }
+
+    private function syncImportedPageUserLink(int $pageId, int $userId, string $relationType = 'owner'): void {
+        if ($pageId <= 0 || $userId <= 0) {
+            return;
+        }
+
+        $relationType = trim($relationType);
+        if ($relationType === '') {
+            $relationType = 'owner';
+        }
+
+        SafeMySQL::gi()->query(
+            'DELETE FROM ?n WHERE page_id = ?i AND relation_type = ?s AND user_id != ?i',
+            Constants::PAGE_USER_LINKS_TABLE,
+            $pageId,
+            $relationType,
+            $userId
+        );
+
+        SafeMySQL::gi()->query(
+            'INSERT INTO ?n (`page_id`, `user_id`, `relation_type`) VALUES (?i, ?i, ?s)
+             ON DUPLICATE KEY UPDATE updated_at = CURRENT_TIMESTAMP',
+            Constants::PAGE_USER_LINKS_TABLE,
+            $pageId,
+            $userId,
+            $relationType
+        );
+    }
+
     private function importPropertyValueRow(array $row): array {
         $entityType = $this->normalizeEntityType($this->rowValue($row, ['entity_type', 'target_entity'], ''));
         if ($entityType !== 'category' && $entityType !== 'page') {
@@ -1151,6 +1370,17 @@ class WordpressImporter extends BaseImporter {
             return $this->result('skipped');
         }
 
+        $payloadValues = $this->rowValue($row, ['property_values', 'value', 'values', 'fields'], null);
+        $ownerLinkStatus = $this->syncImportedPageOwnerFromPropertyRow(
+            $entityType,
+            $entityId,
+            $propertySourceId,
+            $payloadValues
+        );
+        if ($ownerLinkStatus === 'linked_only') {
+            return $this->result('updated');
+        }
+
         $propertyId = $this->getMappedOrLocal('property', $propertySourceId, $this->rowValue($row, ['property_id'], 0));
         if ($propertyId <= 0) {
             return $this->result('skipped');
@@ -1161,7 +1391,6 @@ class WordpressImporter extends BaseImporter {
             return $this->result('skipped');
         }
 
-        $payloadValues = $this->rowValue($row, ['property_values', 'value', 'values', 'fields'], null);
         $payloadValues = $this->normalizePropertyValuesPayload($propertyId, $payloadValues);
         if (empty($payloadValues)) {
             return $this->result('failed', 'Invalid property_values payload for entity=' . $entitySourceId . ', property=' . $propertySourceId);
@@ -1196,6 +1425,92 @@ class WordpressImporter extends BaseImporter {
             return $this->result('failed', $valueSaveResult->getMessage('Failed to import property value for entity=' . $entityId));
         }
         return $this->result($existingValueId > 0 ? 'updated' : 'created');
+    }
+
+    private function syncImportedPageOwnerFromPropertyRow(
+        string $entityType,
+        int $entityId,
+        string $propertySourceId,
+        mixed $payloadValues
+    ): string {
+        if ($entityType !== 'page' || $entityId <= 0) {
+            return 'noop';
+        }
+
+        $propertySourceId = strtolower(trim($propertySourceId));
+        if ($propertySourceId === '') {
+            return 'noop';
+        }
+
+        $existingOwnerId = (int)SafeMySQL::gi()->getOne(
+            'SELECT user_id FROM ?n WHERE page_id = ?i AND relation_type = ?s LIMIT 1',
+            Constants::PAGE_USER_LINKS_TABLE,
+            $entityId,
+            'owner'
+        );
+        if ($existingOwnerId > 0) {
+            return 'noop';
+        }
+
+        $normalizedPayload = [];
+        if (is_array($payloadValues)) {
+            $normalizedPayload = $payloadValues;
+        }
+
+        if ($propertySourceId === 'postmeta:email') {
+            $email = $this->extractScalarValueFromImportPayload($normalizedPayload);
+            $email = strtolower(trim((string)$email));
+            if ($email === '') {
+                return 'noop';
+            }
+
+            $userId = (int)SafeMySQL::gi()->getOne(
+                'SELECT user_id FROM ?n WHERE email = ?s AND deleted = 0 LIMIT 1',
+                Constants::USERS_TABLE,
+                $email
+            );
+            if ($userId > 0) {
+                $this->syncImportedPageUserLink($entityId, $userId, 'owner');
+                return 'linked_only';
+            }
+
+            return 'noop';
+        }
+
+        if ($propertySourceId === 'postmeta:user_name_master_object') {
+            $ownerName = trim((string)$this->extractScalarValueFromImportPayload($normalizedPayload));
+            if ($ownerName === '') {
+                return 'noop';
+            }
+
+            $rows = SafeMySQL::gi()->getAll(
+                'SELECT user_id FROM ?n WHERE name = ?s AND deleted = 0 LIMIT 2',
+                Constants::USERS_TABLE,
+                $ownerName
+            );
+            if (is_array($rows) && count($rows) === 1) {
+                $userId = (int)($rows[0]['user_id'] ?? 0);
+                if ($userId > 0) {
+                    $this->syncImportedPageUserLink($entityId, $userId, 'owner');
+                    return 'linked_only';
+                }
+            }
+        }
+
+        return 'noop';
+    }
+
+    private function extractScalarValueFromImportPayload(array $payloadValues): mixed {
+        if ($payloadValues === []) {
+            return null;
+        }
+
+        $first = $payloadValues[0] ?? null;
+        if (!is_array($first)) {
+            return null;
+        }
+
+        return $first['value'] ?? null;
     }
 
     private function ensurePropertyTypeId(array $row): int {
@@ -1503,6 +1818,7 @@ class WordpressImporter extends BaseImporter {
                 'set_source_id' => $setSourceId,
                 'source_kind' => $sourceKind,
                 'target_property_id' => $targetPropertyId,
+                'target_property_name' => trim((string)($item['target_property_name'] ?? '')),
                 'is_multiple' => $propertyIsMultiple,
                 'is_required' => $propertyIsRequired,
                 'type_source_id' => $typeSourceId,
@@ -1921,6 +2237,18 @@ class WordpressImporter extends BaseImporter {
             }
         }
         $isConfiguredExistingProperty = $configuredPropertyId > 0 && $existingPropertyId === $configuredPropertyId;
+        $configuredPropertyName = trim((string)($definition['target_property_name'] ?? ''));
+        if ($existingPropertyId <= 0 && $configuredPropertyName !== '') {
+            $existingPropertyId = (int)SafeMySQL::gi()->getOne(
+                'SELECT property_id FROM ?n WHERE name = ?s AND language_code = ?s LIMIT 1',
+                Constants::PROPERTIES_TABLE,
+                $configuredPropertyName,
+                $this->languageCode
+            );
+            if ($existingPropertyId > 0) {
+                $isConfiguredExistingProperty = true;
+            }
+        }
         if ($existingPropertyId <= 0) {
             $existingPropertyId = $this->getMappedId('property', $compositeSourceId);
         }
@@ -2619,12 +2947,58 @@ class WordpressImporter extends BaseImporter {
     }
 
     private function normalizeIdMapSetting(mixed $value): array {
-        if (is_array($value)) {
-            $lines = $value;
-        } else {
-            $raw = (string)$value;
-            $lines = preg_split('/[\r\n;]+/', $raw);
+        if (is_string($value)) {
+            $trimmed = trim($value);
+            if ($trimmed !== '' && SysClass::ee_isValidJson($trimmed)) {
+                $decoded = json_decode($trimmed, true);
+                if (is_array($decoded)) {
+                    $value = $decoded;
+                }
+            }
         }
+
+        if (is_array($value)) {
+            $result = [];
+            foreach ($value as $sourceKey => $item) {
+                $sourceId = '';
+                $targetId = 0;
+                $targetName = '';
+
+                if (is_string($sourceKey) && !is_array($item)) {
+                    $sourceId = strtolower(trim($sourceKey));
+                    if (is_numeric($item)) {
+                        $targetId = (int)$item;
+                    } else {
+                        $targetName = trim((string)$item);
+                    }
+                } elseif (is_array($item)) {
+                    $sourceId = strtolower(trim((string)($item['source_id'] ?? $sourceKey)));
+                    $targetId = max(0, $this->toInt($item['target_id'] ?? $item['id'] ?? 0, 0));
+                    $targetName = trim((string)($item['target_name'] ?? $item['name'] ?? ''));
+                } elseif (is_string($item)) {
+                    $line = trim($item);
+                    if ($line !== '' && str_contains($line, '=')) {
+                        [$left, $right] = array_map('trim', explode('=', $line, 2));
+                        $sourceId = strtolower($left);
+                        if ($right !== '' && preg_match('/^#?\d+$/', $right)) {
+                            $targetId = (int)ltrim($right, '#');
+                        } else {
+                            $targetName = $right;
+                        }
+                    }
+                }
+
+                if ($sourceId === '' || ($targetId <= 0 && $targetName === '')) {
+                    continue;
+                }
+                $result[$sourceId] = ['id' => $targetId, 'name' => $targetName];
+            }
+
+            return $result;
+        }
+
+        $raw = (string)$value;
+        $lines = preg_split('/[\r\n;]+/', $raw);
         if (!is_array($lines)) {
             return [];
         }
@@ -2640,12 +3014,125 @@ class WordpressImporter extends BaseImporter {
                 continue;
             }
             $sourceId = strtolower(trim((string)$parts[0]));
-            $localId = (int)trim((string)$parts[1]);
-            if ($sourceId === '' || $localId <= 0) {
+            $right = trim((string)$parts[1]);
+            if ($sourceId === '' || $right === '') {
                 continue;
             }
-            $result[$sourceId] = $localId;
+            if (preg_match('/^#?\d+$/', $right)) {
+                $result[$sourceId] = ['id' => (int)ltrim($right, '#'), 'name' => ''];
+            } else {
+                $result[$sourceId] = ['id' => 0, 'name' => $right];
+            }
         }
+        return $result;
+    }
+
+    private function normalizePropertyMapSetting(mixed $value): array {
+        if (is_string($value)) {
+            $trimmed = trim($value);
+            if ($trimmed !== '' && SysClass::ee_isValidJson($trimmed)) {
+                $decoded = json_decode($trimmed, true);
+                if (is_array($decoded)) {
+                    $value = $decoded;
+                }
+            }
+        }
+
+        $result = [];
+        if (is_array($value)) {
+            foreach ($value as $sourceKey => $item) {
+                $sourceId = '';
+                $targetId = 0;
+                $targetName = '';
+
+                if (is_string($sourceKey) && !is_array($item)) {
+                    $sourceId = strtolower(trim($sourceKey));
+                    if (is_numeric($item)) {
+                        $targetId = (int)$item;
+                    } else {
+                        $targetName = trim((string)$item);
+                    }
+                } elseif (is_array($item)) {
+                    $sourceId = strtolower(trim((string)($item['source_id'] ?? $sourceKey)));
+                    $targetId = max(0, $this->toInt($item['target_property_id'] ?? $item['property_id'] ?? 0, 0));
+                    $targetName = trim((string)($item['target_property_name'] ?? $item['property_name'] ?? ''));
+                } elseif (is_string($item)) {
+                    $line = trim($item);
+                    if ($line !== '' && str_contains($line, '=')) {
+                        [$left, $right] = array_map('trim', explode('=', $line, 2));
+                        $sourceId = strtolower($left);
+                        if ($right !== '' && preg_match('/^#?\d+$/', $right)) {
+                            $targetId = (int)ltrim($right, '#');
+                        } else {
+                            $targetName = $right;
+                        }
+                    }
+                }
+
+                if ($sourceId === '' || ($targetId <= 0 && $targetName === '')) {
+                    continue;
+                }
+                $result[$sourceId] = ['id' => $targetId, 'name' => $targetName];
+            }
+
+            return $result;
+        }
+
+        $lines = preg_split('/[\r\n;]+/', (string)$value);
+        if (!is_array($lines)) {
+            return [];
+        }
+        foreach ($lines as $line) {
+            $line = trim((string)$line);
+            if ($line === '' || !str_contains($line, '=')) {
+                continue;
+            }
+            [$left, $right] = array_map('trim', explode('=', $line, 2));
+            $sourceId = strtolower($left);
+            if ($sourceId === '' || $right === '') {
+                continue;
+            }
+            if (preg_match('/^#?\d+$/', $right)) {
+                $result[$sourceId] = ['id' => (int)ltrim($right, '#'), 'name' => ''];
+            } else {
+                $result[$sourceId] = ['id' => 0, 'name' => $right];
+            }
+        }
+
+        return $result;
+    }
+
+    private function normalizeTypeSetLinksSetting(mixed $value): array {
+        if (is_string($value)) {
+            $trimmed = trim($value);
+            if ($trimmed !== '' && SysClass::ee_isValidJson($trimmed)) {
+                $decoded = json_decode($trimmed, true);
+                if (is_array($decoded)) {
+                    $value = $decoded;
+                }
+            }
+        }
+
+        if (!is_array($value)) {
+            return [];
+        }
+
+        $result = [];
+        foreach ($value as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $typeSourceId = $this->normalizeSourceId((string)($item['type_source_id'] ?? $item['category_type_source_id'] ?? ''));
+            $setSourceId = $this->normalizeSourceId((string)($item['set_source_id'] ?? $item['property_set_source_id'] ?? ''));
+            if ($typeSourceId === '' || $setSourceId === '') {
+                continue;
+            }
+            $result[] = [
+                'type_source_id' => $typeSourceId,
+                'set_source_id' => $setSourceId,
+            ];
+        }
+
         return $result;
     }
 
@@ -2724,13 +3211,81 @@ class WordpressImporter extends BaseImporter {
             return 0;
         }
 
+        $mapping = null;
         if ($mapType === 'category_type') {
-            return (int)($this->sourceTypeMap[$sourceId] ?? 0);
+            $mapping = $this->sourceTypeMap[$sourceId] ?? null;
+        } elseif ($mapType === 'property_set') {
+            $mapping = $this->sourceSetMap[$sourceId] ?? null;
         }
+        if ($mapping === null) {
+            return 0;
+        }
+
+        if (is_numeric($mapping)) {
+            return (int)$mapping;
+        }
+        if (!is_array($mapping)) {
+            return 0;
+        }
+
+        $targetId = max(0, (int)($mapping['id'] ?? 0));
+        if ($targetId > 0) {
+            return $targetId;
+        }
+
+        $targetName = trim((string)($mapping['name'] ?? ''));
+        if ($targetName === '') {
+            return 0;
+        }
+
+        if ($mapType === 'category_type') {
+            return (int)SafeMySQL::gi()->getOne(
+                'SELECT type_id FROM ?n WHERE name = ?s AND language_code = ?s LIMIT 1',
+                Constants::CATEGORIES_TYPES_TABLE,
+                $targetName,
+                $this->languageCode
+            );
+        }
+
         if ($mapType === 'property_set') {
-            return (int)($this->sourceSetMap[$sourceId] ?? 0);
+            return (int)SafeMySQL::gi()->getOne(
+                'SELECT set_id FROM ?n WHERE name = ?s AND language_code = ?s LIMIT 1',
+                Constants::PROPERTY_SETS_TABLE,
+                $targetName,
+                $this->languageCode
+            );
         }
+
         return 0;
+    }
+
+    private function getConfiguredPropertyLocalId(string $sourceId): int {
+        $sourceId = strtolower(trim($sourceId));
+        if ($sourceId === '') {
+            return 0;
+        }
+
+        $mapping = $this->sourcePropertyMap[$sourceId] ?? null;
+        if (!is_array($mapping)) {
+            return 0;
+        }
+
+        $propertyId = max(0, (int)($mapping['id'] ?? 0));
+        if ($propertyId > 0) {
+            return $propertyId;
+        }
+
+        $propertyName = trim((string)($mapping['name'] ?? ''));
+        if ($propertyName === '') {
+            return 0;
+        }
+
+        return (int)SafeMySQL::gi()->getOne(
+            'SELECT property_id FROM ?n WHERE name = ?s AND language_code = ?s LIMIT 1',
+            Constants::PROPERTIES_TABLE,
+            $propertyName,
+            $this->languageCode
+        );
     }
 
     private function isMetaPropertySourceId(string $sourceId): bool {
@@ -2749,6 +3304,9 @@ class WordpressImporter extends BaseImporter {
         if ($sourceId === '' || !$this->isMetaPropertySourceId($sourceId)) {
             return false;
         }
+        if (isset($this->sourcePropertyMap[$sourceId])) {
+            return false;
+        }
         return !$this->isCompositeMemberSourceId($sourceId);
     }
 
@@ -2761,7 +3319,7 @@ class WordpressImporter extends BaseImporter {
     }
 
     private function isAllowedMetaKey(string $metaKey): bool {
-        $metaKey = trim($metaKey);
+        $metaKey = strtolower(trim($metaKey));
         if ($metaKey === '') {
             return false;
         }
@@ -2769,18 +3327,102 @@ class WordpressImporter extends BaseImporter {
         if ($metaKey === '_thumbnail_id') {
             return true;
         }
+        if ($this->isHardExcludedMetaKey($metaKey)) {
+            return false;
+        }
         if (!$this->includePrivateMetaKeys && str_starts_with($metaKey, '_')) {
             return false;
         }
 
-        $normalized = strtolower($metaKey);
-        if (!empty($this->metaIncludePatterns) && !$this->matchesAnyPattern($normalized, $this->metaIncludePatterns)) {
+        if (!empty($this->metaIncludePatterns) && !$this->matchesAnyPattern($metaKey, $this->metaIncludePatterns)) {
             return false;
         }
-        if (!empty($this->metaExcludePatterns) && $this->matchesAnyPattern($normalized, $this->metaExcludePatterns)) {
+        if (!empty($this->metaExcludePatterns) && $this->matchesAnyPattern($metaKey, $this->metaExcludePatterns)) {
             return false;
         }
         return true;
+    }
+
+    private function isHardExcludedMetaKey(string $metaKey): bool {
+        $metaKey = strtolower(trim($metaKey));
+        if ($metaKey === '' || $metaKey === '_thumbnail_id') {
+            return false;
+        }
+
+        if ((bool)preg_match('/^_?field_[a-z0-9]+$/i', $metaKey)) {
+            return true;
+        }
+
+        if ($this->isKnownTechnicalMetaKey($metaKey)) {
+            return true;
+        }
+
+        if (str_starts_with($metaKey, '_') && $this->isPrivateAcfReferenceMetaKey($metaKey)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private function isPrivateAcfReferenceMetaKey(string $metaKey): bool {
+        $metaKey = strtolower(trim($metaKey));
+        if ($metaKey === '' || !str_starts_with($metaKey, '_')) {
+            return false;
+        }
+
+        $publicMetaKey = ltrim($metaKey, '_');
+        if ($publicMetaKey === '' || $publicMetaKey === $metaKey) {
+            return false;
+        }
+
+        foreach (['postmeta:', 'termmeta:'] as $prefix) {
+            $publicSourceId = $prefix . $publicMetaKey;
+            if (isset($this->sourcePropertyMap[$publicSourceId])) {
+                return true;
+            }
+            if ($this->isCompositeMemberSourceId($publicSourceId)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function isKnownTechnicalMetaKey(string $metaKey): bool {
+        $metaKey = strtolower(trim($metaKey));
+        if ($metaKey === '') {
+            return false;
+        }
+
+        static $exactMatch = [
+            '_edit_last',
+            '_edit_lock',
+            '_pingme',
+            '_encloseme',
+            '_trackbackme',
+            '_wp_old_slug',
+            '_wp_page_template',
+            '_wp_desired_post_slug',
+        ];
+
+        if (in_array($metaKey, $exactMatch, true)) {
+            return true;
+        }
+
+        static $patternMatch = [
+            '/^_oembed_/i',
+            '/^_wp_trash_/i',
+            '/^_wp_attachment_/i',
+            '/^_menu_item_/i',
+        ];
+
+        foreach ($patternMatch as $pattern) {
+            if ((bool)preg_match($pattern, $metaKey)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function buildPropertyDefaults(array $row): array {
@@ -2894,6 +3536,11 @@ class WordpressImporter extends BaseImporter {
             return $normalized;
         }
 
+        $structuredCompositePayload = $this->normalizeStructuredCompositePayload($payloadValues, $templateFields);
+        if (is_array($structuredCompositePayload)) {
+            $payloadValues = $structuredCompositePayload;
+        }
+
         if (!is_array($payloadValues)) {
             $payloadValues = [['value' => $payloadValues]];
         }
@@ -2929,6 +3576,54 @@ class WordpressImporter extends BaseImporter {
         }
 
         return $normalizedFields;
+    }
+
+    private function normalizeStructuredCompositePayload(mixed $payloadValues, array $templateFields): ?array {
+        if (count($templateFields) <= 1) {
+            return null;
+        }
+
+        $candidate = $payloadValues;
+        if (is_string($candidate)) {
+            $trimmed = trim($candidate);
+            if ($trimmed === '' || !SysClass::ee_isValidJson($trimmed)) {
+                return null;
+            }
+            $decoded = json_decode($trimmed, true);
+            if (!is_array($decoded)) {
+                return null;
+            }
+            $candidate = $decoded;
+        }
+
+        if (!is_array($candidate)) {
+            return null;
+        }
+
+        if ($this->isSequentialArray($candidate) && count($candidate) === 1 && is_array($candidate[0])) {
+            $singleRow = $candidate[0];
+            if (array_key_exists('value', $singleRow) && is_array($singleRow['value'])) {
+                $candidate = $singleRow['value'];
+            } elseif (array_key_exists('default', $singleRow) && is_array($singleRow['default'])) {
+                $candidate = $singleRow['default'];
+            }
+        }
+
+        if (is_array($candidate) && !$this->isSequentialArray($candidate)) {
+            return $this->mapAssociativePayloadToTemplateFields($candidate, $templateFields);
+        }
+
+        if (!is_array($candidate) || !$this->isSequentialArray($candidate) || $candidate === []) {
+            return null;
+        }
+
+        foreach ($candidate as $row) {
+            if (!is_array($row) || $this->isSequentialArray($row)) {
+                return null;
+            }
+        }
+
+        return $this->mapAssociativeRowListToTemplateFields($candidate, $templateFields);
     }
 
     private function getPropertyDefaultFieldsTemplate(int $propertyId): array {
@@ -2981,13 +3676,14 @@ class WordpressImporter extends BaseImporter {
         foreach ($templateFields as $templateField) {
             $fieldType = strtolower(trim((string)($templateField['type'] ?? 'text')));
             $candidateKeys = match ($fieldType) {
-                'number' => ['number', 'num', 'count', 'value'],
-                'image' => ['image', 'img', 'url', 'src', 'value'],
+                'number' => ['number', 'num', 'count', 'value', 'zoom', 'price', 'pricec'],
+                'image' => ['image', 'img', 'url', 'src', 'value', 'photos', 'gallery'],
                 'file' => ['file', 'path', 'url', 'value'],
+                'phone' => ['phone', 'tel', 'telephone', 'number', 'value'],
                 'checkbox', 'radio' => ['value', 'checked', 'selected'],
-                'textarea' => ['textarea', 'text', 'content', 'value'],
+                'textarea' => ['textarea', 'text', 'content', 'value', 'comment', 'description'],
                 'select' => ['selected', 'option', 'value'],
-                default => ['text', 'value', 'content', 'description', 'title'],
+                default => ['text', 'value', 'content', 'description', 'title', 'comment', 'coords', 'address', 'name'],
             };
 
             $resolved = null;
@@ -3022,6 +3718,23 @@ class WordpressImporter extends BaseImporter {
         return $result;
     }
 
+    private function mapAssociativeRowListToTemplateFields(array $payloadRows, array $templateFields): array {
+        $result = [];
+        foreach ($templateFields as $templateField) {
+            $fieldValues = [];
+            foreach ($payloadRows as $payloadRow) {
+                $mappedRow = $this->mapAssociativePayloadToTemplateFields($payloadRow, [$templateField]);
+                $fieldValues[] = $mappedRow[0]['value'] ?? ($templateField['default'] ?? '');
+            }
+            $result[] = [
+                'value' => $fieldValues,
+                'multiple' => 1,
+            ];
+        }
+
+        return $result;
+    }
+
     private function normalizePropertyFieldValue(array $payloadField, array $templateField): array {
         $fieldType = strtolower(trim((string)($payloadField['type'] ?? $templateField['type'] ?? 'text')));
         if ($fieldType === '') {
@@ -3051,6 +3764,8 @@ class WordpressImporter extends BaseImporter {
             }
         }
 
+        $fieldValue = $this->normalizeTypedPropertyFieldValue($fieldType, $fieldValue);
+
         if (!is_scalar($fieldTitle)) {
             $fieldTitle = '';
         }
@@ -3070,6 +3785,40 @@ class WordpressImporter extends BaseImporter {
             return true;
         }
         return array_keys($value) === range(0, count($value) - 1);
+    }
+
+    private function normalizeTypedPropertyFieldValue(string $fieldType, mixed $fieldValue): mixed {
+        if (is_array($fieldValue)) {
+            foreach ($fieldValue as $index => $item) {
+                $fieldValue[$index] = $this->normalizeTypedPropertyFieldValue($fieldType, $item);
+            }
+            return $fieldValue;
+        }
+
+        if (!is_scalar($fieldValue)) {
+            return $fieldValue;
+        }
+
+        $value = trim((string)$fieldValue);
+        if ($value === '') {
+            return '';
+        }
+
+        if ($fieldType === 'date') {
+            if ((bool)preg_match('/^(\d{4})(\d{2})(\d{2})$/', $value, $matches)) {
+                return $matches[1] . '-' . $matches[2] . '-' . $matches[3];
+            }
+            if ((bool)preg_match('/^(\d{2})\.(\d{2})\.(\d{4})$/', $value, $matches)) {
+                return $matches[3] . '-' . $matches[2] . '-' . $matches[1];
+            }
+            return $value;
+        }
+
+        if ($fieldType === 'time' && (bool)preg_match('/^(\d{2})(\d{2})$/', $value, $matches)) {
+            return $matches[1] . ':' . $matches[2];
+        }
+
+        return $fieldValue;
     }
 
     private function rowValue(array $row, array $keys, mixed $default = null): mixed {
@@ -3092,6 +3841,273 @@ class WordpressImporter extends BaseImporter {
         return $default;
     }
 
+    public static function normalizeImportedRichText(string $value): string {
+        $value = trim(str_replace(["\r\n", "\r"], "\n", $value));
+        if ($value === '') {
+            return '';
+        }
+
+        if (preg_match('~<[^>]+>~u', $value) === 1) {
+            if (preg_match('~<(p|br)\b~iu', $value) !== 1) {
+                $value = self::normalizeImportedMixedHtml($value);
+            }
+            return self::encodeUnsupportedUtf8mb4Chars($value);
+        }
+
+        $blocks = preg_split("/\n{2,}/u", $value) ?: [];
+        $paragraphs = [];
+
+        foreach ($blocks as $block) {
+            $block = trim($block);
+            if ($block === '') {
+                continue;
+            }
+
+            $decoded = html_entity_decode($block, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $escaped = htmlspecialchars($decoded, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+            $escaped = preg_replace("/\n/u", "<br>\n", $escaped) ?? $escaped;
+            $paragraphs[] = '<p>' . $escaped . '</p>';
+        }
+
+        if ($paragraphs === []) {
+            $decoded = html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $escaped = htmlspecialchars($decoded, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+            return self::encodeUnsupportedUtf8mb4Chars('<p>' . $escaped . '</p>');
+        }
+
+        return self::encodeUnsupportedUtf8mb4Chars(implode("\n", $paragraphs));
+    }
+
+    private static function normalizeImportedMixedHtml(string $value): string {
+        $value = trim(str_replace(["\r\n", "\r"], "\n", $value));
+        if ($value === '' || !class_exists(\DOMDocument::class)) {
+            $value = preg_replace("/\n{2,}/u", "<br>\n<br>\n", $value) ?? $value;
+            return preg_replace("/(?<!>)\n(?!<)/u", "<br>\n", $value) ?? $value;
+        }
+
+        $dom = new \DOMDocument('1.0', 'UTF-8');
+        $previousUseInternalErrors = libxml_use_internal_errors(true);
+        try {
+            $loaded = $dom->loadHTML(
+                '<?xml encoding="utf-8" ?><div data-ee-import-root="1">' . $value . '</div>',
+                LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD
+            );
+            if (!$loaded) {
+                $value = preg_replace("/\n{2,}/u", "<br>\n<br>\n", $value) ?? $value;
+                return preg_replace("/(?<!>)\n(?!<)/u", "<br>\n", $value) ?? $value;
+            }
+
+            $root = null;
+            $xpath = new \DOMXPath($dom);
+            $rootNodes = $xpath->query('//*[@data-ee-import-root="1"]');
+            if ($rootNodes instanceof \DOMNodeList && $rootNodes->length > 0) {
+                $candidate = $rootNodes->item(0);
+                if ($candidate instanceof \DOMElement) {
+                    $root = $candidate;
+                }
+            }
+
+            if (!$root instanceof \DOMElement) {
+                $value = preg_replace("/\n{2,}/u", "<br>\n<br>\n", $value) ?? $value;
+                return preg_replace("/(?<!>)\n(?!<)/u", "<br>\n", $value) ?? $value;
+            }
+
+            $output = self::normalizeImportedDomNodeSequence($dom, iterator_to_array($root->childNodes));
+            $output = array_values(array_filter(array_map(static function (string $item): string {
+                return trim($item);
+            }, $output), static function (string $item): bool {
+                return $item !== '';
+            }));
+
+            if ($output === []) {
+                $value = preg_replace("/\n{2,}/u", "<br>\n<br>\n", $value) ?? $value;
+                return preg_replace("/(?<!>)\n(?!<)/u", "<br>\n", $value) ?? $value;
+            }
+
+            return implode("\n", $output);
+        } finally {
+            libxml_clear_errors();
+            libxml_use_internal_errors($previousUseInternalErrors);
+        }
+    }
+
+    private static function flushImportedHtmlInlineBuffer(array &$inlineBuffer): array {
+        $html = trim(implode('', $inlineBuffer));
+        $inlineBuffer = [];
+        if ($html === '') {
+            return [];
+        }
+
+        $blocks = preg_split("/\n{2,}/u", $html) ?: [$html];
+        $paragraphs = [];
+        foreach ($blocks as $block) {
+            $block = trim($block);
+            if ($block === '') {
+                continue;
+            }
+            $block = preg_replace("/\n/u", "<br>\n", $block) ?? $block;
+            $paragraphs[] = '<p>' . $block . '</p>';
+        }
+
+        return $paragraphs;
+    }
+
+    private static function normalizeImportedDomNodeSequence(\DOMDocument $dom, iterable $nodes): array {
+        $output = [];
+        $inlineBuffer = [];
+
+        foreach ($nodes as $childNode) {
+            if ($childNode instanceof \DOMText) {
+                $inlineBuffer[] = htmlspecialchars($childNode->wholeText, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+                continue;
+            }
+
+            if (!$childNode instanceof \DOMElement) {
+                continue;
+            }
+
+            $tagName = strtolower($childNode->tagName);
+            if ($tagName === 'br') {
+                $inlineBuffer[] = '<br>';
+                continue;
+            }
+
+            $serializedNode = trim((string)$dom->saveHTML($childNode));
+            if ($serializedNode === '') {
+                continue;
+            }
+
+            if (self::isImportedHtmlContainerElement($tagName)) {
+                $output = array_merge($output, self::flushImportedHtmlInlineBuffer($inlineBuffer));
+                $output[] = self::normalizeImportedBlockContainer($dom, $childNode);
+                continue;
+            }
+
+            if (self::isImportedHtmlBlockElement($tagName)) {
+                $output = array_merge($output, self::flushImportedHtmlInlineBuffer($inlineBuffer));
+                $output[] = $serializedNode;
+                continue;
+            }
+
+            $inlineBuffer[] = $serializedNode;
+        }
+
+        return array_merge($output, self::flushImportedHtmlInlineBuffer($inlineBuffer));
+    }
+
+    private static function normalizeImportedBlockContainer(\DOMDocument $dom, \DOMElement $element): string {
+        $tagName = strtolower($element->tagName);
+        $serialized = trim((string)$dom->saveHTML($element));
+        if (!self::isImportedHtmlContainerElement($tagName) || $serialized === '' || preg_match('~<(p|br)\b~iu', $serialized) === 1) {
+            return $serialized;
+        }
+
+        $innerOutput = self::normalizeImportedDomNodeSequence($dom, iterator_to_array($element->childNodes));
+        $innerOutput = array_values(array_filter(array_map(static function (string $item): string {
+            return trim($item);
+        }, $innerOutput), static function (string $item): bool {
+            return $item !== '';
+        }));
+        if ($innerOutput === []) {
+            return $serialized;
+        }
+
+        $openTag = '<' . $tagName . self::serializeImportedHtmlAttributes($element) . '>';
+        $closeTag = '</' . $tagName . '>';
+        return $openTag . "\n" . implode("\n", $innerOutput) . "\n" . $closeTag;
+    }
+
+    private static function serializeImportedHtmlAttributes(\DOMElement $element): string {
+        if (!$element->hasAttributes()) {
+            return '';
+        }
+
+        $attributes = [];
+        foreach ($element->attributes as $attribute) {
+            if (!$attribute instanceof \DOMAttr) {
+                continue;
+            }
+            $attributes[] = ' ' . $attribute->name . '="' .
+                htmlspecialchars($attribute->value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '"';
+        }
+
+        return implode('', $attributes);
+    }
+
+    private static function isImportedHtmlBlockElement(string $tagName): bool {
+        static $blockTags = [
+            'address',
+            'article',
+            'aside',
+            'blockquote',
+            'details',
+            'div',
+            'dl',
+            'dt',
+            'dd',
+            'figure',
+            'figcaption',
+            'footer',
+            'form',
+            'h1',
+            'h2',
+            'h3',
+            'h4',
+            'h5',
+            'h6',
+            'header',
+            'hr',
+            'li',
+            'main',
+            'nav',
+            'ol',
+            'p',
+            'pre',
+            'section',
+            'table',
+            'tbody',
+            'td',
+            'tfoot',
+            'th',
+            'thead',
+            'tr',
+            'ul',
+        ];
+
+        return in_array(strtolower(trim($tagName)), $blockTags, true);
+    }
+
+    private static function isImportedHtmlContainerElement(string $tagName): bool {
+        static $containerTags = [
+            'article',
+            'blockquote',
+            'div',
+            'section',
+        ];
+
+        return in_array(strtolower(trim($tagName)), $containerTags, true);
+    }
+
+    private static function encodeUnsupportedUtf8mb4Chars(string $value): string {
+        $encoded = preg_replace_callback('/[\x{10000}-\x{10FFFF}]/u', static function (array $matches): string {
+            $char = (string)($matches[0] ?? '');
+            if ($char === '') {
+                return '';
+            }
+
+            if (function_exists('mb_ord')) {
+                $codePoint = (int)mb_ord($char, 'UTF-8');
+            } else {
+                $packed = @unpack('N', (string)mb_convert_encoding($char, 'UCS-4BE', 'UTF-8'));
+                $codePoint = (int)($packed[1] ?? 0);
+            }
+
+            return $codePoint > 0 ? '&#' . $codePoint . ';' : '';
+        }, $value);
+
+        return is_string($encoded) ? $encoded : $value;
+    }
+
     private function normalizeSourceId(mixed $value): string {
         if ($value === null) {
             return '';
@@ -3100,6 +4116,22 @@ class WordpressImporter extends BaseImporter {
             return trim((string)$value);
         }
         return '';
+    }
+
+    private function mergeRecommendedPropertyMappings(array $sourcePropertyMap): array {
+        $recommendedMap = [
+            'postmeta:zametki' => ['id' => 0, 'name' => 'Внутренний комментарий менеджера'],
+            'postmeta:published_to' => ['id' => 0, 'name' => 'Размещение активно до'],
+        ];
+
+        foreach ($recommendedMap as $sourceId => $mapping) {
+            if (isset($sourcePropertyMap[$sourceId])) {
+                continue;
+            }
+            $sourcePropertyMap[$sourceId] = $mapping;
+        }
+
+        return $sourcePropertyMap;
     }
 
     private function sourceKey(): string {
@@ -3152,6 +4184,12 @@ class WordpressImporter extends BaseImporter {
     }
 
     private function getMappedOrLocal(string $mapType, mixed $sourceId, mixed $fallbackLocalId = null): int {
+        if ($mapType === 'property') {
+            $configuredPropertyId = $this->getConfiguredPropertyLocalId((string)$sourceId);
+            if ($configuredPropertyId > 0) {
+                return $configuredPropertyId;
+            }
+        }
         $mapped = $this->getMappedId($mapType, $sourceId);
         if ($mapped > 0) {
             return $mapped;
@@ -3176,20 +4214,39 @@ class WordpressImporter extends BaseImporter {
     }
 
     private function normalizeUserRole(mixed $value): int {
+        $requestedRoleId = 4;
+
         if (is_numeric($value)) {
             $roleId = (int)$value;
             if ($roleId >= 1 && $roleId <= 8) {
-                return $roleId;
+                $requestedRoleId = $roleId;
             }
+        } else {
+            $role = strtolower(trim((string)$value));
+            $requestedRoleId = match ($role) {
+                'admin', 'administrator' => 1,
+                'moderator' => 2,
+                'manager' => 3,
+                'system' => 8,
+                default => 4,
+            };
         }
-        $role = strtolower(trim((string)$value));
-        return match ($role) {
-            'admin', 'administrator' => 1,
-            'moderator' => 2,
-            'manager' => 3,
-            'system' => 8,
-            default => 4,
-        };
+
+        if ($requestedRoleId === 1 && !$this->canAssignImportedAdminRole()) {
+            return 2;
+        }
+
+        return $requestedRoleId;
+    }
+
+    private function canAssignImportedAdminRole(): bool {
+        $activeAdminId = (int)SafeMySQL::gi()->getOne(
+            'SELECT user_id FROM ?n WHERE user_role = ?i AND deleted = 0 LIMIT 1',
+            Constants::USERS_TABLE,
+            1
+        );
+
+        return $activeAdminId <= 0;
     }
 
     private function normalizeUserActive(mixed $value): int {
@@ -3286,6 +4343,23 @@ class WordpressImporter extends BaseImporter {
             UNIQUE KEY `uq_job_source_map` (`job_id`, `source_key`, `map_type`, `source_id`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
         SafeMySQL::gi()->query($sql);
+    }
+
+    private function ensurePageUserLinksTable(): void {
+        $sql = "CREATE TABLE IF NOT EXISTS ?n (
+            link_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            page_id INT UNSIGNED NOT NULL,
+            user_id INT UNSIGNED NOT NULL,
+            relation_type VARCHAR(32) NOT NULL DEFAULT 'owner',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            UNIQUE KEY uq_page_user_relation (page_id, user_id, relation_type),
+            KEY idx_page_user_links_user (user_id),
+            KEY idx_page_user_links_relation (relation_type),
+            CONSTRAINT fk_page_user_links_page FOREIGN KEY (page_id) REFERENCES ?n(page_id) ON DELETE CASCADE ON UPDATE RESTRICT,
+            CONSTRAINT fk_page_user_links_user FOREIGN KEY (user_id) REFERENCES ?n(user_id) ON DELETE CASCADE ON UPDATE RESTRICT
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+        SafeMySQL::gi()->query($sql, Constants::PAGE_USER_LINKS_TABLE, Constants::PAGES_TABLE, Constants::USERS_TABLE);
     }
 
     private function preparePackage(): void {

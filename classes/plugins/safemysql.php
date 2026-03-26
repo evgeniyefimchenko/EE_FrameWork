@@ -97,8 +97,23 @@ class SafeMySQL extends \classes\helpers\Singleton {
             }
             mysqli_set_charset($this->conn, $opt['charset']) or $this->error(mysqli_error($this->conn));
         } catch (\mysqli_sql_exception $e) {
-            var_export($e->getMessage());
-            die;
+            if (!headers_sent()) {
+                http_response_code(503);
+            }
+
+            if (function_exists('error_log')) {
+                error_log('[SafeMySQL] ' . $e->getMessage());
+            }
+
+            $siteRoot = defined('ENV_SITE_PATH') ? rtrim((string) ENV_SITE_PATH, DIRECTORY_SEPARATOR) : dirname(__DIR__, 2);
+            $errorPage = $siteRoot . DIRECTORY_SEPARATOR . 'error.php';
+
+            if (is_file($errorPage) && defined('ENV_SITE')) {
+                require $errorPage;
+                exit;
+            }
+
+            exit('Database connection error');
         }
         unset($opt);
     }

@@ -3,6 +3,12 @@
 $summary = is_array($cron_agents_summary ?? null) ? $cron_agents_summary : [];
 $agents = is_array($cron_agents ?? null) ? $cron_agents : [];
 $runs = is_array($cron_agent_runs ?? null) ? $cron_agent_runs : [];
+$mediaMirrorAgent = is_array($media_mirror_agent ?? null) ? $media_mirror_agent : [];
+$mediaQueue = is_array($media_queue_summary ?? null) ? $media_queue_summary : [];
+$mediaPayload = is_array($mediaMirrorAgent['payload'] ?? null) ? $mediaMirrorAgent['payload'] : [];
+$mediaBatchLimit = (int) ($mediaPayload['batch_limit'] ?? 10);
+$mediaRetryDelaySec = (int) ($mediaPayload['retry_delay_sec'] ?? 900);
+$mediaTimeBudgetSec = (int) ($mediaPayload['time_budget_sec'] ?? 40);
 $schedulerCommand = (string) ($summary['scheduler_command'] ?? ('php ' . ENV_SITE_PATH . 'app/cron/run.php'));
 $autoCreatedAgents = is_array($summary['auto_created_agents'] ?? null) ? $summary['auto_created_agents'] : [];
 ?>
@@ -44,6 +50,14 @@ $autoCreatedAgents = is_array($summary['auto_created_agents'] ?? null) ? $summar
             <div class="card-body">
                 <div class="small text-muted mb-1"><?= htmlspecialchars((string)($lang['sys.cron_agent_scheduler_help'] ?? 'Настройте системный cron на запуск этого скрипта каждую минуту:')) ?></div>
                 <code><?= htmlspecialchars($schedulerCommand) ?></code>
+                <div class="small text-muted mt-3">
+                    <?= htmlspecialchars((string)($lang['sys.cron_agent_runs_retention_notice'] ?? 'История запусков очищается автоматически и не растёт бесконечно.')) ?>
+                    <?= htmlspecialchars((string)($lang['sys.cron_agent_runs_retention_current'] ?? 'Сейчас в БД:')) ?>
+                    <strong><?= (int) ($summary['runs_total'] ?? 0) ?></strong>.
+                    <?= htmlspecialchars((string)($lang['sys.cron_agent_runs_retention_policy'] ?? 'Политика хранения:')) ?>
+                    <strong><?= (int) ($summary['config']['run_history_retention_days'] ?? 0) ?></strong> <?= htmlspecialchars((string)($lang['sys.cron_agent_runs_retention_days'] ?? 'дн.')) ?> /
+                    <strong><?= (int) ($summary['config']['run_history_max_rows'] ?? 0) ?></strong> <?= htmlspecialchars((string)($lang['sys.cron_agent_runs_retention_rows'] ?? 'строк')) ?>.
+                </div>
             </div>
         </div>
 
@@ -87,6 +101,71 @@ $autoCreatedAgents = is_array($summary['auto_created_agents'] ?? null) ? $summar
                         <div class="h4 mb-0"><?= (int) ($summary['config']['max_concurrent'] ?? 0) ?></div>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <strong><?= htmlspecialchars((string)($lang['sys.media_queue_worker'] ?? 'Системный агент media-mirror-worker')) ?></strong>
+                <div class="d-flex gap-2 flex-wrap">
+                    <?php if (!empty($mediaMirrorAgent['agent_id'])): ?>
+                        <a href="/admin/run_cron_agent/id/<?= (int) ($mediaMirrorAgent['agent_id'] ?? 0) ?>" class="btn btn-sm btn-outline-success">
+                            <i class="fa-solid fa-play"></i>&nbsp;<?= htmlspecialchars((string)($lang['sys.cron_agent_run_now'] ?? 'Запустить сейчас')) ?>
+                        </a>
+                        <a href="/admin/cron_agent_edit/id/<?= (int) ($mediaMirrorAgent['agent_id'] ?? 0) ?>" class="btn btn-sm btn-outline-primary">
+                            <i class="fa-solid fa-gear"></i>&nbsp;<?= htmlspecialchars((string)($lang['sys.edit'] ?? 'Редактировать')) ?>
+                        </a>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row g-3 mb-3">
+                    <?php foreach ([
+                        ['key' => 'pending', 'label' => $lang['sys.media_queue_pending'] ?? 'Ожидают'],
+                        ['key' => 'running', 'label' => $lang['sys.media_queue_running'] ?? 'В работе'],
+                        ['key' => 'failed', 'label' => $lang['sys.media_queue_failed'] ?? 'С ошибкой'],
+                        ['key' => 'terminal_failed', 'label' => $lang['sys.media_queue_terminal_failed'] ?? 'Без повтора'],
+                        ['key' => 'done', 'label' => $lang['sys.media_queue_done'] ?? 'Готово'],
+                    ] as $card): ?>
+                        <div class="col-6 col-lg-4 col-xl">
+                            <div class="border rounded p-3 h-100">
+                                <div class="small text-muted mb-1"><?= htmlspecialchars((string) $card['label']) ?></div>
+                                <div class="h5 mb-0"><?= (int) ($mediaQueue[$card['key']] ?? 0) ?></div>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+
+                <div class="small text-muted mb-3">
+                    <?= htmlspecialchars((string)($lang['sys.media_queue_worker_notice'] ?? 'Фоновые медиа автоматически подхватывает встроенный системный агент, созданный при установке.')) ?>
+                </div>
+
+                <?php if (!empty($mediaMirrorAgent['agent_id'])): ?>
+                    <form method="post" action="/admin/update_media_mirror_worker" class="row g-3 align-items-end">
+                        <div class="col-12 col-lg-4">
+                            <label class="form-label"><?= htmlspecialchars((string)($lang['sys.cron_agent_payload_batch_limit'] ?? 'Файлов за один тик')) ?></label>
+                            <input type="number" min="1" max="100" step="1" name="batch_limit" class="form-control" value="<?= $mediaBatchLimit ?>">
+                            <div class="form-text"><?= htmlspecialchars((string)($lang['sys.cron_agent_payload_batch_limit_help'] ?? 'Сколько элементов очереди медиа агент обработает за один запуск scheduler-а. Увеличивайте осторожно, чтобы не перегружать сервер.')) ?></div>
+                        </div>
+                        <div class="col-12 col-lg-4">
+                            <label class="form-label"><?= htmlspecialchars((string)($lang['sys.cron_agent_payload_media_retry_delay'] ?? 'Повтор медиа после ошибки, сек')) ?></label>
+                            <input type="number" min="60" max="86400" step="60" name="media_retry_delay_sec" class="form-control" value="<?= $mediaRetryDelaySec ?>">
+                            <div class="form-text"><?= htmlspecialchars((string)($lang['sys.cron_agent_payload_media_retry_delay_help'] ?? 'Через сколько секунд media-worker повторит неудачную загрузку конкретного файла из очереди.')) ?></div>
+                        </div>
+                        <div class="col-12 col-lg-4">
+                            <label class="form-label"><?= htmlspecialchars((string)($lang['sys.cron_agent_payload_media_time_budget'] ?? 'Временной бюджет, сек')) ?></label>
+                            <input type="number" min="10" max="120" step="5" name="media_time_budget_sec" class="form-control" value="<?= $mediaTimeBudgetSec ?>">
+                            <div class="form-text"><?= htmlspecialchars((string)($lang['sys.cron_agent_payload_media_time_budget_help'] ?? 'Сколько секунд media-worker может обрабатывать очередь за один запуск до мягкой остановки.')) ?></div>
+                        </div>
+                        <div class="col-12 col-lg-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fa-solid fa-floppy-disk"></i>&nbsp;<?= htmlspecialchars((string)($lang['sys.media_queue_worker_save_quick'] ?? 'Сохранить параметры media-worker')) ?>
+                            </button>
+                        </div>
+                    </form>
+                <?php else: ?>
+                    <div class="text-danger"><?= htmlspecialchars((string)($lang['sys.cron_agent_not_found'] ?? 'Cron-агент не найден.')) ?></div>
+                <?php endif; ?>
             </div>
         </div>
 
@@ -141,8 +220,8 @@ $autoCreatedAgents = is_array($summary['auto_created_agents'] ?? null) ? $summar
                                             </div>
                                         </td>
                                         <td><span class="badge <?= htmlspecialchars((string) ($agent['runtime_status_class'] ?? 'bg-secondary')) ?>"><?= htmlspecialchars((string) ($agent['runtime_status_label'] ?? '')) ?></span></td>
-                                        <td><?= !empty($agent['next_run_at']) ? htmlspecialchars(date('d.m.Y H:i', strtotime((string) $agent['next_run_at']))) : '<span class="text-muted">-</span>' ?></td>
-                                        <td><?= !empty($agent['last_run_at']) ? htmlspecialchars(date('d.m.Y H:i', strtotime((string) $agent['last_run_at']))) : '<span class="text-muted">-</span>' ?></td>
+                                        <td><?= !empty($agent['next_run_at']) ? htmlspecialchars(ee_format_utc_datetime((string) $agent['next_run_at'], 'd.m.Y H:i')) : '<span class="text-muted">-</span>' ?></td>
+                                        <td><?= !empty($agent['last_run_at']) ? htmlspecialchars(ee_format_utc_datetime((string) $agent['last_run_at'], 'd.m.Y H:i')) : '<span class="text-muted">-</span>' ?></td>
                                         <td>
                                             <div><?= htmlspecialchars((string)($lang['sys.priority'] ?? 'Приоритет')) ?>: <?= (int) ($agent['priority'] ?? 0) ?></div>
                                             <div class="small text-muted"><?= htmlspecialchars((string)($lang['sys.cron_agent_weight'] ?? 'Вес')) ?>: <?= (int) ($agent['weight'] ?? 0) ?></div>
@@ -209,7 +288,7 @@ $autoCreatedAgents = is_array($summary['auto_created_agents'] ?? null) ? $summar
                                         </td>
                                         <td><?= htmlspecialchars((string) ($run['trigger_source'] ?? '')) ?></td>
                                         <td><?= htmlspecialchars((string) ($run['status'] ?? '')) ?></td>
-                                        <td><?= !empty($run['started_at']) ? htmlspecialchars(date('d.m.Y H:i', strtotime((string) $run['started_at']))) : '' ?></td>
+                                        <td><?= !empty($run['started_at']) ? htmlspecialchars(ee_format_utc_datetime((string) $run['started_at'], 'd.m.Y H:i')) : '' ?></td>
                                         <td><?= (int) ($run['duration_ms'] ?? 0) ?></td>
                                     </tr>
                                 <?php endforeach; ?>

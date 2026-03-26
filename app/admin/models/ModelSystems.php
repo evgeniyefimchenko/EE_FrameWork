@@ -2,10 +2,12 @@
 
 use classes\plugins\SafeMySQL;
 use classes\system\AuthService;
+use classes\system\BackupService;
 use classes\system\CacheManager;
 use classes\system\Constants;
 use classes\system\CronAgentService;
 use classes\system\FileSystem;
+use classes\system\ImportMediaQueueService;
 use classes\system\Logger;
 use classes\system\OperationResult;
 use classes\system\Router;
@@ -19,6 +21,10 @@ class ModelSystems {
 
     private const DEFAULT_PHP_LOG_ORDER = 'date_time DESC, error_type ASC';
     private const DEFAULT_PROJECT_LOG_ORDER = 'date_time DESC, type_log ASC, initiator ASC';
+    private const HEALTH_CRON_WARNING_MINUTES = 5;
+    private const HEALTH_CRON_CRITICAL_MINUTES = 10;
+    private const HEALTH_DISK_WARNING_BYTES = 5368709120; // 5 GiB
+    private const HEALTH_DISK_CRITICAL_BYTES = 2147483648; // 2 GiB
 
     /**
      * Очищает все таблицы в базе данных
@@ -71,6 +77,7 @@ class ModelSystems {
     }
 
     public function getHealthReport(): array {
+        $databaseConnected = SysClass::checkDatabaseConnection();
         $coreTables = [
             Constants::USERS_TABLE,
             Constants::USERS_ROLES_TABLE,
@@ -94,6 +101,7 @@ class ModelSystems {
         $cronTables = [
             Constants::CRON_AGENTS_TABLE,
             Constants::CRON_AGENT_RUNS_TABLE,
+            Constants::IMPORT_MEDIA_QUEUE_TABLE,
         ];
 
         $tablesState = [];
@@ -114,17 +122,26 @@ class ModelSystems {
             && $this->tableExists(Constants::PROPERTY_VALUES_TABLE))
             ? FileSystem::collectFileDiagnostics()
             : ['summary' => ['total_files' => 0, 'referenced_file_ids' => 0, 'unreferenced_files' => 0, 'missing_on_disk' => 0, 'dangling_references' => 0, 'legacy_payloads_without_file_ids' => 0]];
+        $cronSummary = $this->getCronHealthSummary();
+        $lifecycleSummary = $this->getLifecycleHealthSummary();
+        $mediaQueueSummary = ($databaseConnected && $this->tableExists(Constants::IMPORT_MEDIA_QUEUE_TABLE))
+            ? ImportMediaQueueService::getSummary()
+            : $this->getEmptyMediaQueueSummary();
+        $backupSummary = $this->getBackupSummary();
+        $storageSummary = $this->getStorageHealthSummary();
+        $mailSummary = $this->getMailHealthSummary();
 
-        return [
+        $report = [
             'generated_at' => date('c'),
             'install' => [
-                'database_connected' => SysClass::checkDatabaseConnection(),
+                'database_connected' => $databaseConnected,
                 'core_tables_ok' => count(array_filter(array_intersect_key($tablesState, array_flip($coreTables)))) === count($coreTables),
                 'auth_tables_ok' => count(array_filter(array_intersect_key($tablesState, array_flip($authTables)))) === count($authTables),
                 'cron_tables_ok' => count(array_filter(array_intersect_key($tablesState, array_flip($cronTables)))) === count($cronTables),
                 'tables' => $tablesState,
             ],
             'paths' => $paths,
+            'storage' => $storageSummary,
             'cache' => [
                 'backend' => CacheManager::resolveBackend(),
                 'namespace' => defined('ENV_CACHE_NAMESPACE') ? (string) ENV_CACHE_NAMESPACE : 'ee-site',
@@ -133,17 +150,24 @@ class ModelSystems {
                 'route_backend' => defined('ENV_ROUTING_CACHE_BACKEND') ? (string) ENV_ROUTING_CACHE_BACKEND : 'file',
                 'redis_probe_exists' => is_file(ENV_CACHE_PATH . 'redis_connection_check.cache'),
             ],
-            'cron' => $this->getCronHealthSummary(),
-            'lifecycle' => $this->getLifecycleHealthSummary(),
+            'mail' => $mailSummary,
+            'cron' => $cronSummary,
+            'lifecycle' => $lifecycleSummary,
             'media' => $mediaDiagnostics['summary'] ?? [],
+            'media_queue' => $mediaQueueSummary,
             'search' => [
                 'search_index_rows' => $this->tableExists(Constants::SEARCH_INDEX_TABLE) ? (int) SafeMySQL::gi()->getOne('SELECT COUNT(*) FROM ?n', Constants::SEARCH_INDEX_TABLE) : 0,
                 'search_ngram_rows' => $this->tableExists(Constants::SEARCH_NGRAMS_TABLE) ? (int) SafeMySQL::gi()->getOne('SELECT COUNT(*) FROM ?n', Constants::SEARCH_NGRAMS_TABLE) : 0,
                 'filters_rows' => $this->tableExists(Constants::FILTERS_TABLE) ? (int) SafeMySQL::gi()->getOne('SELECT COUNT(*) FROM ?n', Constants::FILTERS_TABLE) : 0,
             ],
-            'backups' => $this->getBackupSummary(),
+            'backups' => $backupSummary,
             'logs' => $this->get_logs_summary(),
         ];
+
+        $report['alerts'] = $this->buildHealthAlerts($report);
+        $report['alerts_summary'] = $this->summarizeHealthAlerts($report['alerts']);
+
+        return $report;
     }
 
     public function refreshMediaMetadata(int $limit = 500): OperationResult {
@@ -205,110 +229,53 @@ class ModelSystems {
         ]);
     }
 
+    public function recoverStaleOperationalQueues(int $lifecycleStaleMinutes = 30, int $mediaRetryDelaySec = 300, int $backupStaleAfterSec = 7200): OperationResult {
+        $cronResult = CronAgentService::recoverStaleAgents();
+        $lifecycleResult = $this->recoverStaleLifecycleJobs($lifecycleStaleMinutes);
+        $mediaRecovered = $this->tableExists(Constants::IMPORT_MEDIA_QUEUE_TABLE)
+            ? ImportMediaQueueService::recoverStaleQueueItems($mediaRetryDelaySec)
+            : 0;
+        $backupRecovered = $this->tableExists(Constants::BACKUP_JOBS_TABLE)
+            ? BackupService::recoverStaleJobsNow($backupStaleAfterSec)
+            : 0;
+
+        if (!$cronResult->isSuccess()) {
+            return $cronResult;
+        }
+        if (!$lifecycleResult->isSuccess()) {
+            return $lifecycleResult;
+        }
+
+        $cronRecovered = (int) ($cronResult->getData()['recovered'] ?? 0);
+        $lifecycleRecovered = (int) ($lifecycleResult->getData()['recovered_count'] ?? 0);
+        $totalRecovered = $cronRecovered + $lifecycleRecovered + $mediaRecovered + $backupRecovered;
+
+        return OperationResult::success([
+            'cron_recovered' => $cronRecovered,
+            'lifecycle_recovered' => $lifecycleRecovered,
+            'media_recovered' => $mediaRecovered,
+            'backup_recovered' => $backupRecovered,
+            'total_recovered' => $totalRecovered,
+        ], $totalRecovered > 0
+            ? 'Зависшие процессы восстановлены.'
+            : 'Зависших процессов не найдено.', $totalRecovered > 0 ? 'recovered' : 'noop');
+    }
+
     public function createBackupSnapshot(): OperationResult {
-        $backupRoot = $this->getBackupDirectory();
-        if (!is_dir($backupRoot) && !@mkdir($backupRoot, 0775, true) && !is_dir($backupRoot)) {
-            return OperationResult::failure('Не удалось создать директорию резервных копий.', 'backup_directory_create_failed');
-        }
-
-        $snapshotName = date('Ymd_His');
-        $snapshotDir = $backupRoot . ENV_DIRSEP . $snapshotName;
-        if (!@mkdir($snapshotDir, 0775, true) && !is_dir($snapshotDir)) {
-            return OperationResult::failure('Не удалось создать директорию снапшота.', 'backup_snapshot_directory_failed');
-        }
-
-        try {
-            $dbArchive = SysClass::backupDatabase(
-                (string) ENV_DB_HOST,
-                (string) ENV_DB_USER,
-                (string) ENV_DB_PASS,
-                (string) ENV_DB_NAME,
-                $snapshotDir,
-                ''
-            );
-
-            $filesArchive = $snapshotDir . ENV_DIRSEP . 'site_snapshot.zip';
-            $this->createZipFromPaths($filesArchive, [
-                ['path' => ENV_SITE_PATH . 'custom', 'alias' => 'custom'],
-                ['path' => ENV_SITE_PATH . 'uploads', 'alias' => 'uploads'],
-                ['path' => ENV_SITE_PATH . '.htaccess', 'alias' => '.htaccess'],
-                ['path' => ENV_SITE_PATH . 'inc' . ENV_DIRSEP . 'configuration.php', 'alias' => 'inc/configuration.php'],
-            ]);
-
-            $manifest = [
-                'generated_at' => date('c'),
-                'snapshot' => $snapshotName,
-                'db_archive' => basename($dbArchive),
-                'files_archive' => basename($filesArchive),
-                'site' => defined('ENV_SITE_NAME') ? ENV_SITE_NAME : 'EE_FrameWork',
-                'version' => defined('ENV_VERSION_CORE') ? ENV_VERSION_CORE : '',
-            ];
-            file_put_contents(
-                $snapshotDir . ENV_DIRSEP . 'manifest.json',
-                json_encode($manifest, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT)
-            );
-
-            Logger::audit('system_tools', 'Создан резервный снапшот системы', $manifest, [
-                'initiator' => __METHOD__,
-                'details' => 'Backup snapshot created',
-                'include_trace' => false,
-            ]);
-
-            return OperationResult::success([
-                'snapshot' => $snapshotName,
-                'path' => $snapshotDir,
-                'db_archive' => $dbArchive,
-                'files_archive' => $filesArchive,
-            ], 'Резервная копия создана.', 'backup_created');
-        } catch (\Throwable $e) {
-            $this->removeDirectoryRecursively($snapshotDir);
-            Logger::error('system_tools', 'Ошибка создания резервной копии', [
-                'message' => $e->getMessage(),
-                'snapshot' => $snapshotName,
-            ], [
-                'initiator' => __METHOD__,
-                'details' => $e->getMessage(),
-            ]);
-            return OperationResult::failure('Ошибка создания резервной копии: ' . $e->getMessage(), 'backup_create_failed');
-        }
+        return BackupService::queueBackup([
+            'plan_id' => (int) ((BackupService::getDefaultPlan()['backup_plan_id'] ?? 0)),
+            'requested_via' => 'legacy_model_systems',
+        ]);
     }
 
     public function getBackupSummary(): array {
-        $backupRoot = $this->getBackupDirectory();
-        if (!is_dir($backupRoot)) {
-            return [
-                'path' => $backupRoot,
-                'exists' => false,
-                'snapshots_count' => 0,
-                'latest_snapshot' => '',
-                'latest_updated_at' => '',
-                'items' => [],
-            ];
+        if (!$this->tableExists(Constants::BACKUP_JOBS_TABLE)
+            || !$this->tableExists(Constants::BACKUP_PLANS_TABLE)
+            || !$this->tableExists(Constants::BACKUP_TARGETS_TABLE)) {
+            return $this->getEmptyBackupSummary();
         }
 
-        $items = array_values(array_filter(glob($backupRoot . ENV_DIRSEP . '*') ?: [], 'is_dir'));
-        usort($items, static function (string $left, string $right): int {
-            return ((int) @filemtime($right)) <=> ((int) @filemtime($left));
-        });
-
-        $summaryItems = [];
-        foreach (array_slice($items, 0, 10) as $itemPath) {
-            $summaryItems[] = [
-                'name' => basename($itemPath),
-                'updated_at' => date('Y-m-d H:i:s', (int) @filemtime($itemPath)),
-                'db_archive' => basename((string) ((glob($itemPath . ENV_DIRSEP . '*.sql.zip')[0] ?? ''))),
-                'files_archive' => basename((string) ((glob($itemPath . ENV_DIRSEP . 'site_snapshot.zip')[0] ?? ''))),
-            ];
-        }
-
-        return [
-            'path' => $backupRoot,
-            'exists' => true,
-            'snapshots_count' => count($items),
-            'latest_snapshot' => $summaryItems[0]['name'] ?? '',
-            'latest_updated_at' => $summaryItems[0]['updated_at'] ?? '',
-            'items' => $summaryItems,
-        ];
+        return BackupService::getSummary();
     }
 
     /**
@@ -1000,6 +967,7 @@ class ModelSystems {
                 'active' => 0,
                 'due' => 0,
                 'locked' => 0,
+                'stale_locked' => 0,
                 'failed' => 0,
                 'last_run_at' => '',
                 'scheduler_command' => 'php ' . ENV_SITE_PATH . 'app/cron/run.php',
@@ -1012,12 +980,274 @@ class ModelSystems {
         }
 
         $summary = CronAgentService::getSummary();
+        $summary['stale_locked'] = (int) SafeMySQL::gi()->getOne(
+            'SELECT COUNT(*) FROM ?n WHERE locked_until IS NOT NULL AND locked_until < NOW()',
+            Constants::CRON_AGENTS_TABLE
+        );
         $summary['last_run_at'] = (string) (SafeMySQL::gi()->getOne(
             'SELECT MAX(started_at) FROM ?n',
             Constants::CRON_AGENT_RUNS_TABLE
         ) ?? '');
+        $summary['minutes_since_last_run'] = $this->minutesSince($summary['last_run_at']);
 
         return $summary;
+    }
+
+    private function getEmptyMediaQueueSummary(): array {
+        return [
+            'job_id' => null,
+            'total' => 0,
+            'queued' => 0,
+            'running' => 0,
+            'stale_running' => 0,
+            'failed' => 0,
+            'terminal_failed' => 0,
+            'done' => 0,
+            'last_completed_at' => '',
+            'last_updated_at' => '',
+            'agent_code' => 'media-mirror-worker',
+            'pending' => 0,
+            'agent' => null,
+        ];
+    }
+
+    private function getEmptyBackupSummary(): array {
+        return [
+            'path' => $this->getBackupDirectory(),
+            'retention_days' => 0,
+            'max_local_snapshots' => 0,
+            'snapshots_count' => 0,
+            'latest_snapshot' => '',
+            'latest_updated_at' => '',
+            'items' => [],
+            'targets_total' => 0,
+            'targets_active' => 0,
+            'plans_total' => 0,
+            'plans_active' => 0,
+            'default_plan' => null,
+            'default_target' => null,
+            'jobs' => [
+                'queued' => 0,
+                'running' => 0,
+                'done' => 0,
+                'partial' => 0,
+                'failed' => 0,
+            ],
+            'stale_running' => 0,
+            'last_completed_at' => '',
+        ];
+    }
+
+    private function getStorageHealthSummary(): array {
+        $path = rtrim((string) ENV_SITE_PATH, '/\\');
+        $freeBytes = @disk_free_space($path);
+        $totalBytes = @disk_total_space($path);
+        $freeBytes = $freeBytes !== false ? (int) $freeBytes : 0;
+        $totalBytes = $totalBytes !== false ? (int) $totalBytes : 0;
+        $usedPercent = $totalBytes > 0 ? round((1 - ($freeBytes / $totalBytes)) * 100, 1) : 0.0;
+
+        return [
+            'path' => $path,
+            'free_bytes' => $freeBytes,
+            'total_bytes' => $totalBytes,
+            'used_percent' => $usedPercent,
+            'free_pretty' => $this->formatBytes($freeBytes),
+            'total_pretty' => $this->formatBytes($totalBytes),
+        ];
+    }
+
+    private function getMailHealthSummary(): array {
+        $mode = !empty(ENV_SMTP) ? 'smtp' : 'mail';
+        $sendmailPath = trim((string) ini_get('sendmail_path'));
+        $sendmailBinary = '';
+        if ($sendmailPath !== '') {
+            $parts = preg_split('/\s+/', $sendmailPath);
+            $sendmailBinary = trim((string) ($parts[0] ?? ''));
+        }
+
+        $smtpConfigured = !empty(ENV_SMTP)
+            && trim((string) ENV_SMTP_SERVER) !== ''
+            && (int) ENV_SMTP_PORT > 0
+            && trim((string) ENV_SMTP_LOGIN) !== ''
+            && trim((string) ENV_SMTP_PASSWORD) !== '';
+
+        $transportAvailable = !empty(ENV_SMTP)
+            ? $smtpConfigured
+            : ($sendmailBinary !== '' && is_file($sendmailBinary) && is_executable($sendmailBinary));
+
+        return [
+            'mode' => $mode,
+            'smtp_enabled' => !empty(ENV_SMTP),
+            'smtp_configured' => $smtpConfigured,
+            'transport_available' => $transportAvailable,
+            'sendmail_path' => $sendmailPath,
+            'sendmail_binary' => $sendmailBinary,
+            'confirm_email_required' => (int) (defined('ENV_CONFIRM_EMAIL') ? ENV_CONFIRM_EMAIL : 0),
+        ];
+    }
+
+    private function buildHealthAlerts(array $report): array {
+        $alerts = [];
+        $install = is_array($report['install'] ?? null) ? $report['install'] : [];
+        $paths = is_array($report['paths'] ?? null) ? $report['paths'] : [];
+        $storage = is_array($report['storage'] ?? null) ? $report['storage'] : [];
+        $mail = is_array($report['mail'] ?? null) ? $report['mail'] : [];
+        $cron = is_array($report['cron'] ?? null) ? $report['cron'] : [];
+        $lifecycle = is_array($report['lifecycle'] ?? null) ? $report['lifecycle'] : [];
+        $mediaQueue = is_array($report['media_queue'] ?? null) ? $report['media_queue'] : [];
+        $backups = is_array($report['backups'] ?? null) ? $report['backups'] : [];
+
+        if (empty($install['database_connected'])) {
+            $alerts[] = $this->makeHealthAlert('critical', 'sys.health_alert_db_down_title', 'sys.health_alert_db_down_message');
+        }
+        if (empty($install['core_tables_ok'])) {
+            $alerts[] = $this->makeHealthAlert('critical', 'sys.health_alert_core_tables_title', 'sys.health_alert_core_tables_message');
+        }
+        if (empty($install['auth_tables_ok'])) {
+            $alerts[] = $this->makeHealthAlert('critical', 'sys.health_alert_auth_tables_title', 'sys.health_alert_auth_tables_message');
+        }
+        if (empty($install['cron_tables_ok'])) {
+            $alerts[] = $this->makeHealthAlert('warning', 'sys.health_alert_cron_tables_title', 'sys.health_alert_cron_tables_message', [], '/admin/cron_agents', 'sys.cron_agents');
+        }
+        if (array_key_exists('transport_available', $mail) && empty($mail['transport_available'])) {
+            $severity = !empty($mail['confirm_email_required']) ? 'critical' : 'warning';
+            $alerts[] = $this->makeHealthAlert(
+                $severity,
+                'sys.health_alert_mail_transport_title',
+                'sys.health_alert_mail_transport_message',
+                [
+                    'mode' => (string) ($mail['mode'] ?? 'mail'),
+                    'transport' => (string) (($mail['sendmail_path'] ?? '') !== '' ? $mail['sendmail_path'] : ($mail['mode'] ?? 'mail')),
+                ]
+            );
+        }
+
+        foreach ($paths as $pathKey => $pathItem) {
+            $pathLabel = (string) $pathKey;
+            $pathValue = (string) ($pathItem['path'] ?? '');
+            if (empty($pathItem['exists'])) {
+                $alerts[] = $this->makeHealthAlert('critical', 'sys.health_alert_path_missing_title', 'sys.health_alert_path_missing_message', [
+                    'path_key' => $pathLabel,
+                    'path_value' => $pathValue,
+                ]);
+                continue;
+            }
+            if ($pathKey !== 'config' && empty($pathItem['writable'])) {
+                $alerts[] = $this->makeHealthAlert('critical', 'sys.health_alert_path_unwritable_title', 'sys.health_alert_path_unwritable_message', [
+                    'path_key' => $pathLabel,
+                    'path_value' => $pathValue,
+                ]);
+            }
+        }
+
+        $freeBytes = (int) ($storage['free_bytes'] ?? 0);
+        if ($freeBytes > 0 && $freeBytes <= self::HEALTH_DISK_CRITICAL_BYTES) {
+            $alerts[] = $this->makeHealthAlert('critical', 'sys.health_alert_disk_critical_title', 'sys.health_alert_disk_critical_message', [
+                'free' => (string) ($storage['free_pretty'] ?? '0 B'),
+                'total' => (string) ($storage['total_pretty'] ?? '0 B'),
+                'used_percent' => (string) ($storage['used_percent'] ?? '0'),
+            ], '/admin/backup', 'sys.backup');
+        } elseif ($freeBytes > 0 && $freeBytes <= self::HEALTH_DISK_WARNING_BYTES) {
+            $alerts[] = $this->makeHealthAlert('warning', 'sys.health_alert_disk_warning_title', 'sys.health_alert_disk_warning_message', [
+                'free' => (string) ($storage['free_pretty'] ?? '0 B'),
+                'total' => (string) ($storage['total_pretty'] ?? '0 B'),
+                'used_percent' => (string) ($storage['used_percent'] ?? '0'),
+            ], '/admin/backup', 'sys.backup');
+        }
+
+        $minutesSinceLastRun = (int) ($cron['minutes_since_last_run'] ?? -1);
+        if ($minutesSinceLastRun >= self::HEALTH_CRON_CRITICAL_MINUTES || (trim((string) ($cron['last_run_at'] ?? '')) === '')) {
+            $alerts[] = $this->makeHealthAlert('critical', 'sys.health_alert_cron_stalled_title', 'sys.health_alert_cron_stalled_message', [
+                'minutes' => $minutesSinceLastRun >= 0 ? (string) $minutesSinceLastRun : 'n/a',
+            ], '/admin/cron_agents', 'sys.cron_agents');
+        } elseif ($minutesSinceLastRun >= self::HEALTH_CRON_WARNING_MINUTES) {
+            $alerts[] = $this->makeHealthAlert('warning', 'sys.health_alert_cron_delayed_title', 'sys.health_alert_cron_delayed_message', [
+                'minutes' => (string) $minutesSinceLastRun,
+            ], '/admin/cron_agents', 'sys.cron_agents');
+        }
+
+        if ((int) ($cron['failed'] ?? 0) > 0) {
+            $alerts[] = $this->makeHealthAlert('warning', 'sys.health_alert_cron_failed_title', 'sys.health_alert_cron_failed_message', [
+                'count' => (string) ((int) ($cron['failed'] ?? 0)),
+            ], '/admin/cron_agents', 'sys.cron_agents');
+        }
+        if ((int) ($cron['stale_locked'] ?? 0) > 0) {
+            $alerts[] = $this->makeHealthAlert('warning', 'sys.health_alert_cron_stale_title', 'sys.health_alert_cron_stale_message', [
+                'count' => (string) ((int) ($cron['stale_locked'] ?? 0)),
+            ], '/admin/recover_stale_operations', 'sys.recover_stale_operations');
+        }
+        if ((int) ($lifecycle['stale_running'] ?? 0) > 0) {
+            $alerts[] = $this->makeHealthAlert('warning', 'sys.health_alert_lifecycle_stale_title', 'sys.health_alert_lifecycle_stale_message', [
+                'count' => (string) ((int) ($lifecycle['stale_running'] ?? 0)),
+            ], '/admin/recover_stale_operations', 'sys.recover_stale_operations');
+        }
+        if ((int) ($mediaQueue['stale_running'] ?? 0) > 0) {
+            $alerts[] = $this->makeHealthAlert('warning', 'sys.health_alert_media_stale_title', 'sys.health_alert_media_stale_message', [
+                'count' => (string) ((int) ($mediaQueue['stale_running'] ?? 0)),
+            ], '/admin/recover_stale_operations', 'sys.recover_stale_operations');
+        }
+        if ((int) ($mediaQueue['failed'] ?? 0) > 0) {
+            $alerts[] = $this->makeHealthAlert('warning', 'sys.health_alert_media_failed_title', 'sys.health_alert_media_failed_message', [
+                'count' => (string) ((int) ($mediaQueue['failed'] ?? 0)),
+            ], '/admin/cron_agents', 'sys.cron_agents');
+        }
+        if ((int) ($mediaQueue['terminal_failed'] ?? 0) > 0) {
+            $alerts[] = $this->makeHealthAlert('warning', 'sys.health_alert_media_terminal_failed_title', 'sys.health_alert_media_terminal_failed_message', [
+                'count' => (string) ((int) ($mediaQueue['terminal_failed'] ?? 0)),
+            ], '/admin/cron_agents', 'sys.cron_agents');
+        }
+        if ((int) ($mediaQueue['pending'] ?? 0) > 0) {
+            $alerts[] = $this->makeHealthAlert('info', 'sys.health_alert_media_pending_title', 'sys.health_alert_media_pending_message', [
+                'count' => (string) ((int) ($mediaQueue['pending'] ?? 0)),
+            ], '/admin/cron_agents', 'sys.cron_agents');
+        }
+        if ((int) ($backups['stale_running'] ?? 0) > 0) {
+            $alerts[] = $this->makeHealthAlert('warning', 'sys.health_alert_backup_stale_title', 'sys.health_alert_backup_stale_message', [
+                'count' => (string) ((int) ($backups['stale_running'] ?? 0)),
+            ], '/admin/recover_stale_operations', 'sys.recover_stale_operations');
+        }
+        if ((int) (($backups['jobs']['failed'] ?? 0)) > 0) {
+            $alerts[] = $this->makeHealthAlert('warning', 'sys.health_alert_backup_failed_title', 'sys.health_alert_backup_failed_message', [
+                'count' => (string) ((int) (($backups['jobs']['failed'] ?? 0))),
+            ], '/admin/backup', 'sys.backup');
+        }
+
+        return $alerts;
+    }
+
+    private function summarizeHealthAlerts(array $alerts): array {
+        $summary = [
+            'total' => 0,
+            'critical' => 0,
+            'warning' => 0,
+            'info' => 0,
+        ];
+
+        foreach ($alerts as $alert) {
+            $severity = (string) ($alert['severity'] ?? 'info');
+            if (!array_key_exists($severity, $summary)) {
+                continue;
+            }
+            $summary[$severity]++;
+            $summary['total']++;
+        }
+
+        return $summary;
+    }
+
+    private function makeHealthAlert(string $severity, string $titleKey, string $messageKey, array $messageParams = [], ?string $actionUrl = null, ?string $actionLabelKey = null): array {
+        return [
+            'severity' => $severity,
+            'title_key' => $titleKey,
+            'message_key' => $messageKey,
+            'message_params' => $messageParams,
+            'action_url' => $actionUrl,
+            'action_label_key' => $actionLabelKey,
+        ];
+    }
+
+    private function minutesSince(string $dateTime): int {
+        return ee_minutes_since_utc_datetime($dateTime);
     }
 
     private function tableExists(string $tableName): bool {

@@ -1,6 +1,7 @@
 <?php
 
 use classes\system\CronAgentService;
+use classes\system\ImportMediaQueueService;
 use classes\system\OperationResult;
 
 /**
@@ -25,14 +26,43 @@ class ModelCronAgents {
         return $items[0] ?? null;
     }
 
+    public function getAgentByCode(string $code): ?array {
+        $agent = CronAgentService::getAgentByCode($code);
+        if (!$agent) {
+            return null;
+        }
+        $items = $this->decorateAgentsForUi([$agent]);
+        return $items[0] ?? null;
+    }
+
     public function getRecentRuns(int $limit = 50, ?int $agentId = null): array {
         return CronAgentService::getRecentRuns($limit, $agentId);
+    }
+
+    public function getMediaQueueSummary(?int $jobId = null): array {
+        return ImportMediaQueueService::getSummary($jobId);
     }
 
     public function getHandlers(): array {
         $result = [];
         foreach (CronAgentService::getHandlers() as $handlerCode => $meta) {
             $payloadExample = $meta['payload_example'] ?? [];
+            $payloadFields = [];
+            foreach ((array) ($meta['payload_fields'] ?? []) as $fieldMeta) {
+                if (!is_array($fieldMeta) || empty($fieldMeta['key'])) {
+                    continue;
+                }
+                $payloadFields[] = [
+                    'key' => (string) $fieldMeta['key'],
+                    'type' => (string) ($fieldMeta['type'] ?? 'string'),
+                    'min' => $fieldMeta['min'] ?? null,
+                    'max' => $fieldMeta['max'] ?? null,
+                    'step' => $fieldMeta['step'] ?? null,
+                    'default' => $fieldMeta['default'] ?? null,
+                    'label' => $this->langValue((string) ($fieldMeta['label_key'] ?? ''), (string) $fieldMeta['key']),
+                    'help' => $this->langValue((string) ($fieldMeta['help_key'] ?? ''), ''),
+                ];
+            }
             $result[$handlerCode] = [
                 'code' => $handlerCode,
                 'title_key' => (string) ($meta['title_key'] ?? ''),
@@ -41,6 +71,7 @@ class ModelCronAgents {
                 'description' => $this->langValue((string) ($meta['description_key'] ?? ''), ''),
                 'payload_example' => $payloadExample,
                 'payload_example_pretty' => json_encode($payloadExample, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT),
+                'payload_fields' => $payloadFields,
             ];
         }
 

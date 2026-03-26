@@ -1,9 +1,15 @@
 <!DOCTYPE html>
-<html lang="ru">
+<?php
+$documentLangCode = ee_get_current_lang_code();
+$documentLang = ee_get_lang_html_attr($documentLangCode);
+$documentLocale = ee_get_lang_locale($documentLangCode);
+$langBundleUrl = ee_get_lang_bundle_url($documentLangCode);
+?>
+<html lang="<?= htmlspecialchars($documentLang, ENT_QUOTES, 'UTF-8') ?>">
     <head>
         <title><?= $title ?></title>
         <meta http-equiv="content-type" content="text/html; charset=utf-8"/>
-        <meta http-equiv="content-language" content="ru-RU">
+        <meta http-equiv="content-language" content="<?= htmlspecialchars($documentLocale, ENT_QUOTES, 'UTF-8') ?>">
         <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
         <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, shrink-to-fit=no" name="viewport" />
         <meta name="SKYPE_TOOLBAR" content="SKYPE_TOOLBAR_PARSER_COMPATIBLE" />
@@ -98,14 +104,10 @@
         <!-- Wizard -->
         <script src="<?= ENV_URL_SITE ?>/assets/js/plugins/ee_wizard.js" type="text/javascript"></script>
         <!-- core -->
-        <script src="<?= ENV_URL_SITE ?>/uploads/tmp/<?=\classes\system\Session::get('lang')?>.js" type="text/javascript"></script>
+        <script src="<?= htmlspecialchars($langBundleUrl, ENT_QUOTES, 'UTF-8') ?>" type="text/javascript"></script>
         <script src="<?= ENV_URL_SITE ?>/assets/js/core.js" type="text/javascript"></script>
         <script src="<?= ENV_URL_SITE ?>/app/admin/js/dashboard.js" type="text/javascript"></script>
 
-        <script src="<?= ENV_URL_SITE ?>/assets/js/plugins/helium.js" type="text/javascript"></script>
-        <script>
-          // helium.init();    
-        </script>
         <!-- end of non-relocatable JS scripts -->
         <!-- Добавленные скрипты из контроллера -->
         <?= $add_script ?>

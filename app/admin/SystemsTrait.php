@@ -158,9 +158,13 @@ trait SystemsTrait {
     /**
      * Вывод страницы с логами
      */
+    public function system_logs($params = array()) {
+        $this->logs($params);
+    }
+
     public function logs($params = array()) {
         if (!$this->requireAccess([Constants::ADMIN], [
-            'return' => 'admin/logs',
+            'return' => 'admin/system_logs',
             'initiator' => __METHOD__,
         ]) || array_filter($params)) {
             if (array_filter($params)) {
@@ -215,7 +219,20 @@ trait SystemsTrait {
             return;
         }
 
-        $this->renderSystemHealthDashboard('backup');
+        $this->loadModel('m_backups');
+        $this->getStandardViews();
+        $this->view->set('backup_summary', $this->models['m_backups']->getSummary());
+        $this->view->set('backup_plans', $this->models['m_backups']->getPlans());
+        $this->view->set('backup_targets', $this->models['m_backups']->getTargets());
+        $this->view->set('backup_jobs', $this->models['m_backups']->getRecentJobs(30));
+        $this->view->set('backup_worker_agent', $this->models['m_backups']->getWorkerAgent());
+        $this->view->set('cron_agents_summary', $this->models['m_backups']->getSchedulerSummary());
+        $this->view->set('body_view', $this->view->read('v_backup'));
+        $this->html = $this->view->read('v_dashboard');
+        $this->parameters_layout["layout_content"] = $this->html;
+        $this->parameters_layout["layout"] = 'dashboard';
+        $this->parameters_layout["title"] = $this->lang['sys.backup'] ?? 'Резервное копирование';
+        $this->showLayout($this->parameters_layout);
     }
 
     /**
@@ -224,7 +241,7 @@ trait SystemsTrait {
     public function get_project_logs_table() {
         if (!$this->requireAccess([Constants::ADMIN], [
             'ajax' => !empty($_POST),
-            'return' => 'admin/logs',
+            'return' => 'admin/system_logs',
             'initiator' => __METHOD__,
         ])) {
             return '';
@@ -358,7 +375,7 @@ trait SystemsTrait {
     public function get_php_logs_table($type = '') {
         if (!$this->requireAccess([Constants::ADMIN], [
             'ajax' => !empty($_POST),
-            'return' => 'admin/logs',
+            'return' => 'admin/system_logs',
             'initiator' => __METHOD__,
         ])) {
             return '';
@@ -481,7 +498,7 @@ trait SystemsTrait {
      */
     public function clear_php_logs($params = []) {
         if (!$this->requireAccess([Constants::ADMIN], [
-            'return' => 'admin/logs',
+            'return' => 'admin/system_logs',
             'initiator' => __METHOD__,
         ]) || array_filter($params)) {
             if (array_filter($params)) {
@@ -491,7 +508,7 @@ trait SystemsTrait {
         }
         $this->loadModel('m_systems');
         $this->models['m_systems']->clearFlatLogFiles('php_logs');
-        SysClass::handleRedirect(200, '/admin/logs');
+        SysClass::handleRedirect(200, '/admin/system_logs');
     }
 
     /**
@@ -499,7 +516,7 @@ trait SystemsTrait {
      */
     public function clear_fatal_logs($params = []) {
         if (!$this->requireAccess([Constants::ADMIN], [
-            'return' => 'admin/logs',
+            'return' => 'admin/system_logs',
             'initiator' => __METHOD__,
         ]) || array_filter($params)) {
             if (array_filter($params)) {
@@ -509,7 +526,7 @@ trait SystemsTrait {
         }
         $this->loadModel('m_systems');
         $this->models['m_systems']->clearFlatLogFiles('fatal_errors');
-        SysClass::handleRedirect(200, '/admin/logs');
+        SysClass::handleRedirect(200, '/admin/system_logs');
     }
 
     /**
@@ -517,7 +534,7 @@ trait SystemsTrait {
      */
     public function clear_project_logs($params = []) {
         if (!$this->requireAccess([Constants::ADMIN], [
-            'return' => 'admin/logs',
+            'return' => 'admin/system_logs',
             'initiator' => __METHOD__,
         ]) || array_filter($params)) {
             if (array_filter($params)) {
@@ -527,7 +544,7 @@ trait SystemsTrait {
         }
         $this->loadModel('m_systems');
         $this->models['m_systems']->clearProjectLogs();
-        SysClass::handleRedirect(200, '/admin/logs');
+        SysClass::handleRedirect(200, '/admin/system_logs');
     }
 
     /**
@@ -535,7 +552,7 @@ trait SystemsTrait {
      */
     public function clear_html_cache($params = []) {
         if (!$this->requireAccess([Constants::ADMIN], [
-            'return' => 'admin/logs',
+            'return' => 'admin/system_logs',
             'initiator' => __METHOD__,
         ]) || array_filter($params)) {
             if (array_filter($params)) {
@@ -549,7 +566,7 @@ trait SystemsTrait {
             'text' => $this->lang['sys.cache_html_cleared'] ?? 'HTML-кэш очищен.',
             'status' => 'success'
         ]);
-        SysClass::handleRedirect(200, '/admin/logs');
+        SysClass::handleRedirect(200, '/admin/system_logs');
     }
 
     /**
@@ -557,7 +574,7 @@ trait SystemsTrait {
      */
     public function clear_route_cache($params = []) {
         if (!$this->requireAccess([Constants::ADMIN], [
-            'return' => 'admin/logs',
+            'return' => 'admin/system_logs',
             'initiator' => __METHOD__,
         ]) || array_filter($params)) {
             if (array_filter($params)) {
@@ -571,7 +588,7 @@ trait SystemsTrait {
             'text' => $this->lang['sys.cache_route_cleared'] ?? 'Route-кэш очищен.',
             'status' => 'success'
         ]);
-        SysClass::handleRedirect(200, '/admin/logs');
+        SysClass::handleRedirect(200, '/admin/system_logs');
     }
 
     /**
@@ -579,7 +596,7 @@ trait SystemsTrait {
      */
     public function reset_redis_cache_probe($params = []) {
         if (!$this->requireAccess([Constants::ADMIN], [
-            'return' => 'admin/logs',
+            'return' => 'admin/system_logs',
             'initiator' => __METHOD__,
         ]) || array_filter($params)) {
             if (array_filter($params)) {
@@ -595,7 +612,7 @@ trait SystemsTrait {
                 : ($this->lang['sys.data_update_error'] ?? 'Ошибка обновления данных.'),
             'status' => $reset ? 'info' : 'danger'
         ]);
-        SysClass::handleRedirect(200, '/admin/logs');
+        SysClass::handleRedirect(200, '/admin/system_logs');
     }
 
     /**
@@ -655,53 +672,6 @@ trait SystemsTrait {
         SysClass::handleRedirect(200, '/admin');
     }
 
-    private function copy_all() {
-        return false; // Баги какие-то но в целом работает
-        $dbhost = ENV_DB_HOST;   // Адрес сервера MySQL, обычно localhost
-        $dbuser = ENV_DB_USER;   // имя пользователя базы данных
-        $dbpass = ENV_DB_PASS;   // пароль пользователя базы данных
-        $dbname = ENV_DB_NAME;   // название базы данных
-        $dir = ENV_SITE_PATH . '/' . ENV_BACKUP_CAT . '/';
-        $kill_hour = 190; // Через сколько начинать удалять старые копии
-        if (!is_dir($dir)) {
-            mkdir($dir, 0750, true);
-        }
-        if (!is_writable($dir)) {
-            die('Директория ' . $dir . ' не доступна для записи.');
-        }
-        $dbbackup = $dir . 'db_copy-' . date("d.m.Y-H:i:s") . '.sql.gz';
-        system("mysqldump -h $dbhost -u $dbuser --password='$dbpass' $dbname | gzip > $dbbackup");
-        if (file_exists($dbbackup)) {
-            $res .= 'Архив создан ' . $dbbackup . PHP_EOL;
-        } else {
-            $res .= 'Ошибка создания арихива БД ' . $dbbackup . PHP_EOL;
-        }
-        if ($dh = opendir($dir)) {
-            while (($file = readdir($dh)) !== false) {
-                if (filemtime($dir . $file) < strtotime('-' . $kill_hour . ' hours') && $file != '.' && $file != '..' && $file != 'db_upload.php') {
-                    $res .= 'dell file=' . $dir . $file . PHP_EOL;
-                    $count++;
-                    if (unlink($dir . $file)) {
-                        $res .= 'Удалён файл ' . $dir . $file . PHP_EOL;
-                    } else {
-                        $res .= 'Не удаётся удалить файл ' . $dir . $file . PHP_EOL;
-                    }
-                }
-            }
-            closedir($dh);
-        }
-        if (!$count) {
-            $res .= 'Удалять пока нечего.' . PHP_EOL . '--------------------------------------------------------';
-        }
-        file_put_contents($dir . 'logs_db.txt', date('d.m.Y H:i:s') . ' : ' . $res . PHP_EOL, FILE_APPEND | LOCK_EX);
-        SysClass::copydirect(ENV_SITE_PATH, $dir . 'files' . ENV_DIRSEP . date('d-m-Y-H:i:s'), true, [ENV_SITE_PATH . ENV_BACKUP_CAT]);
-        SysClass::create_zip_archive(ENV_SITE_PATH, $dir . 'files' . ENV_DIRSEP . date('d-m-Y-H:i:s') . '.zip', $dir . 'files' . ENV_DIRSEP . date('d-m-Y-H:i:s'));
-    }
-
-    private function kill_copy_all() {
-        die('kill_copy_all');
-    }
-
     /**
      * Создает тестовые данные, если они еще не были созданы
      * @param array $params Параметры для создания тестовых данных
@@ -756,7 +726,7 @@ trait SystemsTrait {
 
     public function recover_stale_lifecycle_jobs($params = []) {
         if (!$this->requireAccess([Constants::ADMIN], [
-            'return' => 'admin/health',
+            'return' => 'admin/property_lifecycle_jobs',
             'initiator' => __METHOD__,
         ]) || array_filter($params)) {
             if (array_filter($params)) {
@@ -773,7 +743,29 @@ trait SystemsTrait {
                 'default_error_message' => 'Не удалось восстановить lifecycle jobs.',
             ]
         );
-        SysClass::handleRedirect(200, '/admin/health');
+        SysClass::handleRedirect(200, '/admin/property_lifecycle_jobs');
+    }
+
+    public function recover_stale_operations($params = []) {
+        if (!$this->requireAccess([Constants::ADMIN], [
+            'return' => 'admin/health',
+            'initiator' => __METHOD__,
+        ]) || array_filter($params)) {
+            if (array_filter($params)) {
+                SysClass::handleRedirect();
+            }
+            return;
+        }
+
+        $this->loadModel('m_systems');
+        $this->notifyOperationResult(
+            $this->models['m_systems']->recoverStaleOperationalQueues(),
+            [
+                'success_message' => $this->lang['sys.recover_stale_operations_done'] ?? 'Проверка зависших процессов завершена.',
+                'default_error_message' => $this->lang['sys.recover_stale_operations_failed'] ?? 'Не удалось восстановить зависшие процессы.',
+            ]
+        );
+        SysClass::handleRedirect(200, '/admin/health#alerts');
     }
 
     public function refresh_media_metadata($params = []) {
@@ -795,7 +787,7 @@ trait SystemsTrait {
                 'default_error_message' => 'Не удалось обновить метаданные файлов.',
             ]
         );
-        SysClass::handleRedirect(200, '/admin/health');
+        SysClass::handleRedirect(200, '/admin/health#media');
     }
 
     public function run_backup($params = []) {
@@ -809,12 +801,244 @@ trait SystemsTrait {
             return;
         }
 
-        $this->loadModel('m_systems');
+        $this->loadModel('m_backups');
+        $planId = $this->extractBackupPlanIdFromParams($params);
         $this->notifyOperationResult(
-            $this->models['m_systems']->createBackupSnapshot(),
+            $this->models['m_backups']->queueBackup([
+                'plan_id' => $planId > 0 ? $planId : ($_POST['plan_id'] ?? 0),
+                'scope' => $_POST['scope'] ?? 'project_data',
+                'delivery_mode' => $_POST['delivery_mode'] ?? 'local_only',
+                'target_id' => $_POST['target_id'] ?? 0,
+                'requested_by' => (int) $this->logged_in,
+                'requested_via' => 'admin_backup',
+            ]),
             [
-                'success_message' => 'Резервная копия создана.',
-                'default_error_message' => 'Не удалось создать резервную копию.',
+                'success_message' => $this->lang['sys.backup_job_queued'] ?? 'Резервная копия поставлена в очередь.',
+                'default_error_message' => $this->lang['sys.backup_job_queue_failed'] ?? 'Не удалось поставить резервную копию в очередь.',
+            ]
+        );
+        SysClass::handleRedirect(200, '/admin/backup');
+    }
+
+    public function backup_plan_edit($params = []): void {
+        if (!$this->requireAccess([Constants::ADMIN], [
+            'return' => 'admin/backup_plan_edit',
+            'initiator' => __METHOD__,
+        ])) {
+            return;
+        }
+
+        $this->loadModel('m_backups');
+        $planId = $this->extractBackupPlanIdFromParams($params);
+        $plan = $planId > 0
+            ? $this->models['m_backups']->getPlan($planId)
+            : $this->models['m_backups']->getPlanDefaults();
+
+        if ($planId > 0 && !$plan) {
+            $this->notifyOperationResult(false, [
+                'default_error_message' => $this->lang['sys.backup_plan_not_found'] ?? 'План резервного копирования не найден.',
+            ]);
+            SysClass::handleRedirect(200, '/admin/backup');
+            return;
+        }
+
+        if (!empty($_POST)) {
+            $saveResult = $this->notifyOperationResult(
+                $this->models['m_backups']->savePlan([
+                    'backup_plan_id' => $planId,
+                    'code' => $_POST['code'] ?? '',
+                    'name' => $_POST['name'] ?? '',
+                    'description' => $_POST['description'] ?? '',
+                    'db_mode' => $_POST['db_mode'] ?? 'all',
+                    'db_tables' => $_POST['db_tables'] ?? [],
+                    'file_mode' => $_POST['file_mode'] ?? 'exclude_selected',
+                    'file_items' => $_POST['file_items'] ?? [],
+                    'delivery_mode' => $_POST['delivery_mode'] ?? 'local_only',
+                    'target_id' => $_POST['target_id'] ?? 0,
+                    'is_active' => !empty($_POST['is_active']) ? 1 : 0,
+                    'is_default' => !empty($_POST['is_default']) ? 1 : 0,
+                ]),
+                [
+                    'success_message' => $this->lang['sys.backup_plan_saved'] ?? 'План резервного копирования сохранён.',
+                    'default_error_message' => $this->lang['sys.data_update_error'] ?? 'Ошибка сохранения данных.',
+                ]
+            );
+
+            if ($saveResult->isSuccess()) {
+                SysClass::handleRedirect(200, '/admin/backup');
+                return;
+            }
+
+            $plan = array_merge(
+                is_array($plan) ? $plan : $this->models['m_backups']->getPlanDefaults(),
+                [
+                    'backup_plan_id' => $planId,
+                    'code' => trim((string) ($_POST['code'] ?? '')),
+                    'name' => trim((string) ($_POST['name'] ?? '')),
+                    'description' => trim((string) ($_POST['description'] ?? '')),
+                    'db_mode' => trim((string) ($_POST['db_mode'] ?? 'all')),
+                    'db_tables' => array_values((array) ($_POST['db_tables'] ?? [])),
+                    'file_mode' => trim((string) ($_POST['file_mode'] ?? 'exclude_selected')),
+                    'file_items' => array_values((array) ($_POST['file_items'] ?? [])),
+                    'delivery_mode' => trim((string) ($_POST['delivery_mode'] ?? 'local_only')),
+                    'target_id' => (int) ($_POST['target_id'] ?? 0),
+                    'is_active' => !empty($_POST['is_active']) ? 1 : 0,
+                    'is_default' => !empty($_POST['is_default']) ? 1 : 0,
+                ]
+            );
+        }
+
+        $this->getStandardViews();
+        $this->view->set('backup_plan', $plan);
+        $this->view->set('backup_targets', $this->models['m_backups']->getTargets());
+        $this->view->set('backup_db_tables', $this->models['m_backups']->getAvailableDatabaseTables());
+        $this->view->set('backup_file_items', $this->models['m_backups']->getAvailableFileItems());
+        $this->view->set('body_view', $this->view->read('v_edit_backup_plan'));
+        $this->html = $this->view->read('v_dashboard');
+        $this->parameters_layout["layout_content"] = $this->html;
+        $this->parameters_layout["layout"] = 'dashboard';
+        $this->parameters_layout["title"] = $planId > 0
+            ? ($this->lang['sys.backup_plan_edit'] ?? 'Редактирование backup-плана')
+            : ($this->lang['sys.backup_plan_new'] ?? 'Новый backup-план');
+        $this->showLayout($this->parameters_layout);
+    }
+
+    public function backup_target_edit($params = []): void {
+        if (!$this->requireAccess([Constants::ADMIN], [
+            'return' => 'admin/backup_target_edit',
+            'initiator' => __METHOD__,
+        ])) {
+            return;
+        }
+
+        $this->loadModel('m_backups');
+        $targetId = $this->extractBackupTargetIdFromParams($params);
+        $target = $targetId > 0
+            ? $this->models['m_backups']->getTarget($targetId)
+            : $this->models['m_backups']->getTargetDefaults();
+
+        if ($targetId > 0 && !$target) {
+            $this->notifyOperationResult(false, [
+                'default_error_message' => $this->lang['sys.backup_target_not_found'] ?? 'Профиль удалённого хранилища не найден.',
+            ]);
+            SysClass::handleRedirect(200, '/admin/backup');
+            return;
+        }
+
+        if (!empty($_POST)) {
+            $saveResult = $this->notifyOperationResult(
+                $this->models['m_backups']->saveTarget([
+                    'target_id' => $targetId,
+                    'code' => $_POST['code'] ?? '',
+                    'name' => $_POST['name'] ?? '',
+                    'protocol' => $_POST['protocol'] ?? 'sftp',
+                    'host' => $_POST['host'] ?? '',
+                    'port' => $_POST['port'] ?? '',
+                    'username' => $_POST['username'] ?? '',
+                    'password' => $_POST['password'] ?? '',
+                    'remote_path' => $_POST['remote_path'] ?? '/',
+                    'timeout_sec' => $_POST['timeout_sec'] ?? 30,
+                    'ftp_passive' => !empty($_POST['ftp_passive']) ? 1 : 0,
+                    'is_active' => !empty($_POST['is_active']) ? 1 : 0,
+                    'is_default' => !empty($_POST['is_default']) ? 1 : 0,
+                ]),
+                [
+                    'success_message' => $this->lang['sys.backup_target_saved'] ?? 'Профиль удалённого хранилища сохранён.',
+                    'default_error_message' => $this->lang['sys.data_update_error'] ?? 'Ошибка сохранения данных.',
+                ]
+            );
+
+            if ($saveResult->isSuccess()) {
+                SysClass::handleRedirect(200, '/admin/backup');
+                return;
+            }
+
+            $target = array_merge(
+                is_array($target) ? $target : $this->models['m_backups']->getTargetDefaults(),
+                [
+                    'target_id' => $targetId,
+                    'code' => trim((string) ($_POST['code'] ?? '')),
+                    'name' => trim((string) ($_POST['name'] ?? '')),
+                    'protocol' => trim((string) ($_POST['protocol'] ?? 'sftp')),
+                    'host' => trim((string) ($_POST['host'] ?? '')),
+                    'port' => (int) ($_POST['port'] ?? 0),
+                    'username' => trim((string) ($_POST['username'] ?? '')),
+                    'remote_path' => trim((string) ($_POST['remote_path'] ?? '/')),
+                    'timeout_sec' => (int) ($_POST['timeout_sec'] ?? 30),
+                    'ftp_passive' => !empty($_POST['ftp_passive']) ? 1 : 0,
+                    'is_active' => !empty($_POST['is_active']) ? 1 : 0,
+                    'is_default' => !empty($_POST['is_default']) ? 1 : 0,
+                ]
+            );
+        }
+
+        $this->getStandardViews();
+        $this->view->set('backup_target', $target);
+        $this->view->set('body_view', $this->view->read('v_edit_backup_target'));
+        $this->html = $this->view->read('v_dashboard');
+        $this->parameters_layout["layout_content"] = $this->html;
+        $this->parameters_layout["layout"] = 'dashboard';
+        $this->parameters_layout["title"] = $targetId > 0
+            ? ($this->lang['sys.backup_target_edit'] ?? 'Редактирование удалённого хранилища')
+            : ($this->lang['sys.backup_target_new'] ?? 'Новый профиль удалённого хранилища');
+        $this->showLayout($this->parameters_layout);
+    }
+
+    public function delete_backup_target($params = []): void {
+        if (!$this->requireAccess([Constants::ADMIN], [
+            'return' => 'admin/backup',
+            'initiator' => __METHOD__,
+        ])) {
+            return;
+        }
+
+        $this->loadModel('m_backups');
+        $targetId = $this->extractBackupTargetIdFromParams($params);
+        $this->notifyOperationResult(
+            $this->models['m_backups']->deleteTarget($targetId),
+            [
+                'success_message' => $this->lang['sys.backup_target_deleted'] ?? 'Профиль удалённого хранилища удалён.',
+                'default_error_message' => $this->lang['sys.error'] ?? 'Ошибка',
+            ]
+        );
+        SysClass::handleRedirect(200, '/admin/backup');
+    }
+
+    public function delete_backup_plan($params = []): void {
+        if (!$this->requireAccess([Constants::ADMIN], [
+            'return' => 'admin/backup',
+            'initiator' => __METHOD__,
+        ])) {
+            return;
+        }
+
+        $this->loadModel('m_backups');
+        $planId = $this->extractBackupPlanIdFromParams($params);
+        $this->notifyOperationResult(
+            $this->models['m_backups']->deletePlan($planId),
+            [
+                'success_message' => $this->lang['sys.backup_plan_deleted'] ?? 'План резервного копирования удалён.',
+                'default_error_message' => $this->lang['sys.error'] ?? 'Ошибка',
+            ]
+        );
+        SysClass::handleRedirect(200, '/admin/backup');
+    }
+
+    public function test_backup_target($params = []): void {
+        if (!$this->requireAccess([Constants::ADMIN], [
+            'return' => 'admin/backup',
+            'initiator' => __METHOD__,
+        ])) {
+            return;
+        }
+
+        $this->loadModel('m_backups');
+        $targetId = $this->extractBackupTargetIdFromParams($params);
+        $this->notifyOperationResult(
+            $this->models['m_backups']->testTarget($targetId),
+            [
+                'success_message' => $this->lang['sys.backup_target_test_success'] ?? 'Подключение к удалённому хранилищу подтверждено.',
+                'default_error_message' => $this->lang['sys.backup_target_test_failed'] ?? 'Не удалось проверить удалённое хранилище.',
             ]
         );
         SysClass::handleRedirect(200, '/admin/backup');
@@ -823,16 +1047,38 @@ trait SystemsTrait {
     private function renderSystemHealthDashboard(string $activeSection = 'health'): void {
         $this->loadModel('m_systems');
         $healthReport = $this->models['m_systems']->getHealthReport();
+        $title = $this->lang['sys.health'] ?? 'Состояние системы';
 
         $this->getStandardViews();
         $this->view->set('health_report', $healthReport);
-        $this->view->set('active_system_section', $activeSection);
+        $this->view->set('active_system_section', 'health');
+        $this->view->set('system_page_heading', $title);
         $this->view->set('body_view', $this->view->read('v_health'));
         $this->html = $this->view->read('v_dashboard');
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
-        $this->parameters_layout["title"] = $this->lang['sys.health'] ?? 'Состояние системы';
+        $this->parameters_layout["title"] = $title;
         $this->showLayout($this->parameters_layout);
+    }
+
+    private function extractBackupTargetIdFromParams(array $params): int {
+        if (in_array('id', $params, true)) {
+            $keyId = array_search('id', $params, true);
+            if ($keyId !== false && isset($params[$keyId + 1])) {
+                return (int) $params[$keyId + 1];
+            }
+        }
+        return 0;
+    }
+
+    private function extractBackupPlanIdFromParams(array $params): int {
+        if (in_array('id', $params, true)) {
+            $keyId = array_search('id', $params, true);
+            if ($keyId !== false && isset($params[$keyId + 1])) {
+                return (int) $params[$keyId + 1];
+            }
+        }
+        return 0;
     }
 
     /**
@@ -969,6 +1215,8 @@ trait SystemsTrait {
                 'active' => $active,
                 'user_role' => $role,
                 'subscribed' => '1',
+                'privacy_policy_accepted' => 1,
+                'personal_data_consent_accepted' => 1,
                 'comment' => $comment,
                 'pwd' => $password], true);
         }

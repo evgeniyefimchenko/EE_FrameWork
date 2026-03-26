@@ -579,8 +579,21 @@ final class PropertyFieldContract {
         if (is_array($value)) {
             $tokens = [];
             foreach ($value as $item) {
-                if (is_array($item) && isset($item['key'])) {
-                    $item = $item['key'];
+                if (is_array($item)) {
+                    if (isset($item['key']) && !is_array($item['key']) && !is_object($item['key'])) {
+                        $item = $item['key'];
+                    } elseif (array_key_exists('value', $item) && !is_array($item['value']) && !is_object($item['value'])) {
+                        $item = $item['value'];
+                    } elseif (array_key_exists('default', $item) && !is_array($item['default']) && !is_object($item['default'])) {
+                        $item = $item['default'];
+                    } elseif (array_key_exists('label', $item) && !is_array($item['label']) && !is_object($item['label'])) {
+                        $item = $item['label'];
+                    } else {
+                        continue;
+                    }
+                }
+                if (is_object($item)) {
+                    continue;
                 }
                 $item = trim((string) $item);
                 if ($item !== '') {

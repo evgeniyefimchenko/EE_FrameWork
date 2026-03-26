@@ -135,12 +135,18 @@ class ModelCategoriesTypes {
             if ($rootId !== null && $type['type_id'] == $rootId) {
                 $rootElement = $type;
             }
-            $children[$type['parent_type_id']][] = $type;
+            $parentKey = isset($type['parent_type_id']) && $type['parent_type_id'] !== null && $type['parent_type_id'] !== ''
+                ? (string) (int) $type['parent_type_id']
+                : '__root__';
+            $children[$parentKey][] = $type;
         }
         $buildTree = function ($parentId) use ($children, &$buildTree) {
             $branch = [];
-            if (isset($children[$parentId])) {
-                foreach ($children[$parentId] as $child) {
+            $parentKey = $parentId === null || $parentId === ''
+                ? '__root__'
+                : (string) (int) $parentId;
+            if (isset($children[$parentKey])) {
+                foreach ($children[$parentKey] as $child) {
                     $child['children'] = $buildTree($child['type_id']);
                     $branch[] = $child;
                 }

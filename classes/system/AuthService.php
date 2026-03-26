@@ -25,6 +25,7 @@ class AuthService {
         self::createAuthIdentitiesTable();
         self::createAuthChallengesTable();
         self::ensureAuthEmailTemplates();
+        LegalConsentService::ensureInfrastructure($force);
 
         self::$infrastructureReady = true;
     }
@@ -99,6 +100,9 @@ class AuthService {
         if ($email === '') {
             return ['status' => 'invalid_email'];
         }
+        if (LegalConsentService::getMissingRequiredKeys($profile) !== []) {
+            return ['status' => 'consent_required'];
+        }
         if ($this->getUserByEmail($email, true)) {
             return ['status' => 'email_taken'];
         }
@@ -108,9 +112,11 @@ class AuthService {
             'email' => $email,
             'comment' => trim((string) ($profile['comment'] ?? '')),
             'phone' => trim((string) ($profile['phone'] ?? '')),
-            'subscribed' => isset($profile['subscribed']) ? (int) (bool) $profile['subscribed'] : 1,
+            'subscribed' => isset($profile['subscribed']) ? (int) (bool) $profile['subscribed'] : 0,
             'user_role' => isset($profile['user_role']) ? (int) $profile['user_role'] : Constants::USER,
             'active' => defined('ENV_CONFIRM_EMAIL') && (int) ENV_CONFIRM_EMAIL === 1 ? 1 : 2,
+            'privacy_policy_accepted' => !empty($profile['privacy_policy_accepted']) ? 1 : 0,
+            'personal_data_consent_accepted' => !empty($profile['personal_data_consent_accepted']) ? 1 : 0,
         ], $password);
 
         $this->createOrUpdatePasswordCredential($userId, password_hash($password, PASSWORD_DEFAULT), false);
@@ -390,7 +396,7 @@ class AuthService {
         ];
     }
 
-    public function handleProviderCallback(string $provider, array $queryParams): array {
+    public function handleProviderCallback(string $provider, array $queryParams, array $registrationContext = []): array {
         self::ensureInfrastructure();
 
         $providerService = $this->getProvider($provider);
@@ -453,13 +459,19 @@ class AuthService {
             return ['status' => $mailSent ? 'account_link_email_sent' : 'account_link_mail_failed'];
         }
 
+        if (LegalConsentService::getMissingRequiredKeys($registrationContext) !== []) {
+            return ['status' => 'consent_required'];
+        }
+
         $userId = $this->createUserRecord([
             'name' => trim((string) ($identity['name'] ?? $email)),
             'email' => $email,
             'comment' => '',
             'user_role' => Constants::USER,
             'active' => !empty($identity['provider_email_verified']) ? 2 : 1,
-            'subscribed' => 1,
+            'subscribed' => 0,
+            'privacy_policy_accepted' => !empty($registrationContext['privacy_policy_accepted']) ? 1 : 0,
+            'personal_data_consent_accepted' => !empty($registrationContext['personal_data_consent_accepted']) ? 1 : 0,
         ], null);
         $this->createOrUpdatePasswordCredential($userId, null, false);
         AuthIdentityService::upsertIdentity($userId, $provider, $identity);
@@ -631,10 +643,11 @@ class AuthService {
             'active' => isset($userData['active']) ? (int) $userData['active'] : 1,
             'user_role' => isset($userData['user_role']) ? (int) $userData['user_role'] : Constants::USER,
             'last_ip' => SysClass::getClientIp(),
-            'subscribed' => isset($userData['subscribed']) ? (int) (bool) $userData['subscribed'] : 1,
+            'subscribed' => isset($userData['subscribed']) ? (int) (bool) $userData['subscribed'] : 0,
             'phone' => trim((string) ($userData['phone'] ?? '')) ?: null,
             'comment' => trim((string) ($userData['comment'] ?? '')),
         ];
+        $payload = array_merge($payload, LegalConsentService::buildStoragePayload($userData, [], 'auth_service_create_user'));
 
         SafeMySQL::gi()->query('INSERT INTO ?n SET ?u', Constants::USERS_TABLE, $payload);
         $userId = (int) SafeMySQL::gi()->insertId();
@@ -858,6 +871,11 @@ class AuthService {
         }
 
         $templates = [
+            'activation_code' => [
+                'subject' => 'Ваша ссылка для активации на {{ENV_DOMEN_NAME}}',
+                'body' => "{{SNIP_HEADER}}\n<div class='container'>\n    <h1>Ссылка для активации аккаунта</h1>\n    <p>Для завершения регистрации перейдите по ссылке:</p>\n    <p>[activation_link]</p>\n    <p>Если вы не совершали регистрацию, просто проигнорируйте это письмо.</p>\n</div>{{SNIP_FOOTER}}",
+                'description' => 'Шаблон письма для активации аккаунта',
+            ],
             'password_recovery_link' => [
                 'subject' => 'Восстановление доступа на {{ENV_DOMEN_NAME}}',
                 'body' => "{{SNIP_HEADER}}\n<div class='container'>\n    <h1>Восстановление доступа</h1>\n    <p>Чтобы задать новый пароль, перейдите по ссылке:</p>\n    <p>[reset_link]</p>\n    <p>Если вы не запрашивали восстановление, просто проигнорируйте письмо.</p>\n</div>{{SNIP_FOOTER}}",
@@ -872,6 +890,11 @@ class AuthService {
                 'subject' => 'Подтвердите привязку аккаунта {{ENV_DOMEN_NAME}}',
                 'body' => "{{SNIP_HEADER}}\n<div class='container'>\n    <h1>Подтверждение привязки аккаунта</h1>\n    <p>Для завершения привязки провайдера [provider_name] перейдите по ссылке:</p>\n    <p>[linking_link]</p>\n</div>{{SNIP_FOOTER}}",
                 'description' => 'Шаблон подтверждения привязки внешнего провайдера',
+            ],
+            'account_activated' => [
+                'subject' => 'Ваш аккаунт активирован на {{ENV_DOMEN_NAME}}',
+                'body' => "{{SNIP_HEADER}}\n<div class='container'>\n    <h1>Аккаунт успешно активирован</h1>\n    <p>Ваш аккаунт на сайте {{ENV_DOMEN_NAME}} уже активен и готов к работе.</p>\n</div>{{SNIP_FOOTER}}",
+                'description' => 'Шаблон уведомления об успешной активации аккаунта',
             ],
         ];
 

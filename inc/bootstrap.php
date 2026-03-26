@@ -218,6 +218,50 @@ if (!function_exists('ee_get_cache_namespace')) {
     }
 }
 
+if (!function_exists('ee_parse_utc_datetime')) {
+    function ee_parse_utc_datetime(?string $value): ?DateTimeImmutable {
+        $value = trim((string) $value);
+        if ($value === '') {
+            return null;
+        }
+
+        $utc = new DateTimeZone('UTC');
+        $dateTime = DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $value, $utc);
+        if ($dateTime instanceof DateTimeImmutable) {
+            return $dateTime;
+        }
+
+        try {
+            return new DateTimeImmutable($value, $utc);
+        } catch (Throwable) {
+            return null;
+        }
+    }
+}
+
+if (!function_exists('ee_format_utc_datetime')) {
+    function ee_format_utc_datetime(?string $value, string $format = 'd.m.Y H:i'): string {
+        $dateTime = ee_parse_utc_datetime($value);
+        if (!$dateTime) {
+            return trim((string) $value);
+        }
+
+        $localTimezone = new DateTimeZone(date_default_timezone_get());
+        return $dateTime->setTimezone($localTimezone)->format($format);
+    }
+}
+
+if (!function_exists('ee_minutes_since_utc_datetime')) {
+    function ee_minutes_since_utc_datetime(?string $value): int {
+        $dateTime = ee_parse_utc_datetime($value);
+        if (!$dateTime) {
+            return -1;
+        }
+
+        return (int) floor((time() - $dateTime->getTimestamp()) / 60);
+    }
+}
+
 if (!function_exists('ee_get_cache_version')) {
     function ee_get_cache_version(array $config = []): string {
         $fingerprint = [
@@ -264,6 +308,214 @@ if (!function_exists('ee_runtime_write_file')) {
     }
 }
 
+if (!function_exists('ee_runtime_log_limits')) {
+    function ee_runtime_log_limits(?array $config = null): array {
+        return [
+            'max_size' => max(0, (int) (($config['ENV_LOG_ROTATE_FILE_SIZE'] ?? null) ?? (defined('ENV_LOG_ROTATE_FILE_SIZE') ? ENV_LOG_ROTATE_FILE_SIZE : (10 * 1024 * 1024)))),
+            'max_backups' => max(1, (int) (($config['ENV_LOG_MAX_BACKUPS'] ?? null) ?? (defined('ENV_LOG_MAX_BACKUPS') ? ENV_LOG_MAX_BACKUPS : 5))),
+            'retention_days' => max(1, (int) (($config['ENV_LOG_RETENTION_DAYS'] ?? null) ?? (defined('ENV_LOG_RETENTION_DAYS') ? ENV_LOG_RETENTION_DAYS : 30))),
+        ];
+    }
+}
+
+if (!function_exists('ee_runtime_cleanup_oldest_backup')) {
+    function ee_runtime_cleanup_oldest_backup(string $filePath, int $maxBackupCount): void {
+        $oldest = $filePath . '.' . $maxBackupCount;
+        if (is_file($oldest)) {
+            @unlink($oldest);
+        }
+    }
+}
+
+if (!function_exists('ee_runtime_shift_backups')) {
+    function ee_runtime_shift_backups(string $filePath, int $maxBackupCount): void {
+        for ($i = $maxBackupCount - 1; $i >= 1; $i--) {
+            $current = $filePath . '.' . $i;
+            $next = $filePath . '.' . ($i + 1);
+            if (is_file($current)) {
+                if (is_file($next)) {
+                    @unlink($next);
+                }
+                @rename($current, $next);
+            }
+        }
+    }
+}
+
+if (!function_exists('ee_runtime_rotate_log_file')) {
+    function ee_runtime_rotate_log_file(string $filePath, int $maxSize, int $maxBackupCount): void {
+        if ($maxSize <= 0 || !is_file($filePath)) {
+            return;
+        }
+
+        $size = (int) (@filesize($filePath) ?: 0);
+        if ($size < $maxSize) {
+            return;
+        }
+
+        ee_runtime_cleanup_oldest_backup($filePath, $maxBackupCount);
+        ee_runtime_shift_backups($filePath, $maxBackupCount);
+        $backupPath = $filePath . '.1';
+        if (@rename($filePath, $backupPath)) {
+            @touch($filePath);
+            @chmod($filePath, 0664);
+        }
+    }
+}
+
+if (!function_exists('ee_runtime_cleanup_old_logs')) {
+    function ee_runtime_cleanup_old_logs(string $directory, int $retentionDays): void {
+        if (!is_dir($directory)) {
+            return;
+        }
+
+        $items = @scandir($directory);
+        if ($items === false) {
+            return;
+        }
+
+        $cutoffTime = time() - ($retentionDays * 86400);
+        foreach ($items as $item) {
+            if ($item === '.' || $item === '..') {
+                continue;
+            }
+
+            $path = $directory . DIRECTORY_SEPARATOR . $item;
+            if (!is_file($path)) {
+                continue;
+            }
+
+            if (preg_match('/\.(txt|log)(\.\d+)?$/', $item) !== 1) {
+                continue;
+            }
+
+            $mtime = @filemtime($path);
+            if ($mtime && $mtime < $cutoffTime) {
+                @unlink($path);
+            }
+        }
+    }
+}
+
+if (!function_exists('ee_runtime_maintain_log_file')) {
+    function ee_runtime_maintain_log_file(string $filePath, ?array $config = null): void {
+        $limits = ee_runtime_log_limits($config);
+        ee_runtime_rotate_log_file($filePath, $limits['max_size'], $limits['max_backups']);
+        ee_runtime_cleanup_old_logs(dirname($filePath), $limits['retention_days']);
+    }
+}
+
+if (!function_exists('ee_runtime_append_managed_log')) {
+    function ee_runtime_append_managed_log(
+        string $path,
+        string $contents,
+        int $flags = FILE_APPEND | LOCK_EX,
+        int $chmod = 0664,
+        bool $replaceUnwritableFile = false,
+        ?array $config = null
+    ): bool {
+        $written = ee_runtime_write_file($path, $contents, $flags, $chmod, $replaceUnwritableFile);
+        if ($written) {
+            ee_runtime_maintain_log_file($path, $config);
+        }
+        return $written;
+    }
+}
+
+if (!function_exists('ee_parse_memory_size_to_bytes')) {
+    function ee_parse_memory_size_to_bytes(int|string|null $value): int {
+        if (is_int($value)) {
+            return max(0, $value);
+        }
+
+        $value = trim((string) $value);
+        if ($value === '') {
+            return 0;
+        }
+
+        if ($value === '-1') {
+            return -1;
+        }
+
+        if (!preg_match('~^([0-9]+(?:\.[0-9]+)?)\s*([kmgt]?b?)?$~i', $value, $matches)) {
+            return 0;
+        }
+
+        $number = (float) ($matches[1] ?? 0);
+        $unit = strtolower((string) ($matches[2] ?? ''));
+
+        return match ($unit) {
+            'g', 'gb' => (int) round($number * 1024 * 1024 * 1024),
+            'm', 'mb' => (int) round($number * 1024 * 1024),
+            'k', 'kb' => (int) round($number * 1024),
+            default => (int) round($number),
+        };
+    }
+}
+
+if (!function_exists('ee_apply_runtime_memory_limit')) {
+    function ee_apply_runtime_memory_limit(array $config): void {
+        $limit = PHP_SAPI === 'cli'
+            ? (string) ($config['ENV_MEMORY_LIMIT_CLI'] ?? '')
+            : (string) ($config['ENV_MEMORY_LIMIT_WEB'] ?? '');
+
+        $limit = trim($limit);
+        if ($limit === '') {
+            return;
+        }
+
+        @ini_set('memory_limit', $limit);
+    }
+}
+
+if (!function_exists('ee_get_runtime_memory_limit_bytes')) {
+    function ee_get_runtime_memory_limit_bytes(): int {
+        return ee_parse_memory_size_to_bytes((string) @ini_get('memory_limit'));
+    }
+}
+
+if (!function_exists('ee_get_runtime_memory_usage_bytes')) {
+    function ee_get_runtime_memory_usage_bytes(bool $realUsage = true): int {
+        return (int) memory_get_usage($realUsage);
+    }
+}
+
+if (!function_exists('ee_get_runtime_soft_memory_limit_bytes')) {
+    function ee_get_runtime_soft_memory_limit_bytes(string $scope = 'generic', ?array $config = null): int {
+        $config ??= [];
+
+        $configuredMb = match ($scope) {
+            'media_worker' => (int) (($config['ENV_MEDIA_MIRROR_MEMORY_SOFT_LIMIT_MB'] ?? null) ?? (defined('ENV_MEDIA_MIRROR_MEMORY_SOFT_LIMIT_MB') ? ENV_MEDIA_MIRROR_MEMORY_SOFT_LIMIT_MB : 0)),
+            'cron_agent' => (int) (($config['ENV_CRON_AGENT_MEMORY_SOFT_LIMIT_MB'] ?? null) ?? (defined('ENV_CRON_AGENT_MEMORY_SOFT_LIMIT_MB') ? ENV_CRON_AGENT_MEMORY_SOFT_LIMIT_MB : 0)),
+            'cron_scheduler' => (int) (($config['ENV_CRON_MEMORY_SOFT_LIMIT_MB'] ?? null) ?? (defined('ENV_CRON_MEMORY_SOFT_LIMIT_MB') ? ENV_CRON_MEMORY_SOFT_LIMIT_MB : 0)),
+            default => (int) (($config['ENV_MEMORY_SOFT_LIMIT_MB'] ?? null) ?? (defined('ENV_MEMORY_SOFT_LIMIT_MB') ? ENV_MEMORY_SOFT_LIMIT_MB : 0)),
+        };
+
+        $softLimitBytes = $configuredMb > 0 ? ($configuredMb * 1024 * 1024) : 0;
+        $hardLimitBytes = ee_get_runtime_memory_limit_bytes();
+
+        if ($hardLimitBytes > 0) {
+            $hardDerivedSoftLimit = max(0, $hardLimitBytes - (16 * 1024 * 1024));
+            if ($softLimitBytes <= 0 || $softLimitBytes > $hardDerivedSoftLimit) {
+                $softLimitBytes = $hardDerivedSoftLimit;
+            }
+        }
+
+        return max(0, $softLimitBytes);
+    }
+}
+
+if (!function_exists('ee_runtime_memory_guard_exceeded')) {
+    function ee_runtime_memory_guard_exceeded(string $scope = 'generic', int $reserveBytes = 0, ?array $config = null): bool {
+        $softLimit = ee_get_runtime_soft_memory_limit_bytes($scope, $config);
+        if ($softLimit <= 0) {
+            return false;
+        }
+
+        return ee_get_runtime_memory_usage_bytes(true) >= max(0, $softLimit - $reserveBytes);
+    }
+}
+
 if (!function_exists('ee_get_proto_language_seed')) {
     function ee_get_proto_language_seed(): string {
         static $protoLang = null;
@@ -282,6 +534,104 @@ if (!function_exists('ee_get_proto_language_seed')) {
             : 'EN';
 
         return $protoLang;
+    }
+}
+
+if (!function_exists('ee_normalize_lang_code')) {
+    function ee_normalize_lang_code(string $langCode): string {
+        $normalized = strtoupper(trim(pathinfo($langCode, PATHINFO_FILENAME)));
+        $normalized = preg_replace('/[^A-Z0-9_-]/', '', $normalized) ?? '';
+        return $normalized;
+    }
+}
+
+if (!function_exists('ee_get_current_lang_code')) {
+    function ee_get_current_lang_code(?string $preferredCode = null): string {
+        $candidates = [];
+        if ($preferredCode !== null) {
+            $candidates[] = $preferredCode;
+        }
+
+        if (class_exists('\classes\system\Lang')) {
+            $candidates[] = (string) \classes\system\Lang::getCurrentLangCode();
+        }
+
+        if (class_exists('\classes\system\Session')) {
+            $candidates[] = (string) \classes\system\Session::get('lang');
+        }
+
+        if (defined('ENV_DEF_LANG')) {
+            $candidates[] = (string) ENV_DEF_LANG;
+        }
+
+        $candidates[] = ee_get_proto_language_seed();
+        $candidates[] = 'EN';
+
+        $langBasePath = (defined('ENV_SITE_PATH') && defined('ENV_PATH_LANG'))
+            ? rtrim((string) ENV_SITE_PATH, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . trim((string) ENV_PATH_LANG, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR
+            : '';
+
+        foreach ($candidates as $candidate) {
+            $candidate = ee_normalize_lang_code((string) $candidate);
+            if ($candidate === '') {
+                continue;
+            }
+
+            if ($langBasePath === '' || is_file($langBasePath . $candidate . '.php')) {
+                return $candidate;
+            }
+        }
+
+        return 'EN';
+    }
+}
+
+if (!function_exists('ee_get_lang_locale')) {
+    function ee_get_lang_locale(?string $langCode = null): string {
+        $langCode = ee_get_current_lang_code($langCode);
+        $localeMap = [
+            'RU' => 'ru-RU',
+            'EN' => 'en-US',
+            'DE' => 'de-DE',
+            'ES' => 'es-ES',
+            'FR' => 'fr-FR',
+            'IT' => 'it-IT',
+            'PT' => 'pt-PT',
+            'TR' => 'tr-TR',
+        ];
+
+        if (isset($localeMap[$langCode])) {
+            return $localeMap[$langCode];
+        }
+
+        $primary = strtolower(substr($langCode, 0, 2));
+        $region = strtoupper(substr($langCode, 0, 2));
+        return $primary . '-' . $region;
+    }
+}
+
+if (!function_exists('ee_get_lang_html_attr')) {
+    function ee_get_lang_html_attr(?string $langCode = null): string {
+        $locale = ee_get_lang_locale($langCode);
+        $parts = explode('-', $locale);
+        return strtolower((string) ($parts[0] ?? 'en'));
+    }
+}
+
+if (!function_exists('ee_get_lang_bundle_url')) {
+    function ee_get_lang_bundle_url(?string $langCode = null): string {
+        $langCode = ee_get_current_lang_code($langCode);
+        $localPath = (defined('ENV_TMP_PATH') ? rtrim((string) ENV_TMP_PATH, DIRECTORY_SEPARATOR) : '') . DIRECTORY_SEPARATOR . $langCode . '.js';
+        $url = rtrim((string) ENV_URL_SITE, '/') . '/uploads/tmp/' . rawurlencode($langCode) . '.js';
+
+        if ($localPath !== DIRECTORY_SEPARATOR && is_file($localPath)) {
+            $fileMtime = (int) @filemtime($localPath);
+            if ($fileMtime > 0) {
+                $url .= '?v=' . $fileMtime;
+            }
+        }
+
+        return $url;
     }
 }
 
@@ -323,7 +673,7 @@ if (!function_exists('checkRedisConnection')) {
             if (!is_dir($errorLogDir)) {
                 @mkdir($errorLogDir, 0775, true);
             }
-            ee_runtime_write_file($errorLogFile, $logMessage, FILE_APPEND | LOCK_EX);
+            ee_runtime_append_managed_log($errorLogFile, $logMessage, FILE_APPEND | LOCK_EX, 0664, false, $config);
             ee_runtime_write_file($cacheFile, '0', LOCK_EX, 0664, true);
             return false;
         }
@@ -390,17 +740,29 @@ if (!function_exists('ee_finalize_config')) {
         $config['ENV_CACHE_VERSION'] = ee_get_cache_version($config);
         $config['ENV_DEF_LANG'] = strtoupper(substr((string) GetClientPreferedLanguage(), 0, 2)) ?: (string) ($config['ENV_PROTO_LANGUAGE'] ?? 'EN');
 
-        $isConnect = checkRedisConnection((string) $config['ENV_REDIS_ADDRESS'], (int) $config['ENV_REDIS_PORT'], $config);
-        if (!$isConnect) {
-            if (($config['ENV_CACHE_BACKEND'] ?? 'file') === 'redis') {
-                $config['ENV_CACHE_BACKEND'] = 'file';
+        $cacheBackend = strtolower((string) ($config['ENV_CACHE_BACKEND'] ?? 'file'));
+        $routingCacheBackend = strtolower((string) ($config['ENV_ROUTING_CACHE_BACKEND'] ?? 'file'));
+        $shouldProbeRedis = $cacheBackend === 'redis'
+            || $routingCacheBackend === 'redis'
+            || (int) ($config['ENV_CACHE_REDIS'] ?? 0) === 1
+            || (int) ($config['ENV_GUARD_REDIS'] ?? 0) === 1;
+
+        if ($shouldProbeRedis) {
+            $isConnect = checkRedisConnection((string) $config['ENV_REDIS_ADDRESS'], (int) $config['ENV_REDIS_PORT'], $config);
+            if (!$isConnect) {
+                if (($config['ENV_CACHE_BACKEND'] ?? 'file') === 'redis') {
+                    $config['ENV_CACHE_BACKEND'] = 'file';
+                }
+                if (($config['ENV_ROUTING_CACHE_BACKEND'] ?? 'file') === 'redis') {
+                    $config['ENV_ROUTING_CACHE_BACKEND'] = 'file';
+                }
+                $config['ENV_CACHE_REDIS'] = 0;
+                $config['ENV_GUARD_REDIS'] = 0;
+                $config['ENV_ROUTING_CACHE'] = 0;
             }
-            if (($config['ENV_ROUTING_CACHE_BACKEND'] ?? 'file') === 'redis') {
-                $config['ENV_ROUTING_CACHE_BACKEND'] = 'file';
-            }
+        } else {
             $config['ENV_CACHE_REDIS'] = 0;
             $config['ENV_GUARD_REDIS'] = 0;
-            $config['ENV_ROUTING_CACHE'] = 0;
         }
 
         $config['ENV_CACHE_REDIS'] = (($config['ENV_CACHE_BACKEND'] ?? 'file') === 'redis') ? 1 : 0;
@@ -469,7 +831,7 @@ if (!function_exists('ee_register_shutdown_logger')) {
                 $error['file'],
                 $error['line']
             );
-            ee_runtime_write_file(ENV_LOGS_PATH . 'fatal_errors.txt', $formattedError, FILE_APPEND | LOCK_EX);
+            ee_runtime_append_managed_log(ENV_LOGS_PATH . 'fatal_errors.txt', $formattedError, FILE_APPEND | LOCK_EX);
         });
 
         $registered = true;
@@ -499,6 +861,7 @@ if (!function_exists('ee_bootstrap_prepare_core')) {
         }
 
         $config = ee_finalize_config(ee_load_raw_config());
+        ee_apply_runtime_memory_limit($config);
         if (($config['ENV_DEF_LANG'] ?? '') === 'RU') {
             date_default_timezone_set('Europe/Moscow');
         }
