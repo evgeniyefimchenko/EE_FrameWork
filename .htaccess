@@ -39,18 +39,14 @@ RewriteRule ^(inc|layouts|logs) - [F,L,NC]
 
 RewriteRule ^(.*)\.html $1.php
 
-# Канонический прод-host. Для локальной разработки текущий host сохраняется.
+# Канонический host определяется в PHP bootstrap через ENV_CANONICAL_HOST.
+# На уровне .htaccess не зашиваем конкретный домен, чтобы чистый clone/install
+# не редиректил на шаблонный host до заполнения configuration.php.
+# Здесь принудительно переводим только на HTTPS, сохраняя текущий host.
 RewriteCond %{HTTP_HOST} !^(?:localhost|127\.0\.0\.1)(?::[0-9]+)?$ [NC]
-RewriteCond %{HTTP_HOST} !^example\.local$ [NC]
-RewriteCond %{HTTP_HOST} ^(?:.+\.)?example\.local$ [NC]
-RewriteRule ^ https://example.local%{REQUEST_URI} [L,R=301,NE]
-
-# Принудительный HTTPS только для канонического прод-host
-RewriteCond %{HTTP_HOST} !^(?:localhost|127\.0\.0\.1)(?::[0-9]+)?$ [NC]
-RewriteCond %{HTTP_HOST} ^example\.local$ [NC]
 RewriteCond %{HTTP:X-Forwarded-Proto} !https
 RewriteCond %{HTTPS} off
-RewriteRule ^ https://example.local%{REQUEST_URI} [L,R=301,NE]
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301,NE]
 
 # Удалить index.php из URL
 RewriteCond %{THE_REQUEST} ^[A-Z]{3,9}\ /index\.php\ HTTP/
