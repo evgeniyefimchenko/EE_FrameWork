@@ -695,7 +695,7 @@ class ClassSearchEngine {
      * Создает временные строки индекса, проверяет exact/fuzzy/autocomplete и затем очищает за собой.
      */
     public function runSmokeTest(string $lang = ENV_DEF_LANG): array {
-        $token = 'codexsearch' . bin2hex(random_bytes(5));
+        $token = 'eesearch' . bin2hex(random_bytes(5));
         $fuzzyToken = substr($token, 0, -1) . (substr($token, -1) === 'z' ? 'y' : 'z');
         $prefix = substr($token, 0, 8);
         $baseId = random_int(1500000000, 1999999999);
