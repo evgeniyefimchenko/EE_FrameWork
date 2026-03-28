@@ -343,7 +343,7 @@ $renderHealthAlertText = static function (array $alert, string $kind, array $lan
 
             <div class="col-12 col-xl-6">
                 <div class="card shadow-sm border h-100">
-                    <div class="card-header"><strong><?= htmlspecialchars((string)($lang['sys.search.title'] ?? 'Поиск')) ?></strong></div>
+                    <div class="card-header"><strong><?= htmlspecialchars((string)($lang['sys.search.title'] ?? $lang['search.title'] ?? 'Search')) ?></strong></div>
                     <div class="card-body">
                         <div class="table-responsive">
                             <table class="table table-sm align-middle">
@@ -351,7 +351,7 @@ $renderHealthAlertText = static function (array $alert, string $kind, array $lan
                                     <tr><th><?= htmlspecialchars((string)($lang['sys.project_logs'] ?? 'Логи проекта')) ?></th><td><?= (int) (($report['logs']['project_logs']['files'] ?? 0)) ?> <?= htmlspecialchars((string)($lang['sys.file_count'] ?? 'файлов')) ?></td></tr>
                                     <tr><th><?= htmlspecialchars((string)($lang['sys.pages'] ?? 'Страницы')) ?></th><td><?= (int) ($search['search_index_rows'] ?? 0) ?></td></tr>
                                     <tr><th>N-grams</th><td><?= (int) ($search['search_ngram_rows'] ?? 0) ?></td></tr>
-                                    <tr><th><?= htmlspecialchars((string)($lang['sys.filtres'] ?? 'Фильтры')) ?></th><td><?= (int) ($search['filters_rows'] ?? 0) ?></td></tr>
+                                    <tr><th><?= htmlspecialchars((string)($lang['sys.filtres'] ?? 'Filters')) ?></th><td><?= (int) ($search['filters_rows'] ?? 0) ?></td></tr>
                                 </tbody>
                             </table>
                         </div>

@@ -325,11 +325,16 @@ class Plugins {
      * @return string Возвращает HTML-код раздела для выбора количества строк.
      */
     private static function generateRowsPerPageSection($idTable, $dataTable, $currentRowsPerPage) {
+        $langCode = Session::get('lang');
+        $globalLang = Lang::init($langCode);
+        $rowsPerPageLabel = (string) ($globalLang['sys.rows_per_page'] ?? 'Rows per page');
+        $pageRecordsLabel = (string) ($globalLang['sys.records_on_page'] ?? 'Records on page');
+        $ofLabel = (string) ($globalLang['sys.of'] ?? 'of');
         // Возможные значения строк на странице
         $possible_rows = [10, 25, 50, 100];
         $count_row = isset($dataTable['rows']) && is_array($dataTable['rows']) ? count($dataTable['rows']) : 0;
         $html = '<div class="rows-per-page-section">';
-        $html .= '<label for="' . $idTable . '-rows-per-page">Количество строк:&nbsp;</label>';
+        $html .= '<label for="' . $idTable . '-rows-per-page">' . htmlspecialchars($rowsPerPageLabel, ENT_QUOTES, 'UTF-8') . ':&nbsp;</label>';
         $html .= '<select id="' . $idTable . '-rows-per-page" class="form-select form-select-sm d-inline-block" style="width: auto; cursor: pointer;">';
 
         foreach ($possible_rows as $value) {
@@ -340,7 +345,7 @@ class Plugins {
             $dataTable['total_rows'] = 0;
         $html .= '</select>';
         $html .= '<div class="pagination-info float-end">';
-        $html .= 'Записей на странице: <span class="current-page-count">' . $count_row . '</span> из <span class="total-count">' . $dataTable['total_rows'] . '</span>';
+        $html .= htmlspecialchars($pageRecordsLabel, ENT_QUOTES, 'UTF-8') . ': <span class="current-page-count">' . $count_row . '</span> ' . htmlspecialchars($ofLabel, ENT_QUOTES, 'UTF-8') . ' <span class="total-count">' . $dataTable['total_rows'] . '</span>';
         $html .= '</div>';
         $html .= '</div>';
 

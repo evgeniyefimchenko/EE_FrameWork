@@ -42,8 +42,9 @@ trait CategoriesTrait {
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
         $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/edit_categories.js" type="text/javascript" /></script>';
-        $this->parameters_layout["title"] = ENV_SITE_NAME . ' - categories';
-        $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION . ' - categories';
+        $categoriesTitle = (string) ($this->lang['sys.categories'] ?? 'Categories');
+        $this->parameters_layout["title"] = ENV_SITE_NAME . ' - ' . $categoriesTitle;
+        $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION . ' - ' . $categoriesTitle;
         $this->parameters_layout["canonical_href"] = ENV_URL_SITE . '/admin';
         $this->parameters_layout["keywords"] = SysClass::getKeywordsFromText($this->html);
         $this->showLayout($this->parameters_layout);
@@ -209,7 +210,9 @@ trait CategoriesTrait {
         $this->addEditorToLayout();
         $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/func_properties.js" type="text/javascript" /></script>';
         $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/edit_categories.js" type="text/javascript" /></script>';
-        $this->parameters_layout["title"] = $getCategoryData['title'] ? ($this->lang['sys.category_edit'] ?? 'Редактирование категории' . ': ' . $getCategoryData['title']) : ($this->lang['sys.category_add'] ?? 'Добавление категории');
+        $this->parameters_layout["title"] = !empty($getCategoryData['title'])
+            ? (((string) ($this->lang['sys.category_edit'] ?? 'Edit category')) . ': ' . (string) $getCategoryData['title'])
+            : ((string) ($this->lang['sys.category_add'] ?? 'Create category'));
         $this->showLayout($this->parameters_layout);
     }
 
@@ -422,7 +425,7 @@ trait CategoriesTrait {
                 'id' => "type_id",
                 'value' => [],
                 'label' => $this->lang['sys.type'],
-                'options' => [['value' => 0, 'label' => 'Любой']],
+                'options' => [['value' => 0, 'label' => $this->lang['sys.any'] ?? 'Any']],
                 'multiple' => true
             ],
             'created_at' => [

@@ -314,7 +314,7 @@ trait CategoriesTypesTrait {
         $this->parameters_layout["layout"] = 'dashboard';
         $this->addEditorToLayout();
         $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/edit_categories_type.js" type="text/javascript" /></script>';
-        $this->parameters_layout["title"] = 'Редактирование типов категорий';
+        $this->parameters_layout["title"] = ENV_SITE_NAME . ' - ' . ((string) ($this->lang['sys.category_types_edit'] ?? 'Edit category types'));
         $this->showLayout($this->parameters_layout);
     }
 

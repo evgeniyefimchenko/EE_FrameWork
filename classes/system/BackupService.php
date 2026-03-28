@@ -21,6 +21,28 @@ class BackupService {
     private static bool $infrastructureReady = false;
     private static bool $seedingDefaultPlans = false;
 
+    private static function getLangMap(): array {
+        $langCode = '';
+        if (function_exists('\\ee_get_current_lang_code')) {
+            $langCode = (string) \ee_get_current_lang_code();
+        }
+        if ($langCode === '' && class_exists(__NAMESPACE__ . '\\Session')) {
+            $langCode = (string) Session::get('lang');
+        }
+        if ($langCode === '' && defined('ENV_DEF_LANG')) {
+            $langCode = (string) ENV_DEF_LANG;
+        }
+        if ($langCode === '') {
+            $langCode = 'EN';
+        }
+        return Lang::init($langCode);
+    }
+
+    private static function tr(string $key, string $default): string {
+        $lang = self::getLangMap();
+        return (string) ($lang[$key] ?? $default);
+    }
+
     public static function ensureInfrastructure(bool $force = false): void {
         if (self::$infrastructureReady && !$force) {
             return;
@@ -1514,9 +1536,36 @@ class BackupService {
         $row['delivery_mode'] = strtolower((string) ($row['delivery_mode'] ?? 'local_only'));
         $row['resolved_db_tables'] = self::resolveDatabaseTables($row['db_mode'], $row['db_tables'], $availableTables);
         $row['resolved_file_items'] = self::resolveFileItems($row['file_mode'], $row['file_items'], $availableFileItems);
+        $row = self::localizeDefaultPlanRow($row);
         $row['db_summary'] = self::buildDatabaseSummary($row['db_mode'], $row['db_tables'], count($row['resolved_db_tables']));
         $row['file_summary'] = self::buildFileSummary($row['file_mode'], $row['file_items'], count($row['resolved_file_items']));
         $row['delivery_summary'] = self::buildDeliverySummary($row['delivery_mode'], $row);
+        return $row;
+    }
+
+    private static function localizeDefaultPlanRow(array $row): array {
+        $translations = [
+            self::DEFAULT_PLAN_CODE => [
+                'name' => self::tr('sys.backup_default_plan_recommended_name', 'Recommended local backup'),
+                'description' => self::tr('sys.backup_default_plan_recommended_description', 'Database and critical project data: custom/, uploads/, .htaccess, inc/configuration.php.'),
+            ],
+            'backup-db-only' => [
+                'name' => self::tr('sys.backup_default_plan_db_only_name', 'Database only'),
+                'description' => self::tr('sys.backup_default_plan_db_only_description', 'Full database dump without files.'),
+            ],
+            'backup-full-snapshot' => [
+                'name' => self::tr('sys.backup_default_plan_full_snapshot_name', 'Full snapshot without cache/logs'),
+                'description' => self::tr('sys.backup_default_plan_full_snapshot_description', 'Database and all main project files excluding cache and logs.'),
+            ],
+        ];
+
+        $code = (string) ($row['code'] ?? '');
+        if (!isset($translations[$code])) {
+            return $row;
+        }
+
+        $row['name'] = (string) ($translations[$code]['name'] ?? ($row['name'] ?? ''));
+        $row['description'] = (string) ($translations[$code]['description'] ?? ($row['description'] ?? ''));
         return $row;
     }
 
@@ -1722,27 +1771,27 @@ class BackupService {
 
     private static function buildDatabaseSummary(string $mode, array $selectedTables, int $resolvedCount): string {
         return match ($mode) {
-            'none' => 'Без базы данных',
-            'only_selected' => 'Только выбранные таблицы: ' . count($selectedTables) . ' шт.',
-            'exclude_selected' => 'Все таблицы кроме ' . count($selectedTables) . ' исключённых',
-            default => 'Все таблицы БД (' . $resolvedCount . ')',
+            'none' => self::tr('sys.backup_scope_no_database', 'Without database'),
+            'only_selected' => self::tr('sys.backup_scope_only_selected_tables', 'Only selected tables') . ': ' . count($selectedTables) . ' ' . self::tr('sys.items_short', 'items'),
+            'exclude_selected' => self::tr('sys.backup_scope_all_except_selected_tables', 'All tables except excluded') . ': ' . count($selectedTables),
+            default => self::tr('sys.backup_scope_all_tables', 'All database tables') . ' (' . $resolvedCount . ')',
         };
     }
 
     private static function buildFileSummary(string $mode, array $selectedItems, int $resolvedCount): string {
         return match ($mode) {
-            'none' => 'Без файловой части',
-            'only_selected' => 'Только выбранные файлы и папки: ' . count($selectedItems) . ' шт.',
-            'exclude_selected' => 'Все файлы и папки кроме ' . count($selectedItems) . ' исключённых',
-            default => 'Все доступные файлы и папки (' . $resolvedCount . ')',
+            'none' => self::tr('sys.backup_files_none', 'Without files'),
+            'only_selected' => self::tr('sys.backup_files_only_selected', 'Only selected files and folders') . ': ' . count($selectedItems) . ' ' . self::tr('sys.items_short', 'items'),
+            'exclude_selected' => self::tr('sys.backup_files_all_except_selected', 'All files and folders except excluded') . ': ' . count($selectedItems),
+            default => self::tr('sys.backup_files_all_available', 'All available files and folders') . ' (' . $resolvedCount . ')',
         };
     }
 
     private static function buildDeliverySummary(string $deliveryMode, array $plan): string {
         $base = match ($deliveryMode) {
-            'local_and_remote' => 'Локально и на удалённый хост',
-            'remote_required' => 'Удалённый хост обязателен',
-            default => 'Только локально',
+            'local_and_remote' => self::tr('sys.backup_delivery_local_and_remote', 'Local and remote host'),
+            'remote_required' => self::tr('sys.backup_delivery_remote_required', 'Remote host required'),
+            default => self::tr('sys.backup_delivery_local_only', 'Local only'),
         };
         if ($deliveryMode === 'local_only') {
             return $base;
@@ -1751,7 +1800,7 @@ class BackupService {
         if ($targetName !== '') {
             return $base . ': ' . $targetName;
         }
-        return $base . ': профиль по умолчанию';
+        return $base . ': ' . self::tr('sys.backup_delivery_default_target', 'default target');
     }
 
     /**
@@ -1927,11 +1976,13 @@ class BackupService {
     }
 
     private static function buildJobTitle(string $scope, string $deliveryMode): string {
-        $scopeTitle = $scope === 'db_only' ? 'БД' : 'БД + проектные данные';
+        $scopeTitle = $scope === 'db_only'
+            ? self::tr('sys.backup_job_scope_db_only', 'Database')
+            : self::tr('sys.backup_job_scope_project_data', 'Database + project data');
         $deliveryTitle = match ($deliveryMode) {
-            'local_and_remote' => 'локально + удалённо',
-            'remote_required' => 'удалённо обязательно',
-            default => 'локально',
+            'local_and_remote' => self::tr('sys.backup_job_delivery_local_and_remote', 'local + remote'),
+            'remote_required' => self::tr('sys.backup_job_delivery_remote_required', 'remote required'),
+            default => self::tr('sys.backup_job_delivery_local_only', 'local'),
         };
         return $scopeTitle . ' / ' . $deliveryTitle;
     }

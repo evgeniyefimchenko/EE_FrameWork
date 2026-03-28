@@ -986,10 +986,12 @@ class ModelSystems {
             'SELECT COUNT(*) FROM ?n WHERE locked_until IS NOT NULL AND locked_until < NOW()',
             Constants::CRON_AGENTS_TABLE
         );
-        $summary['last_run_at'] = (string) (SafeMySQL::gi()->getOne(
+        $lastRunAt = (string) (SafeMySQL::gi()->getOne(
             'SELECT MAX(started_at) FROM ?n',
             Constants::CRON_AGENT_RUNS_TABLE
         ) ?? '');
+        $lastTickAt = (string) ($summary['last_tick_at'] ?? '');
+        $summary['last_run_at'] = $lastRunAt !== '' ? $lastRunAt : $lastTickAt;
         $summary['minutes_since_last_run'] = $this->minutesSince($summary['last_run_at']);
 
         return $summary;

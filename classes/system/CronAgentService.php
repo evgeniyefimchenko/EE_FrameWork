@@ -9,6 +9,7 @@ use classes\plugins\SafeMySQL;
  * Управляет инфраструктурой БД, расписанием, блокировками и последовательным выполнением задач.
  */
 class CronAgentService {
+    private const SCHEDULER_LAST_TICK_OPTION = 'cron_scheduler_last_tick_at';
 
     private static bool $infrastructureReady = false;
 
@@ -115,6 +116,7 @@ class CronAgentService {
             'scheduler_command' => 'php ' . ENV_SITE_PATH . 'app/cron/run.php',
             'one_off_import_command_template' => 'php ' . ENV_SITE_PATH . 'inc/cli.php cron:import <job_id>',
             'auto_created_agents' => self::getAutoCreatedAgentsSummary(),
+            'last_tick_at' => self::getLastSchedulerTickAt(),
         ];
     }
 
@@ -503,6 +505,7 @@ class CronAgentService {
         $summary['memory_usage_mb'] = round(memory_get_usage(true) / 1048576, 2);
         $summary['peak_memory_mb'] = round(memory_get_peak_usage(true) / 1048576, 2);
         $summary['tick_duration_ms'] = (int) round((microtime(true) - $tickStartedAt) * 1000);
+        self::storeSchedulerHeartbeat();
 
         Logger::info('cron_agents', 'Выполнен минутный проход scheduler-а cron-агентов', $summary, [
             'initiator' => __METHOD__,
@@ -511,6 +514,14 @@ class CronAgentService {
         ]);
 
         return OperationResult::success($summary, 'Проход scheduler-а cron-агентов выполнен.', 'tick_completed');
+    }
+
+    public static function getLastSchedulerTickAt(): string {
+        return (string) (SysClass::getOption(self::SCHEDULER_LAST_TICK_OPTION) ?? '');
+    }
+
+    private static function storeSchedulerHeartbeat(): void {
+        SysClass::setOption(self::SCHEDULER_LAST_TICK_OPTION, date('Y-m-d H:i:s'));
     }
 
     private static function getDueAgents(int $limit): array {

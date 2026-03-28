@@ -45,7 +45,9 @@ trait MessagesTrait {
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
         $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/messages.js" type="text/javascript" /></script>';
-        $this->parameters_layout["title"] = 'MESSAGES';
+        $messagesTitle = (string) ($this->lang['sys.messages'] ?? 'Messages');
+        $this->parameters_layout["title"] = ENV_SITE_NAME . ' - ' . $messagesTitle;
+        $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION . ' - ' . $messagesTitle;
         $this->showLayout($this->parameters_layout);
     }
 

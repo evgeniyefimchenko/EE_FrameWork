@@ -36,7 +36,9 @@ trait EmailsTrait {
         $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/email_templates.js" type="text/javascript" /></script>';
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
-        $this->parameters_layout["title"] = 'Emails Templates';
+        $emailTemplatesTitle = (string) ($this->lang['sys.email_templates'] ?? 'Email templates');
+        $this->parameters_layout["title"] = ENV_SITE_NAME . ' - ' . $emailTemplatesTitle;
+        $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION . ' - ' . $emailTemplatesTitle;
         $this->showLayout($this->parameters_layout);
     }
 
@@ -63,8 +65,9 @@ trait EmailsTrait {
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
         $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/edit_email_snippets.js" type="text/javascript" /></script>';
-        $this->parameters_layout["title"] = ENV_SITE_NAME . ' - Email Snippets';
-        $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION . ' - Email Snippets';
+        $emailSnippetsTitle = (string) ($this->lang['sys.email_snippets'] ?? 'Email snippets');
+        $this->parameters_layout["title"] = ENV_SITE_NAME . ' - ' . $emailSnippetsTitle;
+        $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION . ' - ' . $emailSnippetsTitle;
         $this->parameters_layout["canonical_href"] = ENV_URL_SITE . '/admin';
         $this->parameters_layout["keywords"] = SysClass::getKeywordsFromText($this->html);
         $this->showLayout($this->parameters_layout);
@@ -339,7 +342,7 @@ trait EmailsTrait {
         $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/edit_email_templates.js" type="text/javascript" /></script>';
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
-        $this->parameters_layout["title"] = 'Emails Templates Edit';
+        $this->parameters_layout["title"] = ENV_SITE_NAME . ' - ' . ((string) ($this->lang['sys.edit_email_template'] ?? 'Edit email template'));
         $this->showLayout($this->parameters_layout);
     }
 
@@ -379,7 +382,9 @@ trait EmailsTrait {
                     $this->models['m_email_templates']->updateEmailSnippetData($postData),
                     [
                         'default_error_message' => $this->lang['sys.db_registration_error'],
-                        'success_message' => $newEntity ? 'Сниппет создан' : 'Сниппет обновлён',
+                        'success_message' => $newEntity
+                            ? ((string) ($this->lang['sys.email_snippet_created'] ?? 'Snippet created'))
+                            : ((string) ($this->lang['sys.email_snippet_updated'] ?? 'Snippet updated')),
                         'failure_code' => 'email_snippet_save_failed',
                     ]
                 );
@@ -415,7 +420,7 @@ trait EmailsTrait {
         $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/edit_email_snippets.js" type="text/javascript" /></script>';
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
-        $this->parameters_layout["title"] = $this->lang['sys.edit_email_template']; // Можно заменить на 'Edit Email Snippet'
+        $this->parameters_layout["title"] = ENV_SITE_NAME . ' - ' . ((string) ($this->lang['sys.edit_email_snippet'] ?? 'Edit email snippet'));
         $this->showLayout($this->parameters_layout);
     }
 

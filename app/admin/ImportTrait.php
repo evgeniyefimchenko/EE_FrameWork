@@ -36,7 +36,7 @@ trait ImportTrait {
 
         $this->parameters_layout['layout_content'] = $this->html;
         $this->parameters_layout['layout'] = 'dashboard';
-        $this->parameters_layout['title'] = 'Профили импорта';
+        $this->parameters_layout['title'] = ENV_SITE_NAME . ' - ' . ((string) ($this->lang['sys.imports_profiles_list'] ?? 'Import Profiles'));
         $this->showLayout($this->parameters_layout);
     }
 
@@ -61,7 +61,7 @@ trait ImportTrait {
 
         $this->parameters_layout['layout_content'] = $this->html;
         $this->parameters_layout['layout'] = 'dashboard';
-        $this->parameters_layout['title'] = 'Импорт типов, свойств и наборов';
+        $this->parameters_layout['title'] = ENV_SITE_NAME . ' - ' . ((string) ($this->lang['sys.import_property_definitions'] ?? 'Import property types, properties, and sets'));
         $this->showLayout($this->parameters_layout);
     }
 
@@ -93,7 +93,7 @@ trait ImportTrait {
 
         $this->parameters_layout['layout_content'] = $this->html;
         $this->parameters_layout['layout'] = 'dashboard';
-        $this->parameters_layout['title'] = 'Импорт типов, свойств и наборов';
+        $this->parameters_layout['title'] = ENV_SITE_NAME . ' - ' . ((string) ($this->lang['sys.import_property_definitions'] ?? 'Import property types, properties, and sets'));
         $this->showLayout($this->parameters_layout);
     }
 

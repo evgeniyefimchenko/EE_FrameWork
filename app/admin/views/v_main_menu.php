@@ -74,22 +74,22 @@ $menuItems = [
                     'icon' => 'fa-solid fa-filter-circle-dollar',
                 ],
                 [
-                    'title' => $this->lang['sys.imports_management'] ?? 'Импорт',
+                    'title' => $lang['sys.imports_management'] ?? 'Import Management',
                     'link' => '#',
                     'icon' => 'fa-solid fa-upload',
                     'subItems' => [
                         [
-                            'title' => $this->lang['sys.imports_profiles_list'] ?? 'Профили импорта',
+                            'title' => $lang['sys.imports_profiles_list'] ?? 'Import Profiles',
                             'link' => '/admin/imports',
                             'icon' => 'fa-sharp fa-solid fa-list-check'
                         ],
                         [
-                            'title' => $this->lang['sys.imports_new_profile_wp'] ?? 'Создать профиль WordPress',
+                            'title' => $lang['sys.imports_new_profile_wp'] ?? 'Create WordPress Profile',
                             'link' => '/admin/edit_import_wp/id/0',
                             'icon' => 'fa-brands fa-wordpress'
                         ],
                         [
-                            'title' => $this->lang['sys.imports_property_definitions'] ?? 'JSON: типы/свойства/наборы',
+                            'title' => $lang['sys.imports_property_definitions'] ?? 'Import property types, properties, and sets',
                             'link' => '/admin/import_property_definitions',
                             'icon' => 'fa-solid fa-diagram-project'
                         ],

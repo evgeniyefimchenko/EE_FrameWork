@@ -193,7 +193,7 @@ trait PagesTrait {
         $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/edit_pages.js" type="text/javascript" /></script>';
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
-        $this->parameters_layout["title"] = 'Редактирование Сущности';
+        $this->parameters_layout["title"] = ENV_SITE_NAME . ' - ' . ((string) ($this->lang['sys.entity_edit'] ?? 'Edit entity'));
         $this->showLayout($this->parameters_layout);
     }
 
@@ -317,7 +317,7 @@ trait PagesTrait {
                 ],
             ]
         ];
-        $filter_types[] = ['value' => 0, 'label' => 'Любой'];
+        $filter_types[] = ['value' => 0, 'label' => $this->lang['sys.any'] ?? 'Any'];
         foreach ($all_types as $item) {
             $filter_types[] = ['value' => $item['type_id'], 'label' => $item['name']];
         }
