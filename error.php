@@ -32,7 +32,7 @@ if (!ENV_SITE) {
                 font-size:16px
             }
             body {
-                background:url('/uploads/images/404.png') center no-repeat #fff
+                background:url('/assets/images/system/404.png') center no-repeat #fff
             }
             .content {
                 width:100%;

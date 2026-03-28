@@ -61,7 +61,7 @@ abstract class ControllerBase {
      */
     protected $parameters_layout = ['description' => '', 'keywords' => '', 'add_script' => '',
         'add_style' => '', 'canonical_href' => ENV_URL_SITE, 'layout' => 'index', 'imagePage' => '/favicon.png',
-        'json_ld' => ''];
+        'json_ld' => '', 'alternate_hreflang' => []];
     
     /**
      * Конструктор класса принимает экземпляр класса представления из /classes/system/Router.php
@@ -119,12 +119,33 @@ abstract class ControllerBase {
      */
     private function setUserData($userData) {
         $getLangCode = ''; // Для логирования
-        $availableLangs = array_map('strtoupper', Lang::getLangFilesWithoutExtension());
+        $availableLangs = ee_get_interface_lang_codes();
         $normalizeLangCode = static function ($value) use ($availableLangs): string {
-            $value = strtoupper(trim((string)$value));
-            return in_array($value, $availableLangs, true) ? $value : '';
+            $candidate = ee_normalize_lang_code((string) $value);
+            if ($candidate === '' || !in_array($candidate, $availableLangs, true)) {
+                return '';
+            }
+            return $candidate;
         };
+        $requestedUiLangCode = $normalizeLangCode((string) ($_GET['ui_lang'] ?? ''));
         $sessionLangCode = $normalizeLangCode(Session::get('lang'));
+        $sessionLangManual = (int) (Session::get('lang_manual') ?? 0) === 1;
+        $detectedLangCode = ee_detect_interface_lang_code();
+
+        if ($requestedUiLangCode !== '') {
+            $sessionLangCode = $requestedUiLangCode;
+            $sessionLangManual = true;
+            Session::set('lang', $requestedUiLangCode);
+            Session::set('lang_manual', 1);
+            if (!empty($this->logged_in) && !empty($userData['options']) && is_array($userData['options'])) {
+                $storedLangCode = $normalizeLangCode($userData['options']['localize'] ?? '');
+                if ($storedLangCode !== $requestedUiLangCode) {
+                    $userData['options']['localize'] = $requestedUiLangCode;
+                    $this->users->setUserOptions((int) $this->logged_in, $userData['options']);
+                }
+            }
+        }
+
         if (empty($userData['new_user'])) { // Разегистрированный пользователь
             $notifications = !empty($this->logged_in) ? ClassNotifications::getNotificationsUser((int) $this->logged_in, 20) : [];
             $userData['notifications'] = $notifications;
@@ -134,7 +155,7 @@ abstract class ControllerBase {
             $this->view->set('count_messages', (int) ($userData['count_messages'] ?? 0));
             $this->view->set('userData', $userData);
             $storedLangCode = $normalizeLangCode($userData['options']['localize'] ?? '');
-            if ($sessionLangCode !== '') {
+            if ($sessionLangManual && $sessionLangCode !== '') {
                 $getLangCode = 'user_data Session override';
                 $langCode = $sessionLangCode;
                 if (($storedLangCode === '' || $storedLangCode !== $langCode) && !empty($this->logged_in)) {
@@ -145,11 +166,8 @@ abstract class ControllerBase {
                 $getLangCode = 'user_data options localize';
                 $langCode = $storedLangCode;
             } else { // Записываем локаль в опции пользователя
-                $getLangCode = 'user_data ENV fallback';
-                $langCode = $normalizeLangCode(ENV_DEF_LANG);
-                if ($langCode === '') {
-                    $langCode = strtoupper((string)ENV_PROTO_LANGUAGE);
-                }
+                $getLangCode = 'user_data detected fallback';
+                $langCode = $detectedLangCode;
                 $userData['options']['localize'] = $langCode;
                 $this->users->setUserOptions($this->logged_in, $userData['options']);
             }
@@ -158,12 +176,10 @@ abstract class ControllerBase {
             $this->view->set('messages', []);
             $this->view->set('count_unread_messages', 0);
             $this->view->set('count_messages', 0);
-            $langCode = $sessionLangCode !== '' ? $sessionLangCode : $normalizeLangCode(ENV_DEF_LANG);
-            if ($langCode === '') {
-                $langCode = strtoupper((string)ENV_PROTO_LANGUAGE);
-            }
-            $getLangCode = 'New user ' . $langCode;
+            $langCode = ($sessionLangManual && $sessionLangCode !== '') ? $sessionLangCode : $detectedLangCode;
+            $getLangCode = 'New user ' . $langCode . ($sessionLangManual ? ' manual' : ' auto');
             Session::set('lang', $langCode);
+            Session::set('lang_manual', $sessionLangManual ? 1 : 0);
         }
         $this->lang = Lang::init($langCode);
         $langCode = Lang::getCurrentLangCode() ?: $langCode;
@@ -174,31 +190,17 @@ abstract class ControllerBase {
     }
 
     protected function getAdminUiLanguageCode(): string {
-        $langCode = strtoupper(trim((string) (Session::get('lang') ?: ($this->users->data['options']['localize'] ?? ENV_DEF_LANG))));
-        if ($langCode === '') {
-            $langCode = strtoupper((string) ENV_DEF_LANG);
-        }
-        if ($langCode === '') {
-            $langCode = strtoupper((string) ENV_PROTO_LANGUAGE);
-        }
-        return $langCode;
+        return ee_get_default_interface_lang_code(
+            (string) (Session::get('lang') ?: ($this->users->data['options']['localize'] ?? ENV_DEF_LANG))
+        );
     }
 
-    protected function applyInterfaceLanguage(string $langCode): string {
-        $availableLangs = array_map('strtoupper', Lang::getLangFilesWithoutExtension());
-        $langCode = strtoupper(trim($langCode));
-        if (!in_array($langCode, $availableLangs, true)) {
-            $langCode = Lang::resolveLangCode($langCode);
-        }
-        if ($langCode === '') {
-            $langCode = strtoupper((string) ENV_DEF_LANG);
-        }
-        if ($langCode === '') {
-            $langCode = strtoupper((string) ENV_PROTO_LANGUAGE);
-        }
+    protected function applyInterfaceLanguage(string $langCode, bool $persist = true): string {
+        $langCode = ee_get_default_interface_lang_code($langCode);
 
         Session::set('lang', $langCode);
-        if (!empty($this->logged_in) && !empty($this->users->data['options']) && is_array($this->users->data['options'])) {
+        Session::set('lang_manual', $persist ? 1 : 0);
+        if ($persist && !empty($this->logged_in) && !empty($this->users->data['options']) && is_array($this->users->data['options'])) {
             $this->users->data['options']['localize'] = $langCode;
             $this->users->setUserOptions((int) $this->logged_in, $this->users->data['options']);
         }

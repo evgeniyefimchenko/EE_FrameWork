@@ -105,9 +105,17 @@ class WordpressImporter extends BaseImporter {
     private array $compositePropertyDefinitions = [];
     private array $compositeByMemberSourceId = [];
     private bool $strictCompositePropertyMapping = false;
+    private bool $preserveSourcePaths = false;
+    private bool $rewriteDonorLinks = true;
+    private string $donorBaseUrl = '';
     private array $state = [];
     private string $mapTable = '';
     private string $importScope = self::IMPORT_SCOPE_ALL;
+    private array $mappedIdCache = [];
+    private array $configuredMapLocalIdCache = [];
+    private array $configuredPropertyLocalIdCache = [];
+    private array $propertyDefaultFieldsTemplateCache = [];
+    private array $propertyValueRowCache = [];
 
     private $objectModelCategoriesTypes = null;
     private $objectModelCategories = null;
@@ -116,6 +124,7 @@ class WordpressImporter extends BaseImporter {
 
     public function __construct(array $settings) {
         parent::__construct($settings);
+        $settings = $this->settings;
         $this->webStepMode = !empty($settings['web_step_mode']);
         $this->chunkRows = $this->webStepMode
             ? max(10, (int)($settings['web_step_chunk_rows'] ?? 120))
@@ -140,10 +149,15 @@ class WordpressImporter extends BaseImporter {
             $settings['composite_properties_map'] ?? []
         );
         $this->strictCompositePropertyMapping = !empty($this->compositePropertyDefinitions);
+        $this->preserveSourcePaths = !empty($settings['preserve_source_paths']);
+        $this->rewriteDonorLinks = !array_key_exists('rewrite_donor_links', $settings)
+            ? true
+            : $this->toBool($settings['rewrite_donor_links'], true);
+        $this->donorBaseUrl = $this->normalizeBaseUrl((string)($settings['donor_base_url'] ?? ''));
         $this->importScope = $this->normalizeImportScope((string)($settings['import_scope'] ?? self::IMPORT_SCOPE_ALL));
         $this->stateFile = self::$logDir . 'import_job_' . $this->job_id . '.state.json';
         $this->workDir = rtrim(ENV_SITE_PATH, '/\\') . ENV_DIRSEP . 'uploads' . ENV_DIRSEP . 'tmp' . ENV_DIRSEP . 'wp_import_job_' . $this->job_id;
-        $this->mapTable = ENV_DB_PREF . 'import_map';
+        $this->mapTable = Constants::IMPORT_MAP_TABLE;
     }
 
     public function isWebStepDone(): bool {
@@ -152,8 +166,8 @@ class WordpressImporter extends BaseImporter {
 
     protected function _execute() {
         $this->ensureImporterModels();
-        $this->ensureImportMapTable();
-        $this->ensurePageUserLinksTable();
+        $this->ensureImportMapInfrastructure();
+        $this->ensurePageUserLinksInfrastructure();
 
         if ($this->webStepMode && !empty($this->settings['web_step_restart'])) {
             $this->resetStateFiles(true);
@@ -318,6 +332,14 @@ class WordpressImporter extends BaseImporter {
             (int) (($mediaQueueSummary['summary']['pending'] ?? 0)),
             (int) (($mediaQueueSummary['summary']['done'] ?? 0)),
             (int) (($mediaQueueSummary['summary']['failed'] ?? 0))
+        ));
+        $linkRewriteSummary = $this->rewriteImportedDonorLinksBackfill();
+        $this->state['donor_link_rewrite_summary'] = $linkRewriteSummary;
+        $this->log(sprintf(
+            'Donor link rewrite summary: pages=%d categories=%d property_values=%d',
+            (int) ($linkRewriteSummary['pages_updated'] ?? 0),
+            (int) ($linkRewriteSummary['categories_updated'] ?? 0),
+            (int) ($linkRewriteSummary['property_values_updated'] ?? 0)
         ));
         $sourceDir = (string)($this->state['source_dir'] ?? '');
         if ($sourceDir !== '' && is_dir($sourceDir)) {
@@ -1072,8 +1094,10 @@ class WordpressImporter extends BaseImporter {
             'category_id' => $existingCategoryId > 0 ? $existingCategoryId : 0,
             'type_id' => $typeId,
             'title' => $title,
+            'slug' => $this->rowString($row, ['slug'], ''),
+            'route_path' => $this->preserveSourcePaths ? $this->resolveImportedRoutePath($row) : '',
             'short_description' => $this->rowString($row, ['short_description', 'excerpt'], ''),
-            'description' => self::normalizeImportedRichText(
+            'description' => $this->prepareImportedRichText(
                 $this->rowString($row, ['description'], $title)
             ),
             'status' => $this->normalizeStatus($this->rowValue($row, ['status'], 'active')),
@@ -1090,6 +1114,7 @@ class WordpressImporter extends BaseImporter {
         }
 
         $this->saveMappedId('category', $sourceId, (int)$categoryId);
+        $this->saveImportedSourcePath('category', $row, (int)$categoryId);
         return $this->result($existingCategoryId > 0 ? 'updated' : 'created');
     }
     private function applyCategoryParentRow(array $row): array {
@@ -1187,8 +1212,10 @@ class WordpressImporter extends BaseImporter {
             'parent_page_id' => 0,
             'status' => $this->normalizeStatus($this->rowValue($row, ['status'], 'active')),
             'title' => $title,
+            'slug' => $this->rowString($row, ['slug'], ''),
+            'route_path' => $this->preserveSourcePaths ? $this->resolveImportedRoutePath($row) : '',
             'short_description' => $this->rowString($row, ['short_description', 'excerpt'], ''),
-            'description' => self::normalizeImportedRichText(
+            'description' => $this->prepareImportedRichText(
                 $this->rowString($row, ['description', 'content'], '')
             ),
         ];
@@ -1208,6 +1235,7 @@ class WordpressImporter extends BaseImporter {
         }
 
         $this->saveMappedId('page', $sourceId, (int)$pageId);
+        $this->saveImportedSourcePath('page', $row, (int)$pageId);
         return $this->result($existingPageId > 0 ? 'updated' : 'created');
     }
     private function applyPageParentRow(array $row): array {
@@ -1396,15 +1424,18 @@ class WordpressImporter extends BaseImporter {
             return $this->result('failed', 'Invalid property_values payload for entity=' . $entitySourceId . ', property=' . $propertySourceId);
         }
 
-        $existingValueId = (int)SafeMySQL::gi()->getOne(
-            'SELECT value_id FROM ?n WHERE entity_id = ?i AND property_id = ?i AND entity_type = ?s AND set_id = ?i AND language_code = ?s LIMIT 1',
-            Constants::PROPERTY_VALUES_TABLE,
+        $existingValueRow = $this->getCachedPropertyValueRow(
+            $entityType,
             $entityId,
             $propertyId,
-            $entityType,
-            $setId,
-            $this->languageCode
+            $setId
         );
+        $existingValueId = is_array($existingValueRow) ? (int)($existingValueRow['value_id'] ?? 0) : 0;
+        $existingPayloadJson = is_array($existingValueRow) ? trim((string)($existingValueRow['property_values'] ?? '')) : '';
+        $incomingPayloadJson = $this->prepareJsonField($payloadValues, []);
+        if ($existingValueId > 0 && $existingPayloadJson !== '' && $existingPayloadJson === $incomingPayloadJson) {
+            return $this->result('skipped');
+        }
 
         $propertyData = [
             'entity_id' => $entityId,
@@ -1424,6 +1455,17 @@ class WordpressImporter extends BaseImporter {
         if ($valueSaveResult->isFailure()) {
             return $this->result('failed', $valueSaveResult->getMessage('Failed to import property value for entity=' . $entityId));
         }
+        $resolvedValueId = $existingValueId > 0 ? $existingValueId : $valueSaveResult->getId(['value_id', 'id']);
+        $this->setCachedPropertyValueRow(
+            $entityType,
+            $entityId,
+            $propertyId,
+            $setId,
+            [
+                'value_id' => max(0, (int)$resolvedValueId),
+                'property_values' => $incomingPayloadJson,
+            ]
+        );
         return $this->result($existingValueId > 0 ? 'updated' : 'created');
     }
 
@@ -1717,7 +1759,21 @@ class WordpressImporter extends BaseImporter {
                     continue;
                 }
 
+                $memberSourcePattern = trim((string)($field['property_source_pattern'] ?? ($field['source_pattern'] ?? '')));
+                if ($memberSourcePattern === '') {
+                    $memberSourcePattern = trim((string)($field['meta_key_pattern'] ?? ''));
+                }
+                if ($memberSourcePattern !== '') {
+                    $memberSourcePattern = $this->normalizeCompositeSourcePattern($memberSourcePattern, $sourceKind);
+                }
+
                 $memberSourceId = strtolower(trim($this->resolveCompositeFieldSourceId($field, $sourceKind)));
+                if ($memberSourceId === '' && $memberSourcePattern !== '') {
+                    $memberSourceId = $memberSourcePattern;
+                }
+                if ($memberSourcePattern === '') {
+                    $memberSourcePattern = $this->buildCompositeWildcardPattern($memberSourceId);
+                }
                 if ($memberSourceId === '' || isset($fieldIndexBySourceId[$memberSourceId])) {
                     continue;
                 }
@@ -1733,21 +1789,10 @@ class WordpressImporter extends BaseImporter {
                 $title = trim((string)($field['title'] ?? ''));
                 $metaKey = $this->extractMetaKeyFromSourceId($memberSourceId);
                 $targetFieldIndex = null;
-                if (array_key_exists('target_field_index', $field)) {
-                    $rawTargetFieldIndex = $this->toInt($field['target_field_index'], -1);
+                if (array_key_exists('target_field_index', $field) || array_key_exists('field_index', $field)) {
+                    $rawTargetFieldIndex = $this->toInt($field['target_field_index'] ?? $field['field_index'], -1);
                     $targetFieldIndex = $rawTargetFieldIndex >= 0 ? $rawTargetFieldIndex : -1;
                     $targetFieldIndexBySourceId[$memberSourceId] = $targetFieldIndex;
-                }
-
-                $memberSourcePattern = trim((string)($field['property_source_pattern'] ?? ($field['source_pattern'] ?? '')));
-                if ($memberSourcePattern === '') {
-                    $memberSourcePattern = trim((string)($field['meta_key_pattern'] ?? ''));
-                }
-                if ($memberSourcePattern !== '') {
-                    $memberSourcePattern = $this->normalizeCompositeSourcePattern($memberSourcePattern, $sourceKind);
-                }
-                if ($memberSourcePattern === '') {
-                    $memberSourcePattern = $this->buildCompositeWildcardPattern($memberSourceId);
                 }
 
                 $fieldIndex = count($fields);
@@ -1959,7 +2004,8 @@ class WordpressImporter extends BaseImporter {
             if ($sourcePattern === '') {
                 continue;
             }
-            if (!$this->wildcardMatch($sourcePattern, $propertySourceId)) {
+            $patternMatch = $this->resolveCompositeSourcePatternMatch($sourcePattern, $propertySourceId);
+            if (!is_array($patternMatch)) {
                 continue;
             }
 
@@ -1978,8 +2024,8 @@ class WordpressImporter extends BaseImporter {
             return [
                 'member_source_id' => $memberSourceId,
                 'field_index' => $fieldIndex,
-                'source_pattern' => $sourcePattern,
-                'captures' => $this->extractWildcardCaptures($sourcePattern, $propertySourceId),
+                'source_pattern' => (string)($patternMatch['matched_pattern'] ?? $sourcePattern),
+                'captures' => is_array($patternMatch['captures'] ?? null) ? $patternMatch['captures'] : [],
                 'is_exact' => false,
             ];
         }
@@ -1989,19 +2035,64 @@ class WordpressImporter extends BaseImporter {
             if ($memberSourceId === '' || (!str_contains($memberSourceId, '*') && !str_contains($memberSourceId, '?'))) {
                 continue;
             }
-            if (!$this->wildcardMatch($memberSourceId, $propertySourceId)) {
+            $patternMatch = $this->resolveCompositeSourcePatternMatch($memberSourceId, $propertySourceId);
+            if (!is_array($patternMatch)) {
                 continue;
             }
             return [
                 'member_source_id' => $memberSourceId,
                 'field_index' => $this->toInt($fieldIndex, -1),
-                'source_pattern' => $memberSourceId,
-                'captures' => $this->extractWildcardCaptures($memberSourceId, $propertySourceId),
+                'source_pattern' => (string)($patternMatch['matched_pattern'] ?? $memberSourceId),
+                'captures' => is_array($patternMatch['captures'] ?? null) ? $patternMatch['captures'] : [],
                 'is_exact' => false,
             ];
         }
 
         return null;
+    }
+
+    private function matchesCompositeSourcePattern(string $pattern, string $propertySourceId): bool {
+        return is_array($this->resolveCompositeSourcePatternMatch($pattern, $propertySourceId));
+    }
+
+    private function resolveCompositeSourcePatternMatch(string $pattern, string $propertySourceId): ?array {
+        $pattern = strtolower(trim($pattern));
+        $propertySourceId = strtolower(trim($propertySourceId));
+        if ($pattern === '' || $propertySourceId === '') {
+            return null;
+        }
+
+        foreach ($this->expandCompositeLegacyPatternVariants($pattern) as $alternatePattern) {
+            if ($alternatePattern !== '' && $this->wildcardMatch($alternatePattern, $propertySourceId)) {
+                return [
+                    'matched_pattern' => $alternatePattern,
+                    'captures' => $this->extractWildcardCaptures($alternatePattern, $propertySourceId),
+                ];
+            }
+        }
+
+        if ($this->wildcardMatch($pattern, $propertySourceId)) {
+            return [
+                'matched_pattern' => $pattern,
+                'captures' => $this->extractWildcardCaptures($pattern, $propertySourceId),
+            ];
+        }
+
+        return null;
+    }
+
+    private function expandCompositeLegacyPatternVariants(string $pattern): array {
+        $pattern = strtolower(trim($pattern));
+        if ($pattern === '') {
+            return [];
+        }
+
+        $variants = [];
+        if (preg_match('/^(postmeta:numbers_\\*_)(\\d+)(_from|_end|_pricec)$/', $pattern, $matches) === 1) {
+            $variants[] = $matches[1] . 'newprices_' . $matches[2] . $matches[3];
+        }
+
+        return array_values(array_unique(array_filter($variants, static fn(string $item): bool => $item !== '')));
     }
 
     private function getCompositeCandidateIdsForSourceId(string $sourceId): array {
@@ -2038,7 +2129,7 @@ class WordpressImporter extends BaseImporter {
     }
 
     private function resolveCompositeFieldSourceId(array $field, string $sourceKind): string {
-        $sourceId = strtolower($this->normalizeSourceId($field['property_source_id'] ?? ''));
+        $sourceId = strtolower($this->normalizeSourceId($field['property_source_id'] ?? ($field['source_id'] ?? '')));
         if ($sourceId !== '') {
             if (str_starts_with($sourceId, 'postmeta:') || str_starts_with($sourceId, 'termmeta:')) {
                 return $sourceId;
@@ -2647,14 +2738,11 @@ class WordpressImporter extends BaseImporter {
             return $this->result('skipped');
         }
 
-        $existingValueRow = SafeMySQL::gi()->getRow(
-            'SELECT value_id, property_values FROM ?n WHERE entity_id = ?i AND property_id = ?i AND entity_type = ?s AND set_id = ?i AND language_code = ?s LIMIT 1',
-            Constants::PROPERTY_VALUES_TABLE,
+        $existingValueRow = $this->getCachedPropertyValueRow(
+            $entityType,
             $entityId,
             $propertyId,
-            $entityType,
-            $setId,
-            $this->languageCode
+            $setId
         );
         $existingValueId = is_array($existingValueRow) ? (int)($existingValueRow['value_id'] ?? 0) : 0;
 
@@ -2714,9 +2802,19 @@ class WordpressImporter extends BaseImporter {
             $groupKey
         );
         if ($propertyIsMultiple) {
-            $normalizedPayload[$fieldIndex]['multiple'] = 1;
+            foreach ($normalizedPayload as $payloadIndex => $payloadField) {
+                if (!is_array($payloadField)) {
+                    continue;
+                }
+                $normalizedPayload[$payloadIndex]['multiple'] = 1;
+            }
         }
         $normalizedPayload = $this->normalizePropertyValuesPayload($propertyId, $normalizedPayload);
+        $existingPayloadJson = $this->prepareJsonField($this->normalizePropertyValuesPayload($propertyId, $existingPayload), []);
+        $normalizedPayloadJson = $this->prepareJsonField($normalizedPayload, []);
+        if ($existingValueId > 0 && $existingPayloadJson === $normalizedPayloadJson) {
+            return $this->result('skipped');
+        }
 
         $propertyData = [
             'entity_id' => $entityId,
@@ -2736,6 +2834,17 @@ class WordpressImporter extends BaseImporter {
         if ($valueSaveResult->isFailure()) {
             return $this->result('failed', $valueSaveResult->getMessage('Failed to import composite property value for entity=' . $entityId));
         }
+        $resolvedValueId = $existingValueId > 0 ? $existingValueId : $valueSaveResult->getId(['value_id', 'id']);
+        $this->setCachedPropertyValueRow(
+            $entityType,
+            $entityId,
+            $propertyId,
+            $setId,
+            [
+                'value_id' => max(0, (int)$resolvedValueId),
+                'property_values' => $normalizedPayloadJson,
+            ]
+        );
         return $this->result($existingValueId > 0 ? 'updated' : 'created');
     }
 
@@ -3054,8 +3163,15 @@ class WordpressImporter extends BaseImporter {
                     }
                 } elseif (is_array($item)) {
                     $sourceId = strtolower(trim((string)($item['source_id'] ?? $sourceKey)));
-                    $targetId = max(0, $this->toInt($item['target_property_id'] ?? $item['property_id'] ?? 0, 0));
-                    $targetName = trim((string)($item['target_property_name'] ?? $item['property_name'] ?? ''));
+                    $targetId = max(0, $this->toInt(
+                        $item['target_property_id']
+                            ?? $item['property_id']
+                            ?? $item['target_id']
+                            ?? $item['id']
+                            ?? 0,
+                        0
+                    ));
+                    $targetName = trim((string)($item['target_property_name'] ?? $item['property_name'] ?? $item['target_name'] ?? $item['name'] ?? ''));
                 } elseif (is_string($item)) {
                     $line = trim($item);
                     if ($line !== '' && str_contains($line, '=')) {
@@ -3210,6 +3326,10 @@ class WordpressImporter extends BaseImporter {
         if ($sourceId === '') {
             return 0;
         }
+        $cacheKey = $mapType . '|' . $sourceId;
+        if (array_key_exists($cacheKey, $this->configuredMapLocalIdCache)) {
+            return (int)$this->configuredMapLocalIdCache[$cacheKey];
+        }
 
         $mapping = null;
         if ($mapType === 'category_type') {
@@ -3218,44 +3338,55 @@ class WordpressImporter extends BaseImporter {
             $mapping = $this->sourceSetMap[$sourceId] ?? null;
         }
         if ($mapping === null) {
+            $this->configuredMapLocalIdCache[$cacheKey] = 0;
             return 0;
         }
 
         if (is_numeric($mapping)) {
-            return (int)$mapping;
+            $resolved = (int)$mapping;
+            $this->configuredMapLocalIdCache[$cacheKey] = $resolved;
+            return $resolved;
         }
         if (!is_array($mapping)) {
+            $this->configuredMapLocalIdCache[$cacheKey] = 0;
             return 0;
         }
 
         $targetId = max(0, (int)($mapping['id'] ?? 0));
         if ($targetId > 0) {
+            $this->configuredMapLocalIdCache[$cacheKey] = $targetId;
             return $targetId;
         }
 
         $targetName = trim((string)($mapping['name'] ?? ''));
         if ($targetName === '') {
+            $this->configuredMapLocalIdCache[$cacheKey] = 0;
             return 0;
         }
 
         if ($mapType === 'category_type') {
-            return (int)SafeMySQL::gi()->getOne(
+            $resolved = (int)SafeMySQL::gi()->getOne(
                 'SELECT type_id FROM ?n WHERE name = ?s AND language_code = ?s LIMIT 1',
                 Constants::CATEGORIES_TYPES_TABLE,
                 $targetName,
                 $this->languageCode
             );
+            $this->configuredMapLocalIdCache[$cacheKey] = $resolved;
+            return $resolved;
         }
 
         if ($mapType === 'property_set') {
-            return (int)SafeMySQL::gi()->getOne(
+            $resolved = (int)SafeMySQL::gi()->getOne(
                 'SELECT set_id FROM ?n WHERE name = ?s AND language_code = ?s LIMIT 1',
                 Constants::PROPERTY_SETS_TABLE,
                 $targetName,
                 $this->languageCode
             );
+            $this->configuredMapLocalIdCache[$cacheKey] = $resolved;
+            return $resolved;
         }
 
+        $this->configuredMapLocalIdCache[$cacheKey] = 0;
         return 0;
     }
 
@@ -3264,28 +3395,36 @@ class WordpressImporter extends BaseImporter {
         if ($sourceId === '') {
             return 0;
         }
+        if (array_key_exists($sourceId, $this->configuredPropertyLocalIdCache)) {
+            return (int)$this->configuredPropertyLocalIdCache[$sourceId];
+        }
 
         $mapping = $this->sourcePropertyMap[$sourceId] ?? null;
         if (!is_array($mapping)) {
+            $this->configuredPropertyLocalIdCache[$sourceId] = 0;
             return 0;
         }
 
         $propertyId = max(0, (int)($mapping['id'] ?? 0));
         if ($propertyId > 0) {
+            $this->configuredPropertyLocalIdCache[$sourceId] = $propertyId;
             return $propertyId;
         }
 
         $propertyName = trim((string)($mapping['name'] ?? ''));
         if ($propertyName === '') {
+            $this->configuredPropertyLocalIdCache[$sourceId] = 0;
             return 0;
         }
 
-        return (int)SafeMySQL::gi()->getOne(
+        $resolved = (int)SafeMySQL::gi()->getOne(
             'SELECT property_id FROM ?n WHERE name = ?s AND language_code = ?s LIMIT 1',
             Constants::PROPERTIES_TABLE,
             $propertyName,
             $this->languageCode
         );
+        $this->configuredPropertyLocalIdCache[$sourceId] = $resolved;
+        return $resolved;
     }
 
     private function isMetaPropertySourceId(string $sourceId): bool {
@@ -3600,6 +3739,10 @@ class WordpressImporter extends BaseImporter {
             return null;
         }
 
+        if ($this->isNormalizedPropertyFieldList($candidate, $templateFields)) {
+            return $candidate;
+        }
+
         if ($this->isSequentialArray($candidate) && count($candidate) === 1 && is_array($candidate[0])) {
             $singleRow = $candidate[0];
             if (array_key_exists('value', $singleRow) && is_array($singleRow['value'])) {
@@ -3626,17 +3769,56 @@ class WordpressImporter extends BaseImporter {
         return $this->mapAssociativeRowListToTemplateFields($candidate, $templateFields);
     }
 
+    private function isNormalizedPropertyFieldList(array $candidate, array $templateFields): bool {
+        if (!$this->isSequentialArray($candidate) || empty($candidate)) {
+            return false;
+        }
+        if (count($candidate) !== count($templateFields)) {
+            return false;
+        }
+
+        foreach ($candidate as $index => $fieldRow) {
+            if (!is_array($fieldRow) || $this->isSequentialArray($fieldRow)) {
+                return false;
+            }
+
+            $fieldType = strtolower(trim((string)($fieldRow['type'] ?? '')));
+            $templateType = strtolower(trim((string)($templateFields[$index]['type'] ?? '')));
+            if ($fieldType === '' || $templateType === '' || $fieldType !== $templateType) {
+                return false;
+            }
+
+            if (
+                !array_key_exists('value', $fieldRow)
+                && !array_key_exists('default', $fieldRow)
+                && !array_key_exists('label', $fieldRow)
+                && !array_key_exists('title', $fieldRow)
+            ) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     private function getPropertyDefaultFieldsTemplate(int $propertyId): array {
         if ($propertyId <= 0) {
             return [];
         }
+        if (array_key_exists($propertyId, $this->propertyDefaultFieldsTemplateCache)) {
+            $cached = $this->propertyDefaultFieldsTemplateCache[$propertyId];
+            return is_array($cached) ? $cached : [];
+        }
 
-        $rawDefaults = SafeMySQL::gi()->getOne(
-            'SELECT default_values FROM ?n WHERE property_id = ?i LIMIT 1',
+        $propertyRow = SafeMySQL::gi()->getRow(
+            'SELECT default_values, is_multiple FROM ?n WHERE property_id = ?i LIMIT 1',
             Constants::PROPERTIES_TABLE,
             $propertyId
         );
-        if (!is_string($rawDefaults) || trim($rawDefaults) === '' || !SysClass::ee_isValidJson($rawDefaults)) {
+        $rawDefaults = is_array($propertyRow) ? (string) ($propertyRow['default_values'] ?? '') : '';
+        $propertyIsMultiple = is_array($propertyRow) && !empty($propertyRow['is_multiple']);
+        if ($rawDefaults === '' || !SysClass::ee_isValidJson($rawDefaults)) {
+            $this->propertyDefaultFieldsTemplateCache[$propertyId] = [];
             return [];
         }
 
@@ -3655,12 +3837,49 @@ class WordpressImporter extends BaseImporter {
                 'label' => $defaultField['label'] ?? '',
                 'title' => $defaultField['title'] ?? '',
                 'default' => $defaultField['default'] ?? '',
-                'multiple' => !empty($defaultField['multiple']) ? 1 : 0,
+                'multiple' => ($propertyIsMultiple || !empty($defaultField['multiple'])) ? 1 : 0,
                 'required' => !empty($defaultField['required']) ? 1 : 0,
             ];
         }
 
+        $this->propertyDefaultFieldsTemplateCache[$propertyId] = $result;
         return $result;
+    }
+
+    private function getCachedPropertyValueRow(string $entityType, int $entityId, int $propertyId, int $setId): array {
+        if ($entityId <= 0 || $propertyId <= 0 || $setId <= 0) {
+            return [];
+        }
+        $cacheKey = $this->buildPropertyValueCacheKey($entityType, $entityId, $propertyId, $setId);
+        if (array_key_exists($cacheKey, $this->propertyValueRowCache)) {
+            $cached = $this->propertyValueRowCache[$cacheKey];
+            return is_array($cached) ? $cached : [];
+        }
+
+        $row = SafeMySQL::gi()->getRow(
+            'SELECT value_id, property_values FROM ?n WHERE entity_id = ?i AND property_id = ?i AND entity_type = ?s AND set_id = ?i AND language_code = ?s LIMIT 1',
+            Constants::PROPERTY_VALUES_TABLE,
+            $entityId,
+            $propertyId,
+            $entityType,
+            $setId,
+            $this->languageCode
+        );
+        $row = is_array($row) ? $row : [];
+        $this->propertyValueRowCache[$cacheKey] = $row;
+        return $row;
+    }
+
+    private function setCachedPropertyValueRow(string $entityType, int $entityId, int $propertyId, int $setId, array $row): void {
+        if ($entityId <= 0 || $propertyId <= 0 || $setId <= 0) {
+            return;
+        }
+        $cacheKey = $this->buildPropertyValueCacheKey($entityType, $entityId, $propertyId, $setId);
+        $this->propertyValueRowCache[$cacheKey] = $row;
+    }
+
+    private function buildPropertyValueCacheKey(string $entityType, int $entityId, int $propertyId, int $setId): string {
+        return $entityType . '|' . $entityId . '|' . $propertyId . '|' . $setId . '|' . $this->languageCode;
     }
 
     private function mapAssociativePayloadToTemplateFields(array $payloadValues, array $templateFields): array {
@@ -3764,6 +3983,10 @@ class WordpressImporter extends BaseImporter {
             }
         }
 
+        if (in_array($fieldType, ['text', 'textarea'], true)) {
+            $fieldValue = $this->rewriteImportedTextValue($fieldValue);
+        }
+
         $fieldValue = $this->normalizeTypedPropertyFieldValue($fieldType, $fieldValue);
 
         if (!is_scalar($fieldTitle)) {
@@ -3819,6 +4042,408 @@ class WordpressImporter extends BaseImporter {
         }
 
         return $fieldValue;
+    }
+
+    private function prepareImportedRichText(string $value): string {
+        $normalized = self::normalizeImportedRichText($value);
+        return $this->rewriteImportedRichTextLinks($normalized);
+    }
+
+    private function rewriteImportedTextValue(mixed $value): mixed {
+        if (is_array($value)) {
+            foreach ($value as $index => $item) {
+                $value[$index] = $this->rewriteImportedTextValue($item);
+            }
+            return $value;
+        }
+
+        if (!is_scalar($value)) {
+            return $value;
+        }
+
+        $stringValue = trim((string) $value);
+        if ($stringValue === '') {
+            return $value;
+        }
+
+        $normalizedBareDonorValue = $this->normalizeBareDonorReferenceValue($stringValue);
+        if ($normalizedBareDonorValue !== null) {
+            return $normalizedBareDonorValue;
+        }
+
+        if (preg_match('~<[^>]+>~u', $stringValue) === 1) {
+            return $this->rewriteImportedRichTextLinks($stringValue);
+        }
+
+        if (str_contains($stringValue, '://') || str_starts_with($stringValue, '/')) {
+            return $this->rewriteAbsoluteDonorUrlsInText($stringValue);
+        }
+
+        return $value;
+    }
+
+    private function normalizeBareDonorReferenceValue(string $value): ?string {
+        if (!$this->rewriteDonorLinks) {
+            return null;
+        }
+
+        $donorBaseUrl = $this->getDonorBaseUrl();
+        if ($donorBaseUrl === '') {
+            return null;
+        }
+
+        $donorHost = strtolower(trim((string) parse_url($donorBaseUrl, PHP_URL_HOST)));
+        if ($donorHost === '') {
+            return null;
+        }
+
+        $normalizedValue = strtolower(trim($value));
+        $normalizedValue = preg_replace('~^https?://~iu', '', $normalizedValue) ?? $normalizedValue;
+        $normalizedValue = preg_replace('~^//~u', '', $normalizedValue) ?? $normalizedValue;
+        $normalizedValue = rtrim($normalizedValue, '/');
+
+        $allowedMatches = [
+            $donorHost,
+            'www.' . $donorHost,
+        ];
+
+        return in_array($normalizedValue, $allowedMatches, true) ? '' : null;
+    }
+
+    private function rewriteImportedRichTextLinks(string $html): string {
+        if (!$this->rewriteDonorLinks) {
+            return $html;
+        }
+
+        $html = trim($html);
+        if ($html === '') {
+            return '';
+        }
+
+        $rewritten = $html;
+        if (class_exists(\DOMDocument::class) && preg_match('~<[^>]+>~u', $html) === 1) {
+            $dom = new \DOMDocument('1.0', 'UTF-8');
+            $previousUseInternalErrors = libxml_use_internal_errors(true);
+            try {
+                $loaded = $dom->loadHTML(
+                    '<?xml encoding="utf-8" ?><div data-ee-import-root="1">' . $html . '</div>',
+                    LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD
+                );
+                if ($loaded) {
+                    $xpath = new \DOMXPath($dom);
+                    $nodes = $xpath->query('//*[@data-ee-import-root="1"]//*');
+                    if ($nodes instanceof \DOMNodeList) {
+                        foreach ($nodes as $node) {
+                            if (!$node instanceof \DOMElement) {
+                                continue;
+                            }
+                            foreach (['href', 'src', 'poster', 'action', 'data-href', 'data-src'] as $attributeName) {
+                                if (!$node->hasAttribute($attributeName)) {
+                                    continue;
+                                }
+                                $attributeValue = trim((string) $node->getAttribute($attributeName));
+                                if ($attributeValue === '') {
+                                    continue;
+                                }
+                                $rewrittenValue = $this->rewriteDonorUrl($attributeValue);
+                                if ($rewrittenValue !== '' && $rewrittenValue !== $attributeValue) {
+                                    $node->setAttribute($attributeName, $rewrittenValue);
+                                }
+                            }
+                        }
+                    }
+
+                    $rootNodes = $xpath->query('//*[@data-ee-import-root="1"]');
+                    $root = ($rootNodes instanceof \DOMNodeList && $rootNodes->length > 0) ? $rootNodes->item(0) : null;
+                    if ($root instanceof \DOMElement) {
+                        $chunks = [];
+                        foreach ($root->childNodes as $childNode) {
+                            $chunks[] = $dom->saveHTML($childNode);
+                        }
+                        $rewritten = trim(implode('', $chunks));
+                    }
+                }
+            } finally {
+                libxml_clear_errors();
+                libxml_use_internal_errors($previousUseInternalErrors);
+            }
+        }
+
+        return $this->rewriteAbsoluteDonorUrlsInText($rewritten);
+    }
+
+    private function rewriteAbsoluteDonorUrlsInText(string $text): string {
+        if (!$this->rewriteDonorLinks || $text === '') {
+            return $text;
+        }
+
+        $donorBaseUrl = $this->getDonorBaseUrl();
+        if ($donorBaseUrl === '') {
+            return $text;
+        }
+
+        $donorHost = strtolower(trim((string) parse_url($donorBaseUrl, PHP_URL_HOST)));
+        if ($donorHost === '') {
+            return $text;
+        }
+
+        $escapedHost = preg_quote($donorHost, '~');
+        $text = preg_replace_callback(
+            '~https?://(?:www\.)?' . $escapedHost . '(?::\d+)?(?:/[^\s"\'<>()]*)?~iu',
+            fn(array $matches): string => $this->rewriteDonorUrl((string) ($matches[0] ?? '')),
+            $text
+        ) ?? $text;
+
+        $text = preg_replace_callback(
+            '~//(?:www\.)?' . $escapedHost . '(?::\d+)?(?:/[^\s"\'<>()]*)?~iu',
+            fn(array $matches): string => $this->rewriteDonorUrl((string) ($matches[0] ?? '')),
+            $text
+        ) ?? $text;
+
+        return $text;
+    }
+
+    private function rewriteDonorUrl(string $url): string {
+        $url = trim($url);
+        if ($url === '' || !$this->rewriteDonorLinks) {
+            return $url;
+        }
+
+        if (str_starts_with($url, '#') || str_starts_with(strtolower($url), 'mailto:') || str_starts_with(strtolower($url), 'tel:') || str_starts_with(strtolower($url), 'javascript:')) {
+            return $url;
+        }
+
+        $sourcePath = '';
+        if (str_starts_with($url, '//')) {
+            $url = 'https:' . $url;
+        }
+
+        if (str_starts_with($url, '/')) {
+            $sourcePath = $this->normalizeImportedSourcePath($url);
+        } else {
+            $donorBaseUrl = $this->getDonorBaseUrl();
+            if ($donorBaseUrl === '') {
+                return $url;
+            }
+
+            $urlHost = strtolower(trim((string) parse_url($url, PHP_URL_HOST)));
+            $donorHost = strtolower(trim((string) parse_url($donorBaseUrl, PHP_URL_HOST)));
+            if ($urlHost === '' || $donorHost === '' || !in_array($urlHost, [$donorHost, 'www.' . $donorHost], true)) {
+                return $url;
+            }
+            $sourcePath = $this->normalizeImportedSourcePath($url);
+        }
+
+        if ($sourcePath === '') {
+            return $url;
+        }
+
+        $localEntityUrl = $this->resolveLocalUrlForSourcePath($sourcePath);
+        if ($localEntityUrl !== '') {
+            return $localEntityUrl;
+        }
+
+        return $this->buildLocalUrlFromPath($sourcePath);
+    }
+
+    private function resolveLocalUrlForSourcePath(string $sourcePath): string {
+        $sourcePath = $this->normalizeImportedSourcePath($sourcePath);
+        if ($sourcePath === '') {
+            return '';
+        }
+
+        $pageId = $this->getMappedId('page_source_path', $sourcePath);
+        if ($pageId > 0) {
+            return EntityPublicUrlService::buildEntityUrl('page', $pageId, $this->languageCode);
+        }
+
+        $categoryId = $this->getMappedId('category_source_path', $sourcePath);
+        if ($categoryId > 0) {
+            return EntityPublicUrlService::buildEntityUrl('category', $categoryId, $this->languageCode);
+        }
+
+        return '';
+    }
+
+    private function buildLocalUrlFromPath(string $path): string {
+        $path = $this->normalizeImportedSourcePath($path);
+        if ($path === '') {
+            return rtrim((string) ENV_URL_SITE, '/') . '/';
+        }
+
+        return rtrim((string) ENV_URL_SITE, '/') . $path;
+    }
+
+    private function resolveImportedRoutePath(array $row): string {
+        return $this->normalizeImportedSourcePath($this->rowString($row, ['source_path', 'path', 'route_path'], ''));
+    }
+
+    private function saveImportedSourcePath(string $entityType, array $row, int $entityId): void {
+        if ($entityId <= 0) {
+            return;
+        }
+
+        $sourcePath = $this->resolveImportedRoutePath($row);
+        if ($sourcePath === '') {
+            return;
+        }
+
+        $mapType = $entityType === 'category' ? 'category_source_path' : 'page_source_path';
+        $this->saveMappedId($mapType, $sourcePath, $entityId);
+    }
+
+    private function normalizeImportedSourcePath(string $value): string {
+        return EntitySlugService::normalizeRoutePath($value);
+    }
+
+    private function getDonorBaseUrl(): string {
+        if ($this->donorBaseUrl !== '') {
+            return $this->donorBaseUrl;
+        }
+
+        $this->donorBaseUrl = $this->normalizeBaseUrl((string) ($this->state['site_url'] ?? ''));
+        return $this->donorBaseUrl;
+    }
+
+    private function normalizeBaseUrl(string $url): string {
+        $url = trim($url);
+        if ($url === '') {
+            return '';
+        }
+
+        if (!preg_match('~^[a-z][a-z0-9+.-]*://~i', $url)) {
+            $url = 'https://' . ltrim($url, '/');
+        }
+
+        $parts = parse_url($url);
+        if (!is_array($parts) || empty($parts['host'])) {
+            return '';
+        }
+
+        $scheme = strtolower(trim((string) ($parts['scheme'] ?? 'https')));
+        $host = strtolower(trim((string) ($parts['host'] ?? '')));
+        $port = isset($parts['port']) ? ':' . (int) $parts['port'] : '';
+
+        return $host !== '' ? ($scheme . '://' . $host . $port) : '';
+    }
+
+    private function rewriteImportedDonorLinksBackfill(): array {
+        if (!$this->rewriteDonorLinks || $this->getDonorBaseUrl() === '') {
+            return ['pages_updated' => 0, 'categories_updated' => 0, 'property_values_updated' => 0];
+        }
+
+        $donorHost = trim((string) parse_url($this->getDonorBaseUrl(), PHP_URL_HOST));
+        if ($donorHost === '') {
+            return ['pages_updated' => 0, 'categories_updated' => 0, 'property_values_updated' => 0];
+        }
+
+        return [
+            'pages_updated' => $this->rewriteRichTextColumnsInTable(Constants::PAGES_TABLE, 'page_id', ['description', 'short_description'], $donorHost),
+            'categories_updated' => $this->rewriteRichTextColumnsInTable(Constants::CATEGORIES_TABLE, 'category_id', ['description', 'short_description'], $donorHost),
+            'property_values_updated' => $this->rewritePropertyValuePayloadsByDonorHost($donorHost),
+        ];
+    }
+
+    private function rewriteRichTextColumnsInTable(string $tableName, string $primaryKey, array $columns, string $donorHost): int {
+        $updated = 0;
+        $rows = SafeMySQL::gi()->getAll(
+            'SELECT * FROM ?n WHERE ' . implode(' OR ', array_map(static fn(string $column): string => "`{$column}` LIKE ?s", $columns)),
+            $tableName,
+            ...array_fill(0, count($columns), '%' . $donorHost . '%')
+        );
+        if (!is_array($rows)) {
+            return 0;
+        }
+
+        foreach ($rows as $row) {
+            $primaryId = (int) ($row[$primaryKey] ?? 0);
+            if ($primaryId <= 0) {
+                continue;
+            }
+
+            $updateData = [];
+            foreach ($columns as $column) {
+                $currentValue = (string) ($row[$column] ?? '');
+                if ($currentValue === '' || !str_contains($currentValue, $donorHost)) {
+                    continue;
+                }
+
+                $rewrittenValue = $this->rewriteImportedTextValue($currentValue);
+                if (is_string($rewrittenValue) && $rewrittenValue !== $currentValue) {
+                    $updateData[$column] = $rewrittenValue;
+                }
+            }
+
+            if ($updateData === []) {
+                continue;
+            }
+
+            SafeMySQL::gi()->query(
+                'UPDATE ?n SET ?u WHERE `' . $primaryKey . '` = ?i',
+                $tableName,
+                $updateData,
+                $primaryId
+            );
+            $updated++;
+        }
+
+        return $updated;
+    }
+
+    private function rewritePropertyValuePayloadsByDonorHost(string $donorHost): int {
+        $updated = 0;
+        $rows = SafeMySQL::gi()->getAll(
+            'SELECT value_id, property_values FROM ?n WHERE property_values LIKE ?s',
+            Constants::PROPERTY_VALUES_TABLE,
+            '%' . $donorHost . '%'
+        );
+        if (!is_array($rows)) {
+            return 0;
+        }
+
+        foreach ($rows as $row) {
+            $valueId = (int) ($row['value_id'] ?? 0);
+            $rawPayload = (string) ($row['property_values'] ?? '');
+            if ($valueId <= 0 || $rawPayload === '' || !SysClass::ee_isValidJson($rawPayload)) {
+                continue;
+            }
+
+            $decodedPayload = json_decode($rawPayload, true);
+            if (!is_array($decodedPayload)) {
+                continue;
+            }
+
+            $rewrittenPayload = $this->rewritePayloadStrings($decodedPayload);
+            $rewrittenJson = json_encode($rewrittenPayload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            if (!is_string($rewrittenJson) || $rewrittenJson === '' || $rewrittenJson === $rawPayload) {
+                continue;
+            }
+
+            SafeMySQL::gi()->query(
+                'UPDATE ?n SET property_values = ?s, updated_at = NOW() WHERE value_id = ?i',
+                Constants::PROPERTY_VALUES_TABLE,
+                $rewrittenJson,
+                $valueId
+            );
+            $updated++;
+        }
+
+        return $updated;
+    }
+
+    private function rewritePayloadStrings(mixed $value): mixed {
+        if (is_array($value)) {
+            foreach ($value as $key => $item) {
+                $value[$key] = $this->rewritePayloadStrings($item);
+            }
+            return $value;
+        }
+
+        if (!is_string($value)) {
+            return $value;
+        }
+
+        return $this->rewriteImportedTextValue($value);
     }
 
     private function rowValue(array $row, array $keys, mixed $default = null): mixed {
@@ -4152,7 +4777,12 @@ class WordpressImporter extends BaseImporter {
             return $configuredMapId;
         }
         $source = substr($source, 0, 191);
-        return (int)SafeMySQL::gi()->getOne(
+        $cacheKey = $mapType . '|' . $source;
+        if (array_key_exists($cacheKey, $this->mappedIdCache)) {
+            return (int) $this->mappedIdCache[$cacheKey];
+        }
+
+        $localId = (int)SafeMySQL::gi()->getOne(
             'SELECT local_id FROM ?n WHERE job_id = ?i AND source_key = ?s AND map_type = ?s AND source_id = ?s LIMIT 1',
             $this->mapTable,
             $this->job_id,
@@ -4160,6 +4790,8 @@ class WordpressImporter extends BaseImporter {
             $mapType,
             $source
         );
+        $this->mappedIdCache[$cacheKey] = $localId;
+        return $localId;
     }
 
     private function saveMappedId(string $mapType, mixed $sourceId, int $localId): void {
@@ -4171,6 +4803,7 @@ class WordpressImporter extends BaseImporter {
             return;
         }
         $source = substr($source, 0, 191);
+        $cacheKey = $mapType . '|' . $source;
         SafeMySQL::gi()->query(
             'INSERT INTO ?n (`job_id`, `source_key`, `map_type`, `source_id`, `local_id`) VALUES (?i, ?s, ?s, ?s, ?i)
              ON DUPLICATE KEY UPDATE `local_id` = VALUES(`local_id`), `updated_at` = CURRENT_TIMESTAMP',
@@ -4181,6 +4814,7 @@ class WordpressImporter extends BaseImporter {
             $source,
             $localId
         );
+        $this->mappedIdCache[$cacheKey] = $localId;
     }
 
     private function getMappedOrLocal(string $mapType, mixed $sourceId, mixed $fallbackLocalId = null): int {
@@ -4328,38 +4962,24 @@ class WordpressImporter extends BaseImporter {
         }
     }
 
-    private function ensureImportMapTable(): void {
-        $table = $this->mapTable;
-        $sql = "CREATE TABLE IF NOT EXISTS `{$table}` (
-            `map_id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-            `job_id` INT UNSIGNED NOT NULL,
-            `source_key` VARCHAR(128) NOT NULL,
-            `map_type` VARCHAR(64) NOT NULL,
-            `source_id` VARCHAR(191) NOT NULL,
-            `local_id` INT UNSIGNED NOT NULL,
-            `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            PRIMARY KEY (`map_id`),
-            UNIQUE KEY `uq_job_source_map` (`job_id`, `source_key`, `map_type`, `source_id`)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-        SafeMySQL::gi()->query($sql);
+    private function ensureImportMapInfrastructure(): void {
+        $exists = (int) SafeMySQL::gi()->getOne(
+            'SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?s',
+            $this->mapTable
+        );
+        if ($exists === 0) {
+            throw new \RuntimeException('Import map infrastructure is not installed. Run install/upgrade first.');
+        }
     }
 
-    private function ensurePageUserLinksTable(): void {
-        $sql = "CREATE TABLE IF NOT EXISTS ?n (
-            link_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-            page_id INT UNSIGNED NOT NULL,
-            user_id INT UNSIGNED NOT NULL,
-            relation_type VARCHAR(32) NOT NULL DEFAULT 'owner',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            UNIQUE KEY uq_page_user_relation (page_id, user_id, relation_type),
-            KEY idx_page_user_links_user (user_id),
-            KEY idx_page_user_links_relation (relation_type),
-            CONSTRAINT fk_page_user_links_page FOREIGN KEY (page_id) REFERENCES ?n(page_id) ON DELETE CASCADE ON UPDATE RESTRICT,
-            CONSTRAINT fk_page_user_links_user FOREIGN KEY (user_id) REFERENCES ?n(user_id) ON DELETE CASCADE ON UPDATE RESTRICT
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-        SafeMySQL::gi()->query($sql, Constants::PAGE_USER_LINKS_TABLE, Constants::PAGES_TABLE, Constants::USERS_TABLE);
+    private function ensurePageUserLinksInfrastructure(): void {
+        $exists = (int) SafeMySQL::gi()->getOne(
+            'SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?s',
+            Constants::PAGE_USER_LINKS_TABLE
+        );
+        if ($exists === 0) {
+            throw new \RuntimeException('Page-user links infrastructure is not installed. Run install/upgrade first.');
+        }
     }
 
     private function preparePackage(): void {
@@ -4472,6 +5092,7 @@ class WordpressImporter extends BaseImporter {
         $this->state['source_key'] = $sourceKey;
         $this->state['manifest_format'] = $manifestFormat;
         $this->state['source_system'] = trim((string)($manifest['source_system'] ?? ''));
+        $this->state['site_url'] = trim((string)($manifest['site_url'] ?? ''));
         $this->state['source_file_id'] = $fileId;
         $this->state['package_file_path'] = $packagePath;
         $this->state['source_dir'] = $sourceDir;
@@ -4480,6 +5101,9 @@ class WordpressImporter extends BaseImporter {
         $this->state['files'] = $files;
         $this->state['cursors'] = [];
         $this->state['stats'] = [];
+        if ($this->donorBaseUrl === '') {
+            $this->donorBaseUrl = $this->normalizeBaseUrl((string)($manifest['site_url'] ?? ''));
+        }
     }
 
     private function loadOrInitializeState(): void {

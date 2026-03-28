@@ -16,6 +16,14 @@ class EntityTranslationService {
             return;
         }
 
+        if (!$force) {
+            self::$infrastructureReady = self::tableExists(Constants::ENTITY_TRANSLATIONS_TABLE);
+            if (!self::$infrastructureReady) {
+                throw new \RuntimeException('Entity translations infrastructure is not installed. Run install/upgrade first.');
+            }
+            return;
+        }
+
         $sql = "CREATE TABLE IF NOT EXISTS ?n (
             translation_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
             entity_type ENUM('page', 'category') NOT NULL,
@@ -50,7 +58,7 @@ class EntityTranslationService {
         return self::ensureEntityTranslation(
             $entityType,
             $entityId,
-            (string) ($entityRow['language_code'] ?? ENV_DEF_LANG)
+            ee_get_default_content_lang_code((string) ($entityRow['language_code'] ?? ''))
         );
     }
 
@@ -196,7 +204,7 @@ class EntityTranslationService {
             self::ensureEntityTranslation(
                 $entityType,
                 $entityId,
-                (string) ($entityRow['language_code'] ?? ENV_DEF_LANG)
+                ee_get_default_content_lang_code((string) ($entityRow['language_code'] ?? ''))
             );
         }
     }
@@ -281,7 +289,7 @@ class EntityTranslationService {
             $availableLanguageCodes
         ))));
         if ($availableLanguageCodes === []) {
-            $availableLanguageCodes = Lang::getLangFilesWithoutExtension();
+            $availableLanguageCodes = ee_get_content_lang_codes();
         }
 
         return [
@@ -527,14 +535,7 @@ class EntityTranslationService {
     }
 
     private static function normalizeLanguageCode(string $languageCode): string {
-        $languageCode = strtoupper(trim($languageCode));
-        if ($languageCode === '') {
-            $languageCode = strtoupper((string) ENV_DEF_LANG);
-        }
-        if ($languageCode === '') {
-            $languageCode = strtoupper((string) ENV_PROTO_LANGUAGE);
-        }
-        return $languageCode;
+        return ee_get_default_content_lang_code($languageCode);
     }
 
     private static function generateGroupKey(): string {
@@ -543,5 +544,12 @@ class EntityTranslationService {
         } catch (\Throwable) {
             return md5(uniqid('translation_group_', true));
         }
+    }
+
+    private static function tableExists(string $table): bool {
+        return (int) SafeMySQL::gi()->getOne(
+            'SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?s',
+            $table
+        ) > 0;
     }
 }

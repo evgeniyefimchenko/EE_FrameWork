@@ -46,6 +46,10 @@ class SysClass {
      * @return string Реальный IP-адрес пользователя или "unknown", если IP определить не удалось
      */
     public static function getClientIp(): string {
+        if (PHP_SAPI === 'cli' || PHP_SAPI === 'phpdbg') {
+            return 'unknown';
+        }
+
         $remoteAddr = trim((string) ($_SERVER['REMOTE_ADDR'] ?? ''));
         $trustedProxies = defined('ENV_AUTH_TRUSTED_PROXIES') && is_array(ENV_AUTH_TRUSTED_PROXIES)
             ? ENV_AUTH_TRUSTED_PROXIES
@@ -966,9 +970,31 @@ class SysClass {
      */
     public static function checkInstall(): bool {
         $cacheFilePath = ENV_CACHE_PATH . 'checkInstall.txt';
+
+        $runtimeDirectories = self::ensureRuntimeDirectories();
+        $runtimeErrors = [];
+        foreach ($runtimeDirectories as $directoryKey => $directoryState) {
+            $path = (string) ($directoryState['path'] ?? '');
+            if ($path === '') {
+                continue;
+            }
+            if (!($directoryState['exists'] ?? false)) {
+                $runtimeErrors[] = 'Не удалось подготовить runtime-директорию `' . $directoryKey . '`: ' . $path;
+                continue;
+            }
+            if (!($directoryState['writable'] ?? false)) {
+                $runtimeErrors[] = 'Нет прав на запись в runtime-директорию `' . $directoryKey . '`: ' . $path;
+            }
+        }
+
+        if ($runtimeErrors !== []) {
+            self::pre(implode(PHP_EOL, $runtimeErrors));
+        }
+
         if (file_exists($cacheFilePath)) {
             return true;
         }
+
         if (!ENV_DB_USER || !ENV_DB_PASS) {
             self::pre('Выполните необходимые настройки в файле configuration.php для базы данных!');
         }
@@ -984,12 +1010,7 @@ class SysClass {
         if (SafeMySQL::gi()->query('SHOW TABLES LIKE ?s', Constants::USERS_TABLE)->num_rows === 0) {
             new Users(true);
         }
-        if (ENV_CACHE_PATH && !self::createDirectoriesForFile(ENV_CACHE_PATH . '.cache')) {
-            Logger::error('errors', 'Не удалось создать директорию кэша', ['path' => ENV_CACHE_PATH], [
-                'initiator' => 'checkInstall',
-                'details' => ENV_CACHE_PATH,
-            ]);
-        }
+
         if (!self::createDirectoriesForFile($cacheFilePath) || file_put_contents($cacheFilePath, 'Install check passed') === false) {
             Logger::error('errors', 'Не удалось создать файл кэша', ['path' => $cacheFilePath], [
                 'initiator' => 'checkInstall',
@@ -997,6 +1018,58 @@ class SysClass {
             ]);
         }
         return true;
+    }
+
+    /**
+     * Возвращает обязательные runtime-директории проекта.
+     * Эти пути должны существовать и быть доступны на запись после install/upgrade.
+     * @return array<string, string>
+     */
+    public static function getRequiredRuntimeDirectories(): array {
+        $sitePath = rtrim((string) ENV_SITE_PATH, '/\\');
+        $uploadsRoot = $sitePath . ENV_DIRSEP . 'uploads';
+        $logsRoot = rtrim((string) ENV_LOGS_PATH, '/\\');
+        $tmpRoot = rtrim((string) ENV_TMP_PATH, '/\\');
+
+        return [
+            'cache' => rtrim((string) ENV_CACHE_PATH, '/\\'),
+            'logs' => $logsRoot,
+            'logs_errors' => $logsRoot . ENV_DIRSEP . 'errors',
+            'uploads' => $uploadsRoot,
+            'uploads_tmp' => $tmpRoot,
+            'uploads_tmp_backups' => $tmpRoot . ENV_DIRSEP . 'backups',
+            'uploads_files' => $uploadsRoot . ENV_DIRSEP . 'files',
+            'uploads_images' => $uploadsRoot . ENV_DIRSEP . 'images',
+            'uploads_images_avatars' => $uploadsRoot . ENV_DIRSEP . 'images' . ENV_DIRSEP . 'avatars',
+        ];
+    }
+
+    /**
+     * Создаёт обязательные runtime-директории и возвращает их текущее состояние.
+     * @return array<string, array{path:string,exists:bool,writable:bool}>
+     */
+    public static function ensureRuntimeDirectories(): array {
+        $result = [];
+        foreach (self::getRequiredRuntimeDirectories() as $directoryKey => $directoryPath) {
+            $normalizedPath = rtrim((string) $directoryPath, '/\\');
+            if ($normalizedPath === '') {
+                $result[$directoryKey] = [
+                    'path' => '',
+                    'exists' => false,
+                    'writable' => false,
+                ];
+                continue;
+            }
+
+            self::createDirectory($normalizedPath);
+            $result[$directoryKey] = [
+                'path' => $normalizedPath,
+                'exists' => is_dir($normalizedPath),
+                'writable' => is_dir($normalizedPath) && is_writable($normalizedPath),
+            ];
+        }
+
+        return $result;
     }
 
     /**
@@ -1020,7 +1093,9 @@ class SysClass {
             'ENV_PROTO_LANGUAGE' => ENV_PROTO_LANGUAGE,
             'ENV_CURRENT_LANG' => $langCode,
             'ENV_CURRENT_LANG_LOCALE' => function_exists('ee_get_lang_locale') ? ee_get_lang_locale($langCode) : strtolower($langCode),
-            'ENV_AVAILABLE_LANGS' => Lang::getLangFilesWithoutExtension(),
+            'ENV_AVAILABLE_LANGS' => ee_get_interface_lang_codes(),
+            'ENV_AVAILABLE_INTERFACE_LANGS' => ee_get_interface_lang_codes(),
+            'ENV_AVAILABLE_CONTENT_LANGS' => ee_get_content_lang_codes(),
             'ENV_VERSION_CORE' => ENV_VERSION_CORE,
             'ENV_COMPRESS_HTML' => ENV_COMPRESS_HTML,
         ];
@@ -1209,13 +1284,27 @@ class SysClass {
      */
     public static function createDirectoriesForFile(string $filePath, int $permissions = 0775): bool {
         $directory = dirname($filePath);
-        if (file_exists($directory)) {
-            return true;
+        return self::createDirectory($directory, $permissions);
+    }
+
+    /**
+     * Создаёт директорию, если она не существует.
+     * @param string $directory Путь к директории
+     * @param int $permissions Права на создаваемую директорию
+     * @return bool
+     */
+    public static function createDirectory(string $directory, int $permissions = 0775): bool {
+        $directory = rtrim($directory, '/\\');
+        if ($directory === '') {
+            return false;
         }
-        if (!mkdir($directory, $permissions, true)) {
-            Logger::error('errors', 'Ошибка создания директории', ['file_path' => $filePath, 'directory' => $directory], [
-                'initiator' => 'createDirectoriesForFile',
-                'details' => $filePath,
+        if (file_exists($directory)) {
+            return is_dir($directory);
+        }
+        if (!mkdir($directory, $permissions, true) && !is_dir($directory)) {
+            Logger::error('errors', 'Ошибка создания директории', ['directory' => $directory], [
+                'initiator' => 'createDirectory',
+                'details' => $directory,
             ]);
             return false;
         }

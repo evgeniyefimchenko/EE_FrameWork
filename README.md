@@ -21,7 +21,7 @@ EE_FrameWork объединяет в одном репозитории:
 - Router, View, Cache, Hook, Auth и logging-слой;
 - административный модуль для управления контентом и системой;
 - проектный слой `custom/`, который не должен теряться при обновлении ядра;
-- встроенные механизмы для поиска, фильтрации, lifecycle-синхронизации и работы со свойствами сущностей.
+- встроенные механизмы для поиска, фильтрации, lifecycle-синхронизации, агентного cron и работы со свойствами сущностей.
 
 Это не микрофреймворк и не “голая CMS-тема”. Это основа для развития собственных проектов и сложных контентных систем.
 
@@ -65,7 +65,23 @@ property types -> properties -> sets -> category types -> categories -> pages
 
 Это позволяет строить сложные модели данных без жёсткой привязки к одной предметной области.
 
-### 4. Upgrade-safe расширяемость
+### 4. Встроенный legal-контур для пользователей
+
+В платформе есть штатная поддержка двух обязательных документов:
+
+- Политика в отношении обработки персональных данных;
+- Согласие на обработку персональных данных.
+
+Для пользователя сохраняется не только сам факт принятия, но и metadata:
+
+- дата и время;
+- IP;
+- user-agent;
+- версия документа.
+
+Это работает и в обычной регистрации, и в обязательном consent-gate для существующих аккаунтов.
+
+### 5. Upgrade-safe расширяемость
 
 Проектный код не должен жить в ядре.
 
@@ -74,7 +90,7 @@ property types -> properties -> sets -> category types -> categories -> pages
 - `app/` — маршруты, контроллеры, views, модульные `js/css`;
 - `custom/` — project-specific hooks, bootstrap и сервисные классы, которые не нужно терять при обновлении платформы.
 
-### 5. Production-oriented базовые подсистемы
+### 6. Production-oriented базовые подсистемы
 
 В ядре уже предусмотрены:
 
@@ -82,6 +98,8 @@ property types -> properties -> sets -> category types -> categories -> pages
 - логирование;
 - аутентификация и доступ;
 - routing cache и HTML cache;
+- агентный cron и очереди фоновой обработки;
+- резервное копирование через очередь и offsite targets SFTP/FTP;
 - lifecycle jobs;
 - операции обслуживания системы;
 - поисковая и фильтрационная подсистемы.
@@ -124,10 +142,28 @@ EE_FrameWork особенно хорошо подходит для:
 - `logs/`
 - `uploads/`
 
+Ядро само подготавливает обязательные runtime-директории при install/bootstrap-проверке:
+
+- `cache/`
+- `logs/`
+- `logs/errors/`
+- `uploads/`
+- `uploads/tmp/`
+- `uploads/tmp/backups/`
+- `uploads/files/`
+- `uploads/images/`
+- `uploads/images/avatars/`
+
 Практически лучше использовать:
 
 - общего владельца или общую группу для CLI и web;
 - SGID/наследование группы для `logs/` и `cache/`, чтобы фоновые задачи и веб не конфликтовали по правам.
+
+Важно:
+
+- после клона разработчик не должен править ядро;
+- штатно редактируется только `inc/configuration.php`;
+- если runtime-папка отсутствует или недоступна для записи, install-check завершится явной ошибкой.
 
 ### Минимальный запуск
 
@@ -153,10 +189,74 @@ php -S 127.0.0.1:8080 -t /var/www/html
 
 1. `index.php` проверяет окружение;
 2. подключается `inc/bootstrap.php`;
-3. вызывается runtime bootstrap;
-4. поднимаются core-сервисы и `custom/`;
-5. `Router` определяет контроллер и action;
-6. управление передаётся контроллеру.
+3. `inc/bootstrap.php` загружает чистый config из `inc/configuration.php`, вычисляет runtime-константы и подключает `inc/startup.php`;
+4. вызывается runtime bootstrap;
+5. поднимаются core-сервисы и `custom/`;
+6. `Router` определяет контроллер и action;
+7. управление передаётся контроллеру.
+
+Важно:
+
+- `inc/configuration.php` предназначен только для настроек;
+- runtime-хелперы, вычисляемые значения, redirect-политика и ранний bootstrap живут в `inc/bootstrap.php`.
+
+---
+
+## Схема БД И Развёртывание
+
+Единый install/deploy-источник схемы БД — это `classes/system/Users.php`, метод `createTables()`.
+
+Что это значит на практике:
+
+- install создаёт базовый набор таблиц через `Users::createTables()`;
+- subsystem-инфраструктура поднимается из install-контура с явным `force=true`;
+- runtime-сервисы больше не должны делать `CREATE TABLE`/`ALTER TABLE` во время обычных web/CLI-запросов.
+
+Роль файлов констант такая:
+
+- `classes/system/Constants.php` — рабочий файл констант ядра;
+- `classes/system/Constants_clean.php` — чистая копия для синхронизации и контроля изменений.
+
+Они не являются двумя разными механизмами схемы БД. Источник развёртывания один: install/deploy-контур ядра.
+
+---
+
+## Репозиторий И Runtime
+
+В GitHub-репозиторий должны попадать:
+
+- ядро фреймворка;
+- `custom/` как project layer;
+- документация;
+- hand-crafted артефакты проекта, если они нужны как часть исходников.
+
+В репозиторий не должны попадать:
+
+- `cache/`
+- `logs/`
+- `uploads/`
+- экспортные ZIP-пакеты
+- боевой `inc/configuration.php`
+
+`.gitignore` уже настроен под этот сценарий.
+
+---
+
+## Документация
+
+Продуктовая документация лежит в `custom/docs/`.
+
+Базовые разделы уже включают:
+
+- архитектуру;
+- routing;
+- content model;
+- импорт;
+- cron-агенты;
+- backup;
+- debug/health.
+
+`README.md` должен оставаться короткой входной точкой для разработчика, а подробные сценарии поддержки и эксплуатации — жить в `custom/docs/`.
 
 ---
 
@@ -221,6 +321,8 @@ class ControllerHello extends ControllerBase {
 /layouts/                  layout-шаблоны
 /assets/                   фронтовые и редакторские ассеты
 /uploads/                  пользовательские файлы
+/app/cron/                 только scheduler-wrapper'ы для реальных cron-задач
+/inc/cli.php               единый CLI entrypoint для cron, diagnostics и ops
 /error.php                 штатная обработка ошибок
 ```
 
@@ -329,6 +431,37 @@ class ControllerHello extends ControllerBase {
 - ротация;
 - удобный просмотр логов в админке.
 
+### CLI и фоновые задачи
+
+Для ручного запуска служебных команд и диагностики используется единый entrypoint:
+
+```bash
+php inc/cli.php help
+```
+
+Через него запускаются:
+
+- scheduler-команды;
+- diagnostics-команды;
+- operational health-check сценарии.
+
+Каталог `app/cron/` оставлен только для реальных scheduler-wrapper файлов, которые можно ставить в cron напрямую.
+
+В production используется один минутный entrypoint:
+
+```bash
+php app/cron/run.php
+```
+
+Он не содержит бизнес-логики сам по себе. Вместо этого:
+
+- расписание задач хранится в БД;
+- handler-код живёт в проекте;
+- агентами управляет админка `/admin/cron_agents`;
+- scheduler сам учитывает блокировки, лимиты нагрузки и stale recovery.
+
+Обязательные системные агенты для работы платформы создаются автоматически при развёртывании и первом bootstrap.
+
 ---
 
 ## Почему архитектура EE_FrameWork удобна в развитии
@@ -360,6 +493,7 @@ class ControllerHello extends ControllerBase {
 - [Hooks и custom-слой](custom/docs/05_Hooks.md)
 - [Импорт типов, свойств и наборов](custom/docs/10_Imports.md)
 - [Auth и доступ](custom/docs/06_Auth.md)
+- [Cron-агенты и scheduler](custom/docs/11_CronAgents.md)
 - [Кэширование](custom/docs/07_Cache.md)
 - [Отладка](custom/docs/08_Debug.md)
 - [API Reference](custom/docs/99_API_Reference.md)

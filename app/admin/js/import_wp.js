@@ -1,4 +1,7 @@
 ﻿$(document).ready(function() {
+    var t = function(key, fallback) {
+        return (window.AppCore && typeof AppCore.getLangVar === 'function' ? AppCore.getLangVar(key) : '') || fallback;
+    };
     function extractJsonObject(text, startIndex) {
         var start = parseInt(startIndex, 10);
         if (isNaN(start) || start < 0 || start >= text.length || text.charAt(start) !== '{') {
@@ -48,7 +51,7 @@
         var text = String(raw || '');
         var trimmed = text.trim();
         if (trimmed === '') {
-            throw new Error('Пустой ответ');
+            throw new Error(t('sys.empty_response', 'Empty response'));
         }
 
         try {
@@ -1218,29 +1221,29 @@
 
         var fileId = parseInt($('#file_id_package').val(), 10);
         if (isNaN(fileId) || fileId <= 0) {
-            blockers.push('Не загружен пакет импорта.');
+            blockers.push(t('sys.import_package_not_uploaded', 'Import package has not been uploaded.'));
         }
         if (metrics.enabledSources <= 0) {
-            blockers.push('Не выбран ни один источник для импорта.');
+            blockers.push(t('sys.import_source_none_selected', 'No source has been selected for import.'));
         }
         if (scope === 'content') {
             var coreCompletedAt = String($('#wizard_core_completed_at').val() || '').trim();
             if (!coreCompletedAt) {
-                blockers.push('Сначала нужно завершить этап 1 (структура свойств).');
+                blockers.push(t('sys.import_stage1_complete_first', 'Finish stage 1 (property structure) first.'));
             }
         }
         if (scope !== 'core') {
             if (metrics.typeRowsEnabled > 0 && metrics.typeRowsExplicit === 0) {
-                warnings.push('Для всех активных источников типы категорий будут создаваться автоматически.');
+                warnings.push(t('sys.import_types_auto_all', 'Category types will be created automatically for all active sources.'));
             } else if (metrics.typeRowsAuto > 0) {
-                warnings.push('Часть активных источников использует автосоздание типов категорий.');
+                warnings.push(t('sys.import_types_auto_partial', 'Some active sources use automatic category type creation.'));
             }
         }
         if (previewCounters.filtered > 0) {
-            warnings.push('Часть meta-ключей исключена фильтрами: ' + previewCounters.filtered + '.');
+            warnings.push(t('sys.import_meta_filtered_partial', 'Some meta keys are excluded by filters: ') + previewCounters.filtered + '.');
         }
         if (previewCounters.manual > 0) {
-            warnings.push('Часть meta-ключей исключена вручную: ' + previewCounters.manual + '.');
+            warnings.push(t('sys.import_meta_manual_partial', 'Some meta keys are excluded manually: ') + previewCounters.manual + '.');
         }
         if (previewCounters.disabled > 0) {
             warnings.push('В предпросмотре есть отключённые строки свойств: ' + previewCounters.disabled + '.');
@@ -1875,19 +1878,19 @@
                     appendLog($log, parsed.extra + '\n');
                 }
                 if (response.success) {
-                    appendLog($log, '\nПрофиль сохранён.\n');
-                    $status.text(response.message || 'Сохранено').css('color', 'green');
+                    appendLog($log, '\n' + t('sys.profile_saved', 'Profile saved.') + '\n');
+                    $status.text(response.message || t('sys.saved', 'Saved')).css('color', 'green');
                     window.location.href = '/admin/edit_import_wp/id/' + response.job_id;
                     return;
                 }
 
-                appendLog($log, '\nОШИБКА: ' + (response.message || 'Не удалось сохранить профиль') + '\n');
-                $status.text(response.message || 'Ошибка').css('color', 'red');
+                appendLog($log, '\n' + t('sys.error', 'Error') + ': ' + (response.message || t('sys.profile_save_failed', 'Failed to save profile')) + '\n');
+                $status.text(response.message || t('sys.error', 'Error')).css('color', 'red');
             },
             error: function(xhr, status, error) {
-                appendLog($log, '\nОШИБКА AJAX: ' + error + '\n');
+                appendLog($log, '\n' + t('sys.ajax_error', 'AJAX error') + ': ' + error + '\n');
                 appendLog($log, compactText(xhr && xhr.responseText ? xhr.responseText : '', 1200) + '\n');
-                $status.text('Ошибка AJAX').css('color', 'red');
+                $status.text(t('sys.ajax_error', 'AJAX error')).css('color', 'red');
             },
             complete: function() {
                 $btn.prop('disabled', false).html(originalText);

@@ -679,6 +679,10 @@ class ModelProperties {
      * @return mixed Р’РѕР·РІСЂР°С‰Р°РµС‚ РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ Р·Р°РїРёСЃРё РІ СЃР»СѓС‡Р°Рµ СѓСЃРїРµС…Р° РёР»Рё false РІ СЃР»СѓС‡Р°Рµ РѕС€РёР±РєРё
      */
     public function updatePropertiesValueEntities(array $propertyData = [], string $languageCode = ENV_DEF_LANG): OperationResult {
+        static $propertyEntityTypeCache = [];
+        static $propertyRowCache = [];
+        static $existingValueCache = [];
+
         $propertyData['property_values'] = !empty($propertyData['fields']) ? $propertyData['fields'] : (!empty($propertyData['property_values']) ? $propertyData['property_values'] : false);
         $propertyData = SafeMySQL::gi()->filterArray($propertyData, SysClass::ee_getFieldsTable(Constants::PROPERTY_VALUES_TABLE));
         $propertyData = SysClass::ee_trimArrayValues($propertyData);
@@ -686,20 +690,31 @@ class ModelProperties {
         if (empty($propertyData['entity_id']) || empty($propertyData['property_id']) || empty($propertyData['entity_type']) || empty($propertyData['property_values']) || empty($propertyData['set_id'])) {
             return OperationResult::validation('Не переданы обязательные поля для сохранения значения свойства', $propertyData);
         }
-        $propEntityType = SafeMySQL::gi()->getOne('SELECT entity_type FROM ?n WHERE property_id = ?i', Constants::PROPERTIES_TABLE, $propertyData['property_id']);
+        $propertyId = (int) $propertyData['property_id'];
+        if (!array_key_exists($propertyId, $propertyEntityTypeCache)) {
+            $propertyEntityTypeCache[$propertyId] = (string) SafeMySQL::gi()->getOne(
+                'SELECT entity_type FROM ?n WHERE property_id = ?i',
+                Constants::PROPERTIES_TABLE,
+                $propertyId
+            );
+        }
+        $propEntityType = $propertyEntityTypeCache[$propertyId];
         if ($propertyData['entity_type'] !== $propEntityType && $propEntityType !== 'all') {
             return OperationResult::failure('Свойство недоступно для указанного типа сущности', 'property_value_entity_type_mismatch', $propertyData);
         }
-        $propertyRow = SafeMySQL::gi()->getRow(
-            'SELECT p.name, p.type_id, p.default_values, p.is_multiple, p.is_required, pt.fields AS type_fields
-             FROM ?n AS p
-             LEFT JOIN ?n AS pt ON pt.type_id = p.type_id
-             WHERE p.property_id = ?i
-             LIMIT 1',
-            Constants::PROPERTIES_TABLE,
-            Constants::PROPERTY_TYPES_TABLE,
-            $propertyData['property_id']
-        );
+        if (!array_key_exists($propertyId, $propertyRowCache)) {
+            $propertyRowCache[$propertyId] = SafeMySQL::gi()->getRow(
+                'SELECT p.name, p.type_id, p.default_values, p.is_multiple, p.is_required, pt.fields AS type_fields
+                 FROM ?n AS p
+                 LEFT JOIN ?n AS pt ON pt.type_id = p.type_id
+                 WHERE p.property_id = ?i
+                 LIMIT 1',
+                Constants::PROPERTIES_TABLE,
+                Constants::PROPERTY_TYPES_TABLE,
+                $propertyId
+            );
+        }
+        $propertyRow = $propertyRowCache[$propertyId];
         if (!$propertyRow) {
             return OperationResult::failure('Свойство не найдено для сохранения значения', 'property_value_property_not_found', $propertyData);
         }
@@ -725,16 +740,33 @@ class ModelProperties {
         } else {
             $valueId = null;
         }
+        $existingValueCacheKey = implode('|', [
+            (int) $propertyData['entity_id'],
+            $propertyId,
+            (string) $propertyData['entity_type'],
+            (int) $propertyData['set_id'],
+            (string) $languageCode,
+        ]);
+        $existingValueRow = null;
         if (empty($valueId)) {
-            $valueId = (int) SafeMySQL::gi()->getOne(
-                            'SELECT value_id FROM ?n WHERE entity_id = ?i AND property_id = ?i AND entity_type = ?s AND set_id = ?i AND language_code = ?s LIMIT 1',
-                            Constants::PROPERTY_VALUES_TABLE,
-                            $propertyData['entity_id'],
-                            $propertyData['property_id'],
-                            $propertyData['entity_type'],
-                            $propertyData['set_id'],
-                            $languageCode
-                    );
+            if (!array_key_exists($existingValueCacheKey, $existingValueCache)) {
+                $existingValueCache[$existingValueCacheKey] = SafeMySQL::gi()->getRow(
+                    'SELECT value_id, property_values FROM ?n WHERE entity_id = ?i AND property_id = ?i AND entity_type = ?s AND set_id = ?i AND language_code = ?s LIMIT 1',
+                    Constants::PROPERTY_VALUES_TABLE,
+                    $propertyData['entity_id'],
+                    $propertyId,
+                    $propertyData['entity_type'],
+                    $propertyData['set_id'],
+                    $languageCode
+                );
+            }
+            $existingValueRow = is_array($existingValueCache[$existingValueCacheKey]) ? $existingValueCache[$existingValueCacheKey] : null;
+            $valueId = (int) ($existingValueRow['value_id'] ?? 0);
+        } elseif (array_key_exists($existingValueCacheKey, $existingValueCache) && is_array($existingValueCache[$existingValueCacheKey])) {
+            $existingValueRow = $existingValueCache[$existingValueCacheKey];
+        }
+        if ($existingValueRow !== null && (string) ($existingValueRow['property_values'] ?? '') === (string) $propertyData['property_values']) {
+            return OperationResult::success((int) $valueId, '', 'noop');
         }
         Hook::run('preUpdatePropertiesValueEntities', $valueId, $propertyData);
         if (!empty($valueId)) {
@@ -758,6 +790,10 @@ class ModelProperties {
                 'action' => $action,
             ]);
         }
+        $existingValueCache[$existingValueCacheKey] = [
+            'value_id' => (int) $valueId,
+            'property_values' => (string) $propertyData['property_values'],
+        ];
         Hook::run('postUpdatePropertiesValueEntities', $valueId, $propertyData, $action);
         return OperationResult::success((int) $valueId, '', $action);
     }

@@ -4,6 +4,9 @@ $documentLangCode = ee_get_current_lang_code();
 $documentLang = ee_get_lang_html_attr($documentLangCode);
 $documentLocale = ee_get_lang_locale($documentLangCode);
 $langBundleUrl = ee_get_lang_bundle_url($documentLangCode);
+$currentCanonical = trim((string) ($canonical_href ?? ENV_URL_SITE));
+$currentCanonical = $currentCanonical !== '' ? $currentCanonical : ENV_URL_SITE;
+$alternateHreflang = is_array($alternate_hreflang ?? null) ? $alternate_hreflang : [];
 ?>
 <html lang="<?= htmlspecialchars($documentLang, ENT_QUOTES, 'UTF-8') ?>">
     <head>
@@ -40,7 +43,7 @@ $langBundleUrl = ee_get_lang_bundle_url($documentLangCode);
         <meta property="og:image" content="<?= $imagePage ?>" />
         <meta property="og:image:width" content="1200" /> <!-- Ширина для Open Graph -->
         <meta property="og:image:height" content="630" />  <!-- Высота для Open Graph -->
-        <meta property="og:url" content="<?= ENV_URL_SITE ?>">
+        <meta property="og:url" content="<?= htmlspecialchars($currentCanonical, ENT_QUOTES, 'UTF-8') ?>">
         <meta name="twitter:site" content=""> <!-- аккаунт в Twitter -->
         <meta name="twitter:title" content="<?= $title ?>" />
         <meta name="twitter:description" content="<?= $description ?>" />
@@ -69,7 +72,11 @@ $langBundleUrl = ee_get_lang_bundle_url($documentLangCode);
         <!-- General Styles -->
         <link rel="stylesheet" href="<?= ENV_URL_SITE . '/' . ENV_APP_DIRECTORY ?>/admin/css/index.css" type="text/css" />				
         <!-- canonical -->
-        <link rel="canonical" href="<?= $canonical_href ?>" />
+        <link rel="canonical" href="<?= htmlspecialchars($currentCanonical, ENT_QUOTES, 'UTF-8') ?>" />
+        <?php foreach ($alternateHreflang as $alternateLink): ?>
+            <?php if (!is_array($alternateLink) || empty($alternateLink['hreflang']) || empty($alternateLink['href'])) { continue; } ?>
+            <link rel="alternate" hreflang="<?= htmlspecialchars((string) $alternateLink['hreflang'], ENT_QUOTES, 'UTF-8') ?>" href="<?= htmlspecialchars((string) $alternateLink['href'], ENT_QUOTES, 'UTF-8') ?>" />
+        <?php endforeach; ?>
         <!-- Добавленные стили из контроллера-->                
         <?= $add_style ?>
         <!-- END -->

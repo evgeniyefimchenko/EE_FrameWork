@@ -1,29 +1,52 @@
 <?php if (!defined('ENV_SITE')) exit(header('Location: /', true, 301));
 $uri = parse_url(__REQUEST['_SERVER']['REQUEST_URI'])['path'];
+$interfaceLanguageCodes = ee_get_interface_lang_codes();
+$currentInterfaceLanguageCode = ee_get_current_lang_code();
+$currentQuery = $_GET;
+unset($currentQuery['ui_lang']);
+$languageButtons = [];
+foreach ($interfaceLanguageCodes as $languageCode) {
+    $buttonClass = $languageCode === $currentInterfaceLanguageCode ? 'btn-primary active' : 'btn-outline-light';
+    $langQuery = array_merge($currentQuery, ['ui_lang' => $languageCode]);
+    $langUrl = $uri . (!empty($langQuery) ? '?' . http_build_query($langQuery) : '');
+    $languageButtons[] = '<a href="' . htmlspecialchars($langUrl, ENT_QUOTES) . '" class="btn btn-sm ' . $buttonClass . '" data-lang-switch data-langcode="'
+        . htmlspecialchars((string) $languageCode, ENT_QUOTES) . '">' . htmlspecialchars((string) $languageCode, ENT_QUOTES) . '</a>';
+}
+$toolbarHtml = '';
+if ($languageButtons !== []) {
+    $toolbarHtml = '<div class="d-flex flex-wrap align-items-center gap-2 ms-2 ms-lg-3">'
+        . '<span class="small text-light opacity-75">' . htmlspecialchars((string) ($lang['sys.interface_language'] ?? 'Interface language'), ENT_QUOTES) . ':</span>'
+        . '<div class="btn-group btn-group-sm" role="group" aria-label="' . htmlspecialchars((string) ($lang['sys.interface_language'] ?? 'Interface language'), ENT_QUOTES) . '">'
+        . implode('', $languageButtons)
+        . '</div></div>';
+}
 // Подготовка данных для верхней панели. Включает в себя бренд и меню пользователя.
 $topbarData = [
     'brand' => [
         'url' => ENV_URL_SITE,
         'name' => ENV_SITE_NAME
     ],
+    'searchPlaceholder' => (string) ($lang['sys.search_placeholder'] ?? 'Search...'),
+    'searchAriaLabel' => (string) ($lang['sys.search_placeholder'] ?? 'Search...'),
+    'toolbarHtml' => $toolbarHtml,
     'userMenu' => [// Меню пользователя с опциями
         [
-            'title' => 'Настройки',
+            'title' => (string) ($lang['sys.settings'] ?? 'Settings'),
             'link' => '/admin/user_edit'
         ],
         [
-            'title' => 'Сообщения',
+            'title' => (string) ($lang['sys.messages'] ?? 'Messages'),
             'link' => '/admin/messages'
         ],
         'divider',
         [
-            'title' => 'Начать тур',
+            'title' => (string) ($lang['sys.start_tour'] ?? 'Start tour'),
             'link' => 'javascript:void(0)',
             'meta' => 'onclick="$.cleanTour(\'' . $uri . '\'); location.reload();"'
         ],
         'divider',
         [
-            'title' => 'Выход',
+            'title' => (string) ($lang['sys.logout'] ?? 'Logout'),
             'link' => '/exit_login' 
         ]
     ]

@@ -303,26 +303,13 @@ class ClassMessages {
             return;
         }
 
-        SafeMySQL::gi()->query(
-            "CREATE TABLE IF NOT EXISTS ?n (
-               message_id int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
-               user_id int(11) UNSIGNED NOT NULL,
-               author_id int(11) UNSIGNED NOT NULL,
-               chat_id int(11) UNSIGNED NULL COMMENT 'Зарезервирован для групповых чатов',
-               message_text varchar(1000) NOT NULL,
-               created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-               read_at datetime DEFAULT NULL,
-               status varchar(10) NOT NULL DEFAULT 'info',
-               PRIMARY KEY (message_id),
-               KEY idx_users_message_user_read (user_id, read_at),
-               KEY idx_users_message_user_created (user_id, created_at),
-               CONSTRAINT fk_users_message_user FOREIGN KEY (user_id) REFERENCES ?n(user_id) ON DELETE CASCADE,
-               CONSTRAINT fk_users_message_author FOREIGN KEY (author_id) REFERENCES ?n(user_id) ON DELETE CASCADE
-           ) ENGINE=innodb DEFAULT CHARSET=utf8;",
-            Constants::USERS_MESSAGE_TABLE,
-            Constants::USERS_TABLE,
-            Constants::USERS_TABLE
+        $exists = (int) SafeMySQL::gi()->getOne(
+            'SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?s',
+            Constants::USERS_MESSAGE_TABLE
         );
+        if ($exists === 0) {
+            throw new \RuntimeException('Messages infrastructure is not installed. Run install/upgrade first.');
+        }
 
         self::$infrastructureReady = true;
     }

@@ -31,6 +31,14 @@ class BackupService {
             return;
         }
 
+        if (!$force) {
+            self::$infrastructureReady = self::hasRequiredInfrastructure();
+            if (!self::$infrastructureReady) {
+                throw new \RuntimeException('Backup infrastructure is not installed. Run install/upgrade first.');
+            }
+            return;
+        }
+
         self::createBackupTargetsTable();
         self::createBackupPlansTable();
         self::createBackupJobsTable();
@@ -1209,6 +1217,24 @@ class BackupService {
 
     private static function getBackupDirectory(): string {
         return rtrim((string) ENV_TMP_PATH, '/\\') . ENV_DIRSEP . 'backups';
+    }
+
+    private static function hasRequiredInfrastructure(): bool {
+        foreach ([
+            Constants::BACKUP_TARGETS_TABLE,
+            Constants::BACKUP_PLANS_TABLE,
+            Constants::BACKUP_JOBS_TABLE,
+        ] as $table) {
+            $exists = (int) SafeMySQL::gi()->getOne(
+                'SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?s',
+                $table
+            );
+            if ($exists === 0) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static function getLocalSnapshotsSummary(string $backupRoot): array {

@@ -179,7 +179,10 @@ final class PropertyFieldContract {
 
         $propertyName = self::normalizeDisplayText($propertyMeta['name'] ?? '');
         $required = self::toFlag($sourceItem['required'] ?? $existingItem['required'] ?? ($propertyMeta['is_required'] ?? 0));
-        $multiple = self::resolveMultipleFlag($type, $sourceItem['multiple'] ?? $existingItem['multiple'] ?? ($propertyMeta['is_multiple'] ?? 0));
+        $repeatableProperty = self::toFlag($propertyMeta['is_multiple'] ?? 0);
+        $multiple = $repeatableProperty
+            ? 1
+            : self::resolveMultipleFlag($type, $sourceItem['multiple'] ?? $existingItem['multiple'] ?? 0);
         $labelFallback = self::normalizeDisplayText($sourceItem['label'] ?? $existingItem['label'] ?? $propertyName);
         $titleFallback = self::normalizeDisplayText($sourceItem['title'] ?? $existingItem['title'] ?? '');
 
@@ -190,6 +193,7 @@ final class PropertyFieldContract {
             'title' => $titleFallback,
             'required' => $required,
             'multiple' => $multiple,
+            'repeatable_property' => $repeatableProperty,
         ];
 
         if (self::isChoiceType($type)) {
@@ -209,10 +213,15 @@ final class PropertyFieldContract {
     private static function hydrateRuntimeField(array $defaultField, array $storedItem): array {
         $runtime = $defaultField;
         $type = (string) ($defaultField['type'] ?? '');
+        $repeatableProperty = !empty($defaultField['repeatable_property']);
         if (self::isChoiceType((string) ($defaultField['type'] ?? ''))) {
             $sourceValue = array_key_exists('value', $storedItem)
                 ? $storedItem['value']
                 : ($storedItem['default'] ?? ($defaultField['default'] ?? []));
+            if ($repeatableProperty && $type !== 'checkbox') {
+                $runtime['value'] = self::normalizeScalarOrList($sourceValue, !empty($defaultField['multiple']));
+                return $runtime;
+            }
             $runtime['value'] = self::normalizeChoiceValue(
                 $sourceValue,
                 $defaultField,
@@ -236,6 +245,7 @@ final class PropertyFieldContract {
     private static function compactValueField(array $submittedItem, array $defaultField): array {
         $type = strtolower(trim((string) ($defaultField['type'] ?? 'text'))) ?: 'text';
         $uid = trim((string) ($defaultField['uid'] ?? $submittedItem['uid'] ?? ''));
+        $repeatableProperty = !empty($defaultField['repeatable_property']);
 
         $normalized = [
             'uid' => $uid,
@@ -246,6 +256,10 @@ final class PropertyFieldContract {
             $sourceValue = array_key_exists('value', $submittedItem)
                 ? $submittedItem['value']
                 : ($submittedItem['default'] ?? ($defaultField['default'] ?? []));
+            if ($repeatableProperty && $type !== 'checkbox') {
+                $normalized['value'] = self::normalizeScalarOrList($sourceValue, !empty($defaultField['multiple']));
+                return $normalized;
+            }
             $normalized['value'] = self::normalizeChoiceValue(
                 $sourceValue,
                 $defaultField,
@@ -463,6 +477,10 @@ final class PropertyFieldContract {
             if (!is_array($value)) {
                 return [self::normalizeScalar($value)];
             }
+            if (self::containsNestedArray($value)) {
+                $normalizedTree = self::normalizeNestedScalarTree($value);
+                return is_array($normalizedTree) ? $normalizedTree : [];
+            }
             $normalized = [];
             foreach ($value as $item) {
                 $item = self::normalizeScalar($item);
@@ -526,12 +544,61 @@ final class PropertyFieldContract {
     }
 
     private static function normalizeFileReferenceValue(mixed $value, bool $multiple): string|array {
+        if ($multiple && is_array($value) && self::containsNestedArray($value)) {
+            $normalizedTree = self::normalizeNestedFileReferenceTree($value);
+            return is_array($normalizedTree) ? $normalizedTree : [];
+        }
         $references = self::normalizeFileReferenceList($value);
         if ($multiple) {
             return $references;
         }
 
         return $references === [] ? '' : (string) reset($references);
+    }
+
+    private static function containsNestedArray(array $value): bool {
+        foreach ($value as $item) {
+            if (is_array($item)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static function normalizeNestedScalarTree(mixed $value): string|array {
+        if (!is_array($value)) {
+            return self::normalizeScalar($value);
+        }
+
+        $normalized = [];
+        foreach ($value as $item) {
+            $normalizedItem = self::normalizeNestedScalarTree($item);
+            if ($normalizedItem === '' || $normalizedItem === []) {
+                continue;
+            }
+            $normalized[] = $normalizedItem;
+        }
+        return array_values($normalized);
+    }
+
+    private static function normalizeNestedFileReferenceTree(mixed $value): string|array {
+        if (!is_array($value)) {
+            $references = self::normalizeFileReferenceList($value);
+            if ($references === []) {
+                return '';
+            }
+            return count($references) === 1 ? (string) reset($references) : array_values($references);
+        }
+
+        $normalized = [];
+        foreach ($value as $item) {
+            $normalizedItem = self::normalizeNestedFileReferenceTree($item);
+            if ($normalizedItem === '' || $normalizedItem === []) {
+                continue;
+            }
+            $normalized[] = $normalizedItem;
+        }
+        return array_values($normalized);
     }
 
     private static function normalizeScalar(mixed $value): string {

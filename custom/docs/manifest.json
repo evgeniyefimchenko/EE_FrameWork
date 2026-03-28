@@ -12,6 +12,7 @@
     "search-filters": "cache",
     "scheduler": "cron-agents",
     "cron": "cron-agents",
+    "backups": "backup",
     "deployment": "quick-start",
     "safepostgresql": "models",
     "api": "api-reference"
@@ -152,6 +153,15 @@
           "file": "10_Imports.md",
           "icon": "fa-file-import",
           "keywords": ["imports", "json", "property types", "property sets", "properties"]
+        },
+        {
+          "slug": "backup",
+          "title": "Резервное копирование",
+          "summary": "Очередь backup-задач, системный worker и удалённые профили SFTP/FTP.",
+          "description": "Как в EE_FrameWork устроены локальные snapshot-ы, offsite upload и retention backup-подсистемы.",
+          "file": "12_Backup.md",
+          "icon": "fa-box-archive",
+          "keywords": ["backup", "sftp", "ftp", "snapshot", "retention", "offsite"]
         }
       ]
     },

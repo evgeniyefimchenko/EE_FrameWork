@@ -2,6 +2,7 @@
 
 use classes\plugins\SafeMySQL;
 use classes\system\Constants;
+use classes\system\EntitySlugService;
 use classes\system\EntityTranslationService;
 use classes\system\SysClass;
 use classes\system\Hook;
@@ -218,18 +219,35 @@ class ModelPages {
                 }
                 $pageId = $pageData['page_id'];
                 $oldPageRow = SafeMySQL::gi()->getRow(
-                    'SELECT category_id, parent_page_id, language_code FROM ?n WHERE page_id = ?i LIMIT 1',
+                    'SELECT category_id, parent_page_id, language_code, slug, route_path FROM ?n WHERE page_id = ?i LIMIT 1',
                     Constants::PAGES_TABLE,
                     $pageId
                 ) ?: null;
                 $oldCategoryId = (int) ($oldPageRow['category_id'] ?? 0);
+                $method = 'update';
+            } else {
+                $method = 'insert';
+                $pageId = 0;
+            }
+
+            if (is_array($oldPageRow) && empty($pageData['slug'])) {
+                $pageData['slug'] = (string) ($oldPageRow['slug'] ?? '');
+            }
+            $pageData['slug'] = EntitySlugService::generatePageSlug($pageData, $pageId > 0 ? $pageId : null);
+            if (is_array($oldPageRow) && !array_key_exists('route_path', $pageData)) {
+                $pageData['route_path'] = (string) ($oldPageRow['route_path'] ?? '');
+            }
+            $pageData['route_path'] = EntitySlugService::generatePageRoutePath($pageData, $pageId > 0 ? $pageId : null);
+            if ((string) ($pageData['route_path'] ?? '') === '') {
+                $pageData['route_path'] = null;
+            }
+
+            if ($method === 'update') {
                 unset($pageData['page_id']);
                 $sql = "UPDATE ?n SET ?u WHERE page_id = ?i";
                 $result = SafeMySQL::gi()->query($sql, Constants::PAGES_TABLE, $pageData, $pageId);
-                $method = 'update';
             } else {
                 unset($pageData['page_id']);
-                $method = 'insert';
                 $sql = "INSERT INTO ?n SET ?u";
                 $result = SafeMySQL::gi()->query($sql, Constants::PAGES_TABLE, $pageData);
                 $pageId = SafeMySQL::gi()->insertId();

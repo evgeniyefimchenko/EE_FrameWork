@@ -27,13 +27,15 @@ trait CategoriesTrait {
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect(200, '/show_login_form?return=admin/categories');
         }
-        $currentUiLanguageCode = $this->syncAdminUiLanguageFromRequest();
+        $currentContentLanguageCode = ee_get_default_content_lang_code((string) ($_GET['language_code'] ?? \classes\system\Session::get('admin_categories_lang')));
+        \classes\system\Session::set('admin_categories_lang', $currentContentLanguageCode);
         /* view */
         $this->getStandardViews();
-        $categories_table = $this->getCategoriesDataTable();
+        $categories_table = $this->getCategoriesDataTable([], $currentContentLanguageCode);
         $this->view->set('categories_table', $categories_table);
-        $this->view->set('availableLanguageCodes', \classes\system\Lang::getLangFilesWithoutExtension());
-        $this->view->set('currentUiLanguageCode', $currentUiLanguageCode);
+        $this->view->set('availableContentLanguageCodes', ee_get_content_lang_codes());
+        $this->view->set('currentContentLanguageCode', $currentContentLanguageCode);
+        $this->view->set('defaultContentLanguageCode', ee_get_default_content_lang_code());
         $this->view->set('languageSwitchBaseUrl', '/admin/categories');
         $this->view->set('body_view', $this->view->read('v_categories'));
         $this->html = $this->view->read('v_dashboard');
@@ -96,16 +98,18 @@ trait CategoriesTrait {
                 $categoryId
             ) ?: ''))
             : '';
-        $currentUiLanguageCode = $this->getAdminUiLanguageCode();
-        $languageCode = strtoupper(trim((string)($postData['language_code'] ?? ($requestedLanguageCode ?: ($entityLanguageCode ?: $currentUiLanguageCode)))));
+        $defaultContentLanguageCode = ee_get_default_content_lang_code((string) (\classes\system\Session::get('admin_categories_lang') ?: ''));
+        $languageCode = strtoupper(trim((string)($postData['language_code'] ?? ($requestedLanguageCode ?: ($entityLanguageCode ?: $defaultContentLanguageCode)))));
         if ($languageCode === '') {
-            $languageCode = $entityLanguageCode !== '' ? $entityLanguageCode : $currentUiLanguageCode;
+            $languageCode = $entityLanguageCode !== '' ? $entityLanguageCode : $defaultContentLanguageCode;
         }
+        $languageCode = ee_get_default_content_lang_code($languageCode);
+        \classes\system\Session::set('admin_categories_lang', $languageCode);
         if (!empty($postData) && $languageCode !== '') {
             $postData['language_code'] = $languageCode;
         }
         if ($newEntity && $translationSourceId > 0 && empty($postData)) {
-            $draftPayload = $this->prepareCategoryTranslationDraft($translationSourceId, $languageCode ?: ENV_DEF_LANG);
+            $draftPayload = $this->prepareCategoryTranslationDraft($translationSourceId, $languageCode ?: ee_get_default_content_lang_code());
             if (!empty($draftPayload['redirect'])) {
                 SysClass::handleRedirect(200, $draftPayload['redirect']);
                 return;
@@ -128,7 +132,7 @@ trait CategoriesTrait {
                 $postData['description'] = \classes\system\FileSystem::extractBase64Images($postData['description']);
             }
             $saveResult = $this->notifyOperationResult(
-                $this->models['m_categories']->updateCategoryData($postData, $languageCode ?: ENV_DEF_LANG),
+                $this->models['m_categories']->updateCategoryData($postData, $languageCode ?: ee_get_default_content_lang_code()),
                 [
                     'success_message' => $this->lang['sys.saved'] ?? 'Категория сохранена',
                     'default_error_message' => 'Ошибка сохранения категории',
@@ -154,46 +158,46 @@ trait CategoriesTrait {
                 $this->processPostParams($postData, $newEntity, $categoryId);
             }
         }
-        $getCategoryData = ($categoryId > 0 ? $this->models['m_categories']->getCategoryData($categoryId, $languageCode ?: ENV_DEF_LANG) : null) ?: $defaultData;
+        $getCategoryData = ($categoryId > 0 ? $this->models['m_categories']->getCategoryData($categoryId, $languageCode ?: ee_get_default_content_lang_code()) : null) ?: $defaultData;
         if (empty($this->models['m_categories'])) {
             $this->loadModel('m_categories');
         }
         if (empty($this->models['m_categories_types'])) {
             $this->loadModel('m_categories_types');
         }
-        $categories_tree = $this->models['m_categories']->getCategoriesTree($categoryId, null, null, $languageCode ?: ENV_DEF_LANG);
-        $fullCategoriesTree = $this->models['m_categories']->getCategoriesTree(null, null, null, $languageCode ?: ENV_DEF_LANG);
-        $categoryPages = ($categoryId > 0) ? $this->models['m_categories']->getCategoryPages($categoryId, $languageCode ?: ENV_DEF_LANG) : [];
+        $categories_tree = $this->models['m_categories']->getCategoriesTree($categoryId, null, null, $languageCode ?: ee_get_default_content_lang_code());
+        $fullCategoriesTree = $this->models['m_categories']->getCategoriesTree(null, null, null, $languageCode ?: ee_get_default_content_lang_code());
+        $categoryPages = ($categoryId > 0) ? $this->models['m_categories']->getCategoryPages($categoryId, $languageCode ?: ee_get_default_content_lang_code()) : [];
         $currentTypeId = $getCategoryData['type_id'] ?? 0;
         $parentCategoryId = $getCategoryData['parent_id'] ?? 0;
         $getCategoriesTypeSets = ($currentTypeId > 0) ? $this->models['m_categories_types']->getCategoriesTypeSetsData($currentTypeId) : [];
         $getAllTypes = [];
         if ($parentCategoryId > 0) {
-            $parentTypeId = $this->models['m_categories']->getCategoryTypeId($parentCategoryId, $languageCode ?: ENV_DEF_LANG);
+            $parentTypeId = $this->models['m_categories']->getCategoryTypeId($parentCategoryId, $languageCode ?: ee_get_default_content_lang_code());
             if (method_exists($this->models['m_categories_types'], 'getAllTypes')) {
-                $getAllTypes = $this->models['m_categories_types']->getAllTypes(false, false, $parentTypeId, $languageCode ?: ENV_DEF_LANG);
+                $getAllTypes = $this->models['m_categories_types']->getAllTypes(false, false, $parentTypeId, $languageCode ?: ee_get_default_content_lang_code());
             }
         } else {
             if (method_exists($this->models['m_categories_types'], 'getAllTypes')) {
-                $getAllTypes = $this->models['m_categories_types']->getAllTypes(false, false, null, $languageCode ?: ENV_DEF_LANG);
+                $getAllTypes = $this->models['m_categories_types']->getAllTypes(false, false, null, $languageCode ?: ee_get_default_content_lang_code());
             }
         }
         $getCategoriesTypeSetsData = [];
         if (!empty($getCategoriesTypeSets) && $categoryId > 0) {
-            $getCategoriesTypeSetsData = $this->formattingEntityProperties($getCategoriesTypeSets, $categoryId, 'category', $getCategoryData['title'] ?? '', $languageCode ?: ENV_DEF_LANG);
+            $getCategoriesTypeSetsData = $this->formattingEntityProperties($getCategoriesTypeSets, $categoryId, 'category', $getCategoryData['title'] ?? '', $languageCode ?: ee_get_default_content_lang_code());
         }
-        $availableLanguageCodes = \classes\system\Lang::getLangFilesWithoutExtension();
+        $contentLanguageCodes = ee_get_content_lang_codes();
         $translationUi = (int) $categoryId > 0
-            ? $this->buildCategoryTranslationUi((int) $categoryId, $languageCode ?: ENV_DEF_LANG, $availableLanguageCodes)
-            : $this->buildCategoryTranslationDraftUi($translationSourceId, $languageCode ?: ENV_DEF_LANG, $availableLanguageCodes);
+            ? $this->buildCategoryTranslationUi((int) $categoryId, $languageCode ?: ee_get_default_content_lang_code(), $contentLanguageCodes)
+            : $this->buildCategoryTranslationDraftUi($translationSourceId, $languageCode ?: ee_get_default_content_lang_code(), $contentLanguageCodes);
         $this->view->set('categoryData', $getCategoryData);
         $this->view->set('categories_tree', $categories_tree);
         $this->view->set('fullCategoriesTree', $fullCategoriesTree);
         $this->view->set('categoryPages', $categoryPages);
         $this->view->set('categoriesTypeSetsData', $getCategoriesTypeSetsData);
         $this->view->set('allType', $getAllTypes);
-        $this->view->set('availableLanguageCodes', $availableLanguageCodes);
-        $this->view->set('currentLanguageCode', $languageCode ?: ENV_DEF_LANG);
+        $this->view->set('contentLanguageCodes', $contentLanguageCodes);
+        $this->view->set('currentLanguageCode', $languageCode ?: ee_get_default_content_lang_code());
         $this->view->set('languageSwitchBaseUrl', '/admin/category_edit/id/' . (int) $categoryId);
         $this->view->set('translationUi', $translationUi);
         $this->view->set('translationSourceId', $translationSourceId);
@@ -327,7 +331,7 @@ trait CategoriesTrait {
     /**
      * Вернёт таблицу категоий
      */
-    public function getCategoriesDataTable(array $params = []): string {
+    public function getCategoriesDataTable(array $params = [], ?string $contentLanguageCode = null): string {
         $this->access = [Constants::ADMIN, Constants::MODERATOR];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect();
@@ -335,7 +339,8 @@ trait CategoriesTrait {
         }
         $this->loadModel('m_categories');
         $postData = SysClass::ee_cleanArray($_POST);
-        $languageCode = $this->getAdminUiLanguageCode();
+        $languageCode = ee_get_default_content_lang_code((string) ($contentLanguageCode ?: \classes\system\Session::get('admin_categories_lang')));
+        \classes\system\Session::set('admin_categories_lang', $languageCode);
         // SysClass::pre($postData);
         $data_table = [
             'columns' => [
@@ -445,7 +450,7 @@ trait CategoriesTrait {
         }
         $categoryIds = array_values(array_filter(array_map(static fn(array $item): int => (int) ($item['category_id'] ?? 0), $category_array['data'])));
         $translationsByCategoryId = EntityTranslationService::getTranslationsByEntityIds('category', $categoryIds);
-        $availableLanguageCodes = \classes\system\Lang::getLangFilesWithoutExtension();
+        $availableLanguageCodes = ee_get_content_lang_codes();
         foreach ($category_array['data'] as $item) {
             $data_table['rows'][] = [
                 'category_id' => $item['category_id'],
@@ -477,13 +482,13 @@ trait CategoriesTrait {
     }
 
     private function prepareCategoryTranslationDraft(int $sourceCategoryId, string $targetLanguageCode): array {
-        $targetLanguageCode = strtoupper(trim($targetLanguageCode));
+        $targetLanguageCode = ee_get_default_content_lang_code($targetLanguageCode);
         $sourceCategoryRow = EntityTranslationService::getEntityRow('category', $sourceCategoryId);
         if (!is_array($sourceCategoryRow) || empty($sourceCategoryRow['category_id'])) {
             return [];
         }
 
-        $sourceLanguageCode = strtoupper((string) ($sourceCategoryRow['language_code'] ?? ENV_DEF_LANG));
+        $sourceLanguageCode = ee_get_default_content_lang_code((string) ($sourceCategoryRow['language_code'] ?? ''));
         if ($targetLanguageCode === '') {
             $targetLanguageCode = $sourceLanguageCode;
         }
@@ -526,6 +531,7 @@ trait CategoriesTrait {
     }
 
     private function buildCategoryTranslationUi(int $categoryId, string $currentLanguageCode, array $availableLanguageCodes): array {
+        $availableLanguageCodes = ee_collect_lang_codes($availableLanguageCodes);
         $state = EntityTranslationService::getTranslationState('category', $categoryId, $availableLanguageCodes);
         if ($state === []) {
             return [];
@@ -563,6 +569,7 @@ trait CategoriesTrait {
     }
 
     private function buildCategoryTranslationDraftUi(int $translationSourceId, string $currentLanguageCode, array $availableLanguageCodes): array {
+        $availableLanguageCodes = ee_collect_lang_codes($availableLanguageCodes);
         if ($translationSourceId <= 0) {
             return [];
         }
@@ -580,6 +587,7 @@ trait CategoriesTrait {
     }
 
     private function renderCategoryTranslationBadges(int $categoryId, array $translationState, array $availableLanguageCodes): string {
+        $availableLanguageCodes = ee_collect_lang_codes($availableLanguageCodes);
         $badges = [];
         $translations = (array) ($translationState['translations'] ?? []);
 

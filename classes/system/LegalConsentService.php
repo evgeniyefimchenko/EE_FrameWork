@@ -18,6 +18,14 @@ class LegalConsentService {
             return;
         }
 
+        if (!$force) {
+            self::$infrastructureReady = self::usersTableHasConsentColumns();
+            if (!self::$infrastructureReady) {
+                throw new \RuntimeException('Legal consent infrastructure is not installed. Run install/upgrade first.');
+            }
+            return;
+        }
+
         $table = Constants::USERS_TABLE;
         SafeMySQL::gi()->query('ALTER TABLE ?n ADD COLUMN IF NOT EXISTS privacy_policy_accepted TINYINT(1) NOT NULL DEFAULT 0 AFTER subscribed', $table);
         SafeMySQL::gi()->query('ALTER TABLE ?n ADD COLUMN IF NOT EXISTS privacy_policy_accepted_at DATETIME NULL AFTER privacy_policy_accepted', $table);
@@ -207,6 +215,29 @@ class LegalConsentService {
             'SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?s',
             $table
         ) > 0;
+    }
+
+    private static function usersTableHasConsentColumns(): bool {
+        $requiredColumns = [
+            'privacy_policy_accepted',
+            'privacy_policy_accepted_at',
+            'privacy_policy_accept_ip',
+            'privacy_policy_accept_user_agent',
+            'privacy_policy_version',
+            'personal_data_consent_accepted',
+            'personal_data_consent_accepted_at',
+            'personal_data_consent_accept_ip',
+            'personal_data_consent_accept_user_agent',
+            'personal_data_consent_version',
+        ];
+
+        $count = (int) SafeMySQL::gi()->getOne(
+            'SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?s AND COLUMN_NAME IN (?a)',
+            Constants::USERS_TABLE,
+            $requiredColumns
+        );
+
+        return $count === count($requiredColumns);
     }
 
     private static function getCurrentUserAgent(): ?string {

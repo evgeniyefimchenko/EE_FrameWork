@@ -492,6 +492,7 @@ class FileSystem {
                     self::notifyFileIssue($message, $file, Logger::LEVEL_ERROR, 'danger', __FUNCTION__);
                     return NULL;
                 } else {
+                    self::ensureReadableStoragePermissions($destination);
                     $fileData['name'] = $fileName;
                     $fileData['file_path'] = $destination;
                     $fileData['file_url'] = $storage['public_directory_url'] . '/' . $fileName;
@@ -672,6 +673,7 @@ class FileSystem {
                 }
                 @unlink($tmpFilePath);
             }
+            self::ensureReadableStoragePermissions($destination);
 
             $fileData = [
                 'name' => $fileName,
@@ -810,6 +812,7 @@ class FileSystem {
                 'is_terminal' => false,
             ];
         }
+        self::ensureReadableStoragePermissions($tmpFilePath);
 
         return [
             'success' => true,
@@ -1100,7 +1103,24 @@ class FileSystem {
             self::notifyFileIssue($message, $file, Logger::LEVEL_ERROR, 'danger', __FUNCTION__);
             return false;
         }
+        self::ensureReadableStoragePermissions($destination);
         return true;
+    }
+
+    private static function ensureReadableStoragePermissions(string $path): void {
+        $path = trim($path);
+        if ($path === '') {
+            return;
+        }
+
+        $directory = is_dir($path) ? $path : dirname($path);
+        if ($directory !== '' && is_dir($directory)) {
+            @chmod($directory, 0755);
+        }
+
+        if (is_file($path)) {
+            @chmod($path, 0644);
+        }
     }
 
     /**
@@ -1386,7 +1406,7 @@ class FileSystem {
                 ];
             }
 
-            $missingUrl = self::getPublicBaseUrl() . '/uploads/images/image_collections/no-image.svg';
+            $missingUrl = self::getPublicBaseUrl() . '/assets/images/system/no-image.svg';
             return [
                 'kind' => 'missing_local',
                 'reference' => (string) $fileId,

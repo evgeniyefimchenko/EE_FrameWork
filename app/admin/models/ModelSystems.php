@@ -91,6 +91,7 @@ class ModelSystems {
             Constants::FILES_TABLE,
             Constants::SEARCH_INDEX_TABLE,
             Constants::FILTERS_TABLE,
+            Constants::IMPORT_MAP_TABLE,
         ];
         $authTables = [
             Constants::USERS_AUTH_SESSIONS_TABLE,
@@ -109,11 +110,12 @@ class ModelSystems {
             $tablesState[$tableName] = $this->tableExists($tableName);
         }
 
+        $runtimeDirectories = SysClass::getRequiredRuntimeDirectories();
         $paths = [
-            'cache' => $this->getPathHealth(rtrim((string) ENV_CACHE_PATH, '/\\')),
-            'logs' => $this->getPathHealth(rtrim((string) ENV_LOGS_PATH, '/\\')),
-            'tmp' => $this->getPathHealth(rtrim((string) ENV_TMP_PATH, '/\\')),
-            'uploads' => $this->getPathHealth(rtrim((string) (ENV_SITE_PATH . 'uploads'), '/\\')),
+            'cache' => $this->getPathHealth((string) ($runtimeDirectories['cache'] ?? '')),
+            'logs' => $this->getPathHealth((string) ($runtimeDirectories['logs'] ?? '')),
+            'tmp' => $this->getPathHealth((string) ($runtimeDirectories['uploads_tmp'] ?? '')),
+            'uploads' => $this->getPathHealth((string) ($runtimeDirectories['uploads'] ?? '')),
             'config' => $this->getPathHealth((string) (ENV_SITE_PATH . 'inc' . ENV_DIRSEP . 'configuration.php')),
         ];
 

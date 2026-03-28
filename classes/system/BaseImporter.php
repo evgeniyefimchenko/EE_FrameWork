@@ -15,8 +15,12 @@ abstract class BaseImporter {
     protected $settings;
 
     public function __construct(array $settings) {
-        $this->job_id = (int)$settings['job_id'];
-        $this->settings = $settings;
+        $this->settings = $this->normalizeSettings($settings);
+        $this->job_id = (int)($this->settings['job_id'] ?? 0);
+
+        if (!defined('ENV_BULK_IMPORT_MODE')) {
+            define('ENV_BULK_IMPORT_MODE', true);
+        }
         
         // Используем ENV_LOGS_PATH, как вы и просили
         self::$logDir = rtrim(ENV_LOGS_PATH, '/\\') . ENV_DIRSEP . 'import' . ENV_DIRSEP;
@@ -31,13 +35,37 @@ abstract class BaseImporter {
         \classes\helpers\ClassNotifications::$logCallback = [$this, 'log'];
     }
 
+    private function normalizeSettings(array $settings): array {
+        $decodedSettings = [];
+        if (!empty($settings['settings_json']) && is_string($settings['settings_json'])) {
+            $decoded = json_decode($settings['settings_json'], true);
+            if (is_array($decoded)) {
+                $decodedSettings = $decoded;
+            }
+        }
+
+        $normalized = array_merge($settings, $decodedSettings);
+        if (!isset($normalized['job_id'])) {
+            $normalized['job_id'] = (int)($settings['id'] ?? 0);
+        }
+        if (!isset($normalized['settings_name'])) {
+            $normalized['settings_name'] = (string)($settings['settings_name'] ?? $settings['name'] ?? 'manual');
+        }
+        if (!isset($normalized['importer_slug']) && isset($settings['importer_slug'])) {
+            $normalized['importer_slug'] = (string)$settings['importer_slug'];
+        }
+
+        return $normalized;
+    }
+
     /**
      * Главный метод запуска
      */
     public function run() {
         $startTime = microtime(true);
+        $settingsName = htmlspecialchars((string)($this->settings['settings_name'] ?? 'manual'));
         $this->log("==================================================");
-        $this->log("Начало импорта: " . get_class($this) . " (Профиль: " . htmlspecialchars($this->settings['settings_name']) . " [ID: {$this->job_id}])");
+        $this->log("Начало импорта: " . get_class($this) . " (Профиль: " . $settingsName . " [ID: {$this->job_id}])");
         
         SafeMySQL::gi()->query("UPDATE ?n SET `last_run_at` = CURRENT_TIMESTAMP WHERE id = ?i", Constants::IMPORT_SETTINGS_TABLE, $this->job_id);
         

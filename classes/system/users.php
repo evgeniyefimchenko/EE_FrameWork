@@ -12,7 +12,7 @@ use classes\helpers\ClassMail;
  */
 class Users {
 
-    const BASE_OPTIONS_USER = '{"localize": "", "user_logo_img": "uploads/images/avatars/face-0-lite.jpg","user_img": "/uploads/images/avatars/face-0.jpg",'
+    const BASE_OPTIONS_USER = '{"localize": "", "user_logo_img": "assets/images/system/avatars/face-0-lite.jpg","user_img": "/assets/images/system/avatars/face-0.jpg",'
             . '"skin": "skin-default", "auth": {"require_password_setup": 0, "password_setup_reason": "", "last_password_prompt_at": null, "ip_restricted": 0}}';
 
     public $lang = []; // Языковые переменные для текущего класса
@@ -35,9 +35,9 @@ class Users {
             LegalConsentService::ensureInfrastructure();
         }
         if (empty($userId) && !$create_table) {
-            $user_lang = ENV_DEF_LANG;
+            $user_lang = ee_detect_interface_lang_code();
         } else {
-            $user_lang = Session::get('lang') ?: ENV_DEF_LANG;
+            $user_lang = Session::get('lang') ?: ee_detect_interface_lang_code();
         }
         $this->data = $this->getUserData($userId, $create_table);
         $this->lang = !empty($user_lang) ? Lang::init($user_lang) : [];
@@ -77,10 +77,8 @@ class Users {
                 $resArray = $this->applyConsentState($resArray);
             }
         } else {
-            $this->createTables(); //создаём необходимый набор таблиц в БД и первого пользователя с ролью администратора
-            $this->registrationNewUser(array('name' => 'admin', 'email' => 'test@test.com', 'active' => '2', 'user_role' => '1', 'subscribed' => '0', 'privacy_policy_accepted' => 1, 'personal_data_consent_accepted' => 1, 'comment' => 'Смените пароль администратора', 'pwd' => 'admin', 'skip_auth_password_setup' => 1), true);
-            $this->registrationNewUser(array('name' => 'moderator', 'email' => 'test_moderator@test.com', 'active' => '2', 'user_role' => '2', 'subscribed' => '0', 'privacy_policy_accepted' => 1, 'personal_data_consent_accepted' => 1, 'comment' => 'Смените пароль модератора', 'pwd' => 'moderator', 'skip_auth_password_setup' => 1), true);
-            $this->registrationNewUser(array('name' => 'system', 'email' => 'dont-answer@' . ENV_SITE_NAME, 'active' => '2', 'user_role' => '8', 'subscribed' => '0', 'privacy_policy_accepted' => 1, 'personal_data_consent_accepted' => 1, 'comment' => '', 'pwd' => '', 'skip_auth_password_setup' => 1), true);
+            $this->createTables(); //создаём необходимый набор таблиц в БД и первых системных пользователей
+            $this->seedBootstrapUsers();
         }
         return $resArray;
     }
@@ -387,8 +385,87 @@ class Users {
     public function getAdminProfile() {
         $sql = 'SELECT 1 FROM ?n WHERE user_role = 1 LIMIT 1';
         if (!SafeMySQL::gi()->getOne($sql, Constants::USERS_TABLE)) {
-            $this->registrationNewUser(array('name' => 'admin', 'email' => 'test@test.com', 'active' => '2', 'user_role' => '1', 'subscribed' => '0', 'privacy_policy_accepted' => 1, 'personal_data_consent_accepted' => 1, 'comment' => 'Смените пароль администратора', 'pwd' => 'admin', 'skip_auth_password_setup' => 1), true);
+            $this->seedBootstrapUsers();
         }
+    }
+
+    private function seedBootstrapUsers(): void {
+        $adminEmail = $this->getBootstrapAdminEmail();
+        $moderatorEmail = $this->getBootstrapModeratorEmail();
+
+        $this->registrationNewUser([
+            'name' => 'admin',
+            'email' => $adminEmail,
+            'active' => '2',
+            'user_role' => (string) Constants::ADMIN,
+            'subscribed' => '0',
+            'privacy_policy_accepted' => 1,
+            'personal_data_consent_accepted' => 1,
+            'comment' => 'Смените пароль администратора',
+            'pwd' => $this->getBootstrapUserPassword('admin'),
+            'skip_auth_password_setup' => 1,
+        ], true);
+
+        if ($moderatorEmail !== '' && $moderatorEmail !== $adminEmail) {
+            $this->registrationNewUser([
+                'name' => 'moderator',
+                'email' => $moderatorEmail,
+                'active' => '2',
+                'user_role' => (string) Constants::MODERATOR,
+                'subscribed' => '0',
+                'privacy_policy_accepted' => 1,
+                'personal_data_consent_accepted' => 1,
+                'comment' => 'Смените пароль модератора',
+                'pwd' => $this->getBootstrapUserPassword('moderator'),
+                'skip_auth_password_setup' => 1,
+            ], true);
+        }
+
+        $this->registrationNewUser([
+            'name' => 'system',
+            'email' => 'dont-answer@' . ENV_SITE_NAME,
+            'active' => '2',
+            'user_role' => (string) Constants::SYSTEM,
+            'subscribed' => '0',
+            'privacy_policy_accepted' => 1,
+            'personal_data_consent_accepted' => 1,
+            'comment' => '',
+            'pwd' => '',
+            'skip_auth_password_setup' => 1,
+        ], true);
+    }
+
+    private function getBootstrapAdminEmail(): string {
+        $email = trim((string) ENV_ADMIN_EMAIL);
+        if ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return mb_strtolower($email);
+        }
+
+        return 'admin@' . ENV_SITE_NAME;
+    }
+
+    private function getBootstrapModeratorEmail(): string {
+        $email = trim((string) ENV_SUPPORT_EMAIL);
+        if ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return mb_strtolower($email);
+        }
+
+        return 'moderator@' . ENV_SITE_NAME;
+    }
+
+    private function getBootstrapUserPassword(string $role): string {
+        $role = strtolower(trim($role));
+        $configPassword = match ($role) {
+            'admin' => defined('ENV_INSTALL_ADMIN_PASSWORD') ? trim((string) ENV_INSTALL_ADMIN_PASSWORD) : '',
+            'moderator' => defined('ENV_INSTALL_MODERATOR_PASSWORD') ? trim((string) ENV_INSTALL_MODERATOR_PASSWORD) : '',
+            default => '',
+        };
+
+        if ($configPassword !== '') {
+            return $configPassword;
+        }
+
+        return substr(hash('sha256', (string) ENV_SECRET_KEY . '|bootstrap|' . $role), 0, 16);
     }
 
     public function hasAnotherActiveUserWithRole(int $roleId, int $excludeUserId = 0): bool {
@@ -611,6 +688,7 @@ class Users {
             $this->createCategoriesTypesTable();
             $this->createCategoriesTable();
             $this->createPagesTable();
+            $this->createEntitySlugInfrastructure();
             $this->createEntityTranslationsTable();
             $this->createPageUserLinksTable();
             $this->createPropertyTypesTable();
@@ -633,6 +711,7 @@ class Users {
             $this->createSearchNgramsTable();
             $this->createSearchLogTable();
             $this->createImportTable();
+            $this->createImportMapTable();
             $this->createCronAgentsInfrastructure();
             // Вставка начальных данных            
             $this->insertDefaultEmailSnippets();
@@ -655,6 +734,9 @@ class Users {
     }
 
     private function logUserAudit(string $initiator, string $message, array $context = []): void {
+        if (defined('ENV_BULK_IMPORT_MODE') && ENV_BULK_IMPORT_MODE === true) {
+            return;
+        }
         $this->logUserEvent(Logger::LEVEL_AUDIT, 'users_info', $initiator, $message, $context, false);
     }
 
@@ -701,6 +783,26 @@ class Users {
             `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         ) ENGINE=innodb DEFAULT CHARSET=utf8mb4 COMMENT='Профили настроек импорта';";
         SafeMySQL::gi()->query($sql, Constants::IMPORT_SETTINGS_TABLE);
+    }
+
+    /**
+     * Создаёт таблицу карты импорта source_id -> local_id.
+     */
+    private function createImportMapTable(): void {
+        $sql = "CREATE TABLE IF NOT EXISTS ?n (
+            `map_id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            `job_id` INT UNSIGNED NOT NULL,
+            `source_key` VARCHAR(128) NOT NULL,
+            `map_type` VARCHAR(64) NOT NULL,
+            `source_id` VARCHAR(191) NOT NULL,
+            `local_id` INT UNSIGNED NOT NULL,
+            `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (`map_id`),
+            UNIQUE KEY `uq_job_source_map` (`job_id`, `source_key`, `map_type`, `source_id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Карта импорта source_id -> local_id';";
+        SafeMySQL::gi()->query($sql, Constants::IMPORT_MAP_TABLE);
+        $this->logSqlInfo('create_import_map_table', 'Таблица карты импорта создана');
     }
 
     /**
@@ -903,6 +1005,8 @@ class Users {
         category_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
         type_id INT UNSIGNED NOT NULL,
         title VARCHAR(255) NOT NULL,
+        slug VARCHAR(255) DEFAULT NULL,
+        route_path VARCHAR(512) DEFAULT NULL,
         description MEDIUMTEXT,
         short_description VARCHAR(1000),
         parent_id INT UNSIGNED NULL,
@@ -911,16 +1015,29 @@ class Users {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         language_code CHAR(2) NOT NULL DEFAULT 'RU' COMMENT 'Код языка по ISO 3166-2',
         UNIQUE KEY uq_categories_title_type_lang (title, type_id, language_code),
+        UNIQUE KEY uq_categories_slug_type_lang (slug, type_id, language_code),
         KEY idx_categories_type (type_id),
         KEY idx_categories_parent (parent_id),
         KEY idx_categories_lang (language_code),
         KEY idx_categories_lang_title (language_code, title),
+        KEY idx_categories_lang_slug (language_code, slug),
+        KEY idx_categories_lang_route_path (language_code, route_path),
+        KEY idx_categories_parent_lang_slug (parent_id, language_code, slug),
+        UNIQUE KEY uq_categories_route_path_lang (language_code, route_path),
         CONSTRAINT fk_categories_type FOREIGN KEY (type_id) REFERENCES ?n(type_id) ON DELETE RESTRICT ON UPDATE RESTRICT,
         CONSTRAINT fk_categories_parent FOREIGN KEY (parent_id) REFERENCES ?n(category_id) ON DELETE RESTRICT ON UPDATE RESTRICT
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Таблица для хранения категорий сущностей';";
         SafeMySQL::gi()->query($sql, Constants::CATEGORIES_TABLE, Constants::CATEGORIES_TYPES_TABLE, Constants::CATEGORIES_TABLE);
         SafeMySQL::gi()->query(
             'ALTER TABLE ?n ADD INDEX IF NOT EXISTS idx_categories_lang_title (language_code, title)',
+            Constants::CATEGORIES_TABLE
+        );
+        SafeMySQL::gi()->query(
+            'ALTER TABLE ?n ADD INDEX IF NOT EXISTS idx_categories_parent_lang_slug (parent_id, language_code, slug)',
+            Constants::CATEGORIES_TABLE
+        );
+        SafeMySQL::gi()->query(
+            'ALTER TABLE ?n ADD INDEX IF NOT EXISTS idx_categories_lang_route_path (language_code, route_path)',
             Constants::CATEGORIES_TABLE
         );
         $this->logSqlInfo('create_categories_table', 'Таблица категорий создана');
@@ -937,6 +1054,8 @@ class Users {
         category_id INT UNSIGNED NOT NULL,
         status ENUM('active', 'hidden', 'disabled') NOT NULL DEFAULT 'active',
         title VARCHAR(255) NOT NULL,
+        slug VARCHAR(255) DEFAULT NULL,
+        route_path VARCHAR(512) DEFAULT NULL,
         short_description VARCHAR(255),
         description LONGTEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -947,6 +1066,11 @@ class Users {
         KEY idx_pages_category_lang (category_id, language_code),
         KEY idx_pages_lang_title (language_code, title),
         KEY idx_pages_lang_status (language_code, status),
+        KEY idx_pages_lang_slug (language_code, slug),
+        KEY idx_pages_lang_route_path (language_code, route_path),
+        KEY idx_pages_category_lang_slug (category_id, language_code, slug),
+        UNIQUE KEY uq_pages_slug_category_lang (slug, category_id, language_code),
+        UNIQUE KEY uq_pages_route_path_lang (language_code, route_path),
         CONSTRAINT fk_pages_category FOREIGN KEY (category_id) REFERENCES ?n(category_id) ON DELETE RESTRICT ON UPDATE RESTRICT,
         CONSTRAINT fk_pages_parent FOREIGN KEY (parent_page_id) REFERENCES ?n(page_id) ON DELETE RESTRICT ON UPDATE RESTRICT
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Таблица для хранения страниц';";
@@ -959,7 +1083,23 @@ class Users {
             'ALTER TABLE ?n ADD INDEX IF NOT EXISTS idx_pages_lang_status (language_code, status)',
             Constants::PAGES_TABLE
         );
+        SafeMySQL::gi()->query(
+            'ALTER TABLE ?n ADD INDEX IF NOT EXISTS idx_pages_category_lang_slug (category_id, language_code, slug)',
+            Constants::PAGES_TABLE
+        );
+        SafeMySQL::gi()->query(
+            'ALTER TABLE ?n ADD INDEX IF NOT EXISTS idx_pages_lang_route_path (language_code, route_path)',
+            Constants::PAGES_TABLE
+        );
         $this->logSqlInfo('create_pages_table', 'Таблица страниц создана');
+    }
+
+    /**
+     * Создаёт slug-инфраструктуру для страниц и категорий.
+     */
+    private function createEntitySlugInfrastructure(): void {
+        EntitySlugService::ensureInfrastructure(true);
+        $this->logSqlInfo('create_entity_slug_infrastructure', 'Slug-инфраструктура страниц и категорий создана');
     }
 
     /**
@@ -1263,8 +1403,8 @@ class Users {
         image_size ENUM('small', 'medium', 'large') DEFAULT NULL,
         user_id INT UNSIGNED NULL,
         file_hash CHAR(32) NOT NULL COMMENT 'MD5 хеш файла для проверки уникальности',
-        uploaded_at DATETIME NOT NULL,
-        updated_at DATETIME DEFAULT NULL,
+        uploaded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         UNIQUE KEY unique_file_hash (file_hash),
         FOREIGN KEY (user_id) REFERENCES ?n(user_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для сохранения информации о файлах';";
@@ -1351,9 +1491,11 @@ class Users {
     private function createRequestLogsTable() {
         $sql = "CREATE TABLE IF NOT EXISTS ?n (
           `ip` VARCHAR(45) NOT NULL,
+          `scope` VARCHAR(16) NOT NULL DEFAULT 'read',
           `request_count` INT UNSIGNED NOT NULL DEFAULT 1,
           `first_request_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          PRIMARY KEY (`ip`)
+          PRIMARY KEY (`ip`, `scope`),
+          INDEX `first_request_at_idx` (`first_request_at`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Счетчики запросов для Rate Limit';";
         SafeMySQL::gi()->query($sql, Constants::IP_REQUEST_LOGS_TABLE);
         $this->logSqlInfo('create_request_logs_table', 'Таблица для Rate Limit создана');

@@ -50,6 +50,8 @@ app/<module>/views/
 app/admin/views/v_dashboard.php
 app/docs/views/v_index.php
 app/index/views/v_login_form.php
+app/index/views/v_public_category.php
+app/index/views/v_public_page.php
 ```
 
 ## Правила именования
@@ -117,3 +119,22 @@ $this->parameters_layout['add_script'] .= '<script src="' . $this->getPathContro
 - view не содержит бизнес-решений;
 - layout не решает, какие данные читать;
 - контроллер не собирает HTML строками, если можно использовать шаблон.
+
+## Public Catalog Views
+
+Для публичных semantic entity URL больше не используется generic-view с raw полями сущности.
+
+Рабочая схема теперь такая:
+
+1. Router резолвит semantic path.
+2. `ControllerIndex::public_entity()` вызывает public model.
+3. `ModelPublicCatalog` подготавливает человекочитаемый payload:
+   - breadcrumbs
+   - gallery
+   - contacts
+   - map
+   - room/pricing block
+   - related objects
+4. View только рендерит этот payload.
+
+Это важный ориентир для будущего фронта: публичный шаблон должен получать уже нормализованные domain-данные, а не разбирать `property_values` самостоятельно.

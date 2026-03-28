@@ -9,7 +9,7 @@ $countPages = count($categoryPages);
 <main>
     <form id="edit_category" action="/admin/category_edit/id/<?= $categoryData['category_id'] ?>" method="POST" enctype="multipart/form-data" novalidate>
         <input type="hidden" name="fake" value="1" />
-        <input type="hidden" name="language_code" value="<?= htmlspecialchars((string)($currentLanguageCode ?? ($categoryData['language_code'] ?? (\classes\system\Session::get('lang') ?: ENV_DEF_LANG))), ENT_QUOTES, 'UTF-8') ?>" />
+        <input type="hidden" name="language_code" value="<?= htmlspecialchars((string)($currentLanguageCode ?? ($categoryData['language_code'] ?? ee_get_default_content_lang_code())), ENT_QUOTES, 'UTF-8') ?>" />
         <input type="hidden" name="translation_source_id" value="<?= (int)($translationSourceId ?? 0) ?>" />
         <input type="hidden" id="count_pages" value="<?=$countPages?>" />
         <div class="container-fluid px-4">
@@ -26,11 +26,11 @@ $countPages = count($categoryPages);
                 </li>              
             </ol>
             <?php
-            $availableLanguageCodes = is_array($availableLanguageCodes ?? null) ? $availableLanguageCodes : [];
-            $currentLanguageCode = strtoupper((string) ($currentLanguageCode ?? (\classes\system\Session::get('lang') ?: ENV_DEF_LANG)));
+            $contentLanguageCodes = is_array($contentLanguageCodes ?? null) ? $contentLanguageCodes : [];
+            $currentLanguageCode = strtoupper((string) ($currentLanguageCode ?? ee_get_default_content_lang_code()));
             $translationUi = is_array($translationUi ?? null) ? $translationUi : [];
             ?>
-            <?php if (!empty($translationUi) || !empty($availableLanguageCodes)): ?>
+            <?php if (!empty($translationUi) || !empty($contentLanguageCodes)): ?>
                 <div class="card shadow-sm border-0 mb-3">
                     <div class="card-body py-3">
                         <div class="d-flex flex-wrap align-items-center gap-2 mb-2">

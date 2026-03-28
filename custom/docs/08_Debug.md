@@ -101,10 +101,47 @@ php app/cron/run.php
 ## Чеклист: не исполняются cron-агенты
 
 1. Убедитесь, что системный cron реально запускает `php app/cron/run.php` каждую минуту.
-2. Откройте `/admin/cron_agents` и проверьте, есть ли due-агенты.
-3. Проверьте lock-статусы и лимиты `max_concurrent` / `max_weight_per_tick`.
-4. Посмотрите канал `cron_agents` в логах и историю запусков агента.
-5. Если агент завис, выполните recovery stale locks из админки.
+2. Откройте `/admin/health` и посмотрите блок `Оповещения системы`: там сразу видны stalled cron, failed media queue, stale lifecycle и backup-проблемы.
+3. Проверьте `/admin/cron_agents` и убедитесь, что есть due-агенты, а последний запуск scheduler-а не слишком старый.
+4. Если на health-screen есть stale-состояния, сначала выполните `/admin/recover_stale_operations`.
+5. Уже после этого смотрите lock-статусы и лимиты `max_concurrent` / `max_weight_per_tick`.
+6. Проверьте канал `cron_agents` в логах и историю запусков агента.
+7. Если ошибка относится к медиа-очереди, отдельно проверьте `failed` и `terminal_failed` элементы импорта.
+
+## Что показывает /admin/health
+
+Health-screen теперь не только считает строки в таблицах, но и поднимает alerts по operational-контурам:
+
+- недоступная БД;
+- отсутствующие или недоступные для записи системные пути;
+- слишком старый минутный cron;
+- актуальные ошибки cron-агентов;
+- stale lifecycle/media/backup jobs;
+- проблемная media queue;
+- низкий остаток места на диске.
+
+Если алерт требует действия, на карточке есть прямая ссылка:
+
+- в `/admin/cron_agents`;
+- в `/admin/backup`;
+- или на единое восстановление `/admin/recover_stale_operations`.
+
+## Чеклист: сервер упирается в память
+
+1. Смотрите не только project logs, но и `journalctl -k` на `oom-kill`.
+2. Сначала проверяйте, не наложились ли несколько запусков `php app/cron/run.php`.
+3. Проверьте текущие ограничения памяти:
+
+```text
+ENV_MEMORY_LIMIT_WEB
+ENV_MEMORY_LIMIT_CLI
+ENV_CRON_MEMORY_SOFT_LIMIT_MB
+ENV_CRON_AGENT_MEMORY_SOFT_LIMIT_MB
+ENV_MEDIA_MIRROR_MEMORY_SOFT_LIMIT_MB
+```
+
+4. Если источник нагрузки — `media-mirror-worker`, сначала уменьшайте `batch_limit`, а не весь scheduler.
+5. Если задача обязана работать долго, она должна идти порциями и уважать guard-лимиты, а не держать всё в памяти одним проходом.
 
 ## Чеклист: не сохраняется в БД
 

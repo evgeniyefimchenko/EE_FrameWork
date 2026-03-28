@@ -216,6 +216,76 @@
 
 Выполняет встроенный handler cron-агента.
 
+## EntityTranslationService
+
+## EntityPublicUrlService
+
+### `EntityPublicUrlService::buildEntityUrl(string $entityType, int $entityId, ?string $languageCode = null, bool $absolute = true, ?bool $includeLanguageQuery = null): string`
+
+Собирает public URL сущности по semantic contract.
+
+### `EntityPublicUrlService::resolvePath(string $routePath, ?string $preferredLanguageCode = null): ?array`
+
+Резолвит semantic path в `entity_type/entity_id/language_code`.
+
+### `EntityPublicUrlService::buildHreflangLinks(string $entityType, int $entityId, array $availableLanguageCodes = []): array`
+
+Возвращает canonical alternate links для layout/meta.
+
+## ModelPublicCatalog
+
+### `ModelPublicCatalog::getPagePayload(int $pageId, string $languageCode = ENV_DEF_LANG): ?array`
+
+Собирает публичный payload карточки объекта:
+
+- breadcrumbs
+- description
+- gallery
+- contacts
+- details
+- map
+- room/pricing block
+- related objects
+
+### `ModelPublicCatalog::getCategoryPayload(int $categoryId, string $languageCode = ENV_DEF_LANG): ?array`
+
+Собирает публичный payload страницы курорта:
+
+- overview text
+- left/right rich text blocks
+- gallery
+- map
+- child resorts
+- direct object cards
+
+### `EntityTranslationService::ensureInfrastructure(bool $force = false): void`
+
+Создаёт и обновляет таблицу `ee_entity_translations`.
+
+### `EntityTranslationService::ensureEntity(string $entityType, int $entityId): array`
+
+Гарантирует, что сущность участвует в translation-группе.
+
+### `EntityTranslationService::linkEntityToSource(string $entityType, int $entityId, int $sourceEntityId): array`
+
+Привязывает новую языковую версию к translation-группе исходной сущности.
+
+### `EntityTranslationService::getTranslationState(string $entityType, int $entityId, array $availableLanguageCodes = []): array`
+
+Возвращает текущее состояние переводов сущности, включая существующие и отсутствующие языковые версии.
+
+### `EntityTranslationService::getTranslatedEntityId(string $entityType, int $sourceEntityId, string $targetLanguageCode): ?int`
+
+Возвращает ID перевода в нужной локали, если он уже существует.
+
+### `EntityTranslationService::duplicatePropertyValuesFromSource(string $entityType, int $sourceEntityId, int $targetEntityId, string $sourceLanguageCode, string $targetLanguageCode): int`
+
+Копирует property values из исходной языковой версии в новую сущность-перевод.
+
+### `EntityTranslationService::removeEntityTranslation(string $entityType, int $entityId): void`
+
+Удаляет translation-связь сущности и ребалансирует primary-версию группы.
+
 ## Logger
 
 ### `Logger::bootstrap(): void`
@@ -286,6 +356,39 @@ Redirect и штатный error flow.
 
 Создание нужных директорий перед записью файла.
 
+## LegalConsentService
+
+### `LegalConsentService::ensureInfrastructure(...)`
+
+Добивает колонками `ee_users` под обязательные согласия для существующих проектов.
+
+### `LegalConsentService::getSubmittedFlags(array $input): array`
+
+Нормализует два обязательных чекбокса:
+
+- `privacy_policy_accepted`
+- `personal_data_consent_accepted`
+
+### `LegalConsentService::hasRequiredConsents(array $userData): bool`
+
+Проверяет, что пользователь принял оба обязательных документа.
+
+### `LegalConsentService::updateUserConsents(int $userId, array $input, string $source = 'web'): bool`
+
+Обновляет согласия пользователя и сохраняет metadata принятия.
+
+### `EntityPublicUrlService::buildEntityUrl(string $entityType, int $entityId, ?string $languageCode = null, bool $absolute = true, ?bool $includeLanguageQuery = null): string`
+
+Строит публичный URL категории или страницы по semantic contract на базе `slug`.
+
+### `EntityPublicUrlService::resolvePath(string $routePath, ?string $preferredLanguageCode = null): ?array`
+
+Резолвит semantic public URL в сущность `page/category` и её языковой контекст.
+
+### `EntityPublicUrlService::buildHreflangLinks(string $entityType, int $entityId, array $availableLanguageCodes = []): array`
+
+Возвращает `canonical/hreflang`-совместимый набор ссылок для переводов сущности.
+
 ## Константы, которые нужно помнить
 
 - `ENV_SITE_PATH`
@@ -299,9 +402,19 @@ Redirect и штатный error flow.
 - `ENV_CACHE_PATH`
 - `ENV_CACHE_BACKEND`
 - `ENV_ROUTING_CACHE_ENABLED`
+- `ENV_ROUTING_CACHE_BACKEND`
 - `ENV_AUTH_TRANSPORT`
 - `ENV_CUSTOM_PATH`
 - `ENV_DEF_LANG`
+- `ENV_LEGAL_OPERATOR_STATUS`
+- `ENV_LEGAL_OPERATOR_NAME`
+- `ENV_LEGAL_OPERATOR_ADDRESS`
+- `ENV_LEGAL_OPERATOR_INN`
+- `ENV_LEGAL_OPERATOR_OGRN`
+- `ENV_LEGAL_PRIVACY_POLICY_VERSION`
+- `ENV_LEGAL_PERSONAL_DATA_CONSENT_VERSION`
+
+`ENV_ROUTING_CACHE` считается legacy-алиасом. Для новых проектов используйте только `ENV_ROUTING_CACHE_ENABLED`.
 
 ## CLI команды, которые важно помнить
 

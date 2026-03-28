@@ -123,6 +123,9 @@ trait ImportTrait {
             'test_mode' => 0,
             'test_mode_limit' => 5,
             'include_private_meta_keys' => 0,
+            'preserve_source_paths' => 1,
+            'rewrite_donor_links' => 1,
+            'donor_base_url' => '',
             'allowed_taxonomies' => '',
             'allowed_post_types' => '',
             'allowed_source_ids' => '',
@@ -203,6 +206,9 @@ trait ImportTrait {
             }
             $package_manifest = $this->readImportPackageManifest((int)$job_settings['file_id_package']);
             $source_catalog = $this->extractSourceCatalogFromManifest($package_manifest);
+            if (trim((string)($job_settings['donor_base_url'] ?? '')) === '') {
+                $job_settings['donor_base_url'] = trim((string)($package_manifest['site_url'] ?? ''));
+            }
         }
 
         $current_type_map = $this->parseImportIdMap((string)($job_settings['source_type_map'] ?? ''));
@@ -422,6 +428,9 @@ trait ImportTrait {
             'test_mode' => filter_var($postData['test_mode'] ?? false, FILTER_VALIDATE_BOOLEAN),
             'test_mode_limit' => max(1, (int)($postData['test_mode_limit'] ?? 5)),
             'include_private_meta_keys' => filter_var($postData['include_private_meta_keys'] ?? false, FILTER_VALIDATE_BOOLEAN),
+            'preserve_source_paths' => filter_var($postData['preserve_source_paths'] ?? true, FILTER_VALIDATE_BOOLEAN),
+            'rewrite_donor_links' => filter_var($postData['rewrite_donor_links'] ?? true, FILTER_VALIDATE_BOOLEAN),
+            'donor_base_url' => trim((string)($postData['donor_base_url'] ?? '')),
             'allowed_taxonomies' => trim((string)($postData['allowed_taxonomies'] ?? '')),
             'allowed_post_types' => trim((string)($postData['allowed_post_types'] ?? '')),
             'allowed_source_ids' => trim((string)($postData['allowed_source_ids'] ?? '')),
@@ -775,7 +784,11 @@ trait ImportTrait {
             $settings['web_step_chunk_rows'] = max(10, (int)($postData['step_chunk_rows'] ?? 120));
             $settings['import_scope'] = $stepScope;
         } else {
-            $settings['import_scope'] = 'all';
+            $storedScope = strtolower(trim((string)($settings['import_scope'] ?? 'all')));
+            if (!in_array($storedScope, ['all', 'core', 'content'], true)) {
+                $storedScope = 'all';
+            }
+            $settings['import_scope'] = $storedScope;
         }
 
         $lockDir = rtrim(ENV_LOGS_PATH, '/\\') . ENV_DIRSEP . 'import' . ENV_DIRSEP;
@@ -1011,7 +1024,7 @@ trait ImportTrait {
 
         SafeMySQL::gi()->query('DELETE FROM ?n WHERE id = ?i', Constants::IMPORT_SETTINGS_TABLE, $job_id);
         try {
-            SafeMySQL::gi()->query('DELETE FROM ?n WHERE job_id = ?i', ENV_DB_PREF . 'import_map', $job_id);
+            SafeMySQL::gi()->query('DELETE FROM ?n WHERE job_id = ?i', Constants::IMPORT_MAP_TABLE, $job_id);
         } catch (\Throwable $e) {
             BaseImporter::preLog('WARNING: failed to cleanup import_map for profile=' . $job_id . ' (' . $e->getMessage() . ')', $job_id);
         }
@@ -2145,7 +2158,7 @@ trait ImportTrait {
             try {
                 $rows = SafeMySQL::gi()->getAll(
                     'SELECT source_id, local_id FROM ?n WHERE job_id = ?i AND source_key = ?s AND map_type = ?s AND source_id IN (?a)',
-                    ENV_DB_PREF . 'import_map',
+                    Constants::IMPORT_MAP_TABLE,
                     $jobId,
                     $sourceKey,
                     $mapType,

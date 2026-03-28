@@ -2,11 +2,11 @@
 <footer class="py-4 bg-light mt-auto">
     <div class="container-fluid px-4">
         <div class="d-flex align-items-center justify-content-between small">
-            <div class="text-muted">Copyright &copy; <?= ENV_SITE_NAME ?> <?= date('Y') ?></div>
+            <div class="text-muted"><?= htmlspecialchars((string) (($lang['sys.copyright'] ?? 'Copyright') . ' © ' . ENV_SITE_NAME . ' ' . date('Y'))) ?></div>
             <div>
-                <a href="#">Политика</a>
+                <a href="/privacy_policy"><?= htmlspecialchars((string) ($lang['sys.privacy_policy'] ?? 'Privacy Policy')) ?></a>
                 &middot;
-                <a href="#">Условия использования</a>
+                <a href="/consent_personal_data"><?= htmlspecialchars((string) ($lang['sys.terms_of_use'] ?? 'Terms of use')) ?></a>
             </div>
         </div>
     </div>

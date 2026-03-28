@@ -13,7 +13,7 @@ class ImportMediaQueueService {
     private const DEFAULT_BATCH_LIMIT = 10;
     private const DEFAULT_LOCK_TTL_SEC = 480;
     private const DEFAULT_RETRY_DELAY_SEC = 900;
-    private const MAX_BATCH_LIMIT = 100;
+    private const MAX_BATCH_LIMIT = 1000;
     private const DEFAULT_TIME_BUDGET_SEC = 40;
     private const WP_UPLOAD_REGEX = "~https?://[^\\s\"'<>]+/wp-content/uploads/[^\\s\"'<>]+~iu";
     private const WORKER_AGENT_CODE = 'media-mirror-worker';
@@ -28,6 +28,14 @@ class ImportMediaQueueService {
 
         if (!SysClass::checkDatabaseConnection()) {
             self::$infrastructureReady = false;
+            return;
+        }
+
+        if (!$force) {
+            self::$infrastructureReady = self::hasRequiredInfrastructure();
+            if (!self::$infrastructureReady) {
+                throw new \RuntimeException('Import media queue infrastructure is not installed. Run install/upgrade first.');
+            }
             return;
         }
 
@@ -86,6 +94,15 @@ class ImportMediaQueueService {
 
     public static function resetInfrastructureState(): void {
         self::$infrastructureReady = false;
+    }
+
+    private static function hasRequiredInfrastructure(): bool {
+        $exists = (int) SafeMySQL::gi()->getOne(
+            'SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?s',
+            Constants::IMPORT_MEDIA_QUEUE_TABLE
+        );
+
+        return $exists > 0;
     }
 
     public static function getSummary(?int $jobId = null): array {
@@ -179,6 +196,189 @@ class ImportMediaQueueService {
         }
 
         return $recovered;
+    }
+
+    public static function repairFalseResolvedWithoutFileItems(?int $jobId = null, int $limit = 5000): array {
+        self::ensureInfrastructure();
+
+        $limit = max(1, min($limit, 50000));
+        $params = [Constants::IMPORT_MEDIA_QUEUE_TABLE];
+        $where = "WHERE status = 'done'
+                    AND file_id IS NULL
+                    AND last_error LIKE ?s";
+        $params[] = 'Resolved automatically:%';
+
+        if ($jobId !== null && $jobId > 0) {
+            $where .= ' AND job_id = ?i';
+            $params[] = $jobId;
+        }
+
+        $rows = SafeMySQL::gi()->getAll(
+            "SELECT queue_id, target_kind, target_key, target_field, entity_type, entity_id, source_url
+             FROM ?n
+             {$where}
+             ORDER BY queue_id ASC
+             LIMIT ?i",
+            ...array_merge($params, [$limit])
+        );
+
+        $summary = [
+            'checked' => 0,
+            'requeued' => 0,
+            'still_resolved' => 0,
+        ];
+
+        foreach ($rows as $row) {
+            $summary['checked']++;
+            if (!self::targetStillContainsSourceUrl($row)) {
+                $summary['still_resolved']++;
+                continue;
+            }
+
+            SafeMySQL::gi()->query(
+                "UPDATE ?n
+                 SET status = 'queued',
+                     attempts = 0,
+                     file_id = NULL,
+                     last_error = NULL,
+                     next_retry_at = NULL,
+                     locked_at = NULL,
+                     locked_until = NULL,
+                     locked_by = NULL,
+                     completed_at = NULL
+                 WHERE queue_id = ?i",
+                Constants::IMPORT_MEDIA_QUEUE_TABLE,
+                (int) ($row['queue_id'] ?? 0)
+            );
+
+            if ((int) SafeMySQL::gi()->affectedRows() > 0) {
+                $summary['requeued']++;
+            }
+        }
+
+        if ($summary['requeued'] > 0) {
+            Logger::warning('import_media_queue', 'Переоткрыты ложно завершённые элементы очереди медиа', $summary + [
+                'job_id' => $jobId,
+            ], [
+                'initiator' => __METHOD__,
+                'details' => 'False resolved media queue items were requeued',
+                'include_trace' => false,
+            ]);
+        }
+
+        return $summary;
+    }
+
+    public static function requeueDoneItemsStillContainingSourceUrl(?int $jobId = null, int $limit = 5000): array {
+        self::ensureInfrastructure();
+
+        $limit = max(1, min($limit, 50000));
+        $params = [Constants::IMPORT_MEDIA_QUEUE_TABLE];
+        $where = "WHERE status = 'done'";
+
+        if ($jobId !== null && $jobId > 0) {
+            $where .= ' AND job_id = ?i';
+            $params[] = $jobId;
+        }
+
+        $rows = SafeMySQL::gi()->getAll(
+            "SELECT queue_id, job_id, target_kind, target_key, target_field, entity_type, entity_id, source_url
+             FROM ?n
+             {$where}
+             ORDER BY queue_id ASC
+             LIMIT ?i",
+            ...array_merge($params, [$limit])
+        );
+
+        $summary = [
+            'checked' => 0,
+            'requeued' => 0,
+            'already_applied' => 0,
+        ];
+
+        foreach ($rows as $row) {
+            $summary['checked']++;
+            if (!self::targetStillContainsSourceUrl($row)) {
+                $summary['already_applied']++;
+                continue;
+            }
+
+            SafeMySQL::gi()->query(
+                "UPDATE ?n
+                 SET status = 'queued',
+                     next_retry_at = NULL,
+                     locked_at = NULL,
+                     locked_until = NULL,
+                     locked_by = NULL,
+                     completed_at = NULL
+                 WHERE queue_id = ?i",
+                Constants::IMPORT_MEDIA_QUEUE_TABLE,
+                (int) ($row['queue_id'] ?? 0)
+            );
+
+            if ((int) SafeMySQL::gi()->affectedRows() > 0) {
+                $summary['requeued']++;
+            }
+        }
+
+        if ($summary['requeued'] > 0) {
+            Logger::warning('import_media_queue', 'Переоткрыты завершённые элементы очереди с не переписанными ссылками', $summary + [
+                'job_id' => $jobId,
+            ], [
+                'initiator' => __METHOD__,
+                'details' => 'Done media queue items still containing source URLs were requeued',
+                'include_trace' => false,
+            ]);
+        }
+
+        return $summary;
+    }
+
+    public static function syncLegacySourceAliases(?int $jobId = null, int $limit = 0): array {
+        self::ensureInfrastructure();
+
+        $params = [Constants::IMPORT_MEDIA_QUEUE_TABLE];
+        $where = "WHERE file_id IS NOT NULL AND file_id > 0";
+        if ($jobId !== null && $jobId > 0) {
+            $where .= ' AND job_id = ?i';
+            $params[] = $jobId;
+        }
+
+        $limitSql = '';
+        if ($limit > 0) {
+            $limitSql = ' LIMIT ?i';
+            $params[] = $limit;
+        }
+
+        $rows = SafeMySQL::gi()->getAll(
+            "SELECT source_url, file_id
+             FROM ?n
+             {$where}
+             ORDER BY queue_id ASC{$limitSql}",
+            ...$params
+        );
+
+        $summary = [
+            'checked' => 0,
+            'created' => 0,
+            'existing' => 0,
+            'failed' => 0,
+        ];
+
+        foreach ((array) $rows as $row) {
+            $summary['checked']++;
+            $result = self::ensureLegacySourceUrlAlias((string) ($row['source_url'] ?? ''), (int) ($row['file_id'] ?? 0));
+            $status = (string) ($result['status'] ?? 'failed');
+            if ($status === 'created') {
+                $summary['created']++;
+            } elseif ($status === 'exists') {
+                $summary['existing']++;
+            } else {
+                $summary['failed']++;
+            }
+        }
+
+        return $summary;
     }
 
     public static function deleteJobQueue(int $jobId): void {
@@ -375,6 +575,7 @@ class ImportMediaQueueService {
                 } else {
                     $summary['downloaded_files']++;
                 }
+                self::ensureLegacySourceUrlAlias((string) ($reservedRow['source_url'] ?? ''), $fileId);
                 if (!empty($applyResult['updated'])) {
                     $summary['updated_targets']++;
                     $cacheShouldBeCleared = true;
@@ -544,7 +745,7 @@ class ImportMediaQueueService {
 
         $rows = SafeMySQL::gi()->getCol(
             'SELECT DISTINCT local_id FROM ?n WHERE job_id = ?i AND map_type = ?s ORDER BY local_id ASC',
-            ENV_DB_PREF . 'import_map',
+            Constants::IMPORT_MAP_TABLE,
             $jobId,
             $mapType
         );
@@ -948,7 +1149,13 @@ class ImportMediaQueueService {
             return ['updated' => false, 'status' => 'file_missing'];
         }
 
-        $updatedContent = str_replace((string) ($row['source_url'] ?? ''), $localUrl, $currentContent, $replaceCount);
+        $replaceCount = 0;
+        $updatedContent = self::replaceSourceUrlVariantsInText(
+            $currentContent,
+            (string) ($row['source_url'] ?? ''),
+            $localUrl,
+            $replaceCount
+        );
         if ($replaceCount <= 0) {
             return ['updated' => false, 'status' => 'noop'];
         }
@@ -965,7 +1172,7 @@ class ImportMediaQueueService {
 
     private static function replaceSourceUrlWithFileId(mixed $value, string $sourceUrl, string $replacement, bool &$changed): mixed {
         if (is_string($value)) {
-            if (trim($value) === $sourceUrl) {
+            if (self::mediaStringMatchesSourceUrl($value, $sourceUrl)) {
                 $changed = true;
                 return $replacement;
             }
@@ -1075,6 +1282,57 @@ class ImportMediaQueueService {
         };
     }
 
+    private static function targetStillContainsSourceUrl(array $row): bool {
+        $targetKind = (string) ($row['target_kind'] ?? '');
+        return match ($targetKind) {
+            'entity_field' => self::entityFieldStillContainsSourceUrl($row),
+            default => self::propertyValueStillContainsSourceUrl($row),
+        };
+    }
+
+    private static function entityFieldStillContainsSourceUrl(array $row): bool {
+        $entityType = (string) ($row['entity_type'] ?? 'page');
+        $entityId = (int) ($row['entity_id'] ?? 0);
+        $fieldName = trim((string) ($row['target_field'] ?? ''));
+        $sourceUrl = trim((string) ($row['source_url'] ?? ''));
+        if ($entityId <= 0 || $fieldName === '' || $sourceUrl === '') {
+            return false;
+        }
+
+        $table = $entityType === 'category' ? Constants::CATEGORIES_TABLE : Constants::PAGES_TABLE;
+        $idField = $entityType === 'category' ? 'category_id' : 'page_id';
+        $content = (string) (SafeMySQL::gi()->getOne(
+            "SELECT {$fieldName} FROM ?n WHERE {$idField} = ?i",
+            $table,
+            $entityId
+        ) ?? '');
+
+        return $content !== '' && self::textContainsSourceUrlVariant($content, $sourceUrl);
+    }
+
+    private static function propertyValueStillContainsSourceUrl(array $row): bool {
+        $sourceUrl = trim((string) ($row['source_url'] ?? ''));
+        if ($sourceUrl === '') {
+            return false;
+        }
+
+        $valueId = 0;
+        if (preg_match('~^property_value:(\d+)$~', (string) ($row['target_key'] ?? ''), $matches)) {
+            $valueId = (int) ($matches[1] ?? 0);
+        }
+        if ($valueId <= 0) {
+            return false;
+        }
+
+        $payload = (string) (SafeMySQL::gi()->getOne(
+            'SELECT property_values FROM ?n WHERE value_id = ?i',
+            Constants::PROPERTY_VALUES_TABLE,
+            $valueId
+        ) ?? '');
+
+        return $payload !== '' && self::propertyValuePayloadContainsSourceUrl($payload, $sourceUrl);
+    }
+
     private static function cleanupMissingEntityFieldMedia(array $row): array {
         $entityType = (string) ($row['entity_type'] ?? 'page');
         $entityId = (int) ($row['entity_id'] ?? 0);
@@ -1092,11 +1350,12 @@ class ImportMediaQueueService {
             $entityId
         ) ?? '');
 
-        if ($content === '' || !str_contains($content, $sourceUrl)) {
+        if ($content === '' || !self::textContainsSourceUrlVariant($content, $sourceUrl)) {
             return ['resolved' => true, 'updated' => false, 'status' => 'already_clean'];
         }
 
-        $updatedContent = str_replace($sourceUrl, '', $content, $replaceCount);
+        $replaceCount = 0;
+        $updatedContent = self::replaceSourceUrlVariantsInText($content, $sourceUrl, '', $replaceCount);
         if ($replaceCount <= 0) {
             return ['resolved' => false, 'updated' => false, 'status' => 'noop'];
         }
@@ -1166,7 +1425,7 @@ class ImportMediaQueueService {
 
     private static function removeSourceUrlFromMixed(mixed $value, string $sourceUrl, bool &$changed): mixed {
         if (is_string($value)) {
-            if (trim($value) === $sourceUrl) {
+            if (self::mediaStringMatchesSourceUrl($value, $sourceUrl)) {
                 $changed = true;
                 return null;
             }
@@ -1221,7 +1480,7 @@ class ImportMediaQueueService {
 
     private static function mixedContainsSourceUrl(mixed $value, string $sourceUrl): bool {
         if (is_string($value)) {
-            return trim($value) === $sourceUrl;
+            return self::mediaStringMatchesSourceUrl($value, $sourceUrl);
         }
 
         if (!is_array($value)) {
@@ -1235,5 +1494,124 @@ class ImportMediaQueueService {
         }
 
         return false;
+    }
+
+    private static function mediaStringMatchesSourceUrl(string $value, string $sourceUrl): bool {
+        $value = trim($value);
+        $sourceUrl = trim($sourceUrl);
+        if ($value === '' || $sourceUrl === '') {
+            return false;
+        }
+
+        if ($value === $sourceUrl) {
+            return true;
+        }
+
+        $valuePath = self::normalizeComparableMediaPath($value);
+        $sourcePath = self::normalizeComparableMediaPath($sourceUrl);
+        return $valuePath !== '' && $sourcePath !== '' && $valuePath === $sourcePath;
+    }
+
+    private static function normalizeComparableMediaPath(string $value): string {
+        $value = trim($value);
+        if ($value === '') {
+            return '';
+        }
+
+        $value = html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+        $path = (string) parse_url($value, PHP_URL_PATH);
+        $query = (string) parse_url($value, PHP_URL_QUERY);
+
+        if ($path === '' && preg_match('~(/wp-content/uploads/[^\s"\'<>?#]+(?:\?[^\s"\'<>#]+)?)~iu', $value, $matches)) {
+            $rawPath = (string) ($matches[1] ?? '');
+            $path = (string) parse_url($rawPath, PHP_URL_PATH);
+            $query = (string) parse_url($rawPath, PHP_URL_QUERY);
+        }
+
+        if ($path === '' || stripos($path, '/wp-content/uploads/') === false) {
+            return '';
+        }
+
+        $normalized = '/' . ltrim($path, '/');
+        if ($query !== '') {
+            $normalized .= '?' . $query;
+        }
+
+        return $normalized;
+    }
+
+    private static function textContainsSourceUrlVariant(string $text, string $sourceUrl): bool {
+        if ($text === '' || $sourceUrl === '') {
+            return false;
+        }
+
+        if (str_contains($text, $sourceUrl)) {
+            return true;
+        }
+
+        $sourcePath = self::normalizeComparableMediaPath($sourceUrl);
+        return $sourcePath !== '' && str_contains($text, $sourcePath);
+    }
+
+    private static function replaceSourceUrlVariantsInText(string $text, string $sourceUrl, string $replacement, int &$replaceCount = 0): string {
+        $replaceCount = 0;
+        if ($text === '' || $sourceUrl === '') {
+            return $text;
+        }
+
+        $updatedText = str_replace($sourceUrl, $replacement, $text, $replaceCount);
+        $sourcePath = self::normalizeComparableMediaPath($sourceUrl);
+        if ($sourcePath === '') {
+            return $updatedText;
+        }
+
+        $pattern = '~https?://[^\\s"\'<>()]+' . preg_quote($sourcePath, '~') . '~iu';
+        $updatedText = preg_replace($pattern, $replacement, $updatedText, -1, $pathReplaceCount) ?? $updatedText;
+        $replaceCount += (int) $pathReplaceCount;
+
+        return $updatedText;
+    }
+
+    private static function ensureLegacySourceUrlAlias(string $sourceUrl, int $fileId): array {
+        $sourcePath = self::normalizeComparableMediaPath($sourceUrl);
+        if ($sourcePath === '' || $fileId <= 0 || !defined('ENV_SITE_PATH')) {
+            return ['status' => 'noop'];
+        }
+
+        $aliasPath = rtrim((string) ENV_SITE_PATH, DIRECTORY_SEPARATOR) . $sourcePath;
+        if ($aliasPath === '' || str_contains($aliasPath, '..')) {
+            return ['status' => 'noop'];
+        }
+
+        if (is_file($aliasPath) && !is_link($aliasPath)) {
+            return ['status' => 'exists', 'path' => $aliasPath];
+        }
+
+        $fileData = FileSystem::getFileData($fileId, false);
+        $sourceFilePath = trim((string) ($fileData['file_path'] ?? ''));
+        if ($sourceFilePath === '' || !is_file($sourceFilePath)) {
+            return ['status' => 'file_missing', 'path' => $aliasPath];
+        }
+
+        $aliasDir = dirname($aliasPath);
+        if (!is_dir($aliasDir) && !@mkdir($aliasDir, 0775, true) && !is_dir($aliasDir)) {
+            return ['status' => 'mkdir_failed', 'path' => $aliasPath];
+        }
+
+        if (is_link($aliasPath)) {
+            @unlink($aliasPath);
+        }
+
+        if (@copy($sourceFilePath, $aliasPath)) {
+            @chmod($aliasPath, 0644);
+            return ['status' => 'created', 'path' => $aliasPath];
+        }
+
+        if (@symlink($sourceFilePath, $aliasPath)) {
+            return ['status' => 'created', 'path' => $aliasPath];
+        }
+
+        return ['status' => 'copy_failed', 'path' => $aliasPath];
     }
 }

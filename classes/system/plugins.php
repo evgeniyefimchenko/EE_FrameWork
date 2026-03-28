@@ -663,8 +663,12 @@ class Plugins {
         $html = '<nav class="sb-topnav navbar navbar-expand navbar-dark bg-dark" id="general_info">';
         $html .= '<a class="navbar-brand ps-3" href="' . $data['brand']['url'] . '" target="_BLANK">' . $data['brand']['name'] . '</a>';
         $html .= '<button class="btn btn-link btn-sm order-1 order-lg-0 me-4 me-lg-0" id="sidebarToggle" href="#!"><i class="fas fa-bars"></i></button>';
-        //$html .= '<form action="/admin/search" method="GET" class="d-none d-md-inline-block form-inline ms-auto me-0 me-md-3 my-2 my-md-0"><div class="input-group"><input class="form-control" type="text" placeholder="Поиск..." aria-label="Поиск..." aria-describedby="btnNavbarSearch" /><button class="btn btn-primary" id="btnNavbarSearch" type="button"><i class="fas fa-search"></i></button></div></form>';
-        $html .= '<form action="/admin/search" method="GET" class="d-none d-md-inline-block form-inline ms-auto me-0 me-md-3 my-2 my-md-0"><div class="input-group"><input class="form-control" name="q" type="text" placeholder="Поиск..." aria-label="Поиск..." aria-describedby="btnNavbarSearch" value="' . htmlspecialchars($_GET['q'] ?? '') . '" /><button class="btn btn-primary" id="btnNavbarSearch" type="submit"><i class="fas fa-search"></i></button></div></form>';
+        if (!empty($data['toolbarHtml'])) {
+            $html .= (string) $data['toolbarHtml'];
+        }
+        $searchPlaceholder = htmlspecialchars((string) ($data['searchPlaceholder'] ?? 'Search...'), ENT_QUOTES);
+        $searchAriaLabel = htmlspecialchars((string) ($data['searchAriaLabel'] ?? $searchPlaceholder), ENT_QUOTES);
+        $html .= '<form action="/admin/search" method="GET" class="d-none d-md-inline-block form-inline ms-auto me-0 me-md-3 my-2 my-md-0"><div class="input-group"><input class="form-control" name="q" type="text" placeholder="' . $searchPlaceholder . '" aria-label="' . $searchAriaLabel . '" aria-describedby="btnNavbarSearch" value="' . htmlspecialchars($_GET['q'] ?? '') . '" /><button class="btn btn-primary" id="btnNavbarSearch" type="submit"><i class="fas fa-search"></i></button></div></form>';
         $html .= '<ul class="navbar-nav ms-auto ms-md-0 me-3 me-lg-4">';
         if (isset($data['notifications']) && !empty($data['notifications'])) {
             $notificationCount = count($data['notifications']);

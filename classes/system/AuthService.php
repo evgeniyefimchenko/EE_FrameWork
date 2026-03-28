@@ -20,6 +20,16 @@ class AuthService {
             return;
         }
 
+        if (!$force) {
+            self::$infrastructureReady = self::hasRequiredInfrastructure();
+            if (!self::$infrastructureReady) {
+                throw new \RuntimeException('Authentication infrastructure is not installed. Run install/upgrade first.');
+            }
+            self::ensureAuthEmailTemplates();
+            LegalConsentService::ensureInfrastructure(false);
+            return;
+        }
+
         self::createAuthSessionsTable();
         self::createAuthCredentialsTable();
         self::createAuthIdentitiesTable();
@@ -928,5 +938,20 @@ class AuthService {
 
         $result = SafeMySQL::gi()->query('SHOW TABLES LIKE ?s', $table);
         return $result instanceof \mysqli_result && $result->num_rows > 0;
+    }
+
+    private static function hasRequiredInfrastructure(): bool {
+        foreach ([
+            Constants::USERS_AUTH_SESSIONS_TABLE,
+            Constants::USERS_AUTH_CREDENTIALS_TABLE,
+            Constants::USERS_AUTH_IDENTITIES_TABLE,
+            Constants::USERS_AUTH_CHALLENGES_TABLE,
+        ] as $table) {
+            if (!self::tableExists($table)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

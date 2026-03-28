@@ -21,13 +21,15 @@ trait PagesTrait {
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect(200, '/show_login_form?return=admin');
         }
-        $currentUiLanguageCode = $this->syncAdminUiLanguageFromRequest();
+        $currentContentLanguageCode = ee_get_default_content_lang_code((string) ($_GET['language_code'] ?? \classes\system\Session::get('admin_pages_lang')));
+        \classes\system\Session::set('admin_pages_lang', $currentContentLanguageCode);
         /* view */
         $this->getStandardViews();
-        $pagesTable = $this->getPagesDataTable();
+        $pagesTable = $this->getPagesDataTable($currentContentLanguageCode);
         $this->view->set('pagesTable', $pagesTable);
-        $this->view->set('availableLanguageCodes', \classes\system\Lang::getLangFilesWithoutExtension());
-        $this->view->set('currentUiLanguageCode', $currentUiLanguageCode);
+        $this->view->set('availableContentLanguageCodes', ee_get_content_lang_codes());
+        $this->view->set('currentContentLanguageCode', $currentContentLanguageCode);
+        $this->view->set('defaultContentLanguageCode', ee_get_default_content_lang_code());
         $this->view->set('languageSwitchBaseUrl', '/admin/pages');
         $this->view->set('body_view', $this->view->read('v_pages'));
         $this->html = $this->view->read('v_dashboard');
@@ -82,11 +84,13 @@ trait PagesTrait {
                 ) ?: ''));
             }
         }
-        $currentUiLanguageCode = $this->getAdminUiLanguageCode();
-        $languageCode = strtoupper(trim((string)($postData['language_code'] ?? ($requestedLanguageCode ?: ($entityLanguageCode ?: $currentUiLanguageCode)))));
+        $defaultContentLanguageCode = ee_get_default_content_lang_code((string) (\classes\system\Session::get('admin_pages_lang') ?: ''));
+        $languageCode = strtoupper(trim((string)($postData['language_code'] ?? ($requestedLanguageCode ?: ($entityLanguageCode ?: $defaultContentLanguageCode)))));
         if ($languageCode === '') {
-            $languageCode = $entityLanguageCode !== '' ? $entityLanguageCode : $currentUiLanguageCode;
+            $languageCode = $entityLanguageCode !== '' ? $entityLanguageCode : $defaultContentLanguageCode;
         }
+        $languageCode = ee_get_default_content_lang_code($languageCode);
+        \classes\system\Session::set('admin_pages_lang', $languageCode);
         if (!empty($postData) && $languageCode !== '') {
             $postData['language_code'] = $languageCode;
         }
@@ -99,7 +103,7 @@ trait PagesTrait {
             }
             $newEntity = empty($pageId);
             if ($newEntity && $translationSourceId > 0 && empty($postData)) {
-                $draftPayload = $this->preparePageTranslationDraft($translationSourceId, $languageCode ?: ENV_DEF_LANG);
+                $draftPayload = $this->preparePageTranslationDraft($translationSourceId, $languageCode ?: ee_get_default_content_lang_code());
                 if (!empty($draftPayload['redirect'])) {
                     SysClass::handleRedirect(200, $draftPayload['redirect']);
                     return;
@@ -118,7 +122,7 @@ trait PagesTrait {
             if (isset($postData['title']) && $postData['title']) {
                 $postData['description'] = \classes\system\FileSystem::extractBase64Images($postData['description']);
                 $saveResult = $this->notifyOperationResult(
-                    $this->models['m_pages']->updatePageData($postData, $languageCode ?: ENV_DEF_LANG),
+                    $this->models['m_pages']->updatePageData($postData, $languageCode ?: ee_get_default_content_lang_code()),
                     [
                         'success_message' => $this->lang['sys.saved'] ?? 'Страница сохранена',
                         'default_error_message' => $this->lang['sys.db_registration_error'] ?? 'Ошибка сохранения',
@@ -146,25 +150,25 @@ trait PagesTrait {
             if ($saveSucceeded) {
                 $this->processPostParams($postData, $newEntity, $pageId);
             }
-            $getPageData = (int) $pageId ? $this->models['m_pages']->getPageData($pageId, $languageCode ?: ENV_DEF_LANG) : $default_data;
+            $getPageData = (int) $pageId ? $this->models['m_pages']->getPageData($pageId, $languageCode ?: ee_get_default_content_lang_code()) : $default_data;
             $getPageData = $getPageData ? $getPageData : $default_data;
         } else { // Не передан ключевой параметр id
             SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/user_edit/id/' . $this->logged_in);
         }
-        $getAllTypes = $this->models['m_categories_types']->getAllTypes(null, true, null, $languageCode ?: ENV_DEF_LANG);
+        $getAllTypes = $this->models['m_categories_types']->getAllTypes(null, true, null, $languageCode ?: ee_get_default_content_lang_code());
         $result = array_reduce($getAllTypes, function ($carry, $item) {
             $carry[$item['type_id']] = $item;
             return $carry;
         }, []);
         $getAllTypes = $result;
         unset($result);
-        $getAllCategories = $this->models['m_categories']->getCategoriesTree(null, null, true, $languageCode ?: ENV_DEF_LANG);
-        $getAllPages = $this->models['m_pages']->getAllPages($pageId, $languageCode ?: ENV_DEF_LANG);
-        $getAllProperties = $this->getPropertiesByCategoryId((int) ($getPageData['category_id'] ?? 0), (int) $pageId, $languageCode ?: ENV_DEF_LANG);
-        $availableLanguageCodes = \classes\system\Lang::getLangFilesWithoutExtension();
+        $getAllCategories = $this->models['m_categories']->getCategoriesTree(null, null, true, $languageCode ?: ee_get_default_content_lang_code());
+        $getAllPages = $this->models['m_pages']->getAllPages($pageId, $languageCode ?: ee_get_default_content_lang_code());
+        $getAllProperties = $this->getPropertiesByCategoryId((int) ($getPageData['category_id'] ?? 0), (int) $pageId, $languageCode ?: ee_get_default_content_lang_code());
+        $contentLanguageCodes = ee_get_content_lang_codes();
         $translationUi = (int) $pageId > 0
-            ? $this->buildPageTranslationUi((int) $pageId, $languageCode ?: ENV_DEF_LANG, $availableLanguageCodes)
-            : $this->buildPageTranslationDraftUi($translationSourceId, $languageCode ?: ENV_DEF_LANG, $availableLanguageCodes);
+            ? $this->buildPageTranslationUi((int) $pageId, $languageCode ?: ee_get_default_content_lang_code(), $contentLanguageCodes)
+            : $this->buildPageTranslationDraftUi($translationSourceId, $languageCode ?: ee_get_default_content_lang_code(), $contentLanguageCodes);
         foreach (Constants::ALL_STATUS as $key => $value) {
             $allStatus[$key] = $this->lang['sys.' . $value];
         }
@@ -175,8 +179,8 @@ trait PagesTrait {
         $this->view->set('allPages', $getAllPages);
         $this->view->set('allProperties', $getAllProperties);
         $this->view->set('allStatus', $allStatus);
-        $this->view->set('availableLanguageCodes', $availableLanguageCodes);
-        $this->view->set('currentLanguageCode', $languageCode ?: ENV_DEF_LANG);
+        $this->view->set('contentLanguageCodes', $contentLanguageCodes);
+        $this->view->set('currentLanguageCode', $languageCode ?: ee_get_default_content_lang_code());
         $this->view->set('languageSwitchBaseUrl', '/admin/page_edit/id/' . (int) $pageId);
         $this->view->set('translationUi', $translationUi);
         $this->view->set('translationSourceId', $translationSourceId);
@@ -193,7 +197,8 @@ trait PagesTrait {
         $this->showLayout($this->parameters_layout);
     }
 
-    private function getPropertiesByCategoryId(int $categoryId, int $pageId, string $languageCode = ENV_DEF_LANG): array {
+    private function getPropertiesByCategoryId(int $categoryId, int $pageId, string $languageCode = ''): array {
+        $languageCode = ee_get_default_content_lang_code($languageCode);
         $categoryTypeId = $this->models['m_categories']->getCategoryTypeId($categoryId, $languageCode);
         $getCategoriesTypeSets = $this->models['m_categories_types']->getCategoriesTypeSetsData($categoryTypeId);
         // $getCategoriesTypeSetsData = $this->processPageProperties($getCategoriesTypeSets, $pageId);
@@ -233,7 +238,7 @@ trait PagesTrait {
     /**
      * Вернёт таблицу страниц
      */
-    public function getPagesDataTable() {
+    public function getPagesDataTable(?string $contentLanguageCode = null) {
         $this->access = [Constants::ADMIN, Constants::MODERATOR];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect();
@@ -241,7 +246,8 @@ trait PagesTrait {
         }
         $this->loadModel('m_pages');
         $this->loadModel('m_categories_types', []);
-        $languageCode = $this->getAdminUiLanguageCode();
+        $languageCode = ee_get_default_content_lang_code((string) ($contentLanguageCode ?: \classes\system\Session::get('admin_pages_lang')));
+        \classes\system\Session::set('admin_pages_lang', $languageCode);
         $all_types = $this->models['m_categories_types']->getAllTypes(null, true, null, $languageCode);
         $postData = SysClass::ee_cleanArray($_POST);
         $data_table = [
@@ -369,7 +375,7 @@ trait PagesTrait {
         }
         $pageIds = array_values(array_filter(array_map(static fn(array $item): int => (int) ($item['page_id'] ?? 0), $arrPages['data'])));
         $translationsByPageId = EntityTranslationService::getTranslationsByEntityIds('page', $pageIds);
-        $availableLanguageCodes = \classes\system\Lang::getLangFilesWithoutExtension();
+        $availableLanguageCodes = ee_get_content_lang_codes();
         foreach ($arrPages['data'] as $item) {
             $data_table['rows'][] = [
                 'page_id' => $item['page_id'],
@@ -403,13 +409,13 @@ trait PagesTrait {
     }
 
     private function preparePageTranslationDraft(int $sourcePageId, string $targetLanguageCode): array {
-        $targetLanguageCode = strtoupper(trim($targetLanguageCode));
+        $targetLanguageCode = ee_get_default_content_lang_code($targetLanguageCode);
         $sourcePageRow = EntityTranslationService::getEntityRow('page', $sourcePageId);
         if (!is_array($sourcePageRow) || empty($sourcePageRow['page_id'])) {
             return [];
         }
 
-        $sourceLanguageCode = strtoupper((string) ($sourcePageRow['language_code'] ?? ENV_DEF_LANG));
+        $sourceLanguageCode = ee_get_default_content_lang_code((string) ($sourcePageRow['language_code'] ?? ''));
         if ($targetLanguageCode === '') {
             $targetLanguageCode = $sourceLanguageCode;
         }
@@ -462,6 +468,7 @@ trait PagesTrait {
     }
 
     private function buildPageTranslationUi(int $pageId, string $currentLanguageCode, array $availableLanguageCodes): array {
+        $availableLanguageCodes = ee_collect_lang_codes($availableLanguageCodes);
         $state = EntityTranslationService::getTranslationState('page', $pageId, $availableLanguageCodes);
         if ($state === []) {
             return [];
@@ -499,6 +506,7 @@ trait PagesTrait {
     }
 
     private function buildPageTranslationDraftUi(int $translationSourceId, string $currentLanguageCode, array $availableLanguageCodes): array {
+        $availableLanguageCodes = ee_collect_lang_codes($availableLanguageCodes);
         if ($translationSourceId <= 0) {
             return [];
         }
@@ -516,6 +524,7 @@ trait PagesTrait {
     }
 
     private function renderEntityTranslationBadges(string $entityType, int $entityId, array $translationState, array $availableLanguageCodes): string {
+        $availableLanguageCodes = ee_collect_lang_codes($availableLanguageCodes);
         $badges = [];
         $translations = (array) ($translationState['translations'] ?? []);
 

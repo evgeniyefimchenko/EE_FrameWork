@@ -14,8 +14,6 @@ final class ProductLifecycleStructureService {
     private const OBJECT_SET_NAME = 'Тип записи: Objects';
     private const LIFECYCLE_SET_NAME = 'Внутренний жизненный цикл объекта';
     private const LIFECYCLE_SET_DESCRIPTION = 'Служебные поля публикации, размещения и верификации карточки объекта.';
-    private const IMPORT_MAP_TABLE = ENV_DB_PREF . 'import_map';
-
     /**
      * Создаёт и синхронизирует lifecycle-набор для карточек объектов.
      * Если передан job_id, источник карточки проставляется только для страниц этого импорта.
@@ -294,10 +292,10 @@ final class ProductLifecycleStructureService {
                    AND im.map_type = ?s
                    AND im.job_id = ?i
                  WHERE p.language_code = ?s
-                 GROUP BY p.page_id, p.status, p.category_id, p.language_code
+                GROUP BY p.page_id, p.status, p.category_id, p.language_code
                  ORDER BY p.page_id ASC',
                 Constants::PAGES_TABLE,
-                self::IMPORT_MAP_TABLE,
+                Constants::IMPORT_MAP_TABLE,
                 'page',
                 $jobId,
                 $languageCode

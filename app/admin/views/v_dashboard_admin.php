@@ -31,6 +31,11 @@ $alertClass = static function (string $severity): string {
         default => 'info',
     };
 };
+$interfaceLanguageCodes = ee_get_interface_lang_codes();
+$currentInterfaceLanguageCode = ee_get_current_lang_code();
+$currentPath = (string) parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/admin'), PHP_URL_PATH);
+$currentQuery = $_GET;
+unset($currentQuery['ui_lang']);
 ?>
 <main>
     <div class="container-fluid px-4">
@@ -43,6 +48,27 @@ $alertClass = static function (string $severity): string {
                         <span class="ms-2"><?= htmlspecialchars((string) ($lang['sys.updated_at'] ?? 'Обновлено')) ?>: <strong><?= htmlspecialchars($generatedAt) ?></strong></span>
                     <?php endif; ?>
                 </div>
+                <?php if ($interfaceLanguageCodes !== []): ?>
+                    <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
+                        <span class="small text-muted"><?= htmlspecialchars((string) ($lang['sys.interface_language'] ?? 'Interface language')) ?>:</span>
+                        <div class="btn-group btn-group-sm" role="group" aria-label="<?= htmlspecialchars((string) ($lang['sys.interface_language'] ?? 'Interface language')) ?>">
+                            <?php foreach ($interfaceLanguageCodes as $interfaceLanguageCode): ?>
+                                <?php
+                                $langQuery = array_merge($currentQuery, ['ui_lang' => $interfaceLanguageCode]);
+                                $langUrl = $currentPath . (!empty($langQuery) ? '?' . http_build_query($langQuery) : '');
+                                ?>
+                                <a
+                                    href="<?= htmlspecialchars($langUrl, ENT_QUOTES, 'UTF-8') ?>"
+                                    class="btn <?= $interfaceLanguageCode === $currentInterfaceLanguageCode ? 'btn-primary active' : 'btn-outline-secondary' ?>"
+                                    data-lang-switch
+                                    data-langcode="<?= htmlspecialchars((string) $interfaceLanguageCode, ENT_QUOTES, 'UTF-8') ?>"
+                                >
+                                    <?= htmlspecialchars((string) $interfaceLanguageCode, ENT_QUOTES, 'UTF-8') ?>
+                                </a>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                <?php endif; ?>
             </div>
             <?php if ($quickActions !== []): ?>
                 <div class="d-flex flex-wrap gap-2">

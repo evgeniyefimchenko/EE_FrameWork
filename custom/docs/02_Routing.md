@@ -67,6 +67,55 @@ Router в EE_FrameWork разбирает URL и превращает его в 
 - сложные alias-маршруты лучше решать контроллером или hooks;
 - очень нетривиальные SEO-схемы требуют отдельного проектного слоя.
 
+## Public URL Contract
+
+Для `categories` и `pages` теперь действует отдельный semantic URL layer поверх core-полей `slug` и optional-полей `route_path`.
+
+Контракт такой:
+
+- категория: `/<category-slug>/<child-category-slug>`
+- страница: `/<category-slug>/<child-category-slug>/<page-slug>`
+
+Правила:
+
+- `slug` хранится в самих таблицах `ee_categories` и `ee_pages`, а не в свойствах;
+- `route_path` тоже хранится в core-таблицах `ee_categories` и `ee_pages`, а не в свойствах;
+- если у сущности заполнен `route_path`, public resolver использует именно его;
+- если `route_path` пуст, маршрут собирается из обычной slug-иерархии;
+- Router сначала проверяет реальные модули и контроллеры в `app/`, и только потом пробует semantic entity route;
+- public route резолвится по текущему языковому контексту;
+- для явного выбора не-default языка поддерживается suffix-параметр `?sl=EN`.
+
+Пример:
+
+```text
+/gaspra
+/gaspra/gostinica-nika
+/noviyafon/catalog/flat
+/gaspra/gostinica-nika?sl=EN
+```
+
+Это позволяет держать два режима:
+
+- штатный EE semantic routing по `slug`;
+- опциональное сохранение donor-path при полном переезде с другого движка.
+
+`docs` в этот контракт не входят и продолжают жить отдельным модулем `/docs/...`.
+
+После резолва semantic entity route Router передаёт запрос в обычный public controller:
+
+- `app/index/index.php -> ControllerIndex::public_entity()`
+
+Дальше уже public model layer собирает domain payload:
+
+- `ModelPublicCatalog::getCategoryPayload()`
+- `ModelPublicCatalog::getPagePayload()`
+
+И только потом включаются dedicated views:
+
+- `app/index/views/v_public_category.php`
+- `app/index/views/v_public_page.php`
+
 ## Важная оговорка про веб-сервер
 
 Если на сервере есть защитные `deny`-регексы для внутренних директорий, они должны быть привязаны к имени директории, а не к любому префиксу пути.
@@ -94,6 +143,7 @@ Router умеет кэшировать разрешение маршрута.
 - route cache теперь можно реально выключать;
 - backend может быть `file` или `redis`;
 - route cache отделён по namespace/version;
+- ключ route cache учитывает языковой контекст semantic public URL;
 - для очистки есть отдельные admin actions.
 
 Используйте route cache, когда:

@@ -1,4 +1,5 @@
 $(document).ready(function () {
+    const t = (key, fallback) => AppCore.getLangVar(key) || fallback;
     // Set new default font family and font color to mimic Bootstrap's default styling
     Chart.defaults.global.defaultFontFamily = '-apple-system,system-ui,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif';
     Chart.defaults.global.defaultFontColor = '#292b2c';
@@ -105,19 +106,18 @@ $(document).ready(function () {
             steps: [
                 {
                     element: '#general_info',
-                    title: 'Введение',
-                    content: 'Этот небольшой тур по вклатке DASHBOARD<br/>Вы можете всегда прервать его как и любой другой.<br/>Или начать заного в меню пользователя.<br/>'
-                           + 'Туры привязаны каждый к своей странице. И завершение одного не завершает остальные.<br/>'
+                    title: t('sys.dashboard_tour_intro_title', 'Introduction'),
+                    content: t('sys.dashboard_tour_intro_text', 'This short tour explains the dashboard tab. You can stop it at any time and restart it later from the user menu. Tours are bound to each page separately.')
                 },
                 {
                     element: '#tour_summary_statistics',
-                    title: 'Шаг 2',
-                    content: 'Пример плагинов и вёрстки для статистичческих/исторических данных'
+                    title: t('sys.dashboard_tour_step_2_title', 'Step 2'),
+                    content: t('sys.dashboard_tour_step_2_text', 'An example of layout blocks for statistics and historical data.')
                 },
                 {
                     element: '#tour_data_table',
-                    title: 'Шаг 3',
-                    content: 'Пример реализации таблицы с тестовыми данными. Сортировка, фильтры и пагинация приведены для наглядности.'
+                    title: t('sys.dashboard_tour_step_3_title', 'Step 3'),
+                    content: t('sys.dashboard_tour_step_3_text', 'An example of a data table with sorting, filters, and pagination.')
                 }
             ],
             name: window.location.pathname

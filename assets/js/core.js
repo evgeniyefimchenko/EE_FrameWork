@@ -1,7 +1,7 @@
 const AppCore = (function () {
     // Глобальные переменные
     const preloader = $('#preloader');
-    const lang_select = $('#lang_select');
+    const lang_select = $('[data-lang-switch][data-langcode], #lang_select[data-langcode], #lang_select');
 
     // Приватные функции
     function safeParseJSON(json) {
@@ -16,6 +16,39 @@ const AppCore = (function () {
         }
     }
 
+    function applyLanguageSwitch(targetLangCode, fallbackUrl = '') {
+        if (!targetLangCode) {
+            return;
+        }
+
+        AppCore.sendAjaxRequest(
+            '/set_options/' + targetLangCode,
+            {},
+            'POST',
+            'json',
+            function (data) {
+                if (data.error !== 'no') {
+                    console.error("Error setting language:", data);
+                    if (fallbackUrl) {
+                        window.location.href = fallbackUrl;
+                    }
+                } else {
+                    if (fallbackUrl) {
+                        window.location.href = fallbackUrl;
+                    } else {
+                        location.reload();
+                    }
+                }
+            },
+            function (jqXHR, textStatus, errorThrown) {
+                console.error("Error during language selection:", textStatus, errorThrown);
+                if (fallbackUrl) {
+                    window.location.href = fallbackUrl;
+                }
+            }
+        );
+    }
+
     // Публичные методы
     return {
         init: function () {
@@ -24,24 +57,19 @@ const AppCore = (function () {
                     new bootstrap.Tooltip(tooltipTriggerEl);
                 });
                 preloader.fadeOut(500);
-                lang_select.click(function () {
-                    AppCore.sendAjaxRequest(
-                            '/set_options/' + $(this).attr('data-langcode'),
-                            {},
-                            'POST',
-                            'json',
-                            function (data) {
-                                if (data.error !== 'no') {
-                                    console.error("Error setting language:", data);
-                                } else {
-                                    // Перезагружаем страницу для применения нового языка
-                                    location.reload();
-                                }
-                            },
-                            function (jqXHR, textStatus, errorThrown) {
-                                console.error("Error during language selection:", textStatus, errorThrown);
-                            }
-                    );
+                lang_select.filter('[data-langcode]').on('click', function (event) {
+                    if (event) {
+                        event.preventDefault();
+                    }
+                    const targetLangCode = ($(this).attr('data-langcode') || '').toString().trim();
+                    const fallbackUrl = ($(this).attr('href') || '').toString().trim();
+                    applyLanguageSwitch(targetLangCode, fallbackUrl);
+                });
+
+                lang_select.filter('select, input').on('change', function () {
+                    const targetLangCode = ($(this).val() || '').toString().trim();
+                    const fallbackUrl = ($(this).attr('data-href') || '').toString().trim();
+                    applyLanguageSwitch(targetLangCode, fallbackUrl);
                 });
             });
         },
@@ -49,6 +77,14 @@ const AppCore = (function () {
         // Возвращает языковую переменную
         getLangVar: function (key) {
             return window.LANG_VARS?.[key] || `Key ${key} not found in LANG_VARS`;
+        },
+
+        getCurrentLang: function () {
+            return (window.LANG_VARS?.ENV_CURRENT_LANG || window.LANG_VARS?.ENV_DEF_LANG || 'EN').toString().toUpperCase();
+        },
+
+        getCurrentLangLocale: function () {
+            return (window.LANG_VARS?.ENV_CURRENT_LANG_LOCALE || 'en-US').toString();
         },
 
         // Возвращает все языковые переменные
@@ -70,7 +106,9 @@ const AppCore = (function () {
                 url: url,
                 type: method,
                 data: data,
-                headers: headers,
+                headers: Object.assign({
+                    'X-Requested-With': 'XMLHttpRequest'
+                }, headers),
                 dataType: dataType,
                 processData: !isFormData,
                 contentType: isFormData ? false : 'application/x-www-form-urlencoded; charset=UTF-8',
@@ -267,7 +305,7 @@ const AppCore = (function () {
 AppCore.init();
 AppCore.summernoteParams = {
     height: 300,
-    lang: AppCore.getLangVar('ENV_DEF_LANG') === 'RU' ? 'ru-RU' : 'en-US',  
+    lang: AppCore.getCurrentLang() === 'RU' ? 'ru-RU' : 'en-US',
     toolbar: [
         ['custom', ['textManipulator']],
         ['style', ['style']],

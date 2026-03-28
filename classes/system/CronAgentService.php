@@ -35,6 +35,17 @@ class CronAgentService {
             return;
         }
 
+        if (!$force) {
+            self::$infrastructureReady = self::tableExists(Constants::CRON_AGENTS_TABLE)
+                && self::tableExists(Constants::CRON_AGENT_RUNS_TABLE);
+            if (!self::$infrastructureReady) {
+                throw new \RuntimeException('Cron infrastructure is not installed. Run install/upgrade first.');
+            }
+            ImportMediaQueueService::ensureInfrastructure(false);
+            BackupService::ensureInfrastructure(false);
+            return;
+        }
+
         self::createCronAgentsTable();
         self::createCronAgentRunsTable();
         ImportMediaQueueService::ensureInfrastructure($force);

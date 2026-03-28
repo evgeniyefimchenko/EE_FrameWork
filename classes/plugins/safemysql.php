@@ -75,7 +75,7 @@ class SafeMySQL extends \classes\helpers\Singleton {
         'port' => NULL,
         'socket' => NULL,
         'pconnect' => FALSE,
-        'charset' => 'utf8',
+        'charset' => 'utf8mb4',
         'errmode' => 'exception', //or exception
         'exception' => 'Exception', //Exception class name
     );

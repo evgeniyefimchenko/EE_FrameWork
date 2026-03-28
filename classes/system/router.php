@@ -145,7 +145,7 @@ class Router {
      */
     private function getController(?string &$file, ?string &$controllerName, ?string &$action, ?array &$args): void {
         $routeRaw = $_GET['route'] ?? 'index';
-        $cacheKey = md5($routeRaw);
+        $cacheKey = self::buildRouteCacheKey((string) $routeRaw);
         $cachedData = $this->getCache($cacheKey);
 
         if ($cachedData) {
@@ -251,19 +251,27 @@ class Router {
                     } else { $action = 'index'; $args = []; }
 
                 } else {
+                    $publicEntityRoute = $this->resolvePublicEntityRoute($routeNormalized);
+                    if ($publicEntityRoute !== null) {
+                        $file = (string) ($publicEntityRoute['file'] ?? '');
+                        $controllerName = (string) ($publicEntityRoute['controllerName'] ?? 'index');
+                        $action = (string) ($publicEntityRoute['action'] ?? 'public_entity');
+                        $args = is_array($publicEntityRoute['args'] ?? null) ? $publicEntityRoute['args'] : [];
+                    } else {
                     // --- Первый сегмент НЕ папка и НЕ файл в app/ => Считаем ACTION для контроллера по УМОЛЧАНИЮ ---
-                    $currentPath .= 'index' . ENV_DIRSEP; // Путь к контроллеру по умолчанию
-                    $file = $currentPath . 'index.php';    // Файл контроллера по умолчанию
-                    $controllerName = 'index';             // Имя контроллера по умолчанию
-                    $action = $firstSegment;               // Первый сегмент становится action
-                    array_shift($parts);                   // Убираем action из оставшихся частей
-                    $args = $parts;                        // Остальное - аргументы
+                        $currentPath .= 'index' . ENV_DIRSEP; // Путь к контроллеру по умолчанию
+                        $file = $currentPath . 'index.php';    // Файл контроллера по умолчанию
+                        $controllerName = 'index';             // Имя контроллера по умолчанию
+                        $action = $firstSegment;               // Первый сегмент становится action
+                        array_shift($parts);                   // Убираем action из оставшихся частей
+                        $args = $parts;                        // Остальное - аргументы
 
-                     // Проверка валидности action
-                     if (empty($action) || is_numeric($action) || !preg_match('/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$/', $action)) {
-                          array_unshift($args, $action); // Если невалидный, кладем в начало аргументов
-                          $action = 'index';             // Сам action сбрасываем на index
-                     }
+                         // Проверка валидности action
+                         if (empty($action) || is_numeric($action) || !preg_match('/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$/', $action)) {
+                              array_unshift($args, $action); // Если невалидный, кладем в начало аргументов
+                              $action = 'index';             // Сам action сбрасываем на index
+                         }
+                    }
                 }
             } else {
                  // Случай пустого $parts после нормализации (маловероятен, но для полноты)
@@ -394,6 +402,45 @@ class Router {
                 $redis->del($keys);
             }
         } while ($iterator !== 0 && $iterator !== null);
+    }
+
+    private static function buildRouteCacheKey(string $routeRaw): string {
+        return md5($routeRaw . '|' . self::getRouteCacheContext());
+    }
+
+    private static function getRouteCacheContext(): string {
+        if (class_exists(EntityPublicUrlService::class)) {
+            return EntityPublicUrlService::getRouteCacheContextKey();
+        }
+
+        return 'lang:' . (function_exists('ee_get_current_lang_code') ? ee_get_current_lang_code() : (defined('ENV_DEF_LANG') ? ENV_DEF_LANG : 'EN'));
+    }
+
+    private function resolvePublicEntityRoute(string $routeNormalized): ?array {
+        if ($routeNormalized === '' || !class_exists(EntityPublicUrlService::class)) {
+            return null;
+        }
+
+        $resolvedRoute = EntityPublicUrlService::resolvePath($routeNormalized);
+        if (!is_array($resolvedRoute) || empty($resolvedRoute['entity_type']) || empty($resolvedRoute['entity_id'])) {
+            return null;
+        }
+
+        $file = rtrim($this->path, '/\\') . ENV_DIRSEP . 'index' . ENV_DIRSEP . 'index.php';
+        if (!is_readable($file)) {
+            return null;
+        }
+
+        return [
+            'file' => $file,
+            'controllerName' => 'index',
+            'action' => 'public_entity',
+            'args' => [
+                (string) $resolvedRoute['entity_type'],
+                (int) $resolvedRoute['entity_id'],
+                (string) ($resolvedRoute['language_code'] ?? ''),
+            ],
+        ];
     }
 
     /**

@@ -34,8 +34,9 @@ trait PropertiesTrait {
         $this->html = $this->view->read('v_dashboard');
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
-        $this->parameters_layout["title"] = ENV_SITE_NAME . ' - Свойства';
-        $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION . ' - Свойства';
+        $propertiesTitle = (string) ($this->lang['sys.properties'] ?? 'Properties');
+        $this->parameters_layout["title"] = ENV_SITE_NAME . ' - ' . $propertiesTitle;
+        $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION . ' - ' . $propertiesTitle;
         $this->parameters_layout["canonical_href"] = ENV_URL_SITE . '/admin';
         $this->parameters_layout["keywords"] = SysClass::getKeywordsFromText($this->html);
         $this->showLayout($this->parameters_layout);
@@ -57,8 +58,9 @@ trait PropertiesTrait {
         $this->html = $this->view->read('v_dashboard');
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
-        $this->parameters_layout["title"] = ENV_SITE_NAME . ' - Типы свойств';
-        $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION . ' - Типы свойств';
+        $propertyTypesTitle = (string) ($this->lang['sys.property_types'] ?? 'Property types');
+        $this->parameters_layout["title"] = ENV_SITE_NAME . ' - ' . $propertyTypesTitle;
+        $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION . ' - ' . $propertyTypesTitle;
         $this->parameters_layout["canonical_href"] = ENV_URL_SITE . '/admin';
         $this->parameters_layout["keywords"] = SysClass::getKeywordsFromText($this->html);
         $this->showLayout($this->parameters_layout);
@@ -190,12 +192,12 @@ trait PropertiesTrait {
                     'filterable' => true
                 ], [
                     'field' => 'is_required',
-                    'title' => 'Обязательное',
+                    'title' => $this->lang['sys.required'] ?? 'Required',
                     'sorted' => false,
                     'filterable' => false
                 ], [
                     'field' => 'is_multiple',
-                    'title' => 'Множественное',
+                    'title' => $this->lang['sys.multiple'] ?? ($this->lang['sys.multiple_choice'] ?? 'Multiple'),
                     'sorted' => false,
                     'filterable' => false
                 ], [
@@ -228,7 +230,7 @@ trait PropertiesTrait {
                 'id' => "type_id",
                 'value' => [],
                 'label' => $this->lang['sys.type'],
-                'options' => [['value' => 0, 'label' => 'Любой']],
+                'options' => [['value' => 0, 'label' => $this->lang['sys.any'] ?? 'Any']],
                 'multiple' => true
             ],
             'created_at' => [
@@ -391,7 +393,7 @@ trait PropertiesTrait {
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
         $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/edit_property_type.js" type="text/javascript" /></script>';
-        $this->parameters_layout["title"] = 'Редактирование типа свойств';
+        $this->parameters_layout["title"] = (string) ($this->lang['sys.property_type_edit'] ?? 'Edit property type');
         $this->showLayout($this->parameters_layout);
     }
 
@@ -525,7 +527,7 @@ trait PropertiesTrait {
         $this->parameters_layout["layout"] = 'dashboard';
         $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/edit_property.js" type="text/javascript" /></script>';
         $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/func_properties.js" type="text/javascript" /></script>';
-        $this->parameters_layout["title"] = 'Редактирование свойства';
+        $this->parameters_layout["title"] = (string) ($this->lang['sys.property_edit'] ?? 'Edit property');
         $this->showLayout($this->parameters_layout);
     }
     

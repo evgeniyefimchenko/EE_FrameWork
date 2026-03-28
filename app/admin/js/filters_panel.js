@@ -1,6 +1,7 @@
 /* Управление панелью пересчета фильтров (ФИНАЛЬНАЯ ВЕРСИЯ) */
 $(document).ready(function () {
     setActiveNavLink('/admin/filters_panel');
+    const t = (key, fallback) => AppCore.getLangVar(key) || fallback;
 
     const regenerateBtn = $('#regenerate-btn');
     const regenerateAllBtn = $('#regenerate-all-btn');
@@ -21,14 +22,14 @@ $(document).ready(function () {
     }
 
     function updateFiltersTable() {
-        log('Обновление таблицы...');
+        log(t('sys.filters_table_updating', 'Updating table...'));
         AppCore.sendAjaxRequest('/admin/get_filters_table', {}, 'GET', 'html', 
             function(response) {
                 tableContainer.html(response);
-                log('Таблица успешно обновлена.', 'success');
+                log(t('sys.filters_table_updated', 'Table updated successfully.'), 'success');
             },
             function() {
-                log('Не удалось обновить таблицу.', 'error');
+                log(t('sys.filters_table_update_failed', 'Failed to update table.'), 'error');
             }
         );
     }
@@ -36,26 +37,26 @@ $(document).ready(function () {
     function runRegeneration(entityId) {
         return new Promise((resolve) => {
             if (entityId <= 0) {
-                log('ID категории не может быть 0.', 'error');
+                log(t('sys.filters_category_id_invalid', 'Category ID cannot be 0.'), 'error');
                 resolve();
                 return;
             }
-            log(`Запускаем пересчет для категории ID: ${entityId}...`);
+            log(`${t('sys.filters_regenerate_category_prefix', 'Starting regeneration for category ID')}: ${entityId}...`);
             regenerateBtn.prop('disabled', true);
             regenerateAllBtn.prop('disabled', true);
             AppCore.sendAjaxRequest('/admin/regenerate_filters', { entity_type: 'category', entity_id: entityId }, 'POST', 'json',
                 function (response) {
                     if (response && response.status === 'success') {
-                        log(`УСПЕХ: ${response.message}`, 'success');
+                        log(`${t('sys.success', 'Success')}: ${response.message}`, 'success');
                     } else {
-                        log(`ОШИБКА: ${response.message || 'Неизвестный ответ от сервера.'}`, 'error');
+                        log(`${t('sys.error', 'Error')}: ${response.message || t('sys.unknown_server_response', 'Unknown server response.')}`, 'error');
                     }
                     regenerateBtn.prop('disabled', false);
                     regenerateAllBtn.prop('disabled', false);
                     resolve();
                 },
                 function (xhr, status, error) {
-                    log(`Критическая ошибка AJAX запроса: ${error}`, 'error');
+                    log(`${t('sys.ajax_critical_error', 'Critical AJAX request error')}: ${error}`, 'error');
                     regenerateBtn.prop('disabled', false);
                     regenerateAllBtn.prop('disabled', false);
                     resolve();
@@ -67,7 +68,7 @@ $(document).ready(function () {
     regenerateBtn.on('click', async function () {
         const selectedCategoryId = parseInt(categorySelect.val());
         if (!selectedCategoryId) {
-            log('Пожалуйста, выберите категорию из списка.', 'error');
+            log(t('sys.filters_select_category', 'Please choose a category from the list.'), 'error');
             return;
         }
         await runRegeneration(selectedCategoryId);
@@ -75,7 +76,7 @@ $(document).ready(function () {
     });
 
     regenerateAllBtn.on('click', async function () {
-        log('Запускаем полный пересчет для ВСЕХ корневых категорий...');
+        log(t('sys.filters_regenerate_all_start', 'Starting full regeneration for all root categories...'));
         const categories = categorySelect.find('option');
         for (const option of categories) {
             const categoryId = parseInt($(option).val());
@@ -83,7 +84,7 @@ $(document).ready(function () {
                 await runRegeneration(categoryId);
             }
         }
-        log('Полный пересчет завершен.', 'success');
+        log(t('sys.filters_regenerate_all_done', 'Full regeneration completed.'), 'success');
         updateFiltersTable();
     });
 
@@ -92,7 +93,7 @@ $(document).ready(function () {
         const entityName = $(this).data('entity-name');
 
         modalTitle.text(entityName + ' (ID: ' + entityId + ')');
-        modalBody.html('<p class="text-center">Загрузка...</p>');
+        modalBody.html('<p class="text-center">' + t('sys.loading', 'Loading...') + '</p>');
         
         AppCore.sendAjaxRequest('/admin/get_filter_details', {entity_id: entityId}, 'POST', 'json',
             function(response) {
@@ -109,13 +110,13 @@ $(document).ready(function () {
                             fields.forEach(field => {
                                 const fieldLabel = field.label || filter.property_name;
                                 if (field.filter_type === 'range') {
-                                    fieldsHtml += `<div><strong>${fieldLabel}</strong>: диапазон от ${field.min_value} до ${field.max_value}, найдено ${field.count || 0} шт.</div>`;
+                                    fieldsHtml += `<div><strong>${fieldLabel}</strong>: ${t('sys.range_from', 'range from')} ${field.min_value} ${t('sys.range_to', 'to')} ${field.max_value}, ${t('sys.found_count', 'found')} ${field.count || 0} ${t('sys.items_short', 'items')}</div>`;
                                     return;
                                 }
                                 if (field.filter_type === 'options' && Array.isArray(field.options) && field.options.length > 0) {
                                     let optionsHtml = '<ul>';
                                     field.options.forEach(opt => {
-                                        optionsHtml += `<li>${opt.label} (ID: ${opt.id}) - ${opt.count} шт.</li>`;
+                                        optionsHtml += `<li>${opt.label} (ID: ${opt.id}) - ${opt.count} ${t('sys.items_short', 'items')}</li>`;
                                     });
                                     optionsHtml += '</ul>';
                                     fieldsHtml += `<div><strong>${fieldLabel}</strong>${optionsHtml}</div>`;
@@ -124,21 +125,21 @@ $(document).ready(function () {
                             if (fieldsHtml) {
                                 html += `<dd>${fieldsHtml}</dd>`;
                             } else {
-                                html += `<dd>Нет данных для отображения.</dd>`;
+                                html += `<dd>${t('sys.no_data_to_display', 'No data to display.')}</dd>`;
                             }
                         } catch (e) {
-                            console.error('Ошибка парсинга JSON для фильтра:', filter);
-                            html += `<dd>Ошибка отображения данных.</dd>`;
+                            console.error(t('sys.filters_json_parse_error', 'Filter JSON parsing error:'), filter);
+                            html += `<dd>${t('sys.display_error', 'Display error.')}</dd>`;
                         }
                     });
                     html += '</dl>';
                     modalBody.html(html);
                 } else {
-                    modalBody.html('<p class="text-center">Для этой категории нет сгенерированных фильтров.</p>');
+                    modalBody.html('<p class="text-center">' + t('sys.filters_no_generated', 'No generated filters for this category.') + '</p>');
                 }
             },
             function() {
-                modalBody.html('<p class="text-center text-danger">Ошибка запроса к серверу.</p>');
+                modalBody.html('<p class="text-center text-danger">' + t('sys.server_request_error', 'Server request error.') + '</p>');
             }
         );
     });

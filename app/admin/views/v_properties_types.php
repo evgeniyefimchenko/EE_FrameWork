@@ -6,7 +6,7 @@
            class="btn btn-info mx-1 float-end">
             <i class="fa fa-plus-circle"></i>&nbsp;<?= $lang['sys.add'] ?>
         </a>        
-        <h1 class="mt-4">Типы свойств</h1>
+        <h1 class="mt-4"><?= htmlspecialchars((string) ($lang['sys.property_types'] ?? 'Property types')) ?></h1>
         <div class="row">
             <div class="col">
                 <?= $types_properties_table ?>

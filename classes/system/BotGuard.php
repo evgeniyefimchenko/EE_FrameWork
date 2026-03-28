@@ -14,6 +14,9 @@ class BotGuard {
     private static array $badBots = [];
     private static bool $isInitialized = false;
     private static int $lastBlacklistCleanupTs = 0;
+    private static int $lastRequestLogsCleanupTs = 0;
+    private static bool $requestLogsSchemaEnsured = false;
+    private static bool $requestLogsInfrastructureReady = false;
 
     private const BAD_BOTS_FILE_NAME = 'bad_bots.json';
     private const BAD_BOTS_RESTORE_MARKER = '.bad_bots_restore.marker';
@@ -90,6 +93,7 @@ class BotGuard {
 
         self::connectRedis();
         self::ensureTmpPathExists();
+        self::ensureRateLimitInfrastructure();
 
         $localFile = self::getBadBotsFilePath();
         $botsFromFile = self::loadBadBotsFromFile($localFile);
@@ -378,10 +382,14 @@ class BotGuard {
             } elseif (
                 self::ENABLED_CHECKS[self::CHECK_RATE_LIMIT]
                 && !self::shouldSkipRateLimitForCurrentRequest()
-                && self::isRateLimited($ip)
+                && ($rateLimitState = self::checkRateLimit($ip))['limited']
             ) {
                 $rejectionReason = 'Rate limit exceeded';
                 $httpCode = 429;
+                $rejectionDetails['rate_limit_scope'] = (string) ($rateLimitState['scope'] ?? 'read');
+                $rejectionDetails['rate_limit_limit'] = (int) ($rateLimitState['limit'] ?? 0);
+                $rejectionDetails['rate_limit_window'] = (int) ($rateLimitState['window'] ?? 0);
+                $countStrike = !empty($rateLimitState['count_strike']);
             }
         }
 
@@ -730,71 +738,244 @@ class BotGuard {
     /**
      * Checks request rate-limit backend.
      */
-    private static function isRateLimited(string $ip): bool {
+    private static function checkRateLimit(string $ip): array {
+        $policy = self::getRateLimitPolicy();
         if (self::$useRedis && self::getRedisClient()) {
-            return self::_rateLimitRedis($ip);
+            return self::_rateLimitRedis($ip, $policy);
         }
-        return self::_rateLimitDb($ip);
+        return self::_rateLimitDb($ip, $policy);
     }
 
     /**
      * Redis rate limiter.
      */
-    private static function _rateLimitRedis(string $ip): bool {
+    private static function _rateLimitRedis(string $ip, array $policy): array {
         try {
             $redis = self::getRedisClient();
             if (!$redis) {
-                return false;
+                return ['limited' => false] + $policy;
             }
 
-            $window = (int) ENV_GUARD_RATE_LIMIT_WINDOW;
-            $limit = (int) ENV_GUARD_RATE_LIMIT_COUNT;
+            $window = (int) ($policy['window'] ?? 0);
+            $limit = (int) ($policy['limit'] ?? 0);
             if ($window <= 0 || $limit <= 0) {
-                return false;
+                return ['limited' => false] + $policy;
             }
 
-            $key = 'ee_rate_limit:' . sha1($ip);
+            $key = 'ee_rate_limit:' . ($policy['scope'] ?? 'read') . ':' . sha1($ip);
             $count = (int) $redis->incr($key);
             if ($count === 1) {
                 $redis->expire($key, $window);
             }
 
-            return $count > $limit;
+            return [
+                'limited' => $count > $limit,
+                'count' => $count,
+            ] + $policy;
         } catch (\Throwable $e) {
             self::logBotGuard(Logger::LEVEL_WARNING, 'botguard_redis', 'Redis rate-limit check failed: ' . $e->getMessage(), [], __FUNCTION__, false);
-            return false;
+            return ['limited' => false] + $policy;
         }
     }
 
     /**
      * DB rate limiter.
      */
-    private static function _rateLimitDb(string $ip): bool {
+    private static function _rateLimitDb(string $ip, array $policy): array {
         try {
-            $window = (int) ENV_GUARD_RATE_LIMIT_WINDOW;
-            $limit = (int) ENV_GUARD_RATE_LIMIT_COUNT;
-            if ($window <= 0 || $limit <= 0) {
-                return false;
+            if (!self::$requestLogsInfrastructureReady) {
+                return ['limited' => false] + $policy;
             }
 
+            $window = (int) ($policy['window'] ?? 0);
+            $limit = (int) ($policy['limit'] ?? 0);
+            $scope = trim((string) ($policy['scope'] ?? 'read'));
+            if ($window <= 0 || $limit <= 0) {
+                return ['limited' => false] + $policy;
+            }
+
+            self::cleanupExpiredRateLimitRowsDb($window);
             $db = SafeMySQL::gi();
-            $sql = "INSERT INTO ?n (ip, first_request_at) VALUES(?s, NOW())
+            $sql = "INSERT INTO ?n (ip, scope, first_request_at) VALUES(?s, ?s, NOW())
                     ON DUPLICATE KEY UPDATE
                     request_count = IF(first_request_at < NOW() - INTERVAL ?i SECOND, 1, request_count + 1),
                     first_request_at = IF(first_request_at < NOW() - INTERVAL ?i SECOND, NOW(), first_request_at)";
 
-            $db->query($sql, Constants::IP_REQUEST_LOGS_TABLE, $ip, $window, $window);
+            $db->query($sql, Constants::IP_REQUEST_LOGS_TABLE, $ip, $scope, $window, $window);
 
             $count = (int) $db->getOne(
-                            "SELECT request_count FROM ?n WHERE ip = ?s",
+                            "SELECT request_count FROM ?n WHERE ip = ?s AND scope = ?s",
                             Constants::IP_REQUEST_LOGS_TABLE,
-                            $ip
+                            $ip,
+                            $scope
             );
 
-            return $count > $limit;
+            return [
+                'limited' => $count > $limit,
+                'count' => $count,
+            ] + $policy;
         } catch (\Throwable $e) {
             self::logBotGuard(Logger::LEVEL_ERROR, 'botguard', 'DB rate-limit check failed: ' . $e->getMessage(), ['ip' => $ip], __FUNCTION__);
-            return false;
+            return ['limited' => false] + $policy;
+        }
+    }
+
+    /**
+     * Returns active rate-limit policy for current request.
+     */
+    private static function getRateLimitPolicy(): array {
+        $scope = self::getRateLimitScope();
+
+        if ($scope === 'write') {
+            $limit = defined('ENV_GUARD_RATE_LIMIT_WRITE_COUNT') ? (int) ENV_GUARD_RATE_LIMIT_WRITE_COUNT : (int) ENV_GUARD_RATE_LIMIT_COUNT;
+            $window = defined('ENV_GUARD_RATE_LIMIT_WRITE_WINDOW') ? (int) ENV_GUARD_RATE_LIMIT_WRITE_WINDOW : (int) ENV_GUARD_RATE_LIMIT_WINDOW;
+
+            return [
+                'scope' => 'write',
+                'limit' => max(0, $limit),
+                'window' => max(0, $window),
+                'count_strike' => true,
+            ];
+        }
+
+        $defaultReadLimit = defined('ENV_GUARD_RATE_LIMIT_COUNT') ? max((int) ENV_GUARD_RATE_LIMIT_COUNT, 30) : 30;
+        $limit = defined('ENV_GUARD_RATE_LIMIT_GET_COUNT') ? (int) ENV_GUARD_RATE_LIMIT_GET_COUNT : $defaultReadLimit;
+        $window = defined('ENV_GUARD_RATE_LIMIT_GET_WINDOW') ? (int) ENV_GUARD_RATE_LIMIT_GET_WINDOW : (int) ENV_GUARD_RATE_LIMIT_WINDOW;
+
+        return [
+            'scope' => 'read',
+            'limit' => max(0, $limit),
+            'window' => max(0, $window),
+            'count_strike' => false,
+        ];
+    }
+
+    /**
+     * Splits navigation requests from action requests.
+     */
+    private static function getRateLimitScope(): string {
+        $method = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+        $isAjax = false;
+        try {
+            $isAjax = SysClass::isAjaxRequestFromSameSite();
+        } catch (\Throwable) {
+            $isAjax = false;
+        }
+
+        if ($isAjax || !in_array($method, ['GET', 'HEAD'], true)) {
+            return 'write';
+        }
+
+        return 'read';
+    }
+
+    /**
+     * Ensures request log table supports separate read/write scopes.
+     */
+    private static function ensureRateLimitInfrastructure(): void {
+        if (self::$requestLogsSchemaEnsured) {
+            return;
+        }
+
+        try {
+            $db = SafeMySQL::gi();
+            $table = Constants::IP_REQUEST_LOGS_TABLE;
+            $exists = (int) $db->getOne(
+                "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?s",
+                $table
+            );
+
+            if ($exists === 0) {
+                self::logBotGuard(
+                    Logger::LEVEL_WARNING,
+                    'botguard',
+                    'Rate-limit infrastructure is missing. Run install/upgrade flow to create required tables.',
+                    ['table' => $table],
+                    __FUNCTION__,
+                    false
+                );
+                self::$requestLogsSchemaEnsured = true;
+                return;
+            }
+
+            $columns = $db->getAll("DESCRIBE ?n", $table);
+            $columnNames = array_map(
+                static fn(array $row): string => (string) ($row['Field'] ?? ''),
+                is_array($columns) ? $columns : []
+            );
+
+            $requiredColumns = ['ip', 'scope', 'request_count', 'first_request_at'];
+            $missingColumns = [];
+            foreach ($requiredColumns as $requiredColumn) {
+                if (!in_array($requiredColumn, $columnNames, true)) {
+                    $missingColumns[] = $requiredColumn;
+                }
+            }
+
+            $indexRows = $db->getAll("SHOW INDEX FROM ?n", $table);
+            $hasTimestampIndex = false;
+            $primaryColumns = [];
+            foreach (is_array($indexRows) ? $indexRows : [] as $indexRow) {
+                $keyName = (string) ($indexRow['Key_name'] ?? '');
+                if ($keyName === 'first_request_at_idx') {
+                    $hasTimestampIndex = true;
+                }
+                if ($keyName === 'PRIMARY') {
+                    $seq = (int) ($indexRow['Seq_in_index'] ?? 0);
+                    $primaryColumns[$seq] = (string) ($indexRow['Column_name'] ?? '');
+                }
+            }
+            ksort($primaryColumns);
+
+            if ($missingColumns !== [] || array_values($primaryColumns) !== ['ip', 'scope'] || !$hasTimestampIndex) {
+                self::logBotGuard(
+                    Logger::LEVEL_WARNING,
+                    'botguard',
+                    'Rate-limit infrastructure is outdated. Run install/upgrade flow to repair the schema.',
+                    [
+                        'table' => $table,
+                        'missing_columns' => $missingColumns,
+                        'primary_key' => array_values($primaryColumns),
+                        'has_first_request_at_idx' => $hasTimestampIndex,
+                    ],
+                    __FUNCTION__,
+                    false
+                );
+                self::$requestLogsSchemaEnsured = true;
+                return;
+            }
+
+            self::$requestLogsInfrastructureReady = true;
+        } catch (\Throwable $e) {
+            self::logBotGuard(Logger::LEVEL_WARNING, 'botguard', 'Rate-limit infrastructure check failed: ' . $e->getMessage(), [], __FUNCTION__, false);
+        }
+
+        self::$requestLogsSchemaEnsured = true;
+    }
+
+    /**
+     * Cleans stale read/write rate-limit rows periodically.
+     */
+    private static function cleanupExpiredRateLimitRowsDb(int $window): void {
+        if ($window <= 0 || !self::$requestLogsInfrastructureReady) {
+            return;
+        }
+
+        $now = time();
+        if (($now - self::$lastRequestLogsCleanupTs) < 300) {
+            return;
+        }
+
+        self::$lastRequestLogsCleanupTs = $now;
+
+        try {
+            SafeMySQL::gi()->query(
+                "DELETE FROM ?n WHERE first_request_at < NOW() - INTERVAL ?i SECOND",
+                Constants::IP_REQUEST_LOGS_TABLE,
+                max($window, 300)
+            );
+        } catch (\Throwable $e) {
+            self::logBotGuard(Logger::LEVEL_WARNING, 'botguard', 'Rate-limit cleanup failed: ' . $e->getMessage(), [], __FUNCTION__, false);
         }
     }
 

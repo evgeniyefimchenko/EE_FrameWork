@@ -139,9 +139,16 @@ if (!function_exists('ee_get_canonical_host')) {
 
 if (!function_exists('ee_get_effective_site_host')) {
     function ee_get_effective_site_host(array $config): string {
+        if (PHP_SAPI === 'cli') {
+            $canonicalHost = ee_get_canonical_host($config);
+            if ($canonicalHost !== '') {
+                return $canonicalHost;
+            }
+        }
         $requestHost = ee_get_request_host();
         if (ee_is_local_host($requestHost)) {
-            return $requestHost;
+            $canonicalHost = ee_get_canonical_host($config);
+            return $canonicalHost !== '' ? $canonicalHost : $requestHost;
         }
         $canonicalHost = ee_get_canonical_host($config);
         return $canonicalHost !== '' ? $canonicalHost : $requestHost;
@@ -150,9 +157,14 @@ if (!function_exists('ee_get_effective_site_host')) {
 
 if (!function_exists('ee_get_effective_site_scheme')) {
     function ee_get_effective_site_scheme(array $config): string {
+        if (PHP_SAPI === 'cli') {
+            $configuredScheme = strtolower(trim((string) ($config['ENV_CANONICAL_SCHEME'] ?? 'https')));
+            return $configuredScheme === 'http' ? 'http' : 'https';
+        }
         $requestHost = ee_get_request_host();
         if (ee_is_local_host($requestHost)) {
-            return ee_get_request_scheme();
+            $configuredScheme = strtolower(trim((string) ($config['ENV_CANONICAL_SCHEME'] ?? 'https')));
+            return $configuredScheme === 'http' ? 'http' : ee_get_request_scheme();
         }
         $configuredScheme = strtolower(trim((string) ($config['ENV_CANONICAL_SCHEME'] ?? 'https')));
         return $configuredScheme === 'http' ? 'http' : 'https';
@@ -545,44 +557,178 @@ if (!function_exists('ee_normalize_lang_code')) {
     }
 }
 
-if (!function_exists('ee_get_current_lang_code')) {
-    function ee_get_current_lang_code(?string $preferredCode = null): string {
-        $candidates = [];
-        if ($preferredCode !== null) {
-            $candidates[] = $preferredCode;
+if (!function_exists('ee_collect_lang_codes')) {
+    function ee_collect_lang_codes(iterable $codes): array {
+        $normalized = [];
+        foreach ($codes as $code) {
+            $code = ee_normalize_lang_code((string) $code);
+            if ($code === '' || in_array($code, $normalized, true)) {
+                continue;
+            }
+            $normalized[] = $code;
         }
 
-        if (class_exists('\classes\system\Lang')) {
-            $candidates[] = (string) \classes\system\Lang::getCurrentLangCode();
+        return $normalized;
+    }
+}
+
+if (!function_exists('ee_load_config_value')) {
+    function ee_load_config_value(string $key, mixed $default = null): mixed {
+        static $rawConfig = null;
+        if ($rawConfig === null) {
+            $rawConfig = require __DIR__ . '/configuration.php';
+            if (!is_array($rawConfig)) {
+                $rawConfig = [];
+            }
         }
 
-        if (class_exists('\classes\system\Session')) {
-            $candidates[] = (string) \classes\system\Session::get('lang');
+        return array_key_exists($key, $rawConfig) ? $rawConfig[$key] : $default;
+    }
+}
+
+if (!function_exists('ee_get_interface_lang_codes')) {
+    function ee_get_interface_lang_codes(): array {
+        static $interfaceLangCodes = null;
+        if ($interfaceLangCodes !== null) {
+            return $interfaceLangCodes;
         }
 
-        if (defined('ENV_DEF_LANG')) {
-            $candidates[] = (string) ENV_DEF_LANG;
+        $sitePath = defined('ENV_SITE_PATH')
+            ? (string) ENV_SITE_PATH
+            : (string) ee_load_config_value('ENV_SITE_PATH', dirname(__DIR__) . DIRECTORY_SEPARATOR);
+        $langPath = defined('ENV_PATH_LANG')
+            ? (string) ENV_PATH_LANG
+            : (string) ee_load_config_value('ENV_PATH_LANG', 'inc' . DIRECTORY_SEPARATOR . 'langs' . DIRECTORY_SEPARATOR);
+
+        $langDir = rtrim($sitePath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . trim($langPath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+        $files = is_dir($langDir) ? (glob($langDir . '*.php') ?: []) : [];
+        $interfaceLangCodes = ee_collect_lang_codes(array_map(
+            static fn(string $filePath): string => basename($filePath, '.php'),
+            $files
+        ));
+
+        if ($interfaceLangCodes === []) {
+            $interfaceLangCodes[] = 'EN';
         }
 
-        $candidates[] = ee_get_proto_language_seed();
-        $candidates[] = 'EN';
+        return $interfaceLangCodes;
+    }
+}
 
-        $langBasePath = (defined('ENV_SITE_PATH') && defined('ENV_PATH_LANG'))
-            ? rtrim((string) ENV_SITE_PATH, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . trim((string) ENV_PATH_LANG, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR
-            : '';
+if (!function_exists('ee_get_content_lang_codes')) {
+    function ee_get_content_lang_codes(): array {
+        static $contentLangCodes = null;
+        if ($contentLangCodes !== null) {
+            return $contentLangCodes;
+        }
+
+        $rawContentLangs = defined('ENV_CONTENT_LANGS')
+            ? ENV_CONTENT_LANGS
+            : ee_load_config_value('ENV_CONTENT_LANGS', null);
+
+        if (is_string($rawContentLangs)) {
+            $rawContentLangs = preg_split('/[\s,;|]+/', $rawContentLangs, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        }
+
+        $contentLangCodes = ee_collect_lang_codes(is_iterable($rawContentLangs) ? $rawContentLangs : []);
+
+        if ($contentLangCodes === []) {
+            $protoLanguage = ee_normalize_lang_code(ee_get_proto_language_seed());
+            if ($protoLanguage !== '') {
+                $contentLangCodes[] = $protoLanguage;
+            }
+        }
+
+        if ($contentLangCodes === []) {
+            $contentLangCodes = ee_get_interface_lang_codes();
+        }
+
+        if ($contentLangCodes === []) {
+            $contentLangCodes = ['EN'];
+        }
+
+        return $contentLangCodes;
+    }
+}
+
+if (!function_exists('ee_resolve_lang_code_from_allowed')) {
+    function ee_resolve_lang_code_from_allowed(array $candidates, array $allowedCodes, string $fallback = ''): string {
+        $allowedCodes = ee_collect_lang_codes($allowedCodes);
+        if ($allowedCodes === []) {
+            $fallback = ee_normalize_lang_code($fallback);
+            return $fallback !== '' ? $fallback : 'EN';
+        }
 
         foreach ($candidates as $candidate) {
             $candidate = ee_normalize_lang_code((string) $candidate);
-            if ($candidate === '') {
-                continue;
-            }
-
-            if ($langBasePath === '' || is_file($langBasePath . $candidate . '.php')) {
+            if ($candidate !== '' && in_array($candidate, $allowedCodes, true)) {
                 return $candidate;
             }
         }
 
-        return 'EN';
+        $fallback = ee_normalize_lang_code($fallback);
+        if ($fallback !== '' && in_array($fallback, $allowedCodes, true)) {
+            return $fallback;
+        }
+
+        return (string) ($allowedCodes[0] ?? 'EN');
+    }
+}
+
+if (!function_exists('ee_get_default_interface_lang_code')) {
+    function ee_get_default_interface_lang_code(?string $preferredCode = null): string {
+        return ee_resolve_lang_code_from_allowed(
+            [
+                $preferredCode,
+                defined('ENV_DEF_LANG') ? (string) ENV_DEF_LANG : '',
+                'EN',
+            ],
+            ee_get_interface_lang_codes(),
+            'EN'
+        );
+    }
+}
+
+if (!function_exists('ee_detect_interface_lang_code')) {
+    function ee_detect_interface_lang_code(?string $acceptedLanguages = null): string {
+        $acceptedLanguages = $acceptedLanguages ?? (string) ($_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? '');
+        $preferred = strtoupper(substr((string) GetClientPreferedLanguage(false, $acceptedLanguages), 0, 2));
+        return ee_resolve_lang_code_from_allowed(
+            [$preferred, 'EN'],
+            ee_get_interface_lang_codes(),
+            'EN'
+        );
+    }
+}
+
+if (!function_exists('ee_get_default_content_lang_code')) {
+    function ee_get_default_content_lang_code(?string $preferredCode = null): string {
+        return ee_resolve_lang_code_from_allowed(
+            [
+                $preferredCode,
+                defined('ENV_PROTO_LANGUAGE') ? (string) ENV_PROTO_LANGUAGE : '',
+                defined('ENV_DEF_LANG') ? (string) ENV_DEF_LANG : '',
+                'EN',
+            ],
+            ee_get_content_lang_codes(),
+            defined('ENV_PROTO_LANGUAGE') ? (string) ENV_PROTO_LANGUAGE : 'EN'
+        );
+    }
+}
+
+if (!function_exists('ee_get_current_lang_code')) {
+    function ee_get_current_lang_code(?string $preferredCode = null): string {
+        return ee_resolve_lang_code_from_allowed(
+            [
+                $preferredCode,
+                class_exists('\classes\system\Lang') ? (string) \classes\system\Lang::getCurrentLangCode() : '',
+                class_exists('\classes\system\Session') ? (string) \classes\system\Session::get('lang') : '',
+                ee_detect_interface_lang_code(),
+                'EN',
+            ],
+            ee_get_interface_lang_codes(),
+            'EN'
+        );
     }
 }
 
@@ -732,13 +878,13 @@ if (!function_exists('ee_finalize_config')) {
         if ((int) ($config['ENV_CACHE_REDIS'] ?? 0) === 1) {
             $config['ENV_CACHE_BACKEND'] = 'redis';
         }
-        if ((int) ($config['ENV_ROUTING_CACHE'] ?? 0) === 1) {
+        if (array_key_exists('ENV_ROUTING_CACHE', $config) && (int) ($config['ENV_ROUTING_CACHE'] ?? 0) === 1) {
             $config['ENV_ROUTING_CACHE_ENABLED'] = 1;
         }
 
         $config['ENV_CACHE_NAMESPACE'] = ee_get_cache_namespace($config);
         $config['ENV_CACHE_VERSION'] = ee_get_cache_version($config);
-        $config['ENV_DEF_LANG'] = strtoupper(substr((string) GetClientPreferedLanguage(), 0, 2)) ?: (string) ($config['ENV_PROTO_LANGUAGE'] ?? 'EN');
+        $config['ENV_DEF_LANG'] = ee_detect_interface_lang_code((string) ($_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? ''));
 
         $cacheBackend = strtolower((string) ($config['ENV_CACHE_BACKEND'] ?? 'file'));
         $routingCacheBackend = strtolower((string) ($config['ENV_ROUTING_CACHE_BACKEND'] ?? 'file'));
@@ -758,7 +904,7 @@ if (!function_exists('ee_finalize_config')) {
                 }
                 $config['ENV_CACHE_REDIS'] = 0;
                 $config['ENV_GUARD_REDIS'] = 0;
-                $config['ENV_ROUTING_CACHE'] = 0;
+                $config['ENV_ROUTING_CACHE_ENABLED'] = 0;
             }
         } else {
             $config['ENV_CACHE_REDIS'] = 0;
@@ -766,7 +912,8 @@ if (!function_exists('ee_finalize_config')) {
         }
 
         $config['ENV_CACHE_REDIS'] = (($config['ENV_CACHE_BACKEND'] ?? 'file') === 'redis') ? 1 : 0;
-        $config['ENV_ROUTING_CACHE'] = !empty($config['ENV_ROUTING_CACHE_ENABLED']) ? 1 : 0;
+        $config['ENV_ROUTING_CACHE_ENABLED'] = !empty($config['ENV_ROUTING_CACHE_ENABLED']) ? 1 : 0;
+        $config['ENV_ROUTING_CACHE'] = $config['ENV_ROUTING_CACHE_ENABLED']; // legacy alias for older runtime code
 
         return $config;
     }

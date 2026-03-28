@@ -5,6 +5,7 @@ namespace classes\helpers;
 use \classes\plugins\SafeMySQL;
 use \classes\system\SysClass;
 use \classes\system\Constants;
+use \classes\system\EntityPublicUrlService;
 use \classes\system\Logger;
 use \classes\system\PropertyFieldContract;
 
@@ -307,12 +308,16 @@ class ClassSearchEngine {
         $formattedResults = [];
         if (!empty($results)) {
             foreach ($results as $row) {
-                 $formattedRow = [
+                $formattedRow = [
                     'id' => (int) $row['entity_id'],
                     'type' => $row['entity_type'],
                     'title' => $row['title'],
                     'relevance' => round((float) ($row['relevance'] ?? 0), 2),
-                    'url' => $this->getAdminEditUrl($row['entity_type'], $row['entity_id']),
+                    'url' => $isAdminSearch
+                        ? $this->getAdminEditUrl($row['entity_type'], $row['entity_id'])
+                        : ((string) ($row['url'] ?? '') !== ''
+                            ? (string) $row['url']
+                            : EntityPublicUrlService::buildEntityUrl((string) $row['entity_type'], (int) $row['entity_id'], (string) ($row['language_code'] ?? $lang))),
                 ];
                 $formattedResults[] = $formattedRow;
             }
@@ -361,7 +366,7 @@ class ClassSearchEngine {
                 $titlePrefixQuery = $term . '%';
                 $entityTypeFilter = (!$isAdminSearch) ? $this->db->parse("AND entity_type IN ('page', 'category')") : '';
                 $titleMatches = $this->db->getAll(
-                        "SELECT entity_id, entity_type, title FROM ?n
+                        "SELECT entity_id, entity_type, title, language_code, url FROM ?n
                        WHERE title LIKE ?s AND language_code = ?s ?p
                        ORDER BY popularity_score DESC, static_rank DESC LIMIT ?i",
                         Constants::SEARCH_INDEX_TABLE, $titlePrefixQuery, $lang, $entityTypeFilter, $remainingLimit
@@ -374,6 +379,11 @@ class ClassSearchEngine {
                         if ($isAdminSearch) {
                             $url = $this->getAdminEditUrl($tm['entity_type'], $tm['entity_id']);
                             $label .= " ({$tm['entity_type']})"; // Добавляем тип в label админки
+                        } else {
+                            $url = (string) ($tm['url'] ?? '');
+                            if ($url === '') {
+                                $url = EntityPublicUrlService::buildEntityUrl((string) $tm['entity_type'], (int) $tm['entity_id'], (string) ($tm['language_code'] ?? $lang));
+                            }
                         }
                         $suggestions[] = ['value' => $value, 'label' => $label, 'type' => $tm['entity_type'], 'url' => $url];
                         $processedValues[$value] = true;
@@ -783,7 +793,7 @@ class ClassSearchEngine {
         $results = [];
         if ($total > 0) {
             // Запрос для получения результатов
-            $sqlResults = "SELECT search_id, entity_id, entity_type, title, popularity_score, static_rank, language_code,
+            $sqlResults = "SELECT search_id, entity_id, entity_type, title, popularity_score, static_rank, language_code, url,
                                   MATCH(title, content_full) AGAINST (" . $safeSearchQuery . " IN BOOLEAN MODE) AS relevance
                              FROM ?n
                             WHERE MATCH(title, content_full) AGAINST (" . $safeSearchQuery . " IN BOOLEAN MODE)
@@ -1051,6 +1061,7 @@ class ClassSearchEngine {
             'language_code' => $languageCode,
             'title' => $title,
             'content_full' => $contentFull,
+            'url' => EntityPublicUrlService::buildEntityUrl($entityType, $entityId, $languageCode),
         ];
     }
 

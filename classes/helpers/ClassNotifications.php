@@ -406,31 +406,17 @@ class ClassNotifications {
             return;
         }
 
-        SafeMySQL::gi()->query(
-            "CREATE TABLE IF NOT EXISTS ?n (
-                notification_id int(11) UNSIGNED NOT NULL AUTO_INCREMENT,
-                user_id int(11) UNSIGNED NOT NULL,
-                source_type varchar(32) NOT NULL DEFAULT 'system',
-                source_id int(11) UNSIGNED DEFAULT NULL,
-                text text NOT NULL,
-                status varchar(16) NOT NULL DEFAULT 'info',
-                showtime bigint(20) UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Unix time in ms for deferred display',
-                url varchar(1024) DEFAULT NULL,
-                icon varchar(255) DEFAULT NULL,
-                color varchar(32) DEFAULT NULL,
-                payload_json JSON DEFAULT NULL,
-                created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                PRIMARY KEY (notification_id),
-                KEY idx_notifications_user (user_id),
-                KEY idx_notifications_user_showtime (user_id, showtime),
-                KEY idx_notifications_source_lookup (source_type, source_id),
-                UNIQUE KEY uq_notifications_user_source (user_id, source_type, source_id),
-                CONSTRAINT fk_users_notifications_user FOREIGN KEY (user_id) REFERENCES ?n(user_id) ON DELETE CASCADE
-            ) ENGINE=innodb DEFAULT CHARSET=utf8mb4 COMMENT='Уведомления пользователей';",
-            Constants::USERS_NOTIFICATIONS_TABLE,
-            Constants::USERS_TABLE
+        $notificationsExists = (int) SafeMySQL::gi()->getOne(
+            'SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?s',
+            Constants::USERS_NOTIFICATIONS_TABLE
         );
+        $userDataExists = (int) SafeMySQL::gi()->getOne(
+            'SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?s',
+            Constants::USERS_DATA_TABLE
+        );
+        if ($notificationsExists === 0 || $userDataExists === 0) {
+            throw new \RuntimeException('Notifications infrastructure is not installed. Run install/upgrade first.');
+        }
 
         self::$infrastructureReady = true;
     }

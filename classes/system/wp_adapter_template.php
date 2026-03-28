@@ -142,6 +142,19 @@ function ee_export_render_access_denied(): string {
         . '</body></html>';
 }
 
+function ee_export_relative_path_from_url($url): string {
+    $path = trim((string)parse_url((string)$url, PHP_URL_PATH));
+    if ($path === '') {
+        return '';
+    }
+
+    $path = str_replace('\\', '/', $path);
+    $path = preg_replace('~/+~', '/', $path) ?? $path;
+    $path = '/' . trim($path, '/');
+
+    return $path === '/' ? '' : $path;
+}
+
 function ee_export_handle_ajax(array $ctx) {
     $action = isset($_POST['ee_action']) ? trim((string)$_POST['ee_action']) : '';
     $batch = max(20, min(2000, (int)($_POST['batch'] ?? 300)));
@@ -1437,7 +1450,9 @@ function ee_export_phase_categories(array $ctx, array &$state, int $batch): arra
                     'source_id' => (string)$ttId,
                     'type_source_id' => 'taxonomy:' . $taxonomy,
                     'title' => $name,
-                    'short_description' => trim((string)($row['slug'] ?? '')),
+                    'slug' => trim((string)($row['slug'] ?? '')),
+                    'source_path' => ee_export_relative_path_from_url(get_term_link((int)($row['term_id'] ?? 0), $taxonomy)),
+                    'short_description' => '',
                     'description' => trim((string)($row['description'] ?? '')) !== ''
                         ? ee_export_normalize_rich_text((string)$row['description'])
                         : $name,
@@ -1518,7 +1533,7 @@ function ee_export_phase_pages(array $ctx, array &$state, int $batch): array {
     $lastId = (int)($phaseState['last_id'] ?? 0);
 
     $inPostTypes = ee_export_prepare_string_in($postTypes);
-    $sql = "SELECT ID, post_type, post_status, post_title, post_excerpt, post_content, post_parent, post_author
+    $sql = "SELECT ID, post_type, post_status, post_title, post_name, post_excerpt, post_content, post_parent, post_author
         FROM {$postsTable}
         WHERE post_type IN ({$inPostTypes['placeholders']}) AND ID > %d AND post_status <> 'auto-draft'
         ORDER BY ID ASC
@@ -1641,6 +1656,8 @@ function ee_export_phase_pages(array $ctx, array &$state, int $batch): array {
             'source_id' => (string)$postId,
             'category_source_id' => $categorySourceId,
             'title' => $title,
+            'slug' => trim((string)($row['post_name'] ?? '')),
+            'source_path' => ee_export_relative_path_from_url(get_permalink($postId)),
             'short_description' => (string)($row['post_excerpt'] ?? ''),
             'description' => ee_export_normalize_rich_text((string)($row['post_content'] ?? '')),
             'status' => ee_export_map_status((string)($row['post_status'] ?? 'publish')),

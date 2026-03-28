@@ -24,8 +24,9 @@ EE_FrameWork — это PHP-фреймворк с явным front controller, M
 9. [Auth и доступ](/docs/auth)
 10. [Кэширование](/docs/cache)
 11. [Cron-агенты и scheduler](/docs/cron-agents)
-12. [Отладка](/docs/debug)
-13. [API Reference](/docs/api-reference)
+12. [Резервное копирование](/docs/backup)
+13. [Отладка](/docs/debug)
+14. [API Reference](/docs/api-reference)
 
 ## Что важно понять про EE_FrameWork сразу
 

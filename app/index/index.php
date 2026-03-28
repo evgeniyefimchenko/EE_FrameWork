@@ -5,6 +5,8 @@ use classes\system\SysClass;
 use classes\system\Session;
 use classes\system\AuthService;
 use classes\system\AuthSessionService;
+use classes\system\Constants;
+use classes\system\EntityPublicUrlService;
 use classes\system\LegalConsentService;
 use classes\system\Logger;
 use classes\helpers\ClassMail;
@@ -39,7 +41,7 @@ class ControllerIndex Extends ControllerBase {
         $this->view->set('top_panel', $this->view->read('v_top_panel', false));
         $this->html = $this->view->read('v_index');
         /* layouts */
-        $this->parameters_layout["title"] = ENV_SITE_NAME . ' - General page';
+        $this->parameters_layout["title"] = ENV_SITE_NAME . ' - ' . ($this->lang['sys.home'] ?? 'Home');
         $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION;
         $this->parameters_layout["keywords"] = SysClass::getKeywordsFromText($this->html);
         $this->parameters_layout["layout_content"] = $this->html;
@@ -81,7 +83,7 @@ class ControllerIndex Extends ControllerBase {
         $this->getStandardViews();
         $this->html = $this->view->read('v_about');
         /* layouts */
-        $this->parameters_layout["title"] = ENV_SITE_NAME . ' - About Us';
+        $this->parameters_layout["title"] = ENV_SITE_NAME . ' - ' . ($this->lang['sys.about_project'] ?? 'About project');
         $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION;
         $this->parameters_layout["keywords"] = SysClass::getKeywordsFromText($this->html);
         $this->parameters_layout["layout_content"] = $this->html;
@@ -99,9 +101,61 @@ class ControllerIndex Extends ControllerBase {
         $this->getStandardViews();
         $this->html = $this->view->read('v_contact');
         /* layouts */
-        $this->parameters_layout["title"] = ENV_SITE_NAME . ' - Contact';
+        $this->parameters_layout["title"] = ENV_SITE_NAME . ' - ' . ($this->lang['sys.contacts'] ?? 'Contacts');
         $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION;
         $this->parameters_layout["keywords"] = SysClass::getKeywordsFromText($this->html);
+        $this->parameters_layout["layout_content"] = $this->html;
+        $this->showLayout($this->parameters_layout);
+    }
+
+    /**
+     * Публичный вывод страницы или категории по semantic URL.
+     */
+    public function public_entity($params = null) {
+        $params = is_array($params) ? array_values($params) : [];
+        $entityType = (string) ($params[0] ?? '');
+        $entityId = (int) ($params[1] ?? 0);
+        $languageCode = (string) ($params[2] ?? ($_GET['sl'] ?? ''));
+
+        $basePayload = EntityPublicUrlService::getEntityViewPayload($entityType, $entityId, $languageCode);
+        if ($basePayload === null) {
+            SysClass::handleRedirect(404);
+            return;
+        }
+
+        $this->applyInterfaceLanguage((string) ($basePayload['language_code'] ?? ee_get_current_lang_code()), false);
+
+        $this->access = [Constants::ALL_AUTH];
+        $this->loadModel('m_public_catalog');
+
+        $entityType = strtolower(trim($entityType));
+        $payload = $entityType === 'category'
+            ? $this->models['m_public_catalog']->getCategoryPayload($entityId, $languageCode)
+            : $this->models['m_public_catalog']->getPagePayload($entityId, $languageCode);
+        if ($payload === null) {
+            SysClass::handleRedirect(404);
+            return;
+        }
+
+        $this->getStandardViews();
+        $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="' . $this->getPathController() . '/css/public_catalog.css"/>';
+        $this->view->set('top_panel', $this->view->read('v_top_panel', false));
+        $this->view->set('publicCatalog', $payload);
+        $this->html = $this->view->read(
+            ($payload['view_type'] ?? '') === 'category'
+                ? 'v_public_category'
+                : 'v_public_page'
+        );
+
+        $entityTitle = trim((string) ($payload['title'] ?? ''));
+        $metaDescription = trim((string) ($payload['meta_description'] ?? ''));
+        $plainText = trim((string) ($payload['plain_text'] ?? ''));
+
+        $this->parameters_layout["title"] = $entityTitle !== '' ? ($entityTitle . ' - ' . ENV_SITE_NAME) : ENV_SITE_NAME;
+        $this->parameters_layout["description"] = $metaDescription !== '' ? $metaDescription : ENV_SITE_DESCRIPTION;
+        $this->parameters_layout["keywords"] = SysClass::getKeywordsFromText($plainText !== '' ? $plainText : $entityTitle);
+        $this->parameters_layout["canonical_href"] = (string) ($payload['canonical_url'] ?? ENV_URL_SITE);
+        $this->parameters_layout["alternate_hreflang"] = (array) ($payload['alternate_links'] ?? []);
         $this->parameters_layout["layout_content"] = $this->html;
         $this->showLayout($this->parameters_layout);
     }
@@ -116,7 +170,7 @@ class ControllerIndex Extends ControllerBase {
         if ($params) {
             SysClass::handleRedirect();
         }
-        $this->users->getAdminProfile(); // Если профиля админа не существует то он будет создан test@test.com admin
+        $this->users->getAdminProfile(); // Если профиля администратора нет, он будет создан из bootstrap-конфига проекта
         /* view */
         $this->getStandardViews();
         if ($this->view->get('new_user') || !$this->logged_in) {
@@ -652,7 +706,7 @@ class ControllerIndex Extends ControllerBase {
      * И обновление всех параметров пользователя, если есть авторизация
      */
     public function set_options($params = []) {
-        $allExistingLanguages = classes\system\Lang::getLangFilesWithoutExtension();
+        $allExistingLanguages = ee_get_interface_lang_codes();
         $requestedLangCode = ee_normalize_lang_code((string) ($params[0] ?? ''));
         if (count($params) > 1 || count($params) == 0 || !SysClass::isAjaxRequestFromSameSite() || $requestedLangCode === '' || !in_array($requestedLangCode, $allExistingLanguages, true)) {
             die(json_encode(array('error' => 'it`s a lie')));
@@ -664,6 +718,7 @@ class ControllerIndex Extends ControllerBase {
                 die(json_encode(array('error' => 'access denieded')));
             }                          
             Session::set('lang', $requestedLangCode);
+            Session::set('lang_manual', 1);
             $postData['localize'] = $requestedLangCode;
             $this->loadModel('m_index');
             $user_data = $this->users->data;
@@ -675,6 +730,7 @@ class ControllerIndex Extends ControllerBase {
             $this->users->setUserOptions($this->logged_in, $user_data['options']);
         } else {
             Session::set('lang', $requestedLangCode);
+            Session::set('lang_manual', 1);
         }
         die(json_encode(array('error' => 'no')));
     }

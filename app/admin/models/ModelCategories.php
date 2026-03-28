@@ -2,6 +2,7 @@
 
 use classes\plugins\SafeMySQL;
 use classes\system\Constants;
+use classes\system\EntitySlugService;
 use classes\system\EntityTranslationService;
 use classes\system\SysClass;
 use classes\system\Hook;
@@ -360,11 +361,38 @@ class ModelCategories {
                 $method = 'update';
                 $categoryId = (int) $categoryData['category_id'];
                 $oldCategoryRow = $db->getRow(
-                    'SELECT type_id, parent_id, language_code FROM ?n WHERE category_id = ?i LIMIT 1',
+                    'SELECT type_id, parent_id, language_code, slug, route_path FROM ?n WHERE category_id = ?i LIMIT 1',
                     Constants::CATEGORIES_TABLE,
                     $categoryId
                 ) ?: null;
                 $oldTypeId = (int) ($oldCategoryRow['type_id'] ?? 0);
+                $method = 'update';
+            } else {
+                $method = 'insert';
+                $existingCategory = $db->getRow(
+                        "SELECT `category_id` FROM ?n WHERE `title` = ?s AND type_id = ?i AND language_code = ?s",
+                        Constants::CATEGORIES_TABLE, $categoryData['title'], $categoryData['type_id'], $languageCode
+                );
+                if ($existingCategory) {
+                    Logger::warning('duplicate_category', 'Категория с таким названием и типом уже существует для данного языка', $categoryData, ['initiator' => __FUNCTION__]);
+                    return OperationResult::failure('Категория с таким названием и типом уже существует для данного языка', 'duplicate_category', $categoryData);
+                }
+                $categoryId = 0;
+            }
+
+            if (is_array($oldCategoryRow) && empty($categoryData['slug'])) {
+                $categoryData['slug'] = (string) ($oldCategoryRow['slug'] ?? '');
+            }
+            $categoryData['slug'] = EntitySlugService::generateCategorySlug($categoryData, $categoryId > 0 ? $categoryId : null);
+            if (is_array($oldCategoryRow) && !array_key_exists('route_path', $categoryData)) {
+                $categoryData['route_path'] = (string) ($oldCategoryRow['route_path'] ?? '');
+            }
+            $categoryData['route_path'] = EntitySlugService::generateCategoryRoutePath($categoryData, $categoryId > 0 ? $categoryId : null);
+            if ((string) ($categoryData['route_path'] ?? '') === '') {
+                $categoryData['route_path'] = null;
+            }
+
+            if ($method === 'update') {
                 unset($categoryData['category_id']);
                 $sql = "UPDATE ?n SET ?u WHERE `category_id` = ?i AND language_code = ?s";
                 $result = $db->query($sql, Constants::CATEGORIES_TABLE, $categoryData, $categoryId, $languageCode);
@@ -380,16 +408,7 @@ class ModelCategories {
                     $categoryData['language_code'] = $categoryData['language_code'] ?? ($oldCategoryRow['language_code'] ?? $languageCode);
                 }
             } else {
-                $method = 'insert';
                 unset($categoryData['category_id']);
-                $existingCategory = $db->getRow(
-                        "SELECT `category_id` FROM ?n WHERE `title` = ?s AND type_id = ?i AND language_code = ?s",
-                        Constants::CATEGORIES_TABLE, $categoryData['title'], $categoryData['type_id'], $languageCode
-                );
-                if ($existingCategory) {
-                    Logger::warning('duplicate_category', 'Категория с таким названием и типом уже существует для данного языка', $categoryData, ['initiator' => __FUNCTION__]);
-                    return OperationResult::failure('Категория с таким названием и типом уже существует для данного языка', 'duplicate_category', $categoryData);
-                }
                 $sql = "INSERT INTO ?n SET ?u";
                 $result = $db->query($sql, Constants::CATEGORIES_TABLE, $categoryData);
                 if (!$result) {

@@ -8,6 +8,89 @@ $previewWarnings = is_array($preview_warnings ?? null) ? array_values($preview_w
 $previewErrorMessage = trim((string)($preview_error_message ?? ''));
 $previewSourceFilename = trim((string)($preview_source_filename ?? ($previewEditorState['source_filename'] ?? '')));
 $previewProperties = is_array($previewEditorState['properties'] ?? null) ? $previewEditorState['properties'] : [];
+$uiText = [
+    'heading' => (string) ($lang['sys.imports_property_definitions'] ?? 'JSON: property types / properties / sets'),
+    'jsonUpload' => (string) ($lang['sys.json_upload'] ?? 'JSON upload'),
+    'importFile' => (string) ($lang['sys.import_file'] ?? 'Import file'),
+    'openPreview' => (string) ($lang['sys.open_preview'] ?? 'Open preview'),
+    'currentPreview' => (string) ($lang['sys.current_preview'] ?? 'Current preview'),
+    'draftPreviewHelp' => (string) ($lang['sys.draft_preview_help'] ?? 'After upload, a draft preview will open where you can disable, rename, and merge properties before import.'),
+    'documentation' => (string) ($lang['sys.documentation'] ?? 'Documentation'),
+    'previewWarnings' => (string) ($lang['sys.preview_warnings'] ?? 'Draft preview warnings'),
+    'properties' => (string) ($lang['sys.properties'] ?? 'Properties'),
+    'selectMergeable' => (string) ($lang['sys.select_mergeable'] ?? 'Select mergeable items'),
+    'clearSelection' => (string) ($lang['sys.clear_selection'] ?? 'Clear selection'),
+    'mergeSelected' => (string) ($lang['sys.merge_selected'] ?? 'Merge selected'),
+    'importSelectedStructure' => (string) ($lang['sys.import_selected_structure'] ?? 'Import selected structure'),
+    'propertyStructure' => (string) ($lang['sys.property_structure'] ?? 'Property structure'),
+    'propertyName' => (string) ($lang['sys.property_name'] ?? 'Property name'),
+    'propertyTypeName' => (string) ($lang['sys.property_type_name'] ?? 'Property type name'),
+    'description' => (string) ($lang['sys.description'] ?? 'Description'),
+    'propertyFields' => (string) ($lang['sys.property_fields'] ?? 'Property fields'),
+    'sets' => (string) ($lang['sys.sets'] ?? 'Sets'),
+    'close' => (string) ($lang['sys.close'] ?? 'Close'),
+    'done' => (string) ($lang['sys.done'] ?? 'Done'),
+    'mergeProperties' => (string) ($lang['sys.merge_properties'] ?? 'Merge properties'),
+    'mergeTargetProperty' => (string) ($lang['sys.merge_target_property'] ?? 'Target property'),
+    'futurePropertyFields' => (string) ($lang['sys.future_property_fields'] ?? 'Future property fields'),
+    'setsAfterMerge' => (string) ($lang['sys.sets_after_merge'] ?? 'Sets after merge'),
+    'cancel' => (string) ($lang['sys.cancel'] ?? 'Cancel'),
+    'applyMerge' => (string) ($lang['sys.apply_merge'] ?? 'Apply merge'),
+    'total' => (string) ($lang['sys.total'] ?? 'Total'),
+    'toImport' => (string) ($lang['sys.to_import'] ?? 'To import'),
+    'mergeGroups' => (string) ($lang['sys.merge_groups'] ?? 'Merge groups'),
+    'choose' => (string) ($lang['sys.choose'] ?? 'Choose'),
+    'import' => (string) ($lang['sys.import'] ?? 'Import'),
+    'type' => (string) ($lang['sys.type'] ?? 'Type'),
+    'status' => (string) ($lang['sys.status'] ?? 'Status'),
+    'documentationIntro' => (string) ($lang['sys.property_definition_doc_intro'] ?? 'The file structure is described in the document'),
+    'documentationValidationNotes' => (string) ($lang['sys.property_definition_doc_notes'] ?? 'Critical errors block the preview only for invalid JSON, duplicate `code`, unknown `type_code`, `fields/default_values` mismatches, and unsupported field types.'),
+    'fieldRequired' => (string) ($lang['sys.field_required'] ?? 'Required'),
+    'fieldOptional' => (string) ($lang['sys.field_optional'] ?? 'Optional'),
+    'fieldMultiple' => (string) ($lang['sys.field_multiple'] ?? 'Multiple'),
+    'fieldSingle' => (string) ($lang['sys.field_single'] ?? 'Single'),
+    'setName' => (string) ($lang['sys.set_name'] ?? 'Set name'),
+    'source' => (string) ($lang['sys.source'] ?? 'Source'),
+    'delete' => (string) ($lang['sys.delete'] ?? 'Delete'),
+    'noFieldsYet' => (string) ($lang['sys.no_fields_yet'] ?? 'No fields yet.'),
+    'noSetsYet' => (string) ($lang['sys.no_sets_yet'] ?? 'No sets yet.'),
+    'propertyStructureWithName' => (string) ($lang['sys.property_structure_with_name'] ?? 'Property structure: %s'),
+    'mergeNeedTwo' => (string) ($lang['sys.merge_need_two'] ?? 'Select at least two available properties to merge.'),
+    'mergePrepareFailed' => (string) ($lang['sys.merge_prepare_failed'] ?? 'Failed to prepare merge.'),
+    'mergeTargetNotFound' => (string) ($lang['sys.merge_target_not_found'] ?? 'Target property was not found.'),
+    'mergeNestedTarget' => (string) ($lang['sys.merge_nested_target'] ?? 'Property "%s" is already the target of another merge. Unmerge it first.'),
+    'summaryTotal' => (string) ($lang['sys.total'] ?? 'Total'),
+    'summaryToImport' => (string) ($lang['sys.to_import'] ?? 'To import'),
+    'summaryMergeGroups' => (string) ($lang['sys.merge_groups'] ?? 'Merge groups'),
+    'optionVariant' => (string) ($lang['sys.option_variant'] ?? 'Option'),
+    'newField' => (string) ($lang['sys.new_field'] ?? 'New field'),
+    'newSet' => (string) ($lang['sys.new_set'] ?? 'New set'),
+    'field' => (string) ($lang['sys.field'] ?? 'Field'),
+    'untitled' => (string) ($lang['sys.untitled'] ?? 'Untitled'),
+    'valuesShort' => (string) ($lang['sys.values_short'] ?? 'values'),
+    'fieldsShort' => (string) ($lang['sys.fields_short'] ?? 'fields'),
+    'setsNotDefined' => (string) ($lang['sys.sets_not_defined'] ?? 'Sets are not defined'),
+    'mergedInto' => (string) ($lang['sys.merged_into'] ?? 'Merged into'),
+    'mergeTargetLabel' => (string) ($lang['sys.merge_target_label'] ?? 'Merge target property'),
+    'unmerge' => (string) ($lang['sys.unmerge'] ?? 'Unmerge'),
+    'mergeAllowed' => (string) ($lang['sys.merge_allowed'] ?? 'Can be merged'),
+    'noMerge' => (string) ($lang['sys.no_merge'] ?? 'No merge'),
+    'mergedBadge' => (string) ($lang['sys.merged'] ?? 'merged'),
+    'code' => (string) ($lang['sys.code'] ?? 'Code'),
+    'entity' => (string) ($lang['sys.entity'] ?? 'Entity'),
+    'mergeSourcesCount' => (string) ($lang['sys.merge_sources_count'] ?? 'Merge sources'),
+    'sourceCurrentProperty' => (string) ($lang['sys.source_current_property'] ?? 'Source: current property'),
+    'options' => (string) ($lang['sys.options'] ?? 'Options'),
+    'addOption' => (string) ($lang['sys.add_option'] ?? 'Add option'),
+    'selected' => (string) ($lang['sys.selected'] ?? 'Selected'),
+    'checked' => (string) ($lang['sys.checked'] ?? 'Checked'),
+    'label' => (string) ($lang['sys.label'] ?? 'Label'),
+    'value' => (string) ($lang['sys.value'] ?? 'Value'),
+    'fieldType' => (string) ($lang['sys.field_type'] ?? 'Field type'),
+    'caption' => (string) ($lang['sys.caption'] ?? 'Caption'),
+    'heading' => (string) ($lang['sys.heading'] ?? 'Heading'),
+    'defaultValue' => (string) ($lang['sys.default_value'] ?? 'Default value'),
+];
 
 $enabledCount = 0;
 $mergeGroupCount = 0;
@@ -58,7 +141,7 @@ foreach ($previewProperties as $property) {
         <div class="row">
             <div class="col-12">
                 <h1 class="mt-4">
-                    <i class="fas fa-sitemap me-2"></i>Импорт типов, свойств и наборов
+                    <i class="fas fa-sitemap me-2"></i><?= htmlspecialchars($uiText['heading'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>
                 </h1>
             </div>
         </div>
@@ -77,13 +160,13 @@ foreach ($previewProperties as $property) {
             <div class="col-12 col-xxl-8">
                 <div class="card border-0 shadow-sm h-100">
                     <div class="card-header bg-white">
-                        <h3 class="card-title mb-0"><i class="fas fa-upload me-2"></i>Загрузка JSON</h3>
+                        <h3 class="card-title mb-0"><i class="fas fa-upload me-2"></i><?= htmlspecialchars($uiText['jsonUpload'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></h3>
                     </div>
                     <div class="card-body">
                         <form method="POST" enctype="multipart/form-data" class="row g-3">
                             <input type="hidden" name="property_definitions_action" value="prepare_preview">
                             <div class="col-12 col-lg-8">
-                                <label for="property_definitions_file" class="form-label">Файл импорта</label>
+                                <label for="property_definitions_file" class="form-label"><?= htmlspecialchars($uiText['importFile'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></label>
                                 <input
                                     type="file"
                                     class="form-control"
@@ -95,15 +178,15 @@ foreach ($previewProperties as $property) {
                             </div>
                             <div class="col-12 col-lg-4 d-flex align-items-end">
                                 <button type="submit" class="btn btn-primary w-100">
-                                    <i class="fas fa-search me-2"></i>Открыть просмотр
+                                    <i class="fas fa-search me-2"></i><?= htmlspecialchars($uiText['openPreview'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>
                                 </button>
                             </div>
                         </form>
                         <div class="small text-muted mt-3">
                             <?php if ($previewSourceFilename !== ''): ?>
-                                Текущий просмотр: <strong><?= htmlspecialchars($previewSourceFilename, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></strong>
+                                <?= htmlspecialchars($uiText['currentPreview'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>: <strong><?= htmlspecialchars($previewSourceFilename, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></strong>
                             <?php else: ?>
-                                После загрузки откроется черновой просмотр, где можно отключать, переименовывать и объединять свойства до импорта.
+                                <?= htmlspecialchars($uiText['draftPreviewHelp'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>
                             <?php endif; ?>
                         </div>
                     </div>
@@ -112,17 +195,17 @@ foreach ($previewProperties as $property) {
             <div class="col-12 col-xxl-4">
                 <div class="card border-0 shadow-sm h-100">
                     <div class="card-header bg-white">
-                        <h3 class="card-title mb-0"><i class="fas fa-file-alt me-2"></i>Документация</h3>
+                        <h3 class="card-title mb-0"><i class="fas fa-file-alt me-2"></i><?= htmlspecialchars($uiText['documentation'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></h3>
                     </div>
                     <div class="card-body">
                         <p class="mb-2">
-                            Структура файла описана в документе
+                            <?= htmlspecialchars($uiText['documentationIntro'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>
                             <a href="<?= htmlspecialchars($docFilename, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>" target="_blank" rel="noopener">
                                 <strong><?= htmlspecialchars($docFilename, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></strong>
                             </a>.
                         </p>
                         <div class="small text-muted">
-                            Критические ошибки блокируют просмотр только для битого JSON, дублей `code`, неизвестных `type_code`, несовпадения `fields/default_values` и неподдерживаемых типов полей.
+                            <?= htmlspecialchars($uiText['documentationValidationNotes'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>
                         </div>
                     </div>
                 </div>
@@ -134,7 +217,7 @@ foreach ($previewProperties as $property) {
                 <div class="row">
                     <div class="col-12">
                         <div class="alert alert-warning" role="alert">
-                            <div class="fw-semibold mb-2"><i class="fas fa-exclamation-triangle me-2"></i>Предупреждения чернового просмотра</div>
+                            <div class="fw-semibold mb-2"><i class="fas fa-exclamation-triangle me-2"></i><?= htmlspecialchars($uiText['previewWarnings'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></div>
                             <ul class="mb-0">
                                 <?php foreach ($previewWarnings as $warning): ?>
                                     <li><?= htmlspecialchars((string)$warning, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></li>
@@ -156,20 +239,20 @@ foreach ($previewProperties as $property) {
                 <div class="card border mb-4 shadow-sm">
                     <div class="card-header bg-white d-flex flex-column flex-xl-row align-items-xl-center justify-content-between gap-3">
                         <div>
-                            <div class="h5 mb-1">Свойства</div>
+                            <div class="h5 mb-1"><?= htmlspecialchars($uiText['properties'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></div>
                             <div class="small text-muted" id="property-editor-summary">
-                                Всего: <?= (int)count($previewProperties) ?>, к импорту: <?= (int)$enabledCount ?>, групп объединения: <?= (int)$mergeGroupCount ?>
+                                <?= htmlspecialchars($uiText['total'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>: <?= (int)count($previewProperties) ?>, <?= htmlspecialchars($uiText['toImport'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>: <?= (int)$enabledCount ?>, <?= htmlspecialchars($uiText['mergeGroups'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>: <?= (int)$mergeGroupCount ?>
                             </div>
                         </div>
                         <div class="d-flex flex-wrap gap-2">
                             <button type="button" class="btn btn-outline-secondary btn-sm" id="select-all-mergeable">
-                                <i class="fas fa-check-square me-1"></i>Выбрать доступные для объединения
+                                <i class="fas fa-check-square me-1"></i><?= htmlspecialchars($uiText['selectMergeable'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>
                             </button>
                             <button type="button" class="btn btn-outline-secondary btn-sm" id="clear-merge-selection">
-                                <i class="fas fa-square me-1"></i>Снять выделение
+                                <i class="fas fa-square me-1"></i><?= htmlspecialchars($uiText['clearSelection'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>
                             </button>
                             <button type="button" class="btn btn-primary btn-sm" id="open-merge-modal">
-                                <i class="fas fa-object-group me-1"></i>Объединить выбранные
+                                <i class="fas fa-object-group me-1"></i><?= htmlspecialchars($uiText['mergeSelected'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>
                             </button>
                         </div>
                     </div>
@@ -178,12 +261,12 @@ foreach ($previewProperties as $property) {
                             <table class="table table-hover align-middle mb-0">
                                 <thead class="table-light">
                                     <tr>
-                                        <th scope="col" style="width: 64px;">Выбор</th>
-                                        <th scope="col" style="width: 88px;">Импорт</th>
-                                        <th scope="col">Свойство</th>
-                                        <th scope="col" style="width: 240px;">Тип</th>
-                                        <th scope="col" style="width: 260px;">Наборы</th>
-                                        <th scope="col" style="width: 220px;">Статус</th>
+                                        <th scope="col" style="width: 64px;"><?= htmlspecialchars($uiText['choose'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></th>
+                                        <th scope="col" style="width: 88px;"><?= htmlspecialchars($uiText['import'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></th>
+                                        <th scope="col"><?= htmlspecialchars($uiText['propertyName'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></th>
+                                        <th scope="col" style="width: 240px;"><?= htmlspecialchars($uiText['type'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></th>
+                                        <th scope="col" style="width: 260px;"><?= htmlspecialchars($uiText['sets'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></th>
+                                        <th scope="col" style="width: 220px;"><?= htmlspecialchars($uiText['status'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></th>
                                     </tr>
                                 </thead>
                                 <tbody id="property-editor-table-body"></tbody>
@@ -192,10 +275,10 @@ foreach ($previewProperties as $property) {
                     </div>
                     <div class="card-footer bg-white d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
                         <div class="small text-muted">
-                            Нажатие на название, тип или наборы открывает структуру свойства: там редактируются имя свойства, название типа, поля, значения полей выбора и наборы.
+                            <?= htmlspecialchars((string) ($lang['sys.property_definition_help'] ?? 'Click the property name, type, or sets to edit the property structure, type name, fields, select options, and set bindings.'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>
                         </div>
                         <button type="submit" class="btn btn-success" id="confirm-property-import">
-                            <i class="fas fa-file-import me-2"></i>Импортировать выбранную структуру
+                            <i class="fas fa-file-import me-2"></i><?= htmlspecialchars($uiText['importSelectedStructure'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>
                         </button>
                     </div>
                 </div>
@@ -208,21 +291,21 @@ foreach ($previewProperties as $property) {
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="propertyStructureModalLabel">Структура свойства</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                <h5 class="modal-title" id="propertyStructureModalLabel"><?= htmlspecialchars($uiText['propertyStructure'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?= htmlspecialchars($uiText['close'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>"></button>
             </div>
             <div class="modal-body">
                 <div class="row g-3 mb-3">
                     <div class="col-12 col-lg-6">
-                        <label for="structure-property-name" class="form-label">Название свойства</label>
+                        <label for="structure-property-name" class="form-label"><?= htmlspecialchars($uiText['propertyName'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></label>
                         <input type="text" class="form-control" id="structure-property-name">
                     </div>
                     <div class="col-12 col-lg-6">
-                        <label for="structure-type-name" class="form-label">Название типа свойства</label>
+                        <label for="structure-type-name" class="form-label"><?= htmlspecialchars($uiText['propertyTypeName'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></label>
                         <input type="text" class="form-control" id="structure-type-name">
                     </div>
                     <div class="col-12">
-                        <label for="structure-property-description" class="form-label">Описание</label>
+                        <label for="structure-property-description" class="form-label"><?= htmlspecialchars($uiText['description'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></label>
                         <textarea class="form-control" id="structure-property-description" rows="2"></textarea>
                     </div>
                 </div>
@@ -231,9 +314,9 @@ foreach ($previewProperties as $property) {
 
                 <div class="card border-0 bg-light mb-4">
                     <div class="card-header bg-light d-flex align-items-center justify-content-between">
-                        <div class="fw-semibold">Поля свойства</div>
+                        <div class="fw-semibold"><?= htmlspecialchars($uiText['propertyFields'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></div>
                         <button type="button" class="btn btn-outline-primary btn-sm" id="structure-add-field">
-                            <i class="fas fa-plus me-1"></i>Добавить поле
+                            <i class="fas fa-plus me-1"></i><?= htmlspecialchars((string) ($lang['sys.add_field'] ?? 'Add field'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>
                         </button>
                     </div>
                     <div class="card-body">
@@ -243,9 +326,9 @@ foreach ($previewProperties as $property) {
 
                 <div class="card border-0 bg-light">
                     <div class="card-header bg-light d-flex align-items-center justify-content-between">
-                        <div class="fw-semibold">Наборы</div>
+                        <div class="fw-semibold"><?= htmlspecialchars($uiText['sets'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></div>
                         <button type="button" class="btn btn-outline-primary btn-sm" id="structure-add-set">
-                            <i class="fas fa-plus me-1"></i>Добавить набор
+                            <i class="fas fa-plus me-1"></i><?= htmlspecialchars((string) ($lang['sys.add_set'] ?? 'Add set'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>
                         </button>
                     </div>
                     <div class="card-body">
@@ -254,8 +337,8 @@ foreach ($previewProperties as $property) {
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
-                <button type="button" class="btn btn-primary" id="structure-modal-save" data-bs-dismiss="modal">Готово</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?= htmlspecialchars($uiText['close'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></button>
+                <button type="button" class="btn btn-primary" id="structure-modal-save" data-bs-dismiss="modal"><?= htmlspecialchars($uiText['done'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></button>
             </div>
         </div>
     </div>
@@ -265,36 +348,36 @@ foreach ($previewProperties as $property) {
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="propertyMergeModalLabel">Объединение свойств</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                <h5 class="modal-title" id="propertyMergeModalLabel"><?= htmlspecialchars($uiText['mergeProperties'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?= htmlspecialchars($uiText['close'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>"></button>
             </div>
             <div class="modal-body">
                 <div class="alert alert-light border" id="merge-selected-summary"></div>
 
                 <div class="row g-3 mb-3">
                     <div class="col-12 col-lg-6">
-                        <label for="merge-target-select" class="form-label">Целевое свойство</label>
+                        <label for="merge-target-select" class="form-label"><?= htmlspecialchars($uiText['mergeTargetProperty'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></label>
                         <select class="form-select" id="merge-target-select"></select>
                     </div>
                     <div class="col-12 col-lg-6">
-                        <label for="merge-type-name" class="form-label">Название типа свойства</label>
+                        <label for="merge-type-name" class="form-label"><?= htmlspecialchars($uiText['propertyTypeName'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></label>
                         <input type="text" class="form-control" id="merge-type-name">
                     </div>
                     <div class="col-12 col-lg-6">
-                        <label for="merge-property-name" class="form-label">Название свойства</label>
+                        <label for="merge-property-name" class="form-label"><?= htmlspecialchars($uiText['propertyName'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></label>
                         <input type="text" class="form-control" id="merge-property-name">
                     </div>
                     <div class="col-12 col-lg-6">
-                        <label for="merge-property-description" class="form-label">Описание</label>
+                        <label for="merge-property-description" class="form-label"><?= htmlspecialchars($uiText['description'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></label>
                         <textarea class="form-control" id="merge-property-description" rows="2"></textarea>
                     </div>
                 </div>
 
                 <div class="card border-0 bg-light mb-4">
                     <div class="card-header bg-light d-flex align-items-center justify-content-between">
-                        <div class="fw-semibold">Будущие поля свойства</div>
+                        <div class="fw-semibold"><?= htmlspecialchars($uiText['futurePropertyFields'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></div>
                         <button type="button" class="btn btn-outline-primary btn-sm" id="merge-add-field">
-                            <i class="fas fa-plus me-1"></i>Добавить поле
+                            <i class="fas fa-plus me-1"></i><?= htmlspecialchars((string) ($lang['sys.add_field'] ?? 'Add field'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>
                         </button>
                     </div>
                     <div class="card-body">
@@ -304,9 +387,9 @@ foreach ($previewProperties as $property) {
 
                 <div class="card border-0 bg-light">
                     <div class="card-header bg-light d-flex align-items-center justify-content-between">
-                        <div class="fw-semibold">Наборы после объединения</div>
+                        <div class="fw-semibold"><?= htmlspecialchars($uiText['setsAfterMerge'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></div>
                         <button type="button" class="btn btn-outline-primary btn-sm" id="merge-add-set">
-                            <i class="fas fa-plus me-1"></i>Добавить набор
+                            <i class="fas fa-plus me-1"></i><?= htmlspecialchars((string) ($lang['sys.add_set'] ?? 'Add set'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>
                         </button>
                     </div>
                     <div class="card-body">
@@ -315,8 +398,8 @@ foreach ($previewProperties as $property) {
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                <button type="button" class="btn btn-primary" id="merge-apply-button">Применить объединение</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?= htmlspecialchars($uiText['cancel'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></button>
+                <button type="button" class="btn btn-primary" id="merge-apply-button"><?= htmlspecialchars($uiText['applyMerge'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></button>
             </div>
         </div>
     </div>
@@ -330,24 +413,25 @@ foreach ($previewProperties as $property) {
     const supportedFieldTypes = <?= json_encode(array_values($supportedFieldTypes), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?> || [];
     const fallbackFieldTypes = ['text', 'textarea', 'number', 'email', 'phone', 'date', 'time', 'select', 'checkbox', 'radio', 'image', 'file'];
     const fieldTypes = Array.isArray(supportedFieldTypes) && supportedFieldTypes.length > 0 ? supportedFieldTypes : fallbackFieldTypes;
+    const i18n = <?= json_encode($uiText, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?> || {};
     const fieldTypeLabels = {
-        text: 'Текст',
-        textarea: 'Текстовый блок',
-        number: 'Число',
-        email: 'Эл. почта',
-        phone: 'Телефон',
-        date: 'Дата',
-        time: 'Время',
-        select: 'Список',
-        checkbox: 'Флажки',
-        radio: 'Переключатели',
-        image: 'Изображение',
-        file: 'Файл'
+        text: <?= json_encode((string) ($lang['sys.field_type_text'] ?? 'Text'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
+        textarea: <?= json_encode((string) ($lang['sys.field_type_textarea'] ?? 'Textarea'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
+        number: <?= json_encode((string) ($lang['sys.field_type_number'] ?? 'Number'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
+        email: <?= json_encode((string) ($lang['sys.field_type_email'] ?? 'Email'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
+        phone: <?= json_encode((string) ($lang['sys.field_type_phone'] ?? 'Phone'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
+        date: <?= json_encode((string) ($lang['sys.field_type_date'] ?? 'Date'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
+        time: <?= json_encode((string) ($lang['sys.field_type_time'] ?? 'Time'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
+        select: <?= json_encode((string) ($lang['sys.field_type_select'] ?? 'Select'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
+        checkbox: <?= json_encode((string) ($lang['sys.field_type_checkbox'] ?? 'Checkboxes'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
+        radio: <?= json_encode((string) ($lang['sys.field_type_radio'] ?? 'Radio'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
+        image: <?= json_encode((string) ($lang['sys.field_type_image'] ?? 'Image'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
+        file: <?= json_encode((string) ($lang['sys.field_type_file'] ?? 'File'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>
     };
     const entityTypeLabels = {
-        all: 'Все сущности',
-        category: 'Категории',
-        page: 'Страницы'
+        all: <?= json_encode((string) ($lang['sys.entity_type_all'] ?? 'All entities'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
+        category: <?= json_encode((string) ($lang['sys.categories'] ?? 'Categories'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
+        page: <?= json_encode((string) ($lang['sys.pages'] ?? 'Pages'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>
     };
 
     if (!stateTextarea || !tableBody) {
@@ -516,7 +600,7 @@ foreach ($previewProperties as $property) {
             }
         });
 
-        summaryNode.textContent = `Всего: ${getProperties().length}, к импорту: ${enabledCount}, групп объединения: ${mergeCount}`;
+        summaryNode.textContent = `${i18n.summaryTotal}: ${getProperties().length}, ${i18n.summaryToImport}: ${enabledCount}, ${i18n.summaryMergeGroups}: ${mergeCount}`;
     }
 
     function createFieldId(propertyCode) {
@@ -530,14 +614,14 @@ foreach ($previewProperties as $property) {
     function createDefaultOption(fieldType, optionIndex = 0) {
         if (fieldType === 'select') {
             return {
-                label: `Вариант ${optionIndex + 1}`,
+                label: `${i18n.optionVariant} ${optionIndex + 1}`,
                 value: `option_${optionIndex + 1}`,
                 selected: optionIndex === 0 ? 1 : 0
             };
         }
 
         return {
-            label: `Вариант ${optionIndex + 1}`,
+            label: `${i18n.optionVariant} ${optionIndex + 1}`,
             checked: optionIndex === 0 && fieldType === 'radio' ? 1 : 0
         };
     }
@@ -629,7 +713,7 @@ foreach ($previewProperties as $property) {
             source_field_index: -1,
             merge_source_code: '',
             type: 'text',
-            label: propertyName ? `${propertyName} поле` : 'Новое поле',
+            label: propertyName ? `${propertyName} ${String(i18n.field || 'Field').toLowerCase()}` : i18n.newField,
             title: '',
             default: '',
             required: 0,
@@ -642,7 +726,7 @@ foreach ($previewProperties as $property) {
         return {
             id: createSetId(propertyCode),
             code: '',
-            name: 'Новый набор',
+            name: i18n.newSet,
             description: '',
             source_property_codes: [propertyCode]
         };
@@ -661,12 +745,12 @@ foreach ($previewProperties as $property) {
         if (title !== '') {
             return title;
         }
-        return `Поле ${index + 1}`;
+        return `${i18n.field} ${index + 1}`;
     }
 
     function getSetDisplayName(setItem) {
         const name = String(setItem.name || '').trim();
-        return name !== '' ? name : 'Без названия';
+        return name !== '' ? name : i18n.untitled;
     }
 
     function summarizeChoiceField(field, index) {
@@ -681,7 +765,7 @@ foreach ($previewProperties as $property) {
         const preview = optionLabels.slice(0, 2).map((label) => escapeHtml(label)).join(', ');
         const suffix = optionLabels.length > 2 ? '…' : '';
         const label = escapeHtml(getFieldDisplayName(field, index));
-        return `${label}: ${escapeHtml(getFieldTypeLabel(type))}, ${optionLabels.length} знач. ${preview ? '(' + preview + suffix + ')' : ''}`.trim();
+        return `${label}: ${escapeHtml(getFieldTypeLabel(type))}, ${optionLabels.length} ${escapeHtml(i18n.valuesShort)} ${preview ? '(' + preview + suffix + ')' : ''}`.trim();
     }
 
     function summarizeFields(property) {
@@ -693,12 +777,12 @@ foreach ($previewProperties as $property) {
         if (choiceSummary.length > 0) {
             return choiceSummary.join('<br>');
         }
-        return `${fields.length} пол.` + (fields.length === 1 ? 'е' : 'я');
+        return `${fields.length} ${i18n.fieldsShort}`;
     }
 
     function summarizeType(property) {
         const fields = Array.isArray(property.fields) ? property.fields : [];
-        return `${String(property.type_name || '').trim() || 'Без названия типа'} · ${fields.length} пол.`;
+        return `${String(property.type_name || '').trim() || i18n.untitled} · ${fields.length} ${i18n.fieldsShort}`;
     }
 
     function summarizeSets(property) {
@@ -706,7 +790,7 @@ foreach ($previewProperties as $property) {
             .map((setItem) => getSetDisplayName(setItem))
             .filter((name) => name !== '');
         if (setNames.length === 0) {
-            return 'Наборы не заданы';
+            return i18n.setsNotDefined;
         }
         const preview = setNames.slice(0, 2).join(', ');
         return setNames.length > 2 ? `${preview}…` : preview;
@@ -720,32 +804,32 @@ foreach ($previewProperties as $property) {
     function renderStatusCell(property) {
         if (isMergedSource(property)) {
             return `
-                <div class="small text-muted">Объединено в</div>
+                <div class="small text-muted">${escapeHtml(i18n.mergedInto)}</div>
                 <div class="fw-semibold">${escapeHtml(getPropertyName(property.merged_into))}</div>
             `;
         }
 
         if (Array.isArray(property.merge_sources) && property.merge_sources.length > 0) {
             return `
-                <div class="small text-muted mb-2">Целевое свойство объединения</div>
+                <div class="small text-muted mb-2">${escapeHtml(i18n.mergeTargetLabel)}</div>
                 <div class="d-flex flex-wrap gap-1 mb-2">
                     ${property.merge_sources.map((code) => `<span class="badge bg-light text-primary border">${escapeHtml(getPropertyName(code))}</span>`).join('')}
                 </div>
                 <button type="button" class="btn btn-outline-secondary btn-sm js-unmerge-property" data-code="${escapeHtml(property.code)}">
-                    <i class="fas fa-unlink me-1"></i>Разъединить
+                    <i class="fas fa-unlink me-1"></i>${escapeHtml(i18n.unmerge)}
                 </button>
             `;
         }
 
         if (canSelectForMerge(property)) {
-            return '<span class="badge bg-light text-success border">Можно объединять</span>';
+            return `<span class="badge bg-light text-success border">${escapeHtml(i18n.mergeAllowed)}</span>`;
         }
 
         if (String(property.merge_block_reason || '').trim() !== '') {
             return `<span class="badge bg-light text-secondary border">${escapeHtml(property.merge_block_reason)}</span>`;
         }
 
-        return '<span class="badge bg-light text-muted border">Без объединения</span>';
+        return `<span class="badge bg-light text-muted border">${escapeHtml(i18n.noMerge)}</span>`;
     }
 
     function renderPropertyRow(property) {
@@ -755,7 +839,7 @@ foreach ($previewProperties as $property) {
         const includeDisabled = isMergedSource(property) ? 'disabled' : '';
         const includeChecked = Number(property.enabled || 0) ? 'checked' : '';
         const mergedBadge = isMergedSource(property)
-            ? `<span class="badge bg-light text-info border ms-2">объединено</span>`
+            ? `<span class="badge bg-light text-info border ms-2">${escapeHtml(i18n.mergedBadge)}</span>`
             : '';
 
         return `
@@ -810,13 +894,13 @@ foreach ($previewProperties as $property) {
 
     function renderMetaBadges(property) {
         const badges = [
-            {label: `Код: ${property.code || ''}`, className: 'bg-light text-dark border'},
-            {label: `Сущность: ${getEntityTypeLabel(property.entity_type || 'all')}`, className: 'bg-light text-dark border'},
-            {label: Number(property.is_multiple || 0) ? 'Множественное' : 'Одиночное', className: 'bg-light text-dark border'},
-            {label: Number(property.is_required || 0) ? 'Обязательное' : 'Необязательное', className: 'bg-light text-dark border'}
+            {label: `${i18n.code}: ${property.code || ''}`, className: 'bg-light text-dark border'},
+            {label: `${i18n.entity}: ${getEntityTypeLabel(property.entity_type || 'all')}`, className: 'bg-light text-dark border'},
+            {label: Number(property.is_multiple || 0) ? i18n.fieldMultiple : i18n.fieldSingle, className: 'bg-light text-dark border'},
+            {label: Number(property.is_required || 0) ? i18n.fieldRequired : i18n.fieldOptional, className: 'bg-light text-dark border'}
         ];
         if (Array.isArray(property.merge_sources) && property.merge_sources.length > 0) {
-            badges.push({label: `Источников объединения: ${property.merge_sources.length}`, className: 'bg-light text-primary border'});
+            badges.push({label: `${i18n.mergeSourcesCount}: ${property.merge_sources.length}`, className: 'bg-light text-primary border'});
         }
         structureMeta.innerHTML = badges
             .map((badge) => `<span class="badge ${badge.className}">${escapeHtml(badge.label)}</span>`)
@@ -826,7 +910,7 @@ foreach ($previewProperties as $property) {
     function renderFieldEditorMarkup(field, index) {
         const fieldName = getFieldDisplayName(field, index);
         const sourceCode = normalizeKey(field.merge_source_code || '') || normalizeKey(field.source_property_code || '');
-        const sourceLabel = sourceCode ? `Источник: ${getPropertyName(sourceCode)}` : 'Источник: текущее свойство';
+        const sourceLabel = sourceCode ? `${i18n.source}: ${getPropertyName(sourceCode)}` : i18n.sourceCurrentProperty;
         const scalarDefault = Array.isArray(field.default) ? field.default.join("\n") : String(field.default ?? '');
         const isChoice = ['select', 'checkbox', 'radio'].includes(normalizeKey(field.type));
         const isMedia = ['image', 'file'].includes(normalizeKey(field.type));
@@ -834,24 +918,24 @@ foreach ($previewProperties as $property) {
             ? `
                 <div class="mt-3">
                     <div class="d-flex justify-content-between align-items-center mb-2">
-                        <div class="fw-semibold small text-uppercase text-muted">Варианты</div>
+                        <div class="fw-semibold small text-uppercase text-muted">${escapeHtml(i18n.options)}</div>
                         <button type="button" class="btn btn-outline-primary btn-sm js-option-add" data-field-index="${index}">
-                            <i class="fas fa-plus me-1"></i>Добавить вариант
+                            <i class="fas fa-plus me-1"></i>${escapeHtml(i18n.addOption)}
                         </button>
                     </div>
                     <div class="v-field-options">
                         ${(Array.isArray(field.options) ? field.options : []).map((option, optionIndex) => {
-                            const checkedLabel = normalizeKey(field.type) === 'select' ? 'Выбрано' : 'Отмечено';
+                            const checkedLabel = normalizeKey(field.type) === 'select' ? i18n.selected : i18n.checked;
                             return `
                                 <div class="border rounded p-2 mb-2" data-option-index="${optionIndex}">
                                     <div class="row g-2 align-items-end">
                                         <div class="col-12 col-xl-4">
-                                            <label class="form-label small mb-1">Подпись</label>
+                                            <label class="form-label small mb-1">${escapeHtml(i18n.label)}</label>
                                             <input type="text" class="form-control form-control-sm js-option-label" data-field-index="${index}" data-option-index="${optionIndex}" value="${escapeHtml(option.label || '')}">
                                         </div>
                                         ${normalizeKey(field.type) === 'select' ? `
                                             <div class="col-12 col-xl-3">
-                                                <label class="form-label small mb-1">Значение</label>
+                                                <label class="form-label small mb-1">${escapeHtml(i18n.value)}</label>
                                                 <input type="text" class="form-control form-control-sm js-option-value" data-field-index="${index}" data-option-index="${optionIndex}" value="${escapeHtml(option.value || '')}">
                                             </div>
                                         ` : ''}
@@ -913,7 +997,7 @@ foreach ($previewProperties as $property) {
                 <div class="card-body">
                     <div class="row g-3">
                         <div class="col-12 col-xl-3">
-                            <label class="form-label small">Тип поля</label>
+                            <label class="form-label small">${escapeHtml(i18n.fieldType)}</label>
                             <select class="form-select form-select-sm js-field-type" data-field-index="${index}">
                                 ${fieldTypes.map((fieldType) => `
                                     <option value="${escapeHtml(fieldType)}" ${normalizeKey(field.type) === normalizeKey(fieldType) ? 'selected' : ''}>
@@ -923,15 +1007,15 @@ foreach ($previewProperties as $property) {
                             </select>
                         </div>
                         <div class="col-12 col-xl-3">
-                            <label class="form-label small">Подпись</label>
+                            <label class="form-label small">${escapeHtml(i18n.caption)}</label>
                             <input type="text" class="form-control form-control-sm js-field-label" data-field-index="${index}" value="${escapeHtml(field.label || '')}">
                         </div>
                         <div class="col-12 col-xl-3">
-                            <label class="form-label small">Заголовок</label>
+                            <label class="form-label small">${escapeHtml(i18n.heading)}</label>
                             <input type="text" class="form-control form-control-sm js-field-title" data-field-index="${index}" value="${escapeHtml(field.title || '')}">
                         </div>
                         <div class="col-12 col-xl-3">
-                            <label class="form-label small">Значение по умолчанию</label>
+                            <label class="form-label small">${escapeHtml(i18n.defaultValue)}</label>
                             ${isChoice || isMedia ? `
                                 <input type="text" class="form-control form-control-sm" value="${isMedia ? '' : escapeHtml(scalarDefault)}" disabled>
                             ` : Number(field.multiple || 0) ? `
@@ -944,12 +1028,12 @@ foreach ($previewProperties as $property) {
                     <div class="d-flex flex-wrap gap-3 mt-3">
                         <div class="form-check form-switch">
                             <input class="form-check-input js-field-required" type="checkbox" data-field-index="${index}" ${Number(field.required || 0) ? 'checked' : ''}>
-                            <label class="form-check-label">Обязательное</label>
+                            <label class="form-check-label">${escapeHtml(i18n.fieldRequired)}</label>
                         </div>
                         ${normalizeKey(field.type) !== 'checkbox' && normalizeKey(field.type) !== 'radio' ? `
                             <div class="form-check form-switch">
                                 <input class="form-check-input js-field-multiple" type="checkbox" data-field-index="${index}" ${Number(field.multiple || 0) ? 'checked' : ''} ${isMedia ? 'disabled' : ''}>
-                                <label class="form-check-label">Множественное</label>
+                                <label class="form-check-label">${escapeHtml(i18n.fieldMultiple)}</label>
                             </div>
                         ` : ''}
                     </div>
@@ -966,20 +1050,20 @@ foreach ($previewProperties as $property) {
             <div class="border rounded p-3 mb-3" data-set-index="${index}">
                 <div class="row g-3 align-items-end">
                     <div class="col-12 col-xl-4">
-                        <label class="form-label small">Название набора</label>
+                        <label class="form-label small">${escapeHtml(i18n.setName)}</label>
                         <input type="text" class="form-control form-control-sm js-set-name" data-set-index="${index}" value="${escapeHtml(setItem.name || '')}">
                     </div>
                     <div class="col-12 col-xl-6">
-                        <label class="form-label small">Описание</label>
+                        <label class="form-label small">${escapeHtml(i18n.description)}</label>
                         <input type="text" class="form-control form-control-sm js-set-description" data-set-index="${index}" value="${escapeHtml(setItem.description || '')}">
                     </div>
                     <div class="col-12 col-xl-2">
                         <button type="button" class="btn btn-outline-danger btn-sm w-100 js-set-remove" data-set-index="${index}">
-                            <i class="fas fa-trash me-1"></i>Удалить
+                            <i class="fas fa-trash me-1"></i>${escapeHtml(i18n.delete)}
                         </button>
                     </div>
                 </div>
-                <div class="small text-muted mt-2">Источник: ${escapeHtml(sourceLabel)}</div>
+                <div class="small text-muted mt-2">${escapeHtml(i18n.source)}: ${escapeHtml(sourceLabel)}</div>
             </div>
         `;
     }
@@ -990,7 +1074,7 @@ foreach ($previewProperties as $property) {
             return;
         }
 
-        document.getElementById('propertyStructureModalLabel').textContent = `Структура свойства: ${property.name || property.code}`;
+        document.getElementById('propertyStructureModalLabel').textContent = (i18n.propertyStructureWithName || 'Property structure: %s').replace('%s', property.name || property.code);
         structureNameInput.value = property.name || '';
         structureTypeInput.value = property.type_name || '';
         structureDescriptionInput.value = property.description || '';
@@ -998,11 +1082,11 @@ foreach ($previewProperties as $property) {
 
         const fields = Array.isArray(property.fields) ? property.fields : [];
         structureFieldsList.innerHTML = fields.map((field, index) => renderFieldEditorMarkup(normalizeFieldForType(field), index)).join('')
-            || '<div class="text-muted small">Полей пока нет.</div>';
+            || `<div class="text-muted small">${escapeHtml(i18n.noFieldsYet)}</div>`;
 
         const sets = Array.isArray(property.sets) ? property.sets : [];
         structureSetsList.innerHTML = sets.map((setItem, index) => renderSetEditorMarkup(setItem, index, property.code)).join('')
-            || '<div class="text-muted small">Наборы пока не заданы.</div>';
+            || `<div class="text-muted small">${escapeHtml(i18n.noSetsYet)}</div>`;
     }
 
     function openStructureModal(propertyCode) {
@@ -1368,14 +1452,14 @@ foreach ($previewProperties as $property) {
     function openMergeDialog() {
         const selectedCodes = Array.from(mergeSelection).filter((code) => canSelectForMerge(getProperty(code)));
         if (selectedCodes.length < 2) {
-            window.alert('Для объединения нужно выбрать минимум два доступных свойства.');
+            window.alert(i18n.mergeNeedTwo || 'Select at least two available properties to merge.');
             return;
         }
 
         mergeSelectedCodes = selectedCodes;
         mergeDraft = buildMergeDraft(selectedCodes, selectedCodes[0]);
         if (!mergeDraft) {
-            window.alert('Не удалось подготовить объединение.');
+            window.alert(i18n.mergePrepareFailed || 'Failed to prepare merge.');
             return;
         }
 
@@ -1392,7 +1476,7 @@ foreach ($previewProperties as $property) {
 
         const target = getProperty(mergeDraft.targetCode);
         if (!target) {
-            window.alert('Целевое свойство не найдено.');
+            window.alert(i18n.mergeTargetNotFound || 'Target property was not found.');
             return;
         }
 
@@ -1402,7 +1486,7 @@ foreach ($previewProperties as $property) {
             return property && Array.isArray(property.merge_sources) && property.merge_sources.length > 0;
         });
         if (invalidNestedSource) {
-            window.alert(`Свойство "${getPropertyName(invalidNestedSource)}" уже является целевым в другом объединении. Сначала разъедините его.`);
+            window.alert((i18n.mergeNestedTarget || 'Property "%s" is already the target of another merge. Unmerge it first.').replace('%s', getPropertyName(invalidNestedSource)));
             return;
         }
 

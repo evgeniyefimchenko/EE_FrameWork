@@ -640,8 +640,10 @@ use MessagesTrait,
 
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
-        $this->parameters_layout["title"] = ENV_SITE_NAME . ' - UPGRADE';
-        $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION . ' - UPGRADE';
+        $pageTitle = (string) ($this->lang['sys.upgrade'] ?? 'Upgrade');
+        $pageDescription = (string) ($this->lang['sys.upgrade_text'] ?? ENV_SITE_DESCRIPTION);
+        $this->parameters_layout["title"] = ENV_SITE_NAME . ' - ' . $pageTitle;
+        $this->parameters_layout["description"] = $pageDescription;
         $this->parameters_layout["canonical_href"] = ENV_URL_SITE . '/admin/upgrade';
         $this->parameters_layout["keywords"] = SysClass::getKeywordsFromText($this->html);
         $this->showLayout($this->parameters_layout);
