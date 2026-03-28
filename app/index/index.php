@@ -185,7 +185,7 @@ class ControllerIndex Extends ControllerBase {
         $this->parameters_layout["add_script"] .= '<script>$(document).ready(function () {openLoginModal();});</script>';
         $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="' . $this->getPathController() . '/css/login-register.css"/>';
         $this->parameters_layout["title"] = ENV_SITE_NAME;
-        $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION . ' - Login/Registration Form';
+        $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION . ' - ' . (string) ($this->lang['sys.login_registration_form'] ?? 'Login / registration form');
         $this->parameters_layout["keywords"] = SysClass::getKeywordsFromText($this->html);
         $this->parameters_layout["layout"] = 'login_form';
         $this->parameters_layout["layout_content"] = $this->html;

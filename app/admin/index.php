@@ -61,8 +61,9 @@ use MessagesTrait,
         $this->html = $this->view->read('v_dashboard');
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
-        $this->parameters_layout["title"] = ENV_SITE_NAME . ' - DASHBOARD';
-        $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION . ' - DASHBOARD';
+        $dashboardTitle = (string) ($this->lang['sys.dashboard_overview_heading'] ?? $this->lang['sys.dashboard'] ?? 'Dashboard');
+        $this->parameters_layout["title"] = ENV_SITE_NAME . ' - ' . $dashboardTitle;
+        $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION . ' - ' . $dashboardTitle;
         $this->parameters_layout["canonical_href"] = ENV_URL_SITE . '/admin';
         $this->parameters_layout["keywords"] = SysClass::getKeywordsFromText($this->html);
         $this->showLayout($this->parameters_layout);
@@ -920,7 +921,7 @@ use MessagesTrait,
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
         $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/users.js" type="text/javascript" /></script>';
-        $this->parameters_layout["title"] = 'Пользователи';
+        $this->parameters_layout["title"] = $this->lang['sys.users'] ?? 'Users';
         $this->showLayout($this->parameters_layout);
     }
 
@@ -990,19 +991,19 @@ use MessagesTrait,
                 'type' => 'text',
                 'id' => "name",
                 'value' => '',
-                'label' => 'Имя'
+                'label' => $this->lang['sys.name'] ?? 'Name'
             ],
             'email' => [
                 'type' => 'text',
                 'id' => "email",
                 'value' => '',
-                'label' => 'email'
+                'label' => $this->lang['sys.email'] ?? 'Email'
             ],
             'user_role' => [
                 'type' => 'select',
                 'id' => "user_role",
                 'value' => [],
-                'label' => 'Роль',
+                'label' => $this->lang['sys.role'] ?? 'Role',
                 'options' => [],
                 'multiple' => false
             ],
@@ -1010,7 +1011,7 @@ use MessagesTrait,
                 'type' => 'select',
                 'id' => "active",
                 'value' => [],
-                'label' => 'Статус',
+                'label' => $this->lang['sys.status'] ?? 'Status',
                 'options' => [],
                 'multiple' => false
             ],
@@ -1018,13 +1019,13 @@ use MessagesTrait,
                 'type' => 'date',
                 'id' => "created_at",
                 'value' => '',
-                'label' => 'Дата регистрации'
+                'label' => $this->lang['sys.registration_date'] ?? 'Registration date'
             ],
             'last_activ' => [
                 'type' => 'date',
                 'id' => "last_activ",
                 'value' => '',
-                'label' => 'Был активен'
+                'label' => $this->lang['sys.last_active'] ?? 'Last active'
             ],
         ];
         $this->loadModel('m_user_edit');
@@ -1091,7 +1092,7 @@ use MessagesTrait,
         /* layouts */
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
-        $this->parameters_layout["title"] = 'Роли пользователей';
+        $this->parameters_layout["title"] = $this->lang['sys.user_roles'] ?? 'User roles';
         $this->showLayout($this->parameters_layout);
     }
 
@@ -1178,7 +1179,7 @@ use MessagesTrait,
                 $id = 0;
             }
             if (in_array($id, [1, 2, 3, 4, 8])) {
-                ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Невозможно удалить системные роли!', 'status' => 'danger']);
+                ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.system_roles_cannot_be_deleted'] ?? 'System roles cannot be deleted.', 'status' => 'danger']);
             } else {
                 $this->loadModel('m_user_edit');
                 $this->notifyOperationResult(
@@ -1212,21 +1213,21 @@ use MessagesTrait,
                 $user_id = 0;
             }
             if (in_array($user_id, [1, 2, 8])) {
-                ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Невозможно удалить системные роли!', 'status' => 'danger']);
+                ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.system_roles_cannot_be_deleted'] ?? 'System roles cannot be deleted.', 'status' => 'danger']);
             } else {
                 $this->loadModel('m_user_edit');
                 $this->notifyOperationResult(
                     $this->models['m_user_edit']->delete_user($user_id),
                     [
-                        'default_error_message' => 'Ошибка удаления пользователя id=' . $user_id,
-                        'success_message' => 'Помечен удалённым id=' . $user_id,
+                        'default_error_message' => ($this->lang['sys.user_delete_error'] ?? 'User delete failed') . ' id=' . $user_id,
+                        'success_message' => ($this->lang['sys.user_marked_deleted'] ?? 'User marked as deleted') . ' id=' . $user_id,
                         'success_status' => 'info',
                         'failure_code' => 'user_soft_delete_failed',
                     ]
                 );
             }
         } else {
-            ClassNotifications::addNotificationUser($this->logged_in, ['text' => 'Нет обязательного параметра id', 'status' => 'danger']);
+            ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.required_id_parameter_missing'] ?? 'Required parameter id is missing.', 'status' => 'danger']);
         }
         SysClass::handleRedirect(200, '/admin/users');
     }
@@ -1274,7 +1275,9 @@ use MessagesTrait,
                     $this->models['m_user_edit']->update_users_role_data($postData),
                     [
                         'default_error_message' => $this->lang['sys.db_registration_error'],
-                        'success_message' => empty($id) ? 'Роль создана' : 'Роль обновлена',
+                        'success_message' => empty($id)
+                            ? ($this->lang['sys.role_created'] ?? 'Role created')
+                            : ($this->lang['sys.role_updated'] ?? 'Role updated'),
                         'failure_code' => 'user_role_save_failed',
                     ]
                 );
@@ -1295,7 +1298,7 @@ use MessagesTrait,
         /* layouts */
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
-        $this->parameters_layout["title"] = 'Роль пользователей';
+        $this->parameters_layout["title"] = $this->lang['sys.user_role_single'] ?? 'User role';
         $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/edit_users_role.js" type="text/javascript" /></script>';
         $this->showLayout($this->parameters_layout);
     }
@@ -1318,7 +1321,7 @@ use MessagesTrait,
         /* layouts */
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
-        $this->parameters_layout["title"] = 'Удалённые пользователи';
+        $this->parameters_layout["title"] = $this->lang['sys.deleted_users'] ?? 'Deleted users';
         $this->showLayout($this->parameters_layout);
     }
 
@@ -1445,7 +1448,7 @@ use MessagesTrait,
         /* layouts */
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
-        $this->parameters_layout["title"] = 'Удалённый пользователь';
+        $this->parameters_layout["title"] = $this->lang['sys.deleted_user'] ?? 'Deleted user';
         $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/edit_deleted_user.js" type="text/javascript" /></script>';
         $this->showLayout($this->parameters_layout);
     }
@@ -1550,7 +1553,9 @@ use MessagesTrait,
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
         // Условие для заголовка
-        $this->parameters_layout["title"] = $query ? 'Результаты поиска: ' . htmlspecialchars($query) : 'Поиск';
+        $this->parameters_layout["title"] = $query
+            ? ($this->lang['sys.search_results'] ?? 'Search results') . ': ' . htmlspecialchars($query)
+            : ($this->lang['sys.search_placeholder'] ?? 'Search');
         $this->showLayout($this->parameters_layout);
     }
 

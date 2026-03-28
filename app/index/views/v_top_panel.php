@@ -18,9 +18,11 @@ unset($currentQuery['ui_lang']);
     <div class="ee-welcome-toolbar-actions">
         <?php
         if (isset($user_id)) {
-            echo '<a class="btn btn-primary ee-toolbar-btn" id="login_button" href="/admin" aria-label="' . htmlspecialchars((string) $lang['sys.dashboard'], ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars((string) $lang['sys.dashboard'], ENT_QUOTES, 'UTF-8') . '</a>';
+            $dashboardLabel = (string) ($lang['sys.dashboard'] ?? 'Dashboard');
+            echo '<a class="btn btn-primary ee-toolbar-btn" id="login_button" href="/admin" aria-label="' . htmlspecialchars($dashboardLabel, ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($dashboardLabel, ENT_QUOTES, 'UTF-8') . '</a>';
         } else {
-            echo '<a class="btn btn-primary ee-toolbar-btn" id="login_button" href="/show_login_form" aria-label="' . htmlspecialchars((string) $lang['sys.authorization'], ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars((string) $lang['sys.authorization'], ENT_QUOTES, 'UTF-8') . '</a>';
+            $authorizationLabel = (string) ($lang['sys.authorization'] ?? 'Authorization');
+            echo '<a class="btn btn-primary ee-toolbar-btn" id="login_button" href="/show_login_form" aria-label="' . htmlspecialchars($authorizationLabel, ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($authorizationLabel, ENT_QUOTES, 'UTF-8') . '</a>';
         }
         ?>
         <?php if (!empty($interfaceLanguageCodes)): ?>

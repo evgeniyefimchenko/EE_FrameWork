@@ -159,12 +159,14 @@ body {
 
 .ee-welcome-title {
     margin: 0;
-    font-size: clamp(2.55rem, 4.6vw, 4.6rem);
-    line-height: 0.92;
+    font-size: clamp(2.45rem, 4.3vw, 4.25rem);
+    line-height: 0.95;
     font-weight: 700;
     letter-spacing: -0.03em;
-    max-width: 7.4ch;
+    max-width: 100%;
     text-wrap: balance;
+    overflow-wrap: anywhere;
+    hyphens: auto;
     position: relative;
     z-index: 1;
 }
@@ -173,6 +175,7 @@ body {
     padding-right: min(4rem, 5vw);
     position: relative;
     z-index: 1;
+    min-width: 0;
 }
 
 .ee-welcome-hero .col-lg-5 {

@@ -220,7 +220,7 @@ unset($currentQuery['ui_lang']);
                             <div class="small text-muted"><?= htmlspecialchars((string) ($lang['sys.cron_agents'] ?? 'Cron-агенты')) ?>: <strong><?= (int) ($cron['due'] ?? 0) ?></strong> / <strong><?= (int) ($cron['locked'] ?? 0) ?></strong></div>
                             <div class="small text-muted"><?= htmlspecialchars((string) ($lang['sys.disk_free'] ?? 'Свободно на диске')) ?>: <strong><?= htmlspecialchars((string) ($storage['free_pretty'] ?? '0 B')) ?></strong></div>
                             <div class="small text-muted"><?= htmlspecialchars((string) ($lang['sys.email'] ?? 'Почта')) ?>: <strong><?= !empty($mail['transport_available']) ? ($lang['sys.active'] ?? 'Активно') : ($lang['sys.error'] ?? 'Ошибка') ?></strong></div>
-                            <div class="small text-muted"><?= htmlspecialchars((string) ($lang['sys.updated_at'] ?? 'Последний cron')) ?>: <strong><?= htmlspecialchars($formatDate((string) ($cron['last_run_at'] ?? ''))) ?></strong></div>
+                            <div class="small text-muted"><?= htmlspecialchars((string) ($lang['sys.dashboard_last_cron'] ?? 'Last cron')) ?>: <strong><?= htmlspecialchars($formatDate((string) ($cron['last_run_at'] ?? ''))) ?></strong></div>
                         </div>
                     </div>
                 </div>
@@ -273,9 +273,9 @@ unset($currentQuery['ui_lang']);
                                     <table class="table table-sm align-middle mb-0">
                                         <thead>
                                             <tr>
-                                                <th><?= htmlspecialchars((string) ($lang['sys.cron_agents'] ?? 'Агент')) ?></th>
+                                                <th><?= htmlspecialchars((string) ($lang['sys.agent'] ?? 'Agent')) ?></th>
                                                 <th><?= htmlspecialchars((string) ($lang['sys.status'] ?? 'Статус')) ?></th>
-                                                <th><?= htmlspecialchars((string) ($lang['sys.updated_at'] ?? 'Когда')) ?></th>
+                                                <th><?= htmlspecialchars((string) ($lang['sys.when'] ?? 'When')) ?></th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -316,7 +316,7 @@ unset($currentQuery['ui_lang']);
                                             <tr>
                                                 <th><?= htmlspecialchars((string) ($lang['sys.backup'] ?? 'Backup')) ?></th>
                                                 <th><?= htmlspecialchars((string) ($lang['sys.status'] ?? 'Статус')) ?></th>
-                                                <th><?= htmlspecialchars((string) ($lang['sys.updated_at'] ?? 'Когда')) ?></th>
+                                                <th><?= htmlspecialchars((string) ($lang['sys.when'] ?? 'When')) ?></th>
                                             </tr>
                                         </thead>
                                         <tbody>

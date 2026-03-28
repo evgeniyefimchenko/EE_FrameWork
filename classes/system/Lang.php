@@ -14,11 +14,37 @@ class Lang {
     private static array $lang = [];
     private static array $langCache = [];
     private static string $currentLangCode = '';
+    private static ?array $langFileMap = null;
 
     private static function normalizeLanguageCode(string $langCode): string {
         $normalized = strtoupper(trim(pathinfo($langCode, PATHINFO_FILENAME)));
         $normalized = preg_replace('/[^A-Z0-9_-]/', '', $normalized) ?? '';
         return $normalized;
+    }
+
+    private static function getLangDirectory(): string {
+        return rtrim(ENV_SITE_PATH . ENV_PATH_LANG, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+    }
+
+    private static function getLangFileMap(): array {
+        if (self::$langFileMap !== null) {
+            return self::$langFileMap;
+        }
+
+        $langDir = self::getLangDirectory();
+        $map = [];
+        if (is_dir($langDir)) {
+            foreach (glob($langDir . '*.php') ?: [] as $filePath) {
+                $code = self::normalizeLanguageCode(pathinfo($filePath, PATHINFO_FILENAME));
+                if ($code === '' || isset($map[$code])) {
+                    continue;
+                }
+                $map[$code] = $filePath;
+            }
+        }
+
+        self::$langFileMap = $map;
+        return self::$langFileMap;
     }
 
     private static function resolveRequestedLanguage(string $langCode): array {
@@ -29,16 +55,17 @@ class Lang {
             'EN',
         ];
 
+        $langFileMap = self::getLangFileMap();
+
         foreach ($candidates as $candidate) {
             if ($candidate === '') {
                 continue;
             }
 
-            $langPath = ENV_SITE_PATH . ENV_PATH_LANG . $candidate . '.php';
-            if (is_file($langPath)) {
+            if (!empty($langFileMap[$candidate]) && is_file($langFileMap[$candidate])) {
                 return [
                     'code' => $candidate,
-                    'path' => $langPath,
+                    'path' => $langFileMap[$candidate],
                 ];
             }
         }
@@ -160,8 +187,10 @@ class Lang {
             if ($normalized === '') {
                 return null;
             }
-            $directPath = ENV_SITE_PATH . ENV_PATH_LANG . $normalized . '.php';
-            return is_file($directPath) ? $directPath : null;
+            $langFileMap = self::getLangFileMap();
+            return isset($langFileMap[$normalized]) && is_file($langFileMap[$normalized])
+                ? $langFileMap[$normalized]
+                : null;
         }
 
         $resolved = self::resolveRequestedLanguage($langCode);
@@ -173,16 +202,7 @@ class Lang {
      * @return array Массив имён файлов без расширения .php
      */
     public static function getLangFilesWithoutExtension(): array {
-        $langPath = ENV_SITE_PATH . ENV_PATH_LANG;
-        if (!is_dir($langPath)) {
-            return [];
-        }
-
-        $phpFiles = [];
-        foreach (glob($langPath . '*.php') ?: [] as $filePath) {
-            $phpFiles[] = self::normalizeLanguageCode(pathinfo($filePath, PATHINFO_FILENAME));
-        }
-        $phpFiles = array_values(array_filter(array_unique($phpFiles)));
+        $phpFiles = array_keys(self::getLangFileMap());
         sort($phpFiles, SORT_STRING);
         return $phpFiles;
     }    

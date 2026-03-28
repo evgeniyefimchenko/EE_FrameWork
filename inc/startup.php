@@ -24,7 +24,11 @@ class AutoloadManager {
     private static function setDefaultNamespaces() {
         self::addNamespace('classes\system', ENV_SITE_PATH . 'classes' . ENV_DIRSEP . 'system' . ENV_DIRSEP);
         self::addClassMap('classes\plugins\HTTPRequester', ENV_SITE_PATH . 'classes' . ENV_DIRSEP . 'plugins' . ENV_DIRSEP . 'HTTPRequester.php');
-        self::addClassMap('classes\plugins\SafeMySQL', ENV_SITE_PATH . 'classes' . ENV_DIRSEP . 'plugins' . ENV_DIRSEP . 'SafeMySQL.php');
+        $safeMysqlPath = ENV_SITE_PATH . 'classes' . ENV_DIRSEP . 'plugins' . ENV_DIRSEP . 'SafeMySQL.php';
+        if (!file_exists($safeMysqlPath)) {
+            $safeMysqlPath = ENV_SITE_PATH . 'classes' . ENV_DIRSEP . 'plugins' . ENV_DIRSEP . 'safemysql.php';
+        }
+        self::addClassMap('classes\plugins\SafeMySQL', $safeMysqlPath);
         self::addNamespace('classes\helpers', ENV_SITE_PATH . 'classes' . ENV_DIRSEP . 'helpers' . ENV_DIRSEP);
         // Для возможности использования trait в классе ControllerAdmin
         self::addNamespace('app\admin', ENV_SITE_PATH . ENV_APP_DIRECTORY . ENV_DIRSEP . 'admin' . ENV_DIRSEP, true,
@@ -100,13 +104,17 @@ class AutoloadManager {
      * @return void
      */
     public static function addClassMap(string $className, string $path): void {
-        if (isset(self::$classesMap[$className])) {
-            if (self::$classesMap[$className] !== $path) {
-                self::$classesMap[$className] = $path;
+        $normalizedClassName = self::normalizeClassName($className);
+        if ($normalizedClassName === '') {
+            return;
+        }
+        if (isset(self::$classesMap[$normalizedClassName])) {
+            if (self::$classesMap[$normalizedClassName] !== $path) {
+                self::$classesMap[$normalizedClassName] = $path;
             }
             return;
         }
-        self::$classesMap[$className] = $path;
+        self::$classesMap[$normalizedClassName] = $path;
     }
 
     /**
@@ -154,8 +162,9 @@ class AutoloadManager {
      * @param string $className Имя класса или трейта для загрузки
      */
     private static function loadClass($className) {
-        if (isset(self::$classesMap[$className])) {
-            require_once self::$classesMap[$className];
+        $normalizedClassName = self::normalizeClassName((string) $className);
+        if ($normalizedClassName !== '' && isset(self::$classesMap[$normalizedClassName])) {
+            require_once self::$classesMap[$normalizedClassName];
             return;
         }
         foreach (self::$composerAutoloaders as $autoloaderPath) {
@@ -201,5 +210,14 @@ class AutoloadManager {
         }
 
         return str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $path);
+    }
+
+    private static function normalizeClassName(string $className): string {
+        $className = trim($className, "\\ \t\n\r\0\x0B");
+        if ($className === '') {
+            return '';
+        }
+
+        return strtolower($className);
     }
 }
