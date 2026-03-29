@@ -1828,7 +1828,7 @@ class SysClass {
         }
         $fields = SafeMySQL::gi()->getAll("DESCRIBE ?n", $tableName);
         $fieldNames = array_column($fields, 'Field');
-        $constantsFile = ENV_SITE_PATH . 'classes/system/Constants.php';
+        $constantsFile = self::getConstantsRuntimeFilePath();
         if (!is_writable($constantsFile)) {
             $message = "Файл constants.php недоступен для записи.";
             Logger::error('sysclass', 'throw new \\ReflectionException', ['message' => $message], [
@@ -1858,6 +1858,44 @@ class SysClass {
             throw new \RuntimeException($message);
         }
         return $fieldNames;
+    }
+
+    /**
+     * Возвращает путь к рабочему runtime-файлу констант.
+     * Поддерживает оба варианта имени файла для Linux case-sensitive окружений.
+     */
+    public static function getConstantsRuntimeFilePath(): string {
+        $candidates = [
+            ENV_SITE_PATH . 'classes' . ENV_DIRSEP . 'system' . ENV_DIRSEP . 'Constants.php',
+            ENV_SITE_PATH . 'classes' . ENV_DIRSEP . 'system' . ENV_DIRSEP . 'constants.php',
+        ];
+
+        foreach ($candidates as $candidate) {
+            if (is_file($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return $candidates[0];
+    }
+
+    /**
+     * Возвращает путь к чистому шаблону констант.
+     * Поддерживает оба варианта имени файла для Linux case-sensitive окружений.
+     */
+    public static function getConstantsCleanFilePath(): string {
+        $candidates = [
+            ENV_SITE_PATH . 'classes' . ENV_DIRSEP . 'system' . ENV_DIRSEP . 'Constants_clean.php',
+            ENV_SITE_PATH . 'classes' . ENV_DIRSEP . 'system' . ENV_DIRSEP . 'constants_clean.php',
+        ];
+
+        foreach ($candidates as $candidate) {
+            if (is_file($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return $candidates[0];
     }
 
     /**

@@ -642,8 +642,8 @@ trait SystemsTrait {
         @mkdir(ENV_SITE_PATH . 'logs' . ENV_DIRSEP . 'errors', 0775, true);
         @mkdir(ENV_SITE_PATH . 'uploads' . ENV_DIRSEP . 'files', 0775, true);
         // Перезапись файла Constants.php содержимым Constants_clean.php
-        $constantsCleanPath = ENV_SITE_PATH . 'classes' . ENV_DIRSEP . 'system' . ENV_DIRSEP . 'Constants_clean.php';
-        $constantsPath = ENV_SITE_PATH . 'classes' . ENV_DIRSEP . 'system' . ENV_DIRSEP . 'Constants.php';
+        $constantsCleanPath = SysClass::getConstantsCleanFilePath();
+        $constantsPath = SysClass::getConstantsRuntimeFilePath();
         if (file_exists($constantsCleanPath)) {
             $constantsCleanContent = file_get_contents($constantsCleanPath);
             if (file_put_contents($constantsPath, $constantsCleanContent) === false) {

@@ -17,7 +17,7 @@ class Constants {
             USERS_NOTIFICATIONS_TABLE = ENV_DB_PREF . 'users_notifications',
             USERS_NOTIFICATIONS_TABLE_FIELDS = [],
             USERS_MESSAGE_TABLE = ENV_DB_PREF . 'users_message',
-            USERS_MESSAGE_TABLE_FIELDS = [],
+            USERS_MESSAGE_TABLE_FIELDS = ['message_id','user_id','author_id','chat_id','message_text','created_at','read_at','status'],
             USERS_ACTIVATION_TABLE = ENV_DB_PREF . 'users_activation',
             USERS_ACTIVATION_TABLE_FIELDS = [],
             USERS_AUTH_SESSIONS_TABLE = ENV_DB_PREF . 'user_auth_sessions',
