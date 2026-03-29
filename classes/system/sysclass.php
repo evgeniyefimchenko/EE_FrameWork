@@ -992,7 +992,25 @@ class SysClass {
         }
 
         if (file_exists($cacheFilePath)) {
-            return true;
+            $databaseConnected = false;
+            try {
+                $databaseConnected = self::checkDatabaseConnection();
+            } catch (Throwable) {
+                $databaseConnected = false;
+            }
+
+            if ($databaseConnected) {
+                try {
+                    $usersTableExists = SafeMySQL::gi()->query('SHOW TABLES LIKE ?s', Constants::USERS_TABLE)->num_rows > 0;
+                    if ($usersTableExists) {
+                        return true;
+                    }
+                } catch (Throwable) {
+                    // If the install cache exists but schema is missing or broken, drop through and rebuild.
+                }
+            }
+
+            @unlink($cacheFilePath);
         }
 
         if (!ENV_DB_USER || !ENV_DB_PASS) {

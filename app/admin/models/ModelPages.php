@@ -168,6 +168,7 @@ class ModelPages {
      */
     public function updatePageData($pageData = [], $language_code = ENV_DEF_LANG): OperationResult {
         try {
+            $urlPolicyId = (int) ($pageData['url_policy_id'] ?? 0);
             $pageData = SafeMySQL::gi()->filterArray($pageData, SysClass::ee_getFieldsTable(Constants::PAGES_TABLE));
             $pageData = array_map('trim', $pageData);
             $pageData = SysClass::ee_convertArrayValuesToNumbers($pageData);
@@ -232,7 +233,9 @@ class ModelPages {
 
             if (is_array($oldPageRow) && empty($pageData['slug'])) {
                 $pageData['slug'] = (string) ($oldPageRow['slug'] ?? '');
+                $pageData['preserve_existing_slug'] = (string) ($pageData['slug'] ?? '') !== '';
             }
+            $pageData['url_policy_id'] = $urlPolicyId;
             $pageData['slug'] = EntitySlugService::generatePageSlug($pageData, $pageId > 0 ? $pageId : null);
             if (is_array($oldPageRow) && !array_key_exists('route_path', $pageData)) {
                 $pageData['route_path'] = (string) ($oldPageRow['route_path'] ?? '');
@@ -241,6 +244,7 @@ class ModelPages {
             if ((string) ($pageData['route_path'] ?? '') === '') {
                 $pageData['route_path'] = null;
             }
+            unset($pageData['preserve_existing_slug'], $pageData['url_policy_id']);
 
             if ($method === 'update') {
                 unset($pageData['page_id']);

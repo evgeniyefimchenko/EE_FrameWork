@@ -307,6 +307,7 @@ class ModelCategories {
     public function updateCategoryData(array $categoryData = [], string $languageCode = ENV_DEF_LANG): OperationResult {
         try {
             $db = $this->db ?? SafeMySQL::gi(); // Используем $this->db если есть, иначе gi()
+            $urlPolicyId = (int) ($categoryData['url_policy_id'] ?? 0);
             $allowedFields = SysClass::ee_getFieldsTable(Constants::CATEGORIES_TABLE);
             $categoryData = $db->filterArray($categoryData, $allowedFields);
             // Применяем trim только к строкам
@@ -382,7 +383,9 @@ class ModelCategories {
 
             if (is_array($oldCategoryRow) && empty($categoryData['slug'])) {
                 $categoryData['slug'] = (string) ($oldCategoryRow['slug'] ?? '');
+                $categoryData['preserve_existing_slug'] = (string) ($categoryData['slug'] ?? '') !== '';
             }
+            $categoryData['url_policy_id'] = $urlPolicyId;
             $categoryData['slug'] = EntitySlugService::generateCategorySlug($categoryData, $categoryId > 0 ? $categoryId : null);
             if (is_array($oldCategoryRow) && !array_key_exists('route_path', $categoryData)) {
                 $categoryData['route_path'] = (string) ($oldCategoryRow['route_path'] ?? '');
@@ -391,6 +394,7 @@ class ModelCategories {
             if ((string) ($categoryData['route_path'] ?? '') === '') {
                 $categoryData['route_path'] = null;
             }
+            unset($categoryData['preserve_existing_slug'], $categoryData['url_policy_id']);
 
             if ($method === 'update') {
                 unset($categoryData['category_id']);

@@ -27,9 +27,6 @@
                                 <a class="btn btn-primary btn-lg" href="https://github.com/evgeniyefimchenko/EE_FrameWork" target="_blank" rel="noopener noreferrer">
                                     <i class="fa-brands fa-github me-2"></i><?= htmlspecialchars((string) ($lang['sys.github_repository'] ?? 'GitHub repository'), ENT_QUOTES, 'UTF-8') ?>
                                 </a>
-                                <a class="btn btn-outline-primary btn-lg" href="/docs">
-                                    <i class="fa-solid fa-book me-2"></i><?= htmlspecialchars((string) ($lang['sys.documentation'] ?? 'Documentation'), ENT_QUOTES, 'UTF-8') ?>
-                                </a>
                                 <a class="btn btn-outline-dark btn-lg" href="/about">
                                     <i class="fa-solid fa-compass me-2"></i><?= htmlspecialchars((string) ($lang['sys.about_project'] ?? 'About project'), ENT_QUOTES, 'UTF-8') ?>
                                 </a>
@@ -135,16 +132,13 @@
                     <div class="row align-items-center g-3">
                         <div class="col-lg-8">
                             <span class="ee-welcome-cta-kicker"><?= htmlspecialchars((string) ($lang['sys.welcome_cta_kicker'] ?? 'Open source and ready for experiments'), ENT_QUOTES, 'UTF-8') ?></span>
-                            <h2><?= htmlspecialchars((string) ($lang['sys.welcome_cta_title'] ?? 'Explore the codebase, documentation, and current project baseline'), ENT_QUOTES, 'UTF-8') ?></h2>
-                            <p><?= htmlspecialchars((string) ($lang['sys.welcome_cta_text'] ?? 'Use the repository to inspect the architecture, read the docs, and continue building your catalog, migration, and front-end layer.'), ENT_QUOTES, 'UTF-8') ?></p>
+                            <h2><?= htmlspecialchars((string) ($lang['sys.welcome_cta_title'] ?? 'Explore the codebase and current project baseline'), ENT_QUOTES, 'UTF-8') ?></h2>
+                            <p><?= htmlspecialchars((string) ($lang['sys.welcome_cta_text'] ?? 'Use the repository to inspect the architecture and continue building your catalog, migration, and front-end layer.'), ENT_QUOTES, 'UTF-8') ?></p>
                         </div>
                         <div class="col-lg-4">
                             <div class="ee-welcome-cta-actions">
                                 <a class="btn btn-dark btn-lg" href="https://github.com/evgeniyefimchenko/EE_FrameWork" target="_blank" rel="noopener noreferrer">
                                     <i class="fa-brands fa-github me-2"></i><?= htmlspecialchars((string) ($lang['sys.github_repository'] ?? 'GitHub repository'), ENT_QUOTES, 'UTF-8') ?>
-                                </a>
-                                <a class="btn btn-outline-dark btn-lg" href="/docs">
-                                    <i class="fa-solid fa-book-open me-2"></i><?= htmlspecialchars((string) ($lang['sys.documentation'] ?? 'Documentation'), ENT_QUOTES, 'UTF-8') ?>
                                 </a>
                             </div>
                         </div>
@@ -153,8 +147,6 @@
 
                 <section class="ee-welcome-links mt-4">
                     <a href="/about"><?= htmlspecialchars((string) ($lang['sys.about_project'] ?? 'About project'), ENT_QUOTES, 'UTF-8') ?></a>
-                    <span>·</span>
-                    <a href="/docs"><?= htmlspecialchars((string) ($lang['sys.documentation'] ?? 'Documentation'), ENT_QUOTES, 'UTF-8') ?></a>
                     <span>·</span>
                     <a href="/contact"><?= htmlspecialchars((string) ($lang['sys.contacts'] ?? 'Contacts'), ENT_QUOTES, 'UTF-8') ?></a>
                 </section>

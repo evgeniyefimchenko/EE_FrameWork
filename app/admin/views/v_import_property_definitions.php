@@ -1,6 +1,5 @@
 <?php if (!defined('ENV_SITE')) exit(header('Location: /', true, 301)); ?>
 <?php
-$docFilename = trim((string)($doc_filename ?? '/docs/imports'));
 $supportedFieldTypes = is_array($supported_field_types ?? null) ? array_keys($supported_field_types) : [];
 $previewEditorState = is_array($preview_editor_state ?? null) ? $preview_editor_state : [];
 $previewEditorStateJson = trim((string)($preview_editor_state_json ?? ''));
@@ -15,7 +14,7 @@ $uiText = [
     'openPreview' => (string) ($lang['sys.open_preview'] ?? 'Open preview'),
     'currentPreview' => (string) ($lang['sys.current_preview'] ?? 'Current preview'),
     'draftPreviewHelp' => (string) ($lang['sys.draft_preview_help'] ?? 'After upload, a draft preview will open where you can disable, rename, and merge properties before import.'),
-    'documentation' => (string) ($lang['sys.documentation'] ?? 'Documentation'),
+    'rules' => (string) ($lang['sys.import_rules'] ?? 'Import rules'),
     'previewWarnings' => (string) ($lang['sys.preview_warnings'] ?? 'Draft preview warnings'),
     'properties' => (string) ($lang['sys.properties'] ?? 'Properties'),
     'selectMergeable' => (string) ($lang['sys.select_mergeable'] ?? 'Select mergeable items'),
@@ -43,8 +42,9 @@ $uiText = [
     'import' => (string) ($lang['sys.import'] ?? 'Import'),
     'type' => (string) ($lang['sys.type'] ?? 'Type'),
     'status' => (string) ($lang['sys.status'] ?? 'Status'),
-    'documentationIntro' => (string) ($lang['sys.property_definition_doc_intro'] ?? 'The file structure is described in the document'),
     'documentationValidationNotes' => (string) ($lang['sys.property_definition_doc_notes'] ?? 'Critical errors block the preview only for invalid JSON, duplicate `code`, unknown `type_code`, `fields/default_values` mismatches, and unsupported field types.'),
+    'jsonStructureHint' => (string) ($lang['sys.property_definition_json_structure_hint'] ?? 'JSON root object must contain `schema`, `version`, and arrays for `property_types`, `properties`, `property_sets`.'),
+    'jsonChoiceHint' => (string) ($lang['sys.property_definition_json_choice_hint'] ?? 'For `select`, `checkbox`, and `radio`, define explicit options and default values in the same field order as the property type.'),
     'fieldRequired' => (string) ($lang['sys.field_required'] ?? 'Required'),
     'fieldOptional' => (string) ($lang['sys.field_optional'] ?? 'Optional'),
     'fieldMultiple' => (string) ($lang['sys.field_multiple'] ?? 'Multiple'),
@@ -195,14 +195,14 @@ foreach ($previewProperties as $property) {
             <div class="col-12 col-xxl-4">
                 <div class="card border-0 shadow-sm h-100">
                     <div class="card-header bg-white">
-                        <h3 class="card-title mb-0"><i class="fas fa-file-alt me-2"></i><?= htmlspecialchars($uiText['documentation'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></h3>
+                        <h3 class="card-title mb-0"><i class="fas fa-file-alt me-2"></i><?= htmlspecialchars($uiText['rules'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></h3>
                     </div>
                     <div class="card-body">
                         <p class="mb-2">
-                            <?= htmlspecialchars($uiText['documentationIntro'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>
-                            <a href="<?= htmlspecialchars($docFilename, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>" target="_blank" rel="noopener">
-                                <strong><?= htmlspecialchars($docFilename, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?></strong>
-                            </a>.
+                            <?= htmlspecialchars($uiText['jsonStructureHint'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>
+                        </p>
+                        <p class="mb-2">
+                            <?= htmlspecialchars($uiText['jsonChoiceHint'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>
                         </p>
                         <div class="small text-muted">
                             <?= htmlspecialchars($uiText['documentationValidationNotes'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') ?>

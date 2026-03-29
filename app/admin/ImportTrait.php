@@ -12,6 +12,7 @@ use classes\system\Hook;
 use classes\system\ImportMediaQueueService;
 use classes\system\Logger;
 use classes\system\OperationResult;
+use classes\system\UrlPolicyService;
 use classes\system\SysClass;
 use classes\system\WordpressImporter;
 
@@ -78,7 +79,6 @@ trait ImportTrait {
         $this->getStandardViews();
         $this->view->set('schema_name', 'ee_property_definitions_import');
         $this->view->set('schema_version', 1);
-        $this->view->set('doc_filename', '/docs/imports');
         $this->view->set('supported_field_types', Constants::ALL_TYPE_PROPERTY_TYPES_FIELDS);
         $this->view->set('preview_payload', $previewPayload);
         $this->view->set('preview_payload_json', $previewPayloadJson);
@@ -123,7 +123,13 @@ trait ImportTrait {
             'test_mode' => 0,
             'test_mode_limit' => 5,
             'include_private_meta_keys' => 0,
-            'preserve_source_paths' => 1,
+            'preserve_source_paths' => 0,
+            'preserve_source_slugs' => 0,
+            'page_url_policy_id' => 0,
+            'category_url_policy_id' => 0,
+            'generate_redirect_map' => 1,
+            'redirect_host_scope' => 'donor_host_only',
+            'redirect_conflict_policy' => 'skip_existing',
             'rewrite_donor_links' => 1,
             'donor_base_url' => '',
             'allowed_taxonomies' => '',
@@ -198,6 +204,8 @@ trait ImportTrait {
         $local_properties = [];
         $property_preview = ['rows' => [], 'total' => 0, 'truncated' => false, 'has_data' => false, 'meta_options' => []];
         $package_file_path = '';
+        $pageUrlPolicyOptions = UrlPolicyService::getPolicyOptions('page');
+        $categoryUrlPolicyOptions = UrlPolicyService::getPolicyOptions('category');
 
         if ((int)($job_settings['file_id_package'] ?? 0) > 0) {
             $package_file_data = FileSystem::getFileData((int)($job_settings['file_id_package'] ?? 0), false);
@@ -258,6 +266,8 @@ trait ImportTrait {
         $this->view->set('local_properties', $local_properties);
         $this->view->set('property_preview', $property_preview);
         $this->view->set('package_file_path', $package_file_path);
+        $this->view->set('page_url_policy_options', $pageUrlPolicyOptions);
+        $this->view->set('category_url_policy_options', $categoryUrlPolicyOptions);
         $this->view->set('body_view', $this->view->read('v_edit_import'));
         $this->html = $this->view->read('v_dashboard');
 
@@ -428,7 +438,13 @@ trait ImportTrait {
             'test_mode' => filter_var($postData['test_mode'] ?? false, FILTER_VALIDATE_BOOLEAN),
             'test_mode_limit' => max(1, (int)($postData['test_mode_limit'] ?? 5)),
             'include_private_meta_keys' => filter_var($postData['include_private_meta_keys'] ?? false, FILTER_VALIDATE_BOOLEAN),
-            'preserve_source_paths' => filter_var($postData['preserve_source_paths'] ?? true, FILTER_VALIDATE_BOOLEAN),
+            'preserve_source_paths' => filter_var($postData['preserve_source_paths'] ?? false, FILTER_VALIDATE_BOOLEAN),
+            'preserve_source_slugs' => filter_var($postData['preserve_source_slugs'] ?? false, FILTER_VALIDATE_BOOLEAN),
+            'page_url_policy_id' => max(0, (int) ($postData['page_url_policy_id'] ?? 0)),
+            'category_url_policy_id' => max(0, (int) ($postData['category_url_policy_id'] ?? 0)),
+            'generate_redirect_map' => filter_var($postData['generate_redirect_map'] ?? true, FILTER_VALIDATE_BOOLEAN),
+            'redirect_host_scope' => trim((string) ($postData['redirect_host_scope'] ?? 'donor_host_only')),
+            'redirect_conflict_policy' => trim((string) ($postData['redirect_conflict_policy'] ?? 'skip_existing')),
             'rewrite_donor_links' => filter_var($postData['rewrite_donor_links'] ?? true, FILTER_VALIDATE_BOOLEAN),
             'donor_base_url' => trim((string)($postData['donor_base_url'] ?? '')),
             'allowed_taxonomies' => trim((string)($postData['allowed_taxonomies'] ?? '')),

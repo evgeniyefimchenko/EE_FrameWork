@@ -49,27 +49,19 @@ class ControllerIndex Extends ControllerBase {
     }
 
     /**
-     * Документация
-     * @param NULL $params
+     * Публичная документация в локальном allbriz-контуре отключена.
      */
     public function docs($params = NULL) {
-        $controllerFile = ENV_SITE_PATH . 'app' . ENV_DIRSEP . 'docs' . ENV_DIRSEP . 'index.php';
-        if (is_readable($controllerFile)) {
-            require_once $controllerFile;
-            $controller = new \ControllerDocs();
-            $controller->index(is_array($params) ? $params : []);
-            return;
-        }
+        unset($params);
         SysClass::handleRedirect(404);
     }
-    
+
     /**
-     * AJAX получение страниц документации
-     * @param type $params
+     * Legacy-route документации тоже закрыт.
      */
     public function get_doc($params = NULL) {
         unset($params);
-        SysClass::handleRedirect(301, '/docs');
+        SysClass::handleRedirect(404);
     }
     
     /**

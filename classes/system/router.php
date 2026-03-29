@@ -251,6 +251,11 @@ class Router {
                     } else { $action = 'index'; $args = []; }
 
                 } else {
+                    $managedRedirect = $this->resolveManagedRedirect($routeNormalized);
+                    if ($managedRedirect !== null && !empty($managedRedirect['target_url'])) {
+                        SysClass::handleRedirect((int) ($managedRedirect['http_code'] ?? 301), (string) $managedRedirect['target_url']);
+                    }
+
                     $publicEntityRoute = $this->resolvePublicEntityRoute($routeNormalized);
                     if ($publicEntityRoute !== null) {
                         $file = (string) ($publicEntityRoute['file'] ?? '');
@@ -414,6 +419,22 @@ class Router {
         }
 
         return 'lang:' . (function_exists('ee_get_current_lang_code') ? ee_get_current_lang_code() : (defined('ENV_DEF_LANG') ? ENV_DEF_LANG : 'EN'));
+    }
+
+    private function resolveManagedRedirect(string $routeNormalized): ?array {
+        if ($routeNormalized === '' || !class_exists(RedirectService::class)) {
+            return null;
+        }
+
+        $languageCode = function_exists('ee_get_default_content_lang_code')
+            ? ee_get_default_content_lang_code((string) ($_GET['sl'] ?? ''))
+            : (string) ($_GET['sl'] ?? '');
+
+        return RedirectService::resolveRequestRedirect(
+            '/' . ltrim($routeNormalized, '/'),
+            (string) ($_SERVER['HTTP_HOST'] ?? ''),
+            $languageCode
+        );
     }
 
     private function resolvePublicEntityRoute(string $routeNormalized): ?array {

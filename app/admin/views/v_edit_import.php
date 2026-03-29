@@ -419,6 +419,95 @@ $importCronAgent = is_array($import_cron_agent ?? null) ? $import_cron_agent : n
                                     <?= htmlspecialchars((string)($lang['sys.import_preserve_source_paths_help'] ?? 'Если включено, категории и страницы получают точный публичный путь сайта-донора. Это помогает сохранить ссылочную ценность при полном переезде.')) ?>
                                 </div>
                             </div>
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" name="preserve_source_slugs" id="preserve_source_slugs" <?= !empty($job['preserve_source_slugs']) ? 'checked' : '' ?>>
+                                <label class="form-check-label" for="preserve_source_slugs">
+                                    <?= htmlspecialchars((string)($lang['sys.import_preserve_source_slugs'] ?? 'Использовать исходные WP slug как основу новых URL')) ?>
+                                </label>
+                                <div class="form-text">
+                                    <?= htmlspecialchars((string)($lang['sys.import_preserve_source_slugs_help'] ?? 'Если выключено, slug для категорий и страниц будет строиться заново по их заголовкам через локальный SEO-алгоритм платформы.')) ?>
+                                </div>
+                            </div>
+                            <div class="row g-3 mb-2">
+                                <div class="col-12 col-lg-6">
+                                    <label for="category_url_policy_id" class="form-label"><?= htmlspecialchars((string)($lang['sys.import_category_url_policy'] ?? 'URL-политика для категорий')) ?></label>
+                                    <select class="form-select" id="category_url_policy_id" name="category_url_policy_id">
+                                        <option value="0"><?= htmlspecialchars((string)($lang['sys.import_url_policy_default'] ?? 'Политика по умолчанию')) ?></option>
+                                        <?php foreach ((array)($category_url_policy_options ?? []) as $policyOption): ?>
+                                            <?php $policyOptionId = (int)($policyOption['policy_id'] ?? 0); ?>
+                                            <option value="<?= $policyOptionId ?>" <?= (int)($job['category_url_policy_id'] ?? 0) === $policyOptionId ? 'selected' : '' ?>>
+                                                <?= htmlspecialchars((string)($policyOption['label'] ?? ('Policy #' . $policyOptionId))) ?>
+                                                <?php if (!empty($policyOption['meta'])): ?>
+                                                    (<?= htmlspecialchars((string)$policyOption['meta']) ?>)
+                                                <?php endif; ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <div class="form-text">
+                                        <?= htmlspecialchars((string)($lang['sys.import_category_url_policy_help'] ?? 'Определяет правила построения новых slug для категорий, если исходные WP пути не сохраняются как public URL.')) ?>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-lg-6">
+                                    <label for="page_url_policy_id" class="form-label"><?= htmlspecialchars((string)($lang['sys.import_page_url_policy'] ?? 'URL-политика для страниц')) ?></label>
+                                    <select class="form-select" id="page_url_policy_id" name="page_url_policy_id">
+                                        <option value="0"><?= htmlspecialchars((string)($lang['sys.import_url_policy_default'] ?? 'Политика по умолчанию')) ?></option>
+                                        <?php foreach ((array)($page_url_policy_options ?? []) as $policyOption): ?>
+                                            <?php $policyOptionId = (int)($policyOption['policy_id'] ?? 0); ?>
+                                            <option value="<?= $policyOptionId ?>" <?= (int)($job['page_url_policy_id'] ?? 0) === $policyOptionId ? 'selected' : '' ?>>
+                                                <?= htmlspecialchars((string)($policyOption['label'] ?? ('Policy #' . $policyOptionId))) ?>
+                                                <?php if (!empty($policyOption['meta'])): ?>
+                                                    (<?= htmlspecialchars((string)$policyOption['meta']) ?>)
+                                                <?php endif; ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <div class="form-text">
+                                        <?= htmlspecialchars((string)($lang['sys.import_page_url_policy_help'] ?? 'Определяет правила построения новых slug для страниц, если исходные WP пути не сохраняются как public URL.')) ?>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" name="generate_redirect_map" id="generate_redirect_map" <?= !empty($job['generate_redirect_map']) ? 'checked' : '' ?>>
+                                <label class="form-check-label" for="generate_redirect_map">
+                                    <?= htmlspecialchars((string)($lang['sys.import_generate_redirect_map'] ?? 'Автоматически строить 301-карту со старых URI на новые')) ?>
+                                </label>
+                                <div class="form-text">
+                                    <?= htmlspecialchars((string)($lang['sys.import_generate_redirect_map_help'] ?? 'Если исходные public URL не сохраняются, система запишет редиректы со старых URI импортированных сущностей на их новые локальные адреса.')) ?>
+                                </div>
+                            </div>
+                            <div class="row g-3 mb-3">
+                                <div class="col-12 col-lg-6">
+                                    <label for="redirect_host_scope" class="form-label"><?= htmlspecialchars((string)($lang['sys.import_redirect_host_scope'] ?? 'Область действия redirect host')) ?></label>
+                                    <select class="form-select" id="redirect_host_scope" name="redirect_host_scope">
+                                        <?php
+                                        $redirectHostScope = (string)($job['redirect_host_scope'] ?? 'donor_host_only');
+                                        $redirectHostOptions = [
+                                            'donor_host_only' => (string)($lang['sys.import_redirect_host_scope_donor'] ?? 'Только donor host'),
+                                            'current_host' => (string)($lang['sys.import_redirect_host_scope_current'] ?? 'Только текущий host проекта'),
+                                            'any_host' => (string)($lang['sys.import_redirect_host_scope_any'] ?? 'Любой host'),
+                                        ];
+                                        ?>
+                                        <?php foreach ($redirectHostOptions as $scopeValue => $scopeTitle): ?>
+                                            <option value="<?= htmlspecialchars($scopeValue) ?>" <?= $redirectHostScope === $scopeValue ? 'selected' : '' ?>><?= htmlspecialchars($scopeTitle) ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="col-12 col-lg-6">
+                                    <label for="redirect_conflict_policy" class="form-label"><?= htmlspecialchars((string)($lang['sys.import_redirect_conflict_policy'] ?? 'Политика конфликта редиректов')) ?></label>
+                                    <select class="form-select" id="redirect_conflict_policy" name="redirect_conflict_policy">
+                                        <?php
+                                        $redirectConflictPolicy = (string)($job['redirect_conflict_policy'] ?? 'skip_existing');
+                                        $redirectConflictOptions = [
+                                            'skip_existing' => (string)($lang['sys.import_redirect_conflict_skip'] ?? 'Оставлять существующий редирект'),
+                                            'replace_existing' => (string)($lang['sys.import_redirect_conflict_replace'] ?? 'Перезаписывать существующий редирект'),
+                                        ];
+                                        ?>
+                                        <?php foreach ($redirectConflictOptions as $conflictValue => $conflictTitle): ?>
+                                            <option value="<?= htmlspecialchars($conflictValue) ?>" <?= $redirectConflictPolicy === $conflictValue ? 'selected' : '' ?>><?= htmlspecialchars($conflictTitle) ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                            </div>
                             <div class="form-check form-switch mb-3">
                                 <input class="form-check-input" type="checkbox" name="rewrite_donor_links" id="rewrite_donor_links" <?= !empty($job['rewrite_donor_links']) ? 'checked' : '' ?>>
                                 <label class="form-check-label" for="rewrite_donor_links">

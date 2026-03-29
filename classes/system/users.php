@@ -688,8 +688,12 @@ class Users {
             $this->createCategoriesTypesTable();
             $this->createCategoriesTable();
             $this->createPagesTable();
+            $this->createUrlPoliciesTable();
+            $this->insertDefaultUrlPolicies();
             $this->createEntitySlugInfrastructure();
             $this->createEntityTranslationsTable();
+            $this->createEntityLegacyPathsTable();
+            $this->createRedirectsTable();
             $this->createPageUserLinksTable();
             $this->createPropertyTypesTable();
             $this->createPropertiesTable();
@@ -1108,6 +1112,133 @@ class Users {
     private function createEntityTranslationsTable(): void {
         EntityTranslationService::ensureInfrastructure(true);
         $this->logSqlInfo('create_entity_translations_table', 'Таблица связей переводов создана');
+    }
+
+    /**
+     * Создаёт таблицу URL-политик для slug-стратегий.
+     */
+    private function createUrlPoliciesTable(): void {
+        $sql = "CREATE TABLE IF NOT EXISTS ?n (
+        policy_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        code VARCHAR(100) NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        entity_type ENUM('category', 'page') NOT NULL,
+        language_code VARCHAR(16) NULL DEFAULT NULL COMMENT 'NULL = все языки контента',
+        status ENUM('active', 'hidden', 'disabled') NOT NULL DEFAULT 'active',
+        is_default TINYINT(1) NOT NULL DEFAULT 0,
+        settings_json JSON NOT NULL,
+        description VARCHAR(1000) NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_url_policies_code (code),
+        INDEX idx_url_policies_entity_lang (entity_type, language_code),
+        INDEX idx_url_policies_default (entity_type, is_default, status)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Политики генерации slug и URL';";
+        SafeMySQL::gi()->query($sql, Constants::URL_POLICIES_TABLE);
+        $this->logSqlInfo('create_url_policies_table', 'Таблица URL-политик создана');
+    }
+
+    /**
+     * Вставляет стандартные URL-политики.
+     */
+    private function insertDefaultUrlPolicies(): void {
+        $defaultSettings = json_encode([
+            'source_mode' => 'title',
+            'transliterate' => 1,
+            'lowercase' => 1,
+            'separator' => '-',
+            'max_length' => 190,
+            'stop_words' => [],
+            'replace_map' => [],
+            'fallback_slug' => 'item',
+            'reserved_words_extra' => [],
+            'dedupe_mode' => 'numeric_suffix',
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+        $rows = [
+            [
+                'code' => 'default-category',
+                'name' => 'Default category slug policy',
+                'entity_type' => 'category',
+                'language_code' => null,
+                'status' => 'active',
+                'is_default' => 1,
+                'settings_json' => $defaultSettings,
+                'description' => 'Базовая стратегия slug для категорий.',
+            ],
+            [
+                'code' => 'default-page',
+                'name' => 'Default page slug policy',
+                'entity_type' => 'page',
+                'language_code' => null,
+                'status' => 'active',
+                'is_default' => 1,
+                'settings_json' => $defaultSettings,
+                'description' => 'Базовая стратегия slug для страниц.',
+            ],
+        ];
+
+        foreach ($rows as $row) {
+            SafeMySQL::gi()->query(
+                'INSERT INTO ?n SET ?u ON DUPLICATE KEY UPDATE name = VALUES(name), entity_type = VALUES(entity_type), language_code = VALUES(language_code), status = VALUES(status), is_default = VALUES(is_default), settings_json = VALUES(settings_json), description = VALUES(description)',
+                Constants::URL_POLICIES_TABLE,
+                $row
+            );
+        }
+        $this->logSqlInfo('insert_default_url_policies', 'Стандартные URL-политики созданы');
+    }
+
+    /**
+     * Создаёт таблицу legacy URI импортированных сущностей.
+     */
+    private function createEntityLegacyPathsTable(): void {
+        $sql = "CREATE TABLE IF NOT EXISTS ?n (
+        legacy_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        entity_type ENUM('category', 'page') NOT NULL,
+        entity_id INT UNSIGNED NOT NULL,
+        source_system VARCHAR(50) NOT NULL DEFAULT 'wordpress',
+        source_host VARCHAR(191) NOT NULL DEFAULT '',
+        source_path VARCHAR(512) NOT NULL,
+        language_code VARCHAR(16) NOT NULL DEFAULT '',
+        import_job_id INT UNSIGNED NULL DEFAULT NULL,
+        is_primary TINYINT(1) NOT NULL DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_entity_legacy_source (source_system, source_host, source_path, language_code),
+        INDEX idx_entity_legacy_lookup (entity_type, entity_id, language_code),
+        INDEX idx_entity_legacy_job (import_job_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Старые URI импортированных сущностей';";
+        SafeMySQL::gi()->query($sql, Constants::ENTITY_LEGACY_PATHS_TABLE);
+        $this->logSqlInfo('create_entity_legacy_paths_table', 'Таблица legacy URI создана');
+    }
+
+    /**
+     * Создаёт таблицу управляемых редиректов.
+     */
+    private function createRedirectsTable(): void {
+        $sql = "CREATE TABLE IF NOT EXISTS ?n (
+        redirect_id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        source_host VARCHAR(191) NOT NULL DEFAULT '' COMMENT 'Пусто = любой host',
+        source_path VARCHAR(512) NOT NULL,
+        language_code VARCHAR(16) NOT NULL DEFAULT '' COMMENT 'Пусто = любой язык',
+        target_type ENUM('path', 'entity') NOT NULL DEFAULT 'path',
+        target_path VARCHAR(512) NULL DEFAULT NULL,
+        target_entity_type ENUM('category', 'page') NULL DEFAULT NULL,
+        target_entity_id INT UNSIGNED NULL DEFAULT NULL,
+        http_code SMALLINT UNSIGNED NOT NULL DEFAULT 301,
+        status ENUM('active', 'disabled') NOT NULL DEFAULT 'active',
+        is_auto TINYINT(1) NOT NULL DEFAULT 0,
+        import_job_id INT UNSIGNED NULL DEFAULT NULL,
+        note VARCHAR(1000) NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_redirect_source (source_host, source_path, language_code),
+        INDEX idx_redirects_status (status, source_host),
+        INDEX idx_redirects_entity (target_entity_type, target_entity_id),
+        INDEX idx_redirects_job (import_job_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Карта редиректов URI';";
+        SafeMySQL::gi()->query($sql, Constants::REDIRECTS_TABLE);
+        $this->logSqlInfo('create_redirects_table', 'Таблица редиректов создана');
     }
 
     /**

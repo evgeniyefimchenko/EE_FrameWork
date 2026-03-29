@@ -56,15 +56,26 @@ final class EntitySlugService {
         $languageCode = self::normalizeLanguageCode((string) ($categoryData['language_code'] ?? ENV_DEF_LANG));
         $seed = trim((string) ($categoryData['slug'] ?? ''));
         $title = trim((string) ($categoryData['title'] ?? ''));
+        $policy = UrlPolicyService::resolveEffectivePolicy(
+            'category',
+            $languageCode,
+            (int) ($categoryData['url_policy_id'] ?? 0)
+        );
 
-        $baseSlug = self::normalizeSlugSeed($seed, $title, 'category');
+        $baseSlug = self::normalizeSlugSeed(
+            $seed,
+            $title,
+            'category',
+            $policy,
+            !empty($categoryData['preserve_existing_slug'])
+        );
         $candidate = $baseSlug;
         $suffix = 2;
 
         while (
             self::categorySlugExists($candidate, $typeId, $languageCode, $excludeCategoryId)
             || self::categoryPathConflictsWithPage($candidate, $parentId, $languageCode)
-            || self::isReservedRootSegment($candidate, $parentId)
+            || self::isReservedRootSegment($candidate, $parentId, $policy)
         ) {
             $candidate = self::appendNumericSuffix($baseSlug, $suffix);
             $suffix++;
@@ -87,8 +98,19 @@ final class EntitySlugService {
         $languageCode = self::normalizeLanguageCode((string) ($pageData['language_code'] ?? ENV_DEF_LANG));
         $seed = trim((string) ($pageData['slug'] ?? ''));
         $title = trim((string) ($pageData['title'] ?? ''));
+        $policy = UrlPolicyService::resolveEffectivePolicy(
+            'page',
+            $languageCode,
+            (int) ($pageData['url_policy_id'] ?? 0)
+        );
 
-        $baseSlug = self::normalizeSlugSeed($seed, $title, 'page');
+        $baseSlug = self::normalizeSlugSeed(
+            $seed,
+            $title,
+            'page',
+            $policy,
+            !empty($pageData['preserve_existing_slug'])
+        );
         $candidate = $baseSlug;
         $suffix = 2;
 
@@ -314,12 +336,17 @@ final class EntitySlugService {
         );
     }
 
-    private static function isReservedRootSegment(string $slug, int $parentId): bool {
+    private static function isReservedRootSegment(string $slug, int $parentId, array $policy = []): bool {
         if ($parentId > 0 || $slug === '') {
             return false;
         }
 
-        return in_array($slug, self::RESERVED_ROOT_SEGMENTS, true);
+        $reservedSegments = array_merge(
+            self::RESERVED_ROOT_SEGMENTS,
+            UrlPolicyService::getReservedWordsExtra($policy)
+        );
+
+        return in_array($slug, array_values(array_unique($reservedSegments)), true);
     }
 
     private static function ensureUniqueRoutePath(string $routePath, string $entityType, string $languageCode, ?int $excludeId = null): string {
@@ -386,38 +413,37 @@ final class EntitySlugService {
         return '/' . implode('/', $segments);
     }
 
-    private static function normalizeSlugSeed(string $seed, string $fallbackText, string $entityType): string {
-        $slug = self::slugify($seed);
-        if ($slug !== '') {
-            return $slug;
+    private static function normalizeSlugSeed(
+        string $seed,
+        string $fallbackText,
+        string $entityType,
+        array $policy = [],
+        bool $preserveExistingSlug = false
+    ): string {
+        $policySettings = UrlPolicyService::normalizeSettings($policy['settings'] ?? $policy);
+        $sourceMode = (string) ($policySettings['source_mode'] ?? 'title');
+
+        $candidates = [];
+        if ($preserveExistingSlug && trim($seed) !== '') {
+            $candidates[] = $seed;
+        } elseif ($sourceMode === 'source_slug') {
+            $candidates = [$seed, $fallbackText];
+        } else {
+            $candidates = [$fallbackText, $seed];
         }
 
-        $slug = self::slugify($fallbackText);
-        if ($slug !== '') {
-            return $slug;
-        }
-
-        return $entityType;
-    }
-
-    private static function slugify(string $value): string {
-        $value = trim($value);
-        if ($value === '') {
-            return '';
-        }
-
-        if (class_exists('\Transliterator')) {
-            $transliterator = \Transliterator::create('Any-Latin; Latin-ASCII; [\u0080-\u7fff] remove');
-            if ($transliterator) {
-                $value = (string) $transliterator->transliterate($value);
+        foreach ($candidates as $candidate) {
+            $slug = self::slugify((string) $candidate, $policySettings, $entityType);
+            if ($slug !== '') {
+                return $slug;
             }
         }
 
-        $value = function_exists('mb_strtolower') ? mb_strtolower($value) : strtolower($value);
-        $value = preg_replace('/[^a-z0-9]+/u', '-', $value) ?? '';
-        $value = trim($value, '-');
+        return self::slugify($entityType, $policySettings, $entityType);
+    }
 
-        return mb_substr($value, 0, 190);
+    private static function slugify(string $value, array $policySettings = [], string $fallbackSlug = 'item'): string {
+        return UrlPolicyService::applyPolicy($value, $policySettings, $fallbackSlug);
     }
 
     private static function appendNumericSuffix(string $baseSlug, int $suffix): string {

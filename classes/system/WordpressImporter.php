@@ -106,6 +106,12 @@ class WordpressImporter extends BaseImporter {
     private array $compositeByMemberSourceId = [];
     private bool $strictCompositePropertyMapping = false;
     private bool $preserveSourcePaths = false;
+    private bool $preserveSourceSlugs = false;
+    private int $pageUrlPolicyId = 0;
+    private int $categoryUrlPolicyId = 0;
+    private bool $generateRedirectMap = true;
+    private string $redirectHostScope = 'donor_host_only';
+    private string $redirectConflictPolicy = 'skip_existing';
     private bool $rewriteDonorLinks = true;
     private string $donorBaseUrl = '';
     private array $state = [];
@@ -150,6 +156,14 @@ class WordpressImporter extends BaseImporter {
         );
         $this->strictCompositePropertyMapping = !empty($this->compositePropertyDefinitions);
         $this->preserveSourcePaths = !empty($settings['preserve_source_paths']);
+        $this->preserveSourceSlugs = !empty($settings['preserve_source_slugs']);
+        $this->pageUrlPolicyId = max(0, (int) ($settings['page_url_policy_id'] ?? 0));
+        $this->categoryUrlPolicyId = max(0, (int) ($settings['category_url_policy_id'] ?? 0));
+        $this->generateRedirectMap = !array_key_exists('generate_redirect_map', $settings)
+            ? true
+            : $this->toBool($settings['generate_redirect_map'], true);
+        $this->redirectHostScope = trim((string) ($settings['redirect_host_scope'] ?? 'donor_host_only'));
+        $this->redirectConflictPolicy = trim((string) ($settings['redirect_conflict_policy'] ?? 'skip_existing'));
         $this->rewriteDonorLinks = !array_key_exists('rewrite_donor_links', $settings)
             ? true
             : $this->toBool($settings['rewrite_donor_links'], true);
@@ -340,6 +354,22 @@ class WordpressImporter extends BaseImporter {
             (int) ($linkRewriteSummary['pages_updated'] ?? 0),
             (int) ($linkRewriteSummary['categories_updated'] ?? 0),
             (int) ($linkRewriteSummary['property_values_updated'] ?? 0)
+        ));
+        $redirectSummary = ['processed' => 0, 'created' => 0, 'updated' => 0, 'skipped' => 0, 'failed' => 0];
+        if ($this->generateRedirectMap && !$this->preserveSourcePaths) {
+            $redirectSummary = RedirectService::syncImportRedirectsFromLegacy($this->job_id, [
+                'host_scope' => $this->redirectHostScope,
+                'conflict_policy' => $this->redirectConflictPolicy,
+            ]);
+        }
+        $this->state['redirect_map_summary'] = $redirectSummary;
+        $this->log(sprintf(
+            'Redirect map summary: processed=%d created=%d updated=%d skipped=%d failed=%d',
+            (int) ($redirectSummary['processed'] ?? 0),
+            (int) ($redirectSummary['created'] ?? 0),
+            (int) ($redirectSummary['updated'] ?? 0),
+            (int) ($redirectSummary['skipped'] ?? 0),
+            (int) ($redirectSummary['failed'] ?? 0)
         ));
         $sourceDir = (string)($this->state['source_dir'] ?? '');
         if ($sourceDir !== '' && is_dir($sourceDir)) {
@@ -1094,7 +1124,8 @@ class WordpressImporter extends BaseImporter {
             'category_id' => $existingCategoryId > 0 ? $existingCategoryId : 0,
             'type_id' => $typeId,
             'title' => $title,
-            'slug' => $this->rowString($row, ['slug'], ''),
+            'url_policy_id' => $this->categoryUrlPolicyId,
+            'slug' => $this->preserveSourceSlugs ? $this->rowString($row, ['slug'], '') : '',
             'route_path' => $this->preserveSourcePaths ? $this->resolveImportedRoutePath($row) : '',
             'short_description' => $this->rowString($row, ['short_description', 'excerpt'], ''),
             'description' => $this->prepareImportedRichText(
@@ -1212,7 +1243,8 @@ class WordpressImporter extends BaseImporter {
             'parent_page_id' => 0,
             'status' => $this->normalizeStatus($this->rowValue($row, ['status'], 'active')),
             'title' => $title,
-            'slug' => $this->rowString($row, ['slug'], ''),
+            'url_policy_id' => $this->pageUrlPolicyId,
+            'slug' => $this->preserveSourceSlugs ? $this->rowString($row, ['slug'], '') : '',
             'route_path' => $this->preserveSourcePaths ? $this->resolveImportedRoutePath($row) : '',
             'short_description' => $this->rowString($row, ['short_description', 'excerpt'], ''),
             'description' => $this->prepareImportedRichText(
@@ -4290,6 +4322,16 @@ class WordpressImporter extends BaseImporter {
 
         $mapType = $entityType === 'category' ? 'category_source_path' : 'page_source_path';
         $this->saveMappedId($mapType, $sourcePath, $entityId);
+        RedirectService::registerLegacyPath(
+            $entityType,
+            $entityId,
+            trim((string) ($this->state['source_system'] ?? 'wordpress')) ?: 'wordpress',
+            (string) parse_url($this->getDonorBaseUrl(), PHP_URL_HOST),
+            $sourcePath,
+            $this->languageCode,
+            $this->job_id > 0 ? (int) $this->job_id : null,
+            true
+        );
     }
 
     private function normalizeImportedSourcePath(string $value): string {

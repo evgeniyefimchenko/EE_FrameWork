@@ -1160,7 +1160,11 @@ class ModelSystems {
         }
 
         $minutesSinceLastRun = (int) ($cron['minutes_since_last_run'] ?? -1);
-        if ($minutesSinceLastRun >= self::HEALTH_CRON_CRITICAL_MINUTES || (trim((string) ($cron['last_run_at'] ?? '')) === '')) {
+        $lastRunAt = trim((string) ($cron['last_run_at'] ?? ''));
+        $cronRunsTotal = (int) ($cron['runs_total'] ?? 0);
+        if ($lastRunAt === '' && $cronRunsTotal <= 0) {
+            // Fresh install: scheduler has not had a chance to record the first tick yet.
+        } elseif ($minutesSinceLastRun >= self::HEALTH_CRON_CRITICAL_MINUTES || $lastRunAt === '') {
             $alerts[] = $this->makeHealthAlert('critical', 'sys.health_alert_cron_stalled_title', 'sys.health_alert_cron_stalled_message', [
                 'minutes' => $minutesSinceLastRun >= 0 ? (string) $minutesSinceLastRun : 'n/a',
             ], '/admin/cron_agents', 'sys.cron_agents');
