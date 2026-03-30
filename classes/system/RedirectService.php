@@ -231,26 +231,10 @@ final class RedirectService {
             return null;
         }
 
-        $rows = SafeMySQL::gi()->getAll(
-            "SELECT *
-             FROM ?n
-             WHERE status = 'active'
-               AND source_path = ?s
-               AND (source_host = ?s OR source_host = '')
-               AND (language_code = ?s OR language_code = '')
-             ORDER BY
-               CASE WHEN source_host = ?s THEN 2 ELSE 1 END DESC,
-               CASE WHEN language_code = ?s THEN 2 ELSE 1 END DESC,
-               is_auto DESC,
-               redirect_id DESC
-             LIMIT 5",
-            Constants::REDIRECTS_TABLE,
-            $sourcePath,
-            $host,
-            $languageCode,
-            $host,
-            $languageCode
-        );
+        $rows = self::loadRedirectCandidates($sourcePath, $host, $languageCode, false);
+        if ($rows === [] && self::shouldAllowConfiguredHostFallback($host)) {
+            $rows = self::loadRedirectCandidates($sourcePath, $host, $languageCode, true);
+        }
 
         foreach ((array) $rows as $row) {
             $row = self::decorateRedirectRow($row);
@@ -269,6 +253,72 @@ final class RedirectService {
         }
 
         return null;
+    }
+
+    /**
+     * Загружает кандидаты редиректов для path/language с учётом host.
+     * При $ignoreHost=true ищет любые host-specific правила, что помогает тестировать donor URI на временном домене.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private static function loadRedirectCandidates(string $sourcePath, string $host, string $languageCode, bool $ignoreHost): array {
+        if ($ignoreHost) {
+            return SafeMySQL::gi()->getAll(
+                "SELECT *
+                 FROM ?n
+                 WHERE status = 'active'
+                   AND source_path = ?s
+                   AND source_host != ''
+                   AND (language_code = ?s OR language_code = '')
+                 ORDER BY
+                   CASE WHEN language_code = ?s THEN 2 ELSE 1 END DESC,
+                   is_auto DESC,
+                   redirect_id DESC
+                 LIMIT 5",
+                Constants::REDIRECTS_TABLE,
+                $sourcePath,
+                $languageCode,
+                $languageCode
+            ) ?: [];
+        }
+
+        return SafeMySQL::gi()->getAll(
+            "SELECT *
+             FROM ?n
+             WHERE status = 'active'
+               AND source_path = ?s
+               AND (source_host = ?s OR source_host = '')
+               AND (language_code = ?s OR language_code = '')
+             ORDER BY
+               CASE WHEN source_host = ?s THEN 2 ELSE 1 END DESC,
+               CASE WHEN language_code = ?s THEN 2 ELSE 1 END DESC,
+               is_auto DESC,
+               redirect_id DESC
+             LIMIT 5",
+            Constants::REDIRECTS_TABLE,
+            $sourcePath,
+            $host,
+            $languageCode,
+            $host,
+            $languageCode
+        ) ?: [];
+    }
+
+    /**
+     * На временном проектном host разрешаем fallback на host-specific donor redirects,
+     * чтобы можно было тестировать старые URI до переключения канонического домена.
+     */
+    private static function shouldAllowConfiguredHostFallback(string $host): bool {
+        if ($host === '') {
+            return false;
+        }
+
+        $configuredHost = self::normalizeHost((string) parse_url((string) ENV_URL_SITE, PHP_URL_HOST));
+        if ($configuredHost === '' || $configuredHost !== $host) {
+            return false;
+        }
+
+        return true;
     }
 
     public static function syncImportRedirectsFromLegacy(int $importJobId, array $options = []): array {

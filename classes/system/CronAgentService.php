@@ -84,7 +84,7 @@ class CronAgentService {
         $total = (int) SafeMySQL::gi()->getOne('SELECT COUNT(*) FROM ?n', Constants::CRON_AGENTS_TABLE);
         $active = (int) SafeMySQL::gi()->getOne('SELECT COUNT(*) FROM ?n WHERE is_active = 1', Constants::CRON_AGENTS_TABLE);
         $locked = (int) SafeMySQL::gi()->getOne(
-            'SELECT COUNT(*) FROM ?n WHERE locked_until IS NOT NULL AND locked_until > NOW()',
+            'SELECT COUNT(*) FROM ?n WHERE locked_until IS NOT NULL AND locked_until > UTC_TIMESTAMP()',
             Constants::CRON_AGENTS_TABLE
         );
         $due = (int) SafeMySQL::gi()->getOne(
@@ -92,9 +92,9 @@ class CronAgentService {
              WHERE is_active = 1
                AND schedule_mode <> 'manual'
                AND next_run_at IS NOT NULL
-               AND next_run_at <= NOW()
-               AND (cooldown_until IS NULL OR cooldown_until <= NOW())
-               AND (locked_until IS NULL OR locked_until <= NOW())",
+               AND next_run_at <= UTC_TIMESTAMP()
+               AND (cooldown_until IS NULL OR cooldown_until <= UTC_TIMESTAMP())
+               AND (locked_until IS NULL OR locked_until <= UTC_TIMESTAMP())",
             Constants::CRON_AGENTS_TABLE
         );
         $failed = (int) SafeMySQL::gi()->getOne(
@@ -296,8 +296,8 @@ class CronAgentService {
 
         if ($isActive === 1 && (($agent['schedule_mode'] ?? 'interval') !== 'manual')) {
             $nextRunAt = trim((string) ($agent['next_run_at'] ?? ''));
-            if ($nextRunAt === '' || strtotime($nextRunAt) <= time()) {
-                $computed = self::calculateNextRunAt(array_merge($agent, ['is_active' => 1]), new \DateTimeImmutable('now'), true);
+            if ($nextRunAt === '' || self::utcTimestamp($nextRunAt) <= time()) {
+                $computed = self::calculateNextRunAt(array_merge($agent, ['is_active' => 1]), self::utcNow(), true);
                 $update['next_run_at'] = $computed;
             }
         }
@@ -323,7 +323,7 @@ class CronAgentService {
         self::ensureInfrastructure();
 
         $staleAgents = SafeMySQL::gi()->getAll(
-            'SELECT agent_id, code, current_run_token FROM ?n WHERE locked_until IS NOT NULL AND locked_until < NOW()',
+            'SELECT agent_id, code, current_run_token FROM ?n WHERE locked_until IS NOT NULL AND locked_until < UTC_TIMESTAMP()',
             Constants::CRON_AGENTS_TABLE
         );
 
@@ -339,7 +339,7 @@ class CronAgentService {
             }
 
             SafeMySQL::gi()->query(
-                'UPDATE ?n SET locked_at = NULL, locked_until = NULL, locked_by = NULL, current_run_token = NULL, last_error_at = NOW(), last_error_message = ?s WHERE agent_id = ?i',
+                'UPDATE ?n SET locked_at = NULL, locked_until = NULL, locked_by = NULL, current_run_token = NULL, last_error_at = UTC_TIMESTAMP(), last_error_message = ?s WHERE agent_id = ?i',
                 Constants::CRON_AGENTS_TABLE,
                 'Recovered from stale lock.',
                 $agentId
@@ -347,7 +347,7 @@ class CronAgentService {
 
             SafeMySQL::gi()->query(
                 "UPDATE ?n
-                 SET status = 'failed', finished_at = NOW(), error_message = ?s
+                 SET status = 'failed', finished_at = UTC_TIMESTAMP(), error_message = ?s
                  WHERE agent_id = ?i AND status = 'running'",
                 Constants::CRON_AGENT_RUNS_TABLE,
                 'Recovered from stale lock.',
@@ -521,7 +521,7 @@ class CronAgentService {
     }
 
     private static function storeSchedulerHeartbeat(): void {
-        SysClass::setOption(self::SCHEDULER_LAST_TICK_OPTION, date('Y-m-d H:i:s'));
+        SysClass::setOption(self::SCHEDULER_LAST_TICK_OPTION, self::utcNowString());
     }
 
     private static function getDueAgents(int $limit): array {
@@ -531,8 +531,8 @@ class CronAgentService {
              WHERE is_active = 1
                AND schedule_mode <> 'manual'
                AND next_run_at IS NOT NULL
-               AND next_run_at <= NOW()
-               AND (cooldown_until IS NULL OR cooldown_until <= NOW())
+               AND next_run_at <= UTC_TIMESTAMP()
+               AND (cooldown_until IS NULL OR cooldown_until <= UTC_TIMESTAMP())
              ORDER BY priority ASC, next_run_at ASC, agent_id ASC
              LIMIT ?i",
             Constants::CRON_AGENTS_TABLE,
@@ -591,12 +591,12 @@ class CronAgentService {
 
             SafeMySQL::gi()->query(
                 "UPDATE ?n
-                 SET locked_at = NOW(),
-                     locked_until = DATE_ADD(NOW(), INTERVAL ?i SECOND),
+                 SET locked_at = UTC_TIMESTAMP(),
+                     locked_until = DATE_ADD(UTC_TIMESTAMP(), INTERVAL ?i SECOND),
                      locked_by = ?s,
                      current_run_token = ?s
                  WHERE agent_id = ?i
-                   AND (locked_until IS NULL OR locked_until <= NOW())",
+                   AND (locked_until IS NULL OR locked_until <= UTC_TIMESTAMP())",
                 Constants::CRON_AGENTS_TABLE,
                 $lockTtl,
                 $workerId,
@@ -619,7 +619,7 @@ class CronAgentService {
                     'trigger_source' => $triggerSource,
                     'status' => 'running',
                     'worker_id' => $workerId,
-                    'started_at' => date('Y-m-d H:i:s'),
+                    'started_at' => self::utcNowString(),
                     'context_json' => json_encode([
                         'request_id' => Logger::getRequestId(),
                     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
@@ -627,8 +627,8 @@ class CronAgentService {
             );
 
             $runId = (int) SafeMySQL::gi()->insertId();
-            $freshAgent['locked_at'] = date('Y-m-d H:i:s');
-            $freshAgent['locked_until'] = date('Y-m-d H:i:s', time() + $lockTtl);
+            $freshAgent['locked_at'] = self::utcNowString();
+            $freshAgent['locked_until'] = gmdate('Y-m-d H:i:s', time() + $lockTtl);
             $freshAgent['locked_by'] = $workerId;
             $freshAgent['current_run_token'] = $runToken;
             $freshAgent['is_locked'] = true;
@@ -693,13 +693,13 @@ class CronAgentService {
         $output = trim(implode("\n", $outputParts));
 
         if ($success) {
-            $nextRunAt = self::calculateNextRunAt($agent, new \DateTimeImmutable('now'), true);
+            $nextRunAt = self::calculateNextRunAt($agent, self::utcNow(), true);
             SafeMySQL::gi()->query(
                 'UPDATE ?n SET ?u WHERE agent_id = ?i',
                 Constants::CRON_AGENTS_TABLE,
                 [
-                    'last_run_at' => date('Y-m-d H:i:s'),
-                    'last_success_at' => date('Y-m-d H:i:s'),
+                    'last_run_at' => self::utcNowString(),
+                    'last_success_at' => self::utcNowString(),
                     'last_error_at' => null,
                     'last_error_message' => null,
                     'last_duration_ms' => $durationMs,
@@ -714,7 +714,7 @@ class CronAgentService {
                 $agentId
             );
             SafeMySQL::gi()->query(
-                "UPDATE ?n SET status = 'success', finished_at = NOW(), duration_ms = ?i, output_text = ?s, context_json = ?s WHERE run_id = ?i",
+                "UPDATE ?n SET status = 'success', finished_at = UTC_TIMESTAMP(), duration_ms = ?i, output_text = ?s, context_json = ?s WHERE run_id = ?i",
                 Constants::CRON_AGENT_RUNS_TABLE,
                 $durationMs,
                 $output,
@@ -753,8 +753,8 @@ class CronAgentService {
             'UPDATE ?n SET ?u WHERE agent_id = ?i',
             Constants::CRON_AGENTS_TABLE,
             [
-                'last_run_at' => date('Y-m-d H:i:s'),
-                'last_error_at' => date('Y-m-d H:i:s'),
+                'last_run_at' => self::utcNowString(),
+                'last_error_at' => self::utcNowString(),
                 'last_error_message' => $message !== '' ? $message : 'Cron agent execution failed.',
                 'last_duration_ms' => $durationMs,
                 'run_count' => (int) ($agent['run_count'] ?? 0) + 1,
@@ -771,7 +771,7 @@ class CronAgentService {
         SafeMySQL::gi()->query(
             "UPDATE ?n
              SET status = 'failed',
-                 finished_at = NOW(),
+                 finished_at = UTC_TIMESTAMP(),
                  duration_ms = ?i,
                  output_text = ?s,
                  error_message = ?s,
@@ -817,7 +817,7 @@ class CronAgentService {
         $running = SafeMySQL::gi()->getRow(
             "SELECT COUNT(*) AS total_running, COALESCE(SUM(weight), 0) AS total_weight
              FROM ?n
-             WHERE locked_until IS NOT NULL AND locked_until > NOW()",
+             WHERE locked_until IS NOT NULL AND locked_until > UTC_TIMESTAMP()",
             Constants::CRON_AGENTS_TABLE
         ) ?: ['total_running' => 0, 'total_weight' => 0];
 
@@ -937,7 +937,7 @@ class CronAgentService {
                 'schedule_mode' => $scheduleMode,
                 'interval_minutes' => $intervalMinutes,
                 'cron_expression' => $cronExpression,
-            ], new \DateTimeImmutable('now'), true);
+            ], self::utcNow(), true);
         }
 
         return [
@@ -965,11 +965,11 @@ class CronAgentService {
             return null;
         }
         $retryDelay = max(30, (int) ($agent['retry_delay_sec'] ?? 300));
-        return date('Y-m-d H:i:s', time() + $retryDelay);
+        return gmdate('Y-m-d H:i:s', time() + $retryDelay);
     }
 
     public static function calculateNextRunAt(array $agent, ?\DateTimeImmutable $from = null, bool $afterCurrentMoment = false): ?string {
-        $from ??= new \DateTimeImmutable('now');
+        $from ??= self::utcNow();
         $scheduleMode = strtolower(trim((string) ($agent['schedule_mode'] ?? 'interval')));
 
         return match ($scheduleMode) {
@@ -996,36 +996,36 @@ class CronAgentService {
             return false;
         }
         $cooldownUntil = trim((string) ($agent['cooldown_until'] ?? ''));
-        if ($cooldownUntil !== '' && strtotime($cooldownUntil) > time()) {
+        if (self::utcTimestamp($cooldownUntil) > time()) {
             return false;
         }
         $nextRunAt = trim((string) ($agent['next_run_at'] ?? ''));
-        return $nextRunAt !== '' && strtotime($nextRunAt) <= time();
+        return $nextRunAt !== '' && self::utcTimestamp($nextRunAt) <= time();
     }
 
     private static function decorateAgentRow(array $row): array {
         $row['payload'] = self::decodeJsonPayload($row['payload_json'] ?? '');
-        $row['is_locked'] = !empty($row['locked_until']) && strtotime((string) $row['locked_until']) > time();
+        $row['is_locked'] = !empty($row['locked_until']) && self::utcTimestamp((string) $row['locked_until']) > time();
         $row['runtime_status'] = self::resolveRuntimeStatus($row);
         return $row;
     }
 
     private static function resolveRuntimeStatus(array $agent): string {
-        if (!empty($agent['is_locked']) || (!empty($agent['locked_until']) && strtotime((string) $agent['locked_until']) > time())) {
+        if (!empty($agent['is_locked']) || (!empty($agent['locked_until']) && self::utcTimestamp((string) $agent['locked_until']) > time())) {
             return 'running';
         }
         if (empty($agent['is_active'])) {
             return 'disabled';
         }
         $cooldownUntil = trim((string) ($agent['cooldown_until'] ?? ''));
-        if ($cooldownUntil !== '' && strtotime($cooldownUntil) > time()) {
+        if (self::utcTimestamp($cooldownUntil) > time()) {
             return 'cooldown';
         }
         $nextRunAt = trim((string) ($agent['next_run_at'] ?? ''));
-        if ($nextRunAt !== '' && strtotime($nextRunAt) <= time() && ($agent['schedule_mode'] ?? 'interval') !== 'manual') {
+        if ($nextRunAt !== '' && self::utcTimestamp($nextRunAt) <= time() && ($agent['schedule_mode'] ?? 'interval') !== 'manual') {
             return 'due';
         }
-        if (!empty($agent['last_error_at']) && (empty($agent['last_success_at']) || strtotime((string) $agent['last_error_at']) >= strtotime((string) $agent['last_success_at']))) {
+        if (!empty($agent['last_error_at']) && (empty($agent['last_success_at']) || self::utcTimestamp((string) $agent['last_error_at']) >= self::utcTimestamp((string) $agent['last_success_at']))) {
             return 'failed';
         }
         return 'idle';
@@ -1053,11 +1053,24 @@ class CronAgentService {
         } catch (\Throwable) {
             return null;
         }
-        return $date->format('Y-m-d H:i:s');
+        return $date->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s');
     }
 
     private static function isValidCronExpression(string $expression): bool {
-        return self::findNextCronRun($expression, new \DateTimeImmutable('now')) !== null;
+        return self::findNextCronRun($expression, self::utcNow()) !== null;
+    }
+
+    private static function utcNow(): \DateTimeImmutable {
+        return new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+    }
+
+    private static function utcNowString(): string {
+        return self::utcNow()->format('Y-m-d H:i:s');
+    }
+
+    private static function utcTimestamp(?string $value): int {
+        $parsed = ee_parse_utc_datetime($value);
+        return $parsed ? $parsed->getTimestamp() : 0;
     }
 
     private static function findNextCronRun(string $expression, \DateTimeImmutable $from): ?string {
@@ -1241,7 +1254,7 @@ class CronAgentService {
         SafeMySQL::gi()->query(
             "DELETE FROM ?n
              WHERE status <> 'running'
-               AND started_at < DATE_SUB(NOW(), INTERVAL ?i DAY)",
+               AND started_at < DATE_SUB(UTC_TIMESTAMP(), INTERVAL ?i DAY)",
             Constants::CRON_AGENT_RUNS_TABLE,
             $retentionDays
         );
@@ -1306,7 +1319,7 @@ class CronAgentService {
                     'schedule_mode' => $scheduleMode,
                     'interval_minutes' => $intervalMinutes,
                     'cron_expression' => $cronExpression,
-                ], new \DateTimeImmutable('now'), true)
+                ], self::utcNow(), true)
                 : null;
 
             SafeMySQL::gi()->query(

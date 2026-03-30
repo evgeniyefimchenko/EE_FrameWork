@@ -115,6 +115,8 @@ ee_add_core_hook('afterPropertyLifecycleRebuild', 'afterPropertyLifecycleRebuild
 ee_add_core_hook('afterPropertyTypeLifecycleRebuild', 'afterPropertyTypeLifecycleRebuildFiltersHandler');
 ee_add_core_hook('afterPropertyLifecycleRebuild', 'clearPublicHtmlCacheAfterContentMutation', 50);
 ee_add_core_hook('afterPropertyTypeLifecycleRebuild', 'clearPublicHtmlCacheAfterContentMutation', 50);
+ee_add_core_hook('afterUpdatePropertyData', 'afterUpdatePropertySearchHandler');
+ee_add_core_hook('afterUpdatePropertyData', 'clearPublicHtmlCacheAfterContentMutation', 50);
 
 // === Функции-обработчики ===
 
@@ -169,6 +171,141 @@ function scheduleSearchEntityReindex(string $entityType, int $entityId, ?string 
     });
 
     $shutdownRegistered = true;
+}
+
+/**
+ * Планирует каскадную переиндексацию категории, её подкатегорий и страниц внутри ветки.
+ *
+ * @param array<int>|int $categoryIds
+ */
+function scheduleSearchBranchReindex(array|int $categoryIds, ?string $languageCode = null): void {
+    static $queue = [];
+    static $shutdownRegistered = false;
+
+    if (ee_is_bulk_import_mode()) {
+        return;
+    }
+
+    if (!is_array($categoryIds)) {
+        $categoryIds = [$categoryIds];
+    }
+
+    $languageCode = is_string($languageCode) && trim($languageCode) !== '' ? trim($languageCode) : ENV_DEF_LANG;
+    $categoryIds = array_values(array_unique(array_filter(array_map('intval', $categoryIds), static fn(int $id): bool => $id > 0)));
+    if ($categoryIds === []) {
+        return;
+    }
+
+    foreach ($categoryIds as $categoryId) {
+        $queue[$languageCode . ':' . $categoryId] = [
+            'category_id' => $categoryId,
+            'language_code' => $languageCode,
+        ];
+    }
+
+    if ($shutdownRegistered) {
+        return;
+    }
+
+    register_shutdown_function(static function () use (&$queue): void {
+        if ($queue === []) {
+            return;
+        }
+
+        try {
+            $searchEngine = new ClassSearchEngine();
+            $objectModelCategories = SysClass::getModelObject('admin', 'm_categories');
+            $grouped = [];
+            foreach ($queue as $task) {
+                $lang = (string) ($task['language_code'] ?? ENV_DEF_LANG);
+                $grouped[$lang][] = (int) ($task['category_id'] ?? 0);
+            }
+
+            foreach ($grouped as $lang => $rootCategoryIds) {
+                $branchCategoryIds = [];
+                foreach (array_values(array_unique(array_filter($rootCategoryIds))) as $rootCategoryId) {
+                    if ($rootCategoryId <= 0) {
+                        continue;
+                    }
+                    if ($objectModelCategories && method_exists($objectModelCategories, 'getCategoryDescendantsShort')) {
+                        foreach ((array) $objectModelCategories->getCategoryDescendantsShort($rootCategoryId, $lang) as $row) {
+                            $branchCategoryIds[] = (int) ($row['category_id'] ?? 0);
+                        }
+                    } else {
+                        $branchCategoryIds[] = $rootCategoryId;
+                    }
+                }
+
+                $branchCategoryIds = array_values(array_unique(array_filter($branchCategoryIds, static fn(int $id): bool => $id > 0)));
+                if ($branchCategoryIds === []) {
+                    continue;
+                }
+
+                foreach ($branchCategoryIds as $categoryId) {
+                    $searchEngine->reindexEntity('category', $categoryId, $lang);
+                }
+
+                $pageIds = SafeMySQL::gi()->getCol(
+                    'SELECT page_id FROM ?n WHERE category_id IN (?a) AND language_code = ?s',
+                    Constants::PAGES_TABLE,
+                    $branchCategoryIds,
+                    $lang
+                );
+                foreach (array_values(array_unique(array_filter(array_map('intval', (array) $pageIds), static fn(int $id): bool => $id > 0))) as $pageId) {
+                    $searchEngine->reindexEntity('page', $pageId, $lang);
+                }
+            }
+        } catch (\Throwable $e) {
+            new ErrorLogger('Hook error (scheduleSearchBranchReindex shutdown): ' . $e->getMessage(), __FUNCTION__, 'hook_error', [
+                'queue' => $queue,
+                'trace' => $e->getTraceAsString(),
+            ]);
+        } finally {
+            $queue = [];
+        }
+    });
+
+    $shutdownRegistered = true;
+}
+
+/**
+ * Планирует каскадную переиндексацию веток категорий с автоматическим определением языка.
+ *
+ * @param array<int>|int $categoryIds
+ */
+function scheduleSearchBranchReindexResolved(array|int $categoryIds): void {
+    if (!is_array($categoryIds)) {
+        $categoryIds = [$categoryIds];
+    }
+
+    $categoryIds = array_values(array_unique(array_filter(array_map('intval', $categoryIds), static fn(int $id): bool => $id > 0)));
+    if ($categoryIds === []) {
+        return;
+    }
+
+    $rows = SafeMySQL::gi()->getAll(
+        'SELECT category_id, language_code FROM ?n WHERE category_id IN (?a)',
+        Constants::CATEGORIES_TABLE,
+        $categoryIds
+    );
+
+    if ($rows === []) {
+        return;
+    }
+
+    $grouped = [];
+    foreach ($rows as $row) {
+        $categoryId = (int) ($row['category_id'] ?? 0);
+        $languageCode = trim((string) ($row['language_code'] ?? ENV_DEF_LANG));
+        if ($categoryId <= 0 || $languageCode === '') {
+            continue;
+        }
+        $grouped[$languageCode][] = $categoryId;
+    }
+
+    foreach ($grouped as $languageCode => $resolvedCategoryIds) {
+        scheduleSearchBranchReindex($resolvedCategoryIds, $languageCode);
+    }
 }
 
 /**
@@ -604,6 +741,20 @@ function afterUpdatePageDataHandler(int $pageId, array $pageData, string $method
 }
 
 /**
+ * Обработчик хука после сохранения свойства для каскадной поисковой переиндексации затронутых сущностей.
+ */
+function afterUpdatePropertySearchHandler(int $propertyId, array $propertyData, string $method): void {
+    if ($propertyId <= 0) {
+        return;
+    }
+
+    $categoryIds = getAffectedCategoryIdsByPropertyIds([$propertyId]);
+    if ($categoryIds !== []) {
+        scheduleSearchBranchReindexResolved($categoryIds);
+    }
+}
+
+/**
  * Обработчик хука для пересчёта materialized-фильтров после сохранения страницы.
  */
 function afterUpdatePageFiltersHandler(int $pageId, array $pageData, string $method): void {
@@ -655,7 +806,7 @@ function createSearchIndexCategory(int $categoryId, array $categoryData, string 
         return;
     }
     try {
-        scheduleSearchEntityReindex('category', $categoryId, $categoryData['language_code'] ?? ENV_DEF_LANG);
+        scheduleSearchBranchReindex([$categoryId], $categoryData['language_code'] ?? ENV_DEF_LANG);
     } catch (\Throwable $e) {
         new ErrorLogger('Hook error (createSearchIndexCategory): ' . $e->getMessage(), __FUNCTION__, 'hook_error', [
             'category_id' => $categoryId, 'method' => $method, 'trace' => $e->getTraceAsString()

@@ -122,6 +122,7 @@ class WordpressImporter extends BaseImporter {
     private array $configuredPropertyLocalIdCache = [];
     private array $propertyDefaultFieldsTemplateCache = [];
     private array $propertyValueRowCache = [];
+    private array $localFileIdExistsCache = [];
 
     private $objectModelCategoriesTypes = null;
     private $objectModelCategories = null;
@@ -294,6 +295,22 @@ class WordpressImporter extends BaseImporter {
 
     private function phaseInit(): void {
         $this->log('Collecting source data...');
+        if (empty($this->state['product_lifecycle_bootstrapped'])) {
+            $bootstrapSummary = ProductLifecycleStructureService::ensureObjectLifecycleSet(
+                $this->languageCode,
+                $this->job_id > 0 ? (int) $this->job_id : null
+            );
+            $this->state['product_lifecycle_bootstrap_summary'] = $bootstrapSummary;
+            $this->state['product_lifecycle_bootstrapped'] = 1;
+            $this->log(sprintf(
+                'Product lifecycle bootstrap: set_id=%d linked_types=%d inserted=%d status_updates=%d source_updates=%d',
+                (int) ($bootstrapSummary['set_id'] ?? 0),
+                count((array) ($bootstrapSummary['linked_type_ids'] ?? [])),
+                (int) (($bootstrapSummary['seed']['inserted_values'] ?? 0)),
+                (int) (($bootstrapSummary['seed']['updated_status'] ?? 0)),
+                (int) (($bootstrapSummary['seed']['updated_source'] ?? 0))
+            ));
+        }
         $this->preparePackage();
         $this->log('Import scope: ' . $this->importScope);
         $this->log('Import mode: ' . ($this->testMode ? ('TEST (limit=' . $this->testModeLimit . ')') : 'FULL'));
@@ -370,6 +387,14 @@ class WordpressImporter extends BaseImporter {
             (int) ($redirectSummary['updated'] ?? 0),
             (int) ($redirectSummary['skipped'] ?? 0),
             (int) ($redirectSummary['failed'] ?? 0)
+        ));
+        $searchRebuildSummary = (new \classes\helpers\ClassSearchEngine())->rebuildAllIndex();
+        $this->state['search_rebuild_summary'] = $searchRebuildSummary;
+        $this->log(sprintf(
+            'Search rebuild summary: pages=%d categories=%d errors=%d',
+            (int) ($searchRebuildSummary['pages_indexed'] ?? 0),
+            (int) ($searchRebuildSummary['categories_indexed'] ?? 0),
+            (int) ($searchRebuildSummary['errors'] ?? 0)
         ));
         $sourceDir = (string)($this->state['source_dir'] ?? '');
         if ($sourceDir !== '' && is_dir($sourceDir)) {
@@ -1215,7 +1240,12 @@ class WordpressImporter extends BaseImporter {
             return $this->result('skipped');
         }
 
-        $title = $this->rowString($row, ['title', 'name', 'post_title'], '');
+        $slug = $this->rowString($row, ['slug'], '');
+        $title = $this->normalizeImportedPageTitle(
+            $this->rowString($row, ['title', 'name', 'post_title'], ''),
+            $slug,
+            $sourceId
+        );
         if ($title === '') {
             return $this->result('failed', 'Page row has empty title');
         }
@@ -1244,7 +1274,7 @@ class WordpressImporter extends BaseImporter {
             'status' => $this->normalizeStatus($this->rowValue($row, ['status'], 'active')),
             'title' => $title,
             'url_policy_id' => $this->pageUrlPolicyId,
-            'slug' => $this->preserveSourceSlugs ? $this->rowString($row, ['slug'], '') : '',
+            'slug' => $this->preserveSourceSlugs ? $slug : '',
             'route_path' => $this->preserveSourcePaths ? $this->resolveImportedRoutePath($row) : '',
             'short_description' => $this->rowString($row, ['short_description', 'excerpt'], ''),
             'description' => $this->prepareImportedRichText(
@@ -3315,14 +3345,16 @@ class WordpressImporter extends BaseImporter {
                 return true;
             }
             $taxonomy = trim(substr($sourceId, strlen('taxonomy:')));
-            return in_array($taxonomy, $this->allowedTaxonomies, true);
+            return in_array($taxonomy, $this->allowedTaxonomies, true)
+                || in_array($sourceId, $this->allowedTaxonomies, true);
         }
         if (str_starts_with($sourceId, 'post_type:')) {
             if (empty($this->allowedPostTypes)) {
                 return true;
             }
             $postType = trim(substr($sourceId, strlen('post_type:')));
-            return in_array($postType, $this->allowedPostTypes, true);
+            return in_array($postType, $this->allowedPostTypes, true)
+                || in_array($sourceId, $this->allowedPostTypes, true);
         }
         return true;
     }
@@ -3338,7 +3370,8 @@ class WordpressImporter extends BaseImporter {
         if (empty($this->allowedPostTypes)) {
             return true;
         }
-        return in_array($postType, $this->allowedPostTypes, true);
+        return in_array($postType, $this->allowedPostTypes, true)
+            || in_array('post_type:' . $postType, $this->allowedPostTypes, true);
     }
 
     private function extractMetaKeyFromSourceId(string $sourceId): string {
@@ -4018,6 +4051,9 @@ class WordpressImporter extends BaseImporter {
         if (in_array($fieldType, ['text', 'textarea'], true)) {
             $fieldValue = $this->rewriteImportedTextValue($fieldValue);
         }
+        if (in_array($fieldType, ['image', 'file'], true)) {
+            $fieldValue = $this->sanitizeImportedFileReferenceValue($fieldValue);
+        }
 
         $fieldValue = $this->normalizeTypedPropertyFieldValue($fieldType, $fieldValue);
 
@@ -4033,6 +4069,82 @@ class WordpressImporter extends BaseImporter {
             'required' => $fieldRequired,
             'title' => (string)$fieldTitle,
         ];
+    }
+
+    private function normalizeImportedPageTitle(string $title, string $slug, string $sourceId = ''): string {
+        $title = trim($title);
+        if ($title !== '' && !preg_match('/^(запись|post)\s*#\s*\d+$/iu', $title)) {
+            return $title;
+        }
+
+        $fallback = $this->humanizeImportedSlugTitle($slug);
+        if ($fallback !== '') {
+            return $fallback;
+        }
+
+        return $title;
+    }
+
+    private function humanizeImportedSlugTitle(string $slug): string {
+        $slug = trim($slug);
+        if ($slug === '') {
+            return '';
+        }
+
+        $slug = trim((string) preg_replace('~[-_]+~u', ' ', $slug));
+        $slug = trim((string) preg_replace('~\s+~u', ' ', $slug));
+        if ($slug === '' || preg_match('~^\d+$~', $slug)) {
+            return '';
+        }
+
+        return mb_convert_case($slug, MB_CASE_TITLE, 'UTF-8');
+    }
+
+    private function sanitizeImportedFileReferenceValue(mixed $value): mixed {
+        if (is_array($value)) {
+            $normalized = [];
+            foreach ($value as $item) {
+                $sanitizedItem = $this->sanitizeImportedFileReferenceValue($item);
+                if ($sanitizedItem === '' || $sanitizedItem === [] || $sanitizedItem === null) {
+                    continue;
+                }
+                $normalized[] = $sanitizedItem;
+            }
+            return array_values($normalized);
+        }
+
+        if (!is_scalar($value)) {
+            return $value;
+        }
+
+        $stringValue = trim((string) $value);
+        if ($stringValue === '') {
+            return '';
+        }
+
+        if (ctype_digit($stringValue)) {
+            $fileId = (int) $stringValue;
+            return $this->localFileIdExists($fileId) ? $stringValue : '';
+        }
+
+        return $this->rewriteImportedTextValue($stringValue);
+    }
+
+    private function localFileIdExists(int $fileId): bool {
+        if ($fileId <= 0) {
+            return false;
+        }
+        if (array_key_exists($fileId, $this->localFileIdExistsCache)) {
+            return (bool) $this->localFileIdExistsCache[$fileId];
+        }
+
+        $exists = (int) SafeMySQL::gi()->getOne(
+            'SELECT 1 FROM ?n WHERE file_id = ?i LIMIT 1',
+            Constants::FILES_TABLE,
+            $fileId
+        ) > 0;
+        $this->localFileIdExistsCache[$fileId] = $exists;
+        return $exists;
     }
 
     private function isSequentialArray(array $value): bool {
@@ -4108,10 +4220,60 @@ class WordpressImporter extends BaseImporter {
         }
 
         if (str_contains($stringValue, '://') || str_starts_with($stringValue, '/')) {
-            return $this->rewriteAbsoluteDonorUrlsInText($stringValue);
+            return $this->sanitizeImportedUrlTrackingValue(
+                $this->rewriteAbsoluteDonorUrlsInText($stringValue)
+            );
         }
 
-        return $value;
+        $rewrittenBareHostMentions = $this->rewriteBareDonorHostMentions($stringValue);
+        return $rewrittenBareHostMentions !== $stringValue ? $rewrittenBareHostMentions : $value;
+    }
+
+    private function sanitizeImportedUrlTrackingValue(string $value): string {
+        $value = trim($value);
+        if ($value === '' || (!str_contains($value, '://') && !str_starts_with($value, '//'))) {
+            return $value;
+        }
+
+        $url = str_starts_with($value, '//') ? ('https:' . $value) : $value;
+        $parts = parse_url($url);
+        if (!is_array($parts)) {
+            return $value;
+        }
+
+        $query = [];
+        if (!empty($parts['query'])) {
+            parse_str((string) $parts['query'], $query);
+        }
+        if ($query === []) {
+            return $value;
+        }
+
+        $donorHost = strtolower(trim((string) parse_url($this->getDonorBaseUrl(), PHP_URL_HOST)));
+        $knownTrackingSources = array_filter([
+            'allbriz',
+            $donorHost,
+            str_starts_with($donorHost, 'www.') ? substr($donorHost, 4) : $donorHost,
+        ]);
+        $utmSource = strtolower(trim((string) ($query['utm_source'] ?? '')));
+        if ($utmSource === '' || !in_array($utmSource, $knownTrackingSources, true)) {
+            return $value;
+        }
+
+        unset($query['utm_source']);
+        $rebuilt = $parts['scheme'] . '://' . ($parts['host'] ?? '');
+        if (!empty($parts['port'])) {
+            $rebuilt .= ':' . (int) $parts['port'];
+        }
+        $rebuilt .= $parts['path'] ?? '';
+        if ($query !== []) {
+            $rebuilt .= '?' . http_build_query($query);
+        }
+        if (!empty($parts['fragment'])) {
+            $rebuilt .= '#' . $parts['fragment'];
+        }
+
+        return str_starts_with($value, '//') ? preg_replace('~^https:~', '', $rebuilt) ?? $rebuilt : $rebuilt;
     }
 
     private function normalizeBareDonorReferenceValue(string $value): ?string {
@@ -4140,6 +4302,30 @@ class WordpressImporter extends BaseImporter {
         ];
 
         return in_array($normalizedValue, $allowedMatches, true) ? '' : null;
+    }
+
+    private function rewriteBareDonorHostMentions(string $text): string {
+        if (!$this->rewriteDonorLinks || $text === '') {
+            return $text;
+        }
+
+        $donorBaseUrl = $this->getDonorBaseUrl();
+        if ($donorBaseUrl === '') {
+            return $text;
+        }
+
+        $donorHost = strtolower(trim((string) parse_url($donorBaseUrl, PHP_URL_HOST)));
+        $localHost = strtolower(trim((string) parse_url((string) ENV_URL_SITE, PHP_URL_HOST)));
+        if ($donorHost === '' || $localHost === '') {
+            return $text;
+        }
+
+        $escapedHost = preg_quote($donorHost, '~');
+        return preg_replace(
+            '~(?<![@:/])(?:www\.)?' . $escapedHost . '(?![\p{L}\p{N}\-])~iu',
+            $localHost,
+            $text
+        ) ?? $text;
     }
 
     private function rewriteImportedRichTextLinks(string $html): string {
@@ -4241,6 +4427,8 @@ class WordpressImporter extends BaseImporter {
             return $url;
         }
 
+        $url = $this->normalizeRepeatedSchemeUrl($url);
+
         if (str_starts_with($url, '#') || str_starts_with(strtolower($url), 'mailto:') || str_starts_with(strtolower($url), 'tel:') || str_starts_with(strtolower($url), 'javascript:')) {
             return $url;
         }
@@ -4268,6 +4456,15 @@ class WordpressImporter extends BaseImporter {
 
         if ($sourcePath === '') {
             return $url;
+        }
+
+        // Media files must keep the donor URL until the media queue downloads
+        // them and rewrites payloads to local file references.
+        if (stripos($sourcePath, '/wp-content/uploads/') === 0) {
+            $donorBaseUrl = $this->getDonorBaseUrl();
+            return $donorBaseUrl !== ''
+                ? rtrim($donorBaseUrl, '/') . $sourcePath
+                : $url;
         }
 
         $localEntityUrl = $this->resolveLocalUrlForSourcePath($sourcePath);
@@ -4304,6 +4501,21 @@ class WordpressImporter extends BaseImporter {
         }
 
         return rtrim((string) ENV_URL_SITE, '/') . $path;
+    }
+
+    private function normalizeRepeatedSchemeUrl(string $url): string {
+        $url = trim($url);
+        if ($url === '') {
+            return $url;
+        }
+
+        do {
+            $previous = $url;
+            $url = preg_replace('~^(https?):(?=(?:https?:)+//)~iu', '', $url) ?? $url;
+            $url = preg_replace('~^(http?):(?=(?:http?:)+//)~iu', '', $url) ?? $url;
+        } while ($url !== $previous);
+
+        return $url;
     }
 
     private function resolveImportedRoutePath(array $row): string {

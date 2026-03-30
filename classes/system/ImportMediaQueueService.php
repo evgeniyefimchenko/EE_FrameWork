@@ -1574,6 +1574,10 @@ class ImportMediaQueueService {
     }
 
     private static function ensureLegacySourceUrlAlias(string $sourceUrl, int $fileId): array {
+        if (!defined('ENV_IMPORT_CREATE_LEGACY_MEDIA_ALIASES') || !ENV_IMPORT_CREATE_LEGACY_MEDIA_ALIASES) {
+            return ['status' => 'disabled'];
+        }
+
         $sourcePath = self::normalizeComparableMediaPath($sourceUrl);
         if ($sourcePath === '' || $fileId <= 0 || !defined('ENV_SITE_PATH')) {
             return ['status' => 'noop'];

@@ -92,6 +92,7 @@ class ClassSearchEngine {
                 'title'         => self::prepareTitle($data['title']),
                 'content_full'  => self::prepareContent($data['content_full']),
                 'url'           => $data['url'] ?? '',
+                'search_scope_mask' => $this->normalizeSearchScopeMask($data['search_scope_mask'] ?? Constants::SEARCH_SCOPE_ALL),
                 'static_rank'   => $staticRank
             ];
 
@@ -99,6 +100,7 @@ class ClassSearchEngine {
                     title = VALUES(title), 
                     content_full = VALUES(content_full), 
                     url = VALUES(url), 
+                    search_scope_mask = VALUES(search_scope_mask), 
                     static_rank = VALUES(static_rank), 
                     last_updated = NOW()";
             $this->db->query($sql, Constants::SEARCH_INDEX_TABLE, $indexData);
@@ -134,7 +136,7 @@ class ClassSearchEngine {
      * @param int $limit Лимит результатов
      * @return array Массив с найденными результатами
      */
-    private function executeNgramSearch(string $query, bool $isAdminSearch, string $lang, int $limit): array {
+    private function executeNgramSearch(string $query, bool $isPublicSearch, array $allowedScopeMasks, string $lang, int $limit): array {
         // Разбиваем поисковый запрос на "кусочки"-триграммы
         $ngrams = self::generateNgrams(self::prepareContent($query));
         if (empty($ngrams)) {
@@ -142,7 +144,7 @@ class ClassSearchEngine {
         }
 
         // Фильтр по типу сущности для публичной части сайта
-        $entityTypeFilter = (!$isAdminSearch) ? "AND si.entity_type IN ('page', 'category')" : '';
+        $entityTypeFilter = $isPublicSearch ? "AND si.entity_type IN ('page', 'category')" : '';
 
         // Находим документы, содержащие наши триграммы, и ранжируем их по количеству совпадений
         $sql = "SELECT si.search_id, si.entity_id, si.entity_type, si.title, si.popularity_score, si.static_rank, (t.ngram_matches / ?i) AS relevance
@@ -153,7 +155,8 @@ class ClassSearchEngine {
                     WHERE ngram IN (?a)
                     GROUP BY search_id
                 ) t ON si.search_id = t.search_id
-                WHERE si.language_code = ?s ?p
+                WHERE si.language_code = ?s
+                  AND si.search_scope_mask IN (?a) ?p
                 ORDER BY relevance DESC, si.popularity_score DESC, si.static_rank DESC
                 LIMIT ?i";
 
@@ -164,6 +167,7 @@ class ClassSearchEngine {
             Constants::SEARCH_NGRAMS_TABLE,
             $ngrams,
             $lang,
+            $allowedScopeMasks,
             $entityTypeFilter,
             $limit
         );
@@ -271,8 +275,10 @@ class ClassSearchEngine {
             return ['results' => [], 'total' => 0];
         }
 
-        $isAdminSearch = (defined('ENV_CONTROLLER_FOLDER') && ENV_CONTROLLER_FOLDER === 'admin');
-        $areaCode = $isAdminSearch ? 'A' : 'C';
+        $areaCode = $this->resolveSearchAreaCode();
+        $isPublicSearch = $areaCode === 'C';
+        $useAdminEditUrl = $areaCode === 'A';
+        $allowedScopeMasks = $this->getAllowedSearchScopeMasksByAreaCode($areaCode);
 
         $searchQueryPrepared = self::prepareSearchQueryBoolean($originalQuery);
         $normalizedQuery = $this->normalizeQuery($originalQuery);
@@ -287,12 +293,12 @@ class ClassSearchEngine {
 
         try {
             // Этап 1: Поиск с FULLTEXT
-            list($fulltextResults, $total) = $this->executeFullTextSearch($searchQueryPrepared, $isAdminSearch, $lang, $limit, $offset);
+            list($fulltextResults, $total) = $this->executeFullTextSearch($searchQueryPrepared, $isPublicSearch, $allowedScopeMasks, $lang, $limit, $offset);
             $results = $fulltextResults;
 
             // Этап 2: Если результатов мало, пробуем нечеткий поиск (N-граммы)
             if ($total < self::FUZZY_FALLBACK_THRESHOLD || count($results) < self::FUZZY_FALLBACK_THRESHOLD) {
-                $fuzzyResults = $this->executeNgramSearch($originalQuery, $isAdminSearch, $lang, self::FUZZY_SEARCH_LIMIT);
+                $fuzzyResults = $this->executeNgramSearch($originalQuery, $isPublicSearch, $allowedScopeMasks, $lang, self::FUZZY_SEARCH_LIMIT);
                 $results = $this->mergeResults($results, $fuzzyResults, $limit);
                 $total = count($results);
             }
@@ -313,7 +319,7 @@ class ClassSearchEngine {
                     'type' => $row['entity_type'],
                     'title' => $row['title'],
                     'relevance' => round((float) ($row['relevance'] ?? 0), 2),
-                    'url' => $isAdminSearch
+                    'url' => $useAdminEditUrl
                         ? $this->getAdminEditUrl($row['entity_type'], $row['entity_id'])
                         : ((string) ($row['url'] ?? '') !== ''
                             ? (string) $row['url']
@@ -338,8 +344,10 @@ class ClassSearchEngine {
         if (mb_strlen($normTerm) < 2)
             return [];
 
-        $isAdminSearch = (defined('ENV_CONTROLLER_FOLDER') && ENV_CONTROLLER_FOLDER === 'admin');
-        $areaCode = $isAdminSearch ? 'A' : 'C';
+        $areaCode = $this->resolveSearchAreaCode();
+        $isPublicSearch = $areaCode === 'C';
+        $useAdminEditUrl = $areaCode === 'A';
+        $allowedScopeMasks = $this->getAllowedSearchScopeMasksByAreaCode($areaCode);
 
         $suggestions = [];
         $processedValues = [];
@@ -364,19 +372,20 @@ class ClassSearchEngine {
             $remainingLimit = $limit - count($suggestions);
             if ($remainingLimit > 0) {
                 $titlePrefixQuery = $term . '%';
-                $entityTypeFilter = (!$isAdminSearch) ? $this->db->parse("AND entity_type IN ('page', 'category')") : '';
+                $entityTypeFilter = $isPublicSearch ? $this->db->parse("AND entity_type IN ('page', 'category')") : '';
                 $titleMatches = $this->db->getAll(
                         "SELECT entity_id, entity_type, title, language_code, url FROM ?n
                        WHERE title LIKE ?s AND language_code = ?s ?p
+                         AND search_scope_mask IN (?a)
                        ORDER BY popularity_score DESC, static_rank DESC LIMIT ?i",
-                        Constants::SEARCH_INDEX_TABLE, $titlePrefixQuery, $lang, $entityTypeFilter, $remainingLimit
+                        Constants::SEARCH_INDEX_TABLE, $titlePrefixQuery, $lang, $entityTypeFilter, $allowedScopeMasks, $remainingLimit
                 );
                 foreach ($titleMatches as $tm) {
                     $value = $tm['title'];
                     if (!isset($processedValues[$value])) {
                         $label = $value;
                         $url = null;
-                        if ($isAdminSearch) {
+                        if ($useAdminEditUrl) {
                             $url = $this->getAdminEditUrl($tm['entity_type'], $tm['entity_id']);
                             $label .= " ({$tm['entity_type']})"; // Добавляем тип в label админки
                         } else {
@@ -447,7 +456,7 @@ class ClassSearchEngine {
         }
 
         $rows = $this->db->getAll(
-            'SELECT pv.entity_id, pv.property_values, p.name, p.default_values, p.is_multiple, p.is_required, pt.fields AS type_fields
+            'SELECT pv.entity_id, pv.property_values, p.name, p.default_values, p.is_multiple, p.is_required, p.search_enabled_default, pt.fields AS type_fields
              FROM ?n AS pv
              INNER JOIN ?n AS p ON p.property_id = pv.property_id
              LEFT JOIN ?n AS pt ON pt.type_id = p.type_id
@@ -471,6 +480,9 @@ class ClassSearchEngine {
         foreach ($rows as $row) {
             $entityId = (int) ($row['entity_id'] ?? 0);
             if ($entityId <= 0) {
+                continue;
+            }
+            if ((int) ($row['search_enabled_default'] ?? 1) !== 1) {
                 continue;
             }
             $runtimeFields = PropertyFieldContract::buildRuntimeFields(
@@ -503,7 +515,7 @@ class ClassSearchEngine {
                 'uq_entity' => ['type' => 'BTREE', 'columns' => 'entity_id,entity_type,language_code'],
                 'idx_content' => ['type' => 'FULLTEXT', 'columns' => 'title,content_full'],
                 'idx_entity' => ['type' => 'BTREE', 'columns' => 'entity_type,entity_id'],
-                'idx_lookup' => ['type' => 'BTREE', 'columns' => 'language_code'],
+                'idx_lookup_scope' => ['type' => 'BTREE', 'columns' => 'language_code,search_scope_mask'],
                 'idx_rank' => ['type' => 'BTREE', 'columns' => 'language_code,popularity_score,static_rank'],
                 'idx_title_prefix' => ['type' => 'BTREE', 'columns' => 'title'],
             ],
@@ -620,6 +632,7 @@ class ClassSearchEngine {
 
         $searchQueryPrepared = self::prepareSearchQueryBoolean($originalQuery);
         $entityTypeFilter = $isAdminSearch ? '' : "AND entity_type IN ('page', 'category')";
+        $allowedScopeMasks = $this->getAllowedSearchScopeMasksByAreaCode($isAdminSearch ? 'A' : 'C');
         $ngrams = self::generateNgrams(self::prepareContent($originalQuery));
         $safeSearchQuery = "'" . addslashes($searchQueryPrepared) . "'";
 
@@ -642,9 +655,11 @@ class ClassSearchEngine {
             $plans['fulltext_count'] = $this->db->getAll(
                 "EXPLAIN SELECT COUNT(search_id) FROM ?n
                  WHERE MATCH(title, content_full) AGAINST (" . $safeSearchQuery . " IN BOOLEAN MODE)
-                   AND language_code = ?s " . $entityTypeFilter,
+                   AND language_code = ?s
+                   AND search_scope_mask IN (?a) " . $entityTypeFilter,
                 Constants::SEARCH_INDEX_TABLE,
-                $lang
+                $lang,
+                $allowedScopeMasks
             );
 
             $plans['fulltext_results'] = $this->db->getAll(
@@ -652,11 +667,13 @@ class ClassSearchEngine {
                                 MATCH(title, content_full) AGAINST (" . $safeSearchQuery . " IN BOOLEAN MODE) AS relevance
                    FROM ?n
                   WHERE MATCH(title, content_full) AGAINST (" . $safeSearchQuery . " IN BOOLEAN MODE)
-                    AND language_code = ?s " . $entityTypeFilter . "
+                    AND language_code = ?s
+                    AND search_scope_mask IN (?a) " . $entityTypeFilter . "
                   ORDER BY relevance DESC, popularity_score DESC, static_rank DESC
                   LIMIT ?i, ?i",
                 Constants::SEARCH_INDEX_TABLE,
                 $lang,
+                $allowedScopeMasks,
                 $offset,
                 $limit
             );
@@ -672,7 +689,8 @@ class ClassSearchEngine {
                            WHERE ngram IN (?a)
                            GROUP BY search_id
                        ) t ON si.search_id = t.search_id
-                      WHERE si.language_code = ?s " . ($isAdminSearch ? '' : "AND si.entity_type IN ('page', 'category')") . "
+                      WHERE si.language_code = ?s
+                        AND si.search_scope_mask IN (?a) " . ($isAdminSearch ? '' : "AND si.entity_type IN ('page', 'category')") . "
                       ORDER BY relevance DESC, si.popularity_score DESC, si.static_rank DESC
                       LIMIT ?i",
                     max(1, count($ngrams)),
@@ -680,6 +698,7 @@ class ClassSearchEngine {
                     Constants::SEARCH_NGRAMS_TABLE,
                     $ngrams,
                     $lang,
+                    $allowedScopeMasks,
                     $limit
                 );
             }
@@ -776,8 +795,8 @@ class ClassSearchEngine {
     /**
      * Выполнение основного поиска (FULLTEXT)
      */
-    private function executeFullTextSearch(string $searchQueryPrepared, bool $isAdminSearch, string $lang, int $limit, int $offset): array {
-        $entityTypeFilter = (!$isAdminSearch) ? "AND entity_type IN ('page', 'category')" : '';
+    private function executeFullTextSearch(string $searchQueryPrepared, bool $isPublicSearch, array $allowedScopeMasks, string $lang, int $limit, int $offset): array {
+        $entityTypeFilter = $isPublicSearch ? "AND entity_type IN ('page', 'category')" : '';
         $orderByClause = "relevance DESC, popularity_score DESC, static_rank DESC";
         
         // Вручную создаем безопасную строку, чтобы обойти ошибки SafeMySQL
@@ -786,9 +805,10 @@ class ClassSearchEngine {
         // Запрос для подсчета
         $sqlTotal = "SELECT COUNT(search_id) FROM ?n
                    WHERE MATCH(title, content_full) AGAINST (" . $safeSearchQuery . " IN BOOLEAN MODE)
-                     AND language_code = ?s " . $entityTypeFilter;
+                     AND language_code = ?s
+                     AND search_scope_mask IN (?a) " . $entityTypeFilter;
 
-        $total = (int) $this->db->getOne($sqlTotal, Constants::SEARCH_INDEX_TABLE, $lang);
+        $total = (int) $this->db->getOne($sqlTotal, Constants::SEARCH_INDEX_TABLE, $lang, $allowedScopeMasks);
 
         $results = [];
         if ($total > 0) {
@@ -797,13 +817,15 @@ class ClassSearchEngine {
                                   MATCH(title, content_full) AGAINST (" . $safeSearchQuery . " IN BOOLEAN MODE) AS relevance
                              FROM ?n
                             WHERE MATCH(title, content_full) AGAINST (" . $safeSearchQuery . " IN BOOLEAN MODE)
-                              AND language_code = ?s " . $entityTypeFilter .
+                              AND language_code = ?s
+                              AND search_scope_mask IN (?a) " . $entityTypeFilter .
                          " ORDER BY ?p LIMIT ?i, ?i";
 
             $results = $this->db->getAll(
                 $sqlResults,
                 Constants::SEARCH_INDEX_TABLE,
                 $lang,
+                $allowedScopeMasks,
                 $orderByClause,
                 $offset,
                 $limit
@@ -1013,12 +1035,15 @@ class ClassSearchEngine {
     private function loadEntityRow(string $entityType, int $entityId, ?string $languageCode = null): ?array {
         $table = $entityType === 'page' ? Constants::PAGES_TABLE : Constants::CATEGORIES_TABLE;
         $idColumn = $entityType === 'page' ? 'page_id' : 'category_id';
+        $extraColumns = $entityType === 'page'
+            ? 'category_id, parent_page_id, search_enabled, search_scope_mask'
+            : 'parent_id, search_enabled, search_scope_mask';
         $languageSql = $languageCode !== null && $languageCode !== ''
             ? $this->db->parse(' AND language_code = ?s', $languageCode)
             : '';
 
         return $this->db->getRow(
-            "SELECT {$idColumn}, title, short_description, description, status, language_code
+            "SELECT {$idColumn}, {$extraColumns}, title, short_description, description, status, language_code
              FROM ?n
              WHERE {$idColumn} = ?i{$languageSql}
              LIMIT 1",
@@ -1036,6 +1061,10 @@ class ClassSearchEngine {
 
         $languageCode = (string) ($entityRow['language_code'] ?? ENV_DEF_LANG);
         $title = self::prepareTitle((string) ($entityRow['title'] ?? ''));
+        $effectiveSearch = $this->resolveEffectiveSearchPolicy($entityType, $entityRow);
+        if (empty($effectiveSearch['enabled'])) {
+            return null;
+        }
         if ($propertyText === null) {
             $propertyText = $this->getEntityPropertySearchText($entityType, $entityId, $languageCode);
         }
@@ -1062,6 +1091,7 @@ class ClassSearchEngine {
             'title' => $title,
             'content_full' => $contentFull,
             'url' => EntityPublicUrlService::buildEntityUrl($entityType, $entityId, $languageCode),
+            'search_scope_mask' => (int) ($effectiveSearch['scope_mask'] ?? Constants::SEARCH_SCOPE_ALL),
         ];
     }
 
@@ -1077,7 +1107,7 @@ class ClassSearchEngine {
             }
 
             if (PropertyFieldContract::isChoiceType($fieldType)) {
-                $selectedKeys = array_map('strval', (array) ($field['value'] ?? []));
+                $selectedKeys = $this->extractScalarStringValues($field['value'] ?? []);
                 if (empty($selectedKeys)) {
                     continue;
                 }
@@ -1107,20 +1137,7 @@ class ClassSearchEngine {
             }
 
             $value = $field['value'] ?? '';
-            if (is_array($value)) {
-                foreach ($value as $item) {
-                    $item = trim((string) $item);
-                    if ($item !== '') {
-                        $parts[] = $item;
-                    }
-                }
-                continue;
-            }
-
-            $value = trim((string) $value);
-            if ($value !== '') {
-                $parts[] = $value;
-            }
+            $this->appendSearchableValueParts($parts, $value);
         }
 
         return self::prepareContent(implode(' ', $parts));
@@ -1135,6 +1152,8 @@ class ClassSearchEngine {
         while (true) {
             $rows = $this->db->getAll(
                 "SELECT {$idColumn}, title, short_description, description, language_code, status
+                        , search_enabled, search_scope_mask" .
+                        ($entityType === 'page' ? ', category_id, parent_page_id' : ', parent_id') . "
                  FROM ?n
                  WHERE {$idColumn} > ?i AND status = ?s
                  ORDER BY {$idColumn} ASC
@@ -1170,7 +1189,9 @@ class ClassSearchEngine {
                 $languageCode = (string) ($row['language_code'] ?? ENV_DEF_LANG);
                 $propertyText = $propertyTextMap[$languageCode][$entityId] ?? '';
                 $indexData = $this->buildIndexPayloadFromEntityRow($entityType, $row, $propertyText);
-                if ($indexData === null || !$this->updateIndexEntry($indexData)) {
+                if ($indexData === null) {
+                    $this->removeIndexEntry($entityType, $entityId);
+                } elseif (!$this->updateIndexEntry($indexData)) {
                     $stats['errors']++;
                     $stats['error_log'][] = "Failed to index {$entityType} with ID: {$entityId}";
                 } else {
@@ -1179,6 +1200,166 @@ class ClassSearchEngine {
                 $lastId = $entityId;
             }
         }
+    }
+
+    private function resolveSearchAreaCode(): string {
+        $controllerFolder = defined('ENV_CONTROLLER_FOLDER') ? strtolower(trim((string) ENV_CONTROLLER_FOLDER)) : '';
+        return match ($controllerFolder) {
+            'admin' => 'A',
+            'manager' => 'M',
+            default => 'C',
+        };
+    }
+
+    /**
+     * @return array<int>
+     */
+    private function getAllowedSearchScopeMasksByAreaCode(string $areaCode): array {
+        $scopeMask = match (strtoupper(trim($areaCode))) {
+            'A' => Constants::SEARCH_SCOPE_ADMIN,
+            'M' => Constants::SEARCH_SCOPE_MANAGER,
+            default => Constants::SEARCH_SCOPE_PUBLIC,
+        };
+
+        $allowedMasks = [];
+        foreach (range(0, Constants::SEARCH_SCOPE_ALL) as $mask) {
+            if (($mask & $scopeMask) !== 0) {
+                $allowedMasks[] = $mask;
+            }
+        }
+
+        return $allowedMasks === [] ? [0] : $allowedMasks;
+    }
+
+    private function normalizeSearchScopeMask(mixed $mask): int {
+        $mask = is_numeric($mask) ? (int) $mask : Constants::SEARCH_SCOPE_ALL;
+        if ($mask < 0) {
+            $mask = 0;
+        }
+        if ($mask > Constants::SEARCH_SCOPE_ALL) {
+            $mask = Constants::SEARCH_SCOPE_ALL;
+        }
+        return $mask;
+    }
+
+    private function normalizeSearchEnabled(mixed $value): bool {
+        if (is_bool($value)) {
+            return $value;
+        }
+        if (is_numeric($value)) {
+            return (int) $value === 1;
+        }
+        $value = strtolower(trim((string) $value));
+        return !in_array($value, ['', '0', 'false', 'off', 'no'], true);
+    }
+
+    private function resolveEffectiveSearchPolicy(string $entityType, array $entityRow): array {
+        $effectiveEnabled = $this->normalizeSearchEnabled($entityRow['search_enabled'] ?? 1);
+        $effectiveScopeMask = $this->normalizeSearchScopeMask($entityRow['search_scope_mask'] ?? Constants::SEARCH_SCOPE_ALL);
+        if (!$effectiveEnabled || $effectiveScopeMask === 0) {
+            return ['enabled' => false, 'scope_mask' => 0];
+        }
+
+        $languageCode = (string) ($entityRow['language_code'] ?? ENV_DEF_LANG);
+        $categoryId = $entityType === 'page'
+            ? (int) ($entityRow['category_id'] ?? 0)
+            : (int) ($entityRow['category_id'] ?? 0);
+        $parentId = $entityType === 'category'
+            ? (int) ($entityRow['parent_id'] ?? 0)
+            : 0;
+
+        if ($entityType === 'page') {
+            $categoryId = (int) ($entityRow['category_id'] ?? 0);
+            if ($categoryId <= 0) {
+                return ['enabled' => false, 'scope_mask' => 0];
+            }
+            $parentId = $categoryId;
+        }
+
+        while ($parentId > 0) {
+            $categoryRow = $this->db->getRow(
+                'SELECT category_id, parent_id, search_enabled, search_scope_mask
+                 FROM ?n
+                 WHERE category_id = ?i AND language_code = ?s
+                 LIMIT 1',
+                Constants::CATEGORIES_TABLE,
+                $parentId,
+                $languageCode
+            );
+            if (!$categoryRow) {
+                return ['enabled' => false, 'scope_mask' => 0];
+            }
+
+            $effectiveEnabled = $effectiveEnabled && $this->normalizeSearchEnabled($categoryRow['search_enabled'] ?? 1);
+            $effectiveScopeMask &= $this->normalizeSearchScopeMask($categoryRow['search_scope_mask'] ?? Constants::SEARCH_SCOPE_ALL);
+            if (!$effectiveEnabled || $effectiveScopeMask === 0) {
+                return ['enabled' => false, 'scope_mask' => 0];
+            }
+
+            $parentId = (int) ($categoryRow['parent_id'] ?? 0);
+        }
+
+        return [
+            'enabled' => $effectiveEnabled && $effectiveScopeMask > 0,
+            'scope_mask' => $effectiveScopeMask,
+        ];
+    }
+
+    private function appendSearchableValueParts(array &$parts, mixed $value): void {
+        if (is_array($value)) {
+            foreach ($value as $nestedValue) {
+                $this->appendSearchableValueParts($parts, $nestedValue);
+            }
+            return;
+        }
+
+        if (is_object($value)) {
+            foreach (get_object_vars($value) as $nestedValue) {
+                $this->appendSearchableValueParts($parts, $nestedValue);
+            }
+            return;
+        }
+
+        if (!is_scalar($value)) {
+            return;
+        }
+
+        $value = trim((string) $value);
+        if ($value !== '') {
+            $parts[] = $value;
+        }
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function extractScalarStringValues(mixed $value): array {
+        $result = [];
+        $collector = function (mixed $item) use (&$result, &$collector): void {
+            if (is_array($item)) {
+                foreach ($item as $nestedItem) {
+                    $collector($nestedItem);
+                }
+                return;
+            }
+            if (is_object($item)) {
+                foreach (get_object_vars($item) as $nestedItem) {
+                    $collector($nestedItem);
+                }
+                return;
+            }
+            if (!is_scalar($item)) {
+                return;
+            }
+            $item = trim((string) $item);
+            if ($item !== '') {
+                $result[] = $item;
+            }
+        };
+
+        $collector($value);
+
+        return array_values(array_unique($result));
     }
     
 }

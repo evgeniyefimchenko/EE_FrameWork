@@ -169,7 +169,38 @@ class ModelPages {
     public function updatePageData($pageData = [], $language_code = ENV_DEF_LANG): OperationResult {
         try {
             $urlPolicyId = (int) ($pageData['url_policy_id'] ?? 0);
+            $hasSearchControls = array_key_exists('search_enabled', $pageData)
+                || array_key_exists('search_scope_mask', $pageData)
+                || array_key_exists('search_scope_public', $pageData)
+                || array_key_exists('search_scope_manager', $pageData)
+                || array_key_exists('search_scope_admin', $pageData);
+            $normalizedSearchEnabled = null;
+            $normalizedSearchScopeMask = null;
+            if ($hasSearchControls) {
+                $normalizedSearchEnabled = !empty($pageData['search_enabled'])
+                    && !in_array((string) $pageData['search_enabled'], ['0', 'false', 'off'], true)
+                    ? 1
+                    : 0;
+                if (array_key_exists('search_scope_mask', $pageData) && is_numeric($pageData['search_scope_mask'])) {
+                    $normalizedSearchScopeMask = max(0, min(Constants::SEARCH_SCOPE_ALL, (int) $pageData['search_scope_mask']));
+                } else {
+                    $normalizedSearchScopeMask = 0;
+                    if (!empty($pageData['search_scope_public'])) {
+                        $normalizedSearchScopeMask |= Constants::SEARCH_SCOPE_PUBLIC;
+                    }
+                    if (!empty($pageData['search_scope_manager'])) {
+                        $normalizedSearchScopeMask |= Constants::SEARCH_SCOPE_MANAGER;
+                    }
+                    if (!empty($pageData['search_scope_admin'])) {
+                        $normalizedSearchScopeMask |= Constants::SEARCH_SCOPE_ADMIN;
+                    }
+                }
+            }
             $pageData = SafeMySQL::gi()->filterArray($pageData, SysClass::ee_getFieldsTable(Constants::PAGES_TABLE));
+            if ($hasSearchControls) {
+                $pageData['search_enabled'] = $normalizedSearchEnabled;
+                $pageData['search_scope_mask'] = $normalizedSearchScopeMask;
+            }
             $pageData = array_map('trim', $pageData);
             $pageData = SysClass::ee_convertArrayValuesToNumbers($pageData);
             if (empty($pageData['category_id']) || empty($pageData['title'])) {
@@ -361,6 +392,66 @@ class ModelPages {
         } catch (Exception $e) {
             Logger::error('delete_page', $e->getMessage(), ['page_id' => $pageId, 'exception' => $e], ['initiator' => __FUNCTION__, 'include_trace' => true]);
             return OperationResult::failure($e->getMessage(), 'delete_page_exception', ['page_id' => $pageId]);
+        }
+    }
+
+    /**
+     * Быстро обновляет участие страницы в поиске, не открывая полную форму редактирования.
+     */
+    public function updatePageSearchState(int $pageId, bool $searchEnabled): OperationResult {
+        if ($pageId <= 0) {
+            return OperationResult::validation('Неверный ID страницы', ['page_id' => $pageId]);
+        }
+
+        try {
+            $pageRow = SafeMySQL::gi()->getRow(
+                'SELECT page_id, language_code, search_scope_mask FROM ?n WHERE page_id = ?i LIMIT 1',
+                Constants::PAGES_TABLE,
+                $pageId
+            );
+            if (!$pageRow) {
+                return OperationResult::failure('Страница не найдена', 'page_not_found', ['page_id' => $pageId]);
+            }
+
+            $updateData = [
+                'search_enabled' => $searchEnabled ? 1 : 0,
+            ];
+            if ($searchEnabled && (int) ($pageRow['search_scope_mask'] ?? 0) === 0) {
+                $updateData['search_scope_mask'] = Constants::SEARCH_SCOPE_ALL;
+            }
+
+            $result = SafeMySQL::gi()->query(
+                'UPDATE ?n SET ?u WHERE page_id = ?i',
+                Constants::PAGES_TABLE,
+                $updateData,
+                $pageId
+            );
+            if ($result === false) {
+                return OperationResult::failure('Не удалось обновить участие страницы в поиске', 'page_search_update_error', [
+                    'page_id' => $pageId,
+                    'query' => SafeMySQL::gi()->lastQuery(),
+                ]);
+            }
+
+            scheduleSearchEntityReindex('page', $pageId, (string) ($pageRow['language_code'] ?? ENV_DEF_LANG));
+            schedulePublicHtmlCacheClear(__FUNCTION__, [
+                'page_id' => $pageId,
+                'search_enabled' => $searchEnabled ? 1 : 0,
+            ]);
+
+            return OperationResult::success(['page_id' => $pageId], '', 'updated');
+        } catch (\Throwable $e) {
+            Logger::error('page_search_toggle', 'Ошибка при обновлении участия страницы в поиске: ' . $e->getMessage(), [
+                'page_id' => $pageId,
+                'search_enabled' => $searchEnabled ? 1 : 0,
+                'exception' => $e,
+            ], ['initiator' => __FUNCTION__, 'include_trace' => true]);
+
+            return OperationResult::failure(
+                'Ошибка при обновлении участия страницы в поиске: ' . $e->getMessage(),
+                'page_search_toggle_error',
+                ['page_id' => $pageId]
+            );
         }
     }
 }

@@ -1,5 +1,9 @@
 <?php if (!defined('ENV_SITE')) exit(header('Location: /', true, 301));
 if (!$allType) classes\system\SysClass::handleRedirect(200, '/admin/type_categories');?>
+<?php
+$pageSearchEnabled = isset($pageData['search_enabled']) ? (int) $pageData['search_enabled'] : 1;
+$pageSearchScopeMask = isset($pageData['search_scope_mask']) ? (int) $pageData['search_scope_mask'] : \classes\system\Constants::SEARCH_SCOPE_ALL;
+?>
 <!-- Редактирование страницы -->
 <main>    
     <form id="edit_page" method="POST" enctype="multipart/form-data" novalidate>
@@ -130,6 +134,34 @@ if (!$allType) classes\system\SysClass::handleRedirect(200, '/admin/type_categor
                                                 <option <?=($pageData['status'] == $key ? 'selected ' : '')?>value="<?= $key ?>"><?= $value ?></option>
                                             <?php } ?>
                                         </select>
+                                    </div>
+                                </div>
+                                <div class="row mb-3">
+                                    <div class="col-12 col-lg-8">
+                                        <div class="card border-light shadow-sm">
+                                            <div class="card-body">
+                                                <div class="form-check mb-3">
+                                                    <input class="form-check-input" type="checkbox" id="search_enabled-input" name="search_enabled" <?= $pageSearchEnabled ? 'checked' : '' ?>>
+                                                    <label class="form-check-label" for="search_enabled-input"><?= htmlspecialchars((string) ($lang['sys.search_enabled'] ?? 'Участвует в поиске')) ?></label>
+                                                </div>
+                                                <div class="small text-muted mb-2"><?= htmlspecialchars((string) ($lang['sys.search_scope_help_page'] ?? 'Страница попадёт в поиск только в выбранных разделах и только если разрешена родительской категорией.')) ?></div>
+                                                <label class="form-label d-block mb-2"><?= htmlspecialchars((string) ($lang['sys.search_sections'] ?? 'Разделы поиска')) ?>:</label>
+                                                <div class="d-flex flex-wrap gap-3">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox" id="search_scope_public-input" name="search_scope_public" <?= ($pageSearchScopeMask & \classes\system\Constants::SEARCH_SCOPE_PUBLIC) ? 'checked' : '' ?>>
+                                                        <label class="form-check-label" for="search_scope_public-input"><?= htmlspecialchars((string) ($lang['sys.site'] ?? 'Сайт')) ?></label>
+                                                    </div>
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox" id="search_scope_manager-input" name="search_scope_manager" <?= ($pageSearchScopeMask & \classes\system\Constants::SEARCH_SCOPE_MANAGER) ? 'checked' : '' ?>>
+                                                        <label class="form-check-label" for="search_scope_manager-input"><?= htmlspecialchars((string) ($lang['sys.manager'] ?? 'Менеджер')) ?></label>
+                                                    </div>
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox" id="search_scope_admin-input" name="search_scope_admin" <?= ($pageSearchScopeMask & \classes\system\Constants::SEARCH_SCOPE_ADMIN) ? 'checked' : '' ?>>
+                                                        <label class="form-check-label" for="search_scope_admin-input"><?= htmlspecialchars((string) ($lang['sys.admin'] ?? 'Администратор')) ?></label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="row mb-3">

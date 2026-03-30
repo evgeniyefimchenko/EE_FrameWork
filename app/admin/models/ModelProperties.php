@@ -125,7 +125,14 @@ class ModelProperties {
      * @return int|bool ID РѕР±РЅРѕРІР»РµРЅРЅРѕРіРѕ СЃРІРѕР№СЃС‚РІР° РёР»Рё false РІ СЃР»СѓС‡Р°Рµ РЅРµСѓРґР°С‡Рё
      */
     public function updatePropertyData(array $propertyData = [], string $languageCode = ENV_DEF_LANG): OperationResult {
+        $hasSearchDefaultControl = array_key_exists('search_enabled_default', $propertyData);
+        $normalizedSearchEnabledDefault = $hasSearchDefaultControl
+            ? (!empty($propertyData['search_enabled_default']) && !in_array((string) $propertyData['search_enabled_default'], ['0', 'false', 'off'], true) ? 1 : 0)
+            : null;
         $propertyData = SafeMySQL::gi()->filterArray($propertyData, SysClass::ee_getFieldsTable(Constants::PROPERTIES_TABLE));
+        if ($hasSearchDefaultControl) {
+            $propertyData['search_enabled_default'] = $normalizedSearchEnabledDefault;
+        }
         if (is_array($propertyData['default_values'])) {
             $propertyData['default_values'] = json_encode($propertyData['default_values'], JSON_UNESCAPED_UNICODE);
         } elseif (!SysClass::ee_isValidJson($propertyData['default_values'])) {
@@ -154,6 +161,8 @@ class ModelProperties {
                 ]);
                 return OperationResult::failure('Ошибка обновления свойства', 'property_update_error', ['property_data' => $propertyData]);
             }
+            $propertyData['property_id'] = (int) $propertyId;
+            Hook::run('afterUpdatePropertyData', (int) $propertyId, $propertyData, 'updated');
             return OperationResult::success((int) $propertyId, '', 'updated');
         } else {
             unset($propertyData['property_id']);
@@ -180,7 +189,10 @@ class ModelProperties {
             ]);
             return OperationResult::failure('Ошибка создания свойства', 'property_insert_error', ['property_data' => $propertyData]);
         }
-        return OperationResult::success((int) SafeMySQL::gi()->insertId(), '', 'created');
+        $propertyId = (int) SafeMySQL::gi()->insertId();
+        $propertyData['property_id'] = $propertyId;
+        Hook::run('afterUpdatePropertyData', $propertyId, $propertyData, 'created');
+        return OperationResult::success($propertyId, '', 'created');
     }
 
     /**

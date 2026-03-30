@@ -1649,7 +1649,7 @@ function ee_export_phase_pages(array $ctx, array &$state, int $batch): array {
 
         $title = trim((string)($row['post_title'] ?? ''));
         if ($title === '') {
-            $title = 'Запись #' . $postId;
+            $title = ee_export_humanize_fallback_title((string)($row['post_name'] ?? ''), $postId);
         }
 
         $payload = [
@@ -3258,6 +3258,20 @@ function ee_export_convert_media_value_to_url($value) {
     }
 
     return $value;
+}
+
+function ee_export_humanize_fallback_title(string $slug, int $postId): string {
+    $slug = trim($slug);
+    if ($slug !== '') {
+        $slug = preg_replace('/[-_]+/', ' ', $slug) ?? $slug;
+        $slug = preg_replace('/\s+/u', ' ', $slug) ?? $slug;
+        $slug = trim($slug);
+        if ($slug !== '' && !preg_match('/^\d+$/', $slug)) {
+            return mb_convert_case($slug, MB_CASE_TITLE, 'UTF-8');
+        }
+    }
+
+    return 'Запись #' . $postId;
 }
 
 function ee_export_should_include_meta_key(array $state, string $metaKey): bool {

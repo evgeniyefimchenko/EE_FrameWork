@@ -412,7 +412,17 @@ class CronAgentRegistry {
     }
 
     private static function runMediaMirrorWorker(array $payload = [], array $context = []): array {
-        return ImportMediaQueueService::processDueQueue($payload);
+        $result = ImportMediaQueueService::processDueQueue($payload);
+        $status = (string) ($result['status'] ?? '');
+
+        // The media worker may intentionally stop by time/memory budget or
+        // finish with retryable queue item failures while the worker itself
+        // executed normally. Those outcomes should not poison cron health.
+        if (in_array($status, ['guard_stopped', 'partial_failed'], true)) {
+            $result['success'] = true;
+        }
+
+        return $result;
     }
 
     private static function runBackupWorker(array $payload = [], array $context = []): array {

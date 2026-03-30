@@ -332,6 +332,20 @@ trait CategoriesTrait {
     }
 
     /**
+     * Быстро включает участие в поиске для категории и всей её ветки.
+     */
+    public function category_search_branch_enable(array $params = []): void {
+        $this->toggleCategorySearchBranchFromList($params, true);
+    }
+
+    /**
+     * Быстро выключает участие в поиске для категории и всей её ветки.
+     */
+    public function category_search_branch_disable(array $params = []): void {
+        $this->toggleCategorySearchBranchFromList($params, false);
+    }
+
+    /**
      * Вернёт таблицу категоий
      */
     public function getCategoriesDataTable(array $params = [], ?string $contentLanguageCode = null): string {
@@ -385,6 +399,12 @@ trait CategoriesTrait {
                     'sorted' => 'ASC',
                     'filterable' => true
                 ], [
+                    'field' => 'search_state',
+                    'title' => $this->lang['sys.search.title'] ?? 'Поиск',
+                    'sorted' => false,
+                    'filterable' => false,
+                    'raw' => true
+                ], [
                     'field' => 'language_code',
                     'title' => $this->lang['sys.language'],
                     'sorted' => 'ASC',
@@ -402,7 +422,7 @@ trait CategoriesTrait {
                     'title' => $this->lang['sys.action'],
                     'sorted' => false,
                     'filterable' => false,
-                    'width' => 10,
+                    'width' => 16,
                     'align' => 'center'
                 ],
             ]
@@ -427,6 +447,17 @@ trait CategoriesTrait {
                 'label' => $this->lang['sys.type'],
                 'options' => [['value' => 0, 'label' => $this->lang['sys.any'] ?? 'Any']],
                 'multiple' => true
+            ],
+            'search_enabled' => [
+                'type' => 'select',
+                'id' => 'search_enabled',
+                'value' => '',
+                'label' => $this->lang['sys.search.title'] ?? 'Поиск',
+                'options' => [
+                    ['value' => '', 'label' => $this->lang['sys.any'] ?? 'Any'],
+                    ['value' => 1, 'label' => $this->lang['sys.yes'] ?? 'Да'],
+                    ['value' => 0, 'label' => $this->lang['sys.no'] ?? 'Нет'],
+                ],
             ],
             'created_at' => [
                 'type' => 'date',
@@ -461,6 +492,7 @@ trait CategoriesTrait {
                 'parent_id' => $item['parent_title'] ? $item['parent_title'] : 'Без категории',
                 'type_id' => $item['type_name'],
                 'children' => $item['pages_count'],
+                'search_state' => $this->renderCategorySearchStateCell($item),
                 'language_code' => strtoupper((string) ($item['language_code'] ?? $languageCode)),
                 'translations' => $this->renderCategoryTranslationBadges(
                     (int) $item['category_id'],
@@ -471,6 +503,13 @@ trait CategoriesTrait {
                 'updated_at' => $item['updated_at'] ? date('d.m.Y', strtotime($item['updated_at'])) : '',
                 'actions' => '<a href="/admin/category_edit/id/' . $item['category_id'] . '?language_code=' . rawurlencode((string) ($item['language_code'] ?? $languageCode)) . '"'
                 . 'class="btn btn-primary me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.edit'] . '"><i class="fas fa-edit"></i></a>'
+                . (
+                    !empty($item['search_enabled'])
+                    ? '<a href="/admin/category_search_branch_disable/id/' . $item['category_id'] . '?language_code=' . rawurlencode((string) ($item['language_code'] ?? $languageCode)) . '" onclick="return confirm(\'' . htmlspecialchars((string) ($this->lang['sys.search_branch_disable_confirm'] ?? 'Отключить поиск для всей ветки категории?'), ENT_QUOTES) . '\');" '
+                    . 'class="btn btn-warning me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . htmlspecialchars((string) ($this->lang['sys.search_branch_disable'] ?? 'Отключить поиск для ветки'), ENT_QUOTES, 'UTF-8') . '"><i class="fas fa-magnifying-glass-minus"></i></a>'
+                    : '<a href="/admin/category_search_branch_enable/id/' . $item['category_id'] . '?language_code=' . rawurlencode((string) ($item['language_code'] ?? $languageCode)) . '" onclick="return confirm(\'' . htmlspecialchars((string) ($this->lang['sys.search_branch_enable_confirm'] ?? 'Включить поиск для всей ветки категории?'), ENT_QUOTES) . '\');" '
+                    . 'class="btn btn-success me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . htmlspecialchars((string) ($this->lang['sys.search_branch_enable'] ?? 'Включить поиск для ветки'), ENT_QUOTES, 'UTF-8') . '"><i class="fas fa-magnifying-glass"></i></a>'
+                )
                 . '<a href="/admin/category_delete/id/' . $item['category_id'] . '" onclick="return confirm(\'' . $this->lang['sys.delete'] . '?\');" '
                 . 'class="btn btn-danger me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.delete'] . '"><i class="fas fa-trash"></i></a>'
             ];
@@ -607,5 +646,75 @@ trait CategoriesTrait {
         }
 
         return implode('', $badges);
+    }
+
+    private function toggleCategorySearchBranchFromList(array $params, bool $enabled): void {
+        $this->access = [Constants::ADMIN, Constants::MODERATOR];
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect();
+            exit();
+        }
+
+        $categoryId = 0;
+        if (in_array('id', $params, true)) {
+            $keyId = array_search('id', $params, true);
+            if ($keyId !== false && isset($params[$keyId + 1])) {
+                $categoryId = (int) filter_var($params[$keyId + 1], FILTER_VALIDATE_INT);
+            }
+        }
+
+        $this->loadModel('m_categories');
+        $languageCode = ee_get_default_content_lang_code((string) ($_GET['language_code'] ?? \classes\system\Session::get('admin_categories_lang')));
+        \classes\system\Session::set('admin_categories_lang', $languageCode);
+
+        if ($categoryId > 0) {
+            $this->notifyOperationResult(
+                $this->models['m_categories']->updateCategorySearchBranchState($categoryId, $enabled, $languageCode),
+                [
+                    'success_message' => $enabled
+                        ? ($this->lang['sys.search_branch_enabled'] ?? 'Поиск для ветки категории включён')
+                        : ($this->lang['sys.search_branch_disabled'] ?? 'Поиск для ветки категории отключён'),
+                    'default_error_message' => $this->lang['sys.error'] ?? 'Ошибка',
+                ]
+            );
+        } else {
+            ClassNotifications::addNotificationUser($this->logged_in, [
+                'text' => $this->lang['sys.required_id_parameter_missing'] ?? 'Required parameter id is missing.',
+                'status' => 'warning',
+            ]);
+        }
+
+        SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/categories?language_code=' . rawurlencode($languageCode));
+    }
+
+    private function renderCategorySearchStateCell(array $item): string {
+        $isEnabled = !empty($item['search_enabled']);
+        $scopeMask = (int) ($item['search_scope_mask'] ?? Constants::SEARCH_SCOPE_ALL);
+        $badges = [];
+
+        $badges[] = $isEnabled
+            ? '<span class="badge text-bg-success me-1">' . htmlspecialchars((string) ($this->lang['sys.yes'] ?? 'Да'), ENT_QUOTES, 'UTF-8') . '</span>'
+            : '<span class="badge text-bg-secondary me-1">' . htmlspecialchars((string) ($this->lang['sys.no'] ?? 'Нет'), ENT_QUOTES, 'UTF-8') . '</span>';
+
+        if ($isEnabled) {
+            foreach ($this->getSearchScopeLabelsForCategories() as $bit => $label) {
+                if (($scopeMask & $bit) === $bit) {
+                    $badges[] = '<span class="badge text-bg-light border text-dark me-1">' . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '</span>';
+                }
+            }
+            if ($scopeMask === 0) {
+                $badges[] = '<span class="badge text-bg-warning text-dark me-1">' . htmlspecialchars((string) ($this->lang['sys.not_assigned'] ?? 'Не назначено'), ENT_QUOTES, 'UTF-8') . '</span>';
+            }
+        }
+
+        return implode('', $badges);
+    }
+
+    private function getSearchScopeLabelsForCategories(): array {
+        return [
+            Constants::SEARCH_SCOPE_PUBLIC => (string) ($this->lang['sys.site'] ?? 'Сайт'),
+            Constants::SEARCH_SCOPE_MANAGER => (string) ($this->lang['sys.manager'] ?? 'Менеджер'),
+            Constants::SEARCH_SCOPE_ADMIN => (string) ($this->lang['sys.admin'] ?? 'Админ'),
+        ];
     }
 }

@@ -251,9 +251,51 @@ if (!function_exists('ee_parse_utc_datetime')) {
     }
 }
 
+if (!function_exists('ee_resolve_datetime_for_runtime')) {
+    function ee_resolve_datetime_for_runtime(?string $value): ?DateTimeImmutable {
+        $utcDateTime = ee_parse_utc_datetime($value);
+        if (!$utcDateTime) {
+            return null;
+        }
+
+        $localTimezone = new DateTimeZone(date_default_timezone_get());
+        if ($localTimezone->getName() === 'UTC') {
+            return $utcDateTime;
+        }
+
+        $rawValue = trim((string) $value);
+        if ($rawValue === '') {
+            return $utcDateTime;
+        }
+
+        $localDateTime = DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $rawValue, $localTimezone);
+        if (!$localDateTime instanceof DateTimeImmutable) {
+            try {
+                $localDateTime = new DateTimeImmutable($rawValue, $localTimezone);
+            } catch (Throwable) {
+                $localDateTime = null;
+            }
+        }
+
+        if (!$localDateTime instanceof DateTimeImmutable) {
+            return $utcDateTime;
+        }
+
+        $nowTs = time();
+        $utcDelta = $nowTs - $utcDateTime->getTimestamp();
+        $localDelta = $nowTs - $localDateTime->getTimestamp();
+
+        if ($utcDelta < -300 && $localDelta >= -300) {
+            return $localDateTime;
+        }
+
+        return $utcDateTime;
+    }
+}
+
 if (!function_exists('ee_format_utc_datetime')) {
     function ee_format_utc_datetime(?string $value, string $format = 'd.m.Y H:i'): string {
-        $dateTime = ee_parse_utc_datetime($value);
+        $dateTime = ee_resolve_datetime_for_runtime($value);
         if (!$dateTime) {
             return trim((string) $value);
         }
@@ -265,12 +307,12 @@ if (!function_exists('ee_format_utc_datetime')) {
 
 if (!function_exists('ee_minutes_since_utc_datetime')) {
     function ee_minutes_since_utc_datetime(?string $value): int {
-        $dateTime = ee_parse_utc_datetime($value);
+        $dateTime = ee_resolve_datetime_for_runtime($value);
         if (!$dateTime) {
             return -1;
         }
 
-        return (int) floor((time() - $dateTime->getTimestamp()) / 60);
+        return max(0, (int) floor((time() - $dateTime->getTimestamp()) / 60));
     }
 }
 

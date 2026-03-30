@@ -324,6 +324,13 @@ final class UrlPolicyService {
         $tokens = preg_split('~[^\p{L}\p{N}]+~u', $value, -1, PREG_SPLIT_NO_EMPTY) ?: [];
         $stopWords = self::normalizeWordList((array) ($settings['stop_words'] ?? []), !empty($settings['lowercase']));
         if ($stopWords !== []) {
+            $normalizedStopWords = [];
+            foreach ($stopWords as $stopWord) {
+                $normalizedStopWords = array_merge($normalizedStopWords, self::tokenizeForPolicy((string) $stopWord, $settings));
+            }
+            $stopWords = array_values(array_unique(array_filter($normalizedStopWords, static fn(string $token): bool => $token !== '')));
+        }
+        if ($stopWords !== []) {
             $tokens = array_values(array_filter($tokens, static function (string $token) use ($stopWords): bool {
                 return !in_array($token, $stopWords, true);
             }));
@@ -465,6 +472,27 @@ final class UrlPolicyService {
             $result[$search] = trim((string) $replace);
         }
         return $result;
+    }
+
+    private static function tokenizeForPolicy(string $value, array $settings): array {
+        $value = trim($value);
+        if ($value === '') {
+            return [];
+        }
+
+        if (!empty($settings['transliterate']) && class_exists(\Transliterator::class)) {
+            $transliterator = \Transliterator::create('Any-Latin; Latin-ASCII');
+            if ($transliterator) {
+                $value = (string) $transliterator->transliterate($value);
+            }
+        }
+
+        if (!empty($settings['lowercase'])) {
+            $value = function_exists('mb_strtolower') ? mb_strtolower($value) : strtolower($value);
+        }
+
+        $value = preg_replace('~[\'"`’]+~u', ' ', $value) ?? $value;
+        return preg_split('~[^\p{L}\p{N}]+~u', $value, -1, PREG_SPLIT_NO_EMPTY) ?: [];
     }
 
     private static function truncateSlug(string $slug, array $settings): string {

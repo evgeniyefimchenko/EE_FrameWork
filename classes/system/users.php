@@ -1015,6 +1015,8 @@ class Users {
         short_description VARCHAR(1000),
         parent_id INT UNSIGNED NULL,
         status ENUM('active', 'hidden', 'disabled') NOT NULL DEFAULT 'active',
+        search_enabled TINYINT(1) NOT NULL DEFAULT 1 COMMENT 'Участвует ли категория и её ветка в поиске',
+        search_scope_mask TINYINT UNSIGNED NOT NULL DEFAULT 7 COMMENT '1=public,2=manager,4=admin',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         language_code CHAR(2) NOT NULL DEFAULT 'RU' COMMENT 'Код языка по ISO 3166-2',
@@ -1044,6 +1046,10 @@ class Users {
             'ALTER TABLE ?n ADD INDEX IF NOT EXISTS idx_categories_lang_route_path (language_code, route_path)',
             Constants::CATEGORIES_TABLE
         );
+        SafeMySQL::gi()->query(
+            'ALTER TABLE ?n ADD INDEX IF NOT EXISTS idx_categories_search_scope (language_code, search_enabled, search_scope_mask)',
+            Constants::CATEGORIES_TABLE
+        );
         $this->logSqlInfo('create_categories_table', 'Таблица категорий создана');
     }
 
@@ -1062,6 +1068,8 @@ class Users {
         route_path VARCHAR(512) DEFAULT NULL,
         short_description VARCHAR(255),
         description LONGTEXT,
+        search_enabled TINYINT(1) NOT NULL DEFAULT 1 COMMENT 'Участвует ли страница в поиске',
+        search_scope_mask TINYINT UNSIGNED NOT NULL DEFAULT 7 COMMENT '1=public,2=manager,4=admin',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         language_code CHAR(2) NOT NULL DEFAULT 'RU' COMMENT 'Код языка по ISO 3166-2',
@@ -1093,6 +1101,10 @@ class Users {
         );
         SafeMySQL::gi()->query(
             'ALTER TABLE ?n ADD INDEX IF NOT EXISTS idx_pages_lang_route_path (language_code, route_path)',
+            Constants::PAGES_TABLE
+        );
+        SafeMySQL::gi()->query(
+            'ALTER TABLE ?n ADD INDEX IF NOT EXISTS idx_pages_search_scope (language_code, search_enabled, search_scope_mask)',
             Constants::PAGES_TABLE
         );
         $this->logSqlInfo('create_pages_table', 'Таблица страниц создана');
@@ -1300,6 +1312,7 @@ class Users {
         schema_version INT UNSIGNED NOT NULL DEFAULT 1,
         is_multiple BOOLEAN NOT NULL,
         is_required BOOLEAN NOT NULL,
+        search_enabled_default TINYINT(1) NOT NULL DEFAULT 1 COMMENT 'Участвует ли свойство в поисковом индексе по умолчанию',
         description VARCHAR(1000),
         entity_type ENUM('category', 'page', 'all') NOT NULL DEFAULT 'all',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -1311,6 +1324,10 @@ class Users {
         CONSTRAINT fk_properties_type FOREIGN KEY (type_id) REFERENCES ?n(type_id) ON DELETE RESTRICT ON UPDATE RESTRICT
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Таблица для хранения свойств';";
         SafeMySQL::gi()->query($sql, Constants::PROPERTIES_TABLE, Constants::PROPERTY_TYPES_TABLE);
+        SafeMySQL::gi()->query(
+            'ALTER TABLE ?n ADD INDEX IF NOT EXISTS idx_properties_search_enabled (search_enabled_default)',
+            Constants::PROPERTIES_TABLE
+        );
         $this->logSqlInfo('create_properties_table', 'Таблица свойств создана');
     }
 
@@ -1462,18 +1479,23 @@ class Users {
             title VARCHAR(255) NOT NULL COMMENT 'Заголовок/имя для отображения и приоритетного поиска',
             content_full MEDIUMTEXT NOT NULL COMMENT 'Полный очищенный текст для FULLTEXT',
             url VARCHAR(1024) NULL COMMENT 'URL сущности',
+            search_scope_mask TINYINT UNSIGNED NOT NULL DEFAULT 7 COMMENT '1=public,2=manager,4=admin',
             static_rank TINYINT UNSIGNED NOT NULL DEFAULT 50 COMMENT 'Базовый ранг типа сущности',
             popularity_score INT UNSIGNED NOT NULL DEFAULT 0 COMMENT 'Динамический ранг популярности',
             last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             UNIQUE INDEX uq_entity (entity_id, entity_type, language_code),
             FULLTEXT idx_content (title, content_full) COMMENT 'Основной индекс для MATCH AGAINST',
             INDEX idx_entity (entity_type, entity_id),
-            INDEX idx_lookup (language_code),
+            INDEX idx_lookup_scope (language_code, search_scope_mask),
             INDEX idx_rank (language_code, popularity_score DESC, static_rank DESC),
             INDEX idx_title_prefix (title(50))
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         COMMENT='Централизованный поисковый индекс сайта';";
         SafeMySQL::gi()->query($sql, Constants::SEARCH_INDEX_TABLE);
+        SafeMySQL::gi()->query(
+            'ALTER TABLE ?n ADD INDEX IF NOT EXISTS idx_lookup_scope (language_code, search_scope_mask)',
+            Constants::SEARCH_INDEX_TABLE
+        );
         $this->logSqlInfo(__FUNCTION__, 'Таблица search_index создана или уже существует');
     }
 

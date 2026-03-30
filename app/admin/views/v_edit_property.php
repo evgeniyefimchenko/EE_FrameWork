@@ -1,6 +1,7 @@
 ﻿<?php if (!defined('ENV_SITE')) exit(header('Location: /', true, 301)); ?>
 <!-- Р РµРґР°РєС‚РёСЂРѕРІР°РЅРёРµ СЃРІРѕР№СЃС‚РІР° -->
 <?php if (!$allPropertyTypes) \classes\system\SysClass::handleRedirect(200, '/admin/types_properties');?> 
+<?php $propertySearchEnabledDefault = isset($propertyData['search_enabled_default']) ? (int) $propertyData['search_enabled_default'] : 1; ?>
 <main>    
     <form id="edit_entity" action="/admin/edit_property/id/<?= $propertyData['property_id'] ?>" method="POST" enctype="multipart/form-data" novalidate>
         <input type="hidden" name="fake" value="1" />
@@ -9,7 +10,7 @@
                class="btn btn-info mx-1 float-end<?= empty($propertyData['property_id']) ? " d-none" : "" ?>">
                 <i class="fa fa-plus-circle"></i>&nbsp;<?= $lang['sys.add'] ?>
             </a>
-            <button type="submit" name="lifecycle_preview" value="1" class="btn btn-outline-secondary float-end mx-1">Preview</button>
+            <button type="submit" name="lifecycle_preview" value="1" class="btn btn-outline-secondary float-end mx-1"><?= htmlspecialchars((string) ($lang['sys.preview'] ?? 'Preview')) ?></button>
             <button type="submit" class="btn btn-primary float-end"><?=$lang['sys.save']?></button>
             <h1 class="mt-4"><?= !$propertyData['property_id'] ? $lang['sys.add'] : $lang['sys.edit'] ?></h1>
             <ol class="breadcrumb mb-4">
@@ -96,6 +97,10 @@
                                     <label for="is_required-input"><?=$lang['sys.required']?>:</label>
                                     <input type="checkbox" id="is_required" name="is_required" <?= ($propertyData['is_required'] ? 'checked' : '') ?>/>
                                 </div>
+                                <div class="col-4 col-sm-4">
+                                    <label for="search_enabled_default-input"><?= htmlspecialchars((string) ($lang['sys.search_enabled_default'] ?? 'Участвует в поиске по умолчанию')) ?>:</label>
+                                    <input type="checkbox" id="search_enabled_default-input" name="search_enabled_default" <?= $propertySearchEnabledDefault ? 'checked' : '' ?>/>
+                                </div>
                             </div>
                             <div class="row mb-3">
                                 <div class="col-12 col-sm-12 card">
@@ -129,7 +134,7 @@
             </div>
             <div class="row">
                 <div class="col">
-                    <button type="submit" name="lifecycle_preview" value="1" class="btn btn-outline-secondary my-3 me-2">Preview</button>
+                    <button type="submit" name="lifecycle_preview" value="1" class="btn btn-outline-secondary my-3 me-2"><?= htmlspecialchars((string) ($lang['sys.preview'] ?? 'Preview')) ?></button>
                     <button type="submit" class="btn btn-primary my-3"><?=$lang['sys.save']?></button>
                 </div>                    
             </div>

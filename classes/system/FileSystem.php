@@ -791,8 +791,16 @@ class FileSystem {
                 'verify_peer_name' => false,
             ],
         ]);
-        $content = @file_get_contents($sourceUrl, false, $context);
-        $headers = is_array($http_response_header ?? null) ? $http_response_header : [];
+        $stream = @fopen($sourceUrl, 'rb', false, $context);
+        $headers = [];
+        $content = false;
+        if (is_resource($stream)) {
+            $meta = stream_get_meta_data($stream);
+            $wrapperData = $meta['wrapper_data'] ?? [];
+            $headers = is_array($wrapperData) ? $wrapperData : [];
+            $content = stream_get_contents($stream);
+            fclose($stream);
+        }
         $httpCode = self::extractHttpCodeFromHeaders($headers);
         if (!is_string($content) || $content === '') {
             return [
@@ -1598,7 +1606,7 @@ class FileSystem {
                     $danglingReferences[] = $reference + ['missing_file_id' => $fileId];
                 }
             }
-            if ($reference['file_ids'] === [] && $reference['raw_value'] !== '') {
+            if ($reference['file_ids'] === [] && !self::isEmptyReferencePayload((string) ($reference['raw_value'] ?? ''))) {
                 $legacyPayloads[] = $reference;
             }
         }
@@ -1655,6 +1663,33 @@ class FileSystem {
         return $references;
     }
 
+    private static function isEmptyReferencePayload(string $rawValue): bool {
+        $rawValue = trim($rawValue);
+        if ($rawValue === '' || in_array($rawValue, ['[]', '{}', 'null'], true)) {
+            return true;
+        }
+
+        if (($rawValue[0] ?? '') === '[' || ($rawValue[0] ?? '') === '{') {
+            $decoded = json_decode($rawValue, true);
+            if (json_last_error() === JSON_ERROR_NONE) {
+                if ($decoded === [] || $decoded === null) {
+                    return true;
+                }
+                if (is_array($decoded)) {
+                    $filtered = array_values(array_filter($decoded, static function ($item): bool {
+                        if (is_array($item)) {
+                            return array_filter($item, static fn($value): bool => trim((string) $value) !== '') !== [];
+                        }
+                        return trim((string) $item) !== '';
+                    }));
+                    return $filtered === [];
+                }
+            }
+        }
+
+        return false;
+    }
+
     private static function extractReferencedFileIds(mixed $value): array {
         if (is_string($value)) {
             $trimmedValue = trim($value);
@@ -1670,23 +1705,7 @@ class FileSystem {
         }
 
         $fileIds = [];
-        foreach ((array) $value as $item) {
-            if (is_string($item) && str_contains($item, ',')) {
-                foreach (explode(',', $item) as $token) {
-                    $token = trim($token);
-                    if (ctype_digit($token) && (int) $token > 0) {
-                        $fileIds[(int) $token] = true;
-                    }
-                }
-                continue;
-            }
-            if (is_int($item) || (is_string($item) && ctype_digit(trim($item)))) {
-                $item = (int) $item;
-                if ($item > 0) {
-                    $fileIds[$item] = true;
-                }
-            }
-        }
+        self::collectReferencedFileIdsRecursive($value, $fileIds);
 
         if ($fileIds === [] && is_string($value) && str_contains($value, ',')) {
             foreach (explode(',', $value) as $token) {
@@ -1698,6 +1717,29 @@ class FileSystem {
         }
 
         return array_keys($fileIds);
+    }
+
+    private static function collectReferencedFileIdsRecursive(mixed $value, array &$fileIds): void {
+        if (is_array($value)) {
+            foreach ($value as $item) {
+                self::collectReferencedFileIdsRecursive($item, $fileIds);
+            }
+            return;
+        }
+
+        if (is_string($value) && str_contains($value, ',')) {
+            foreach (explode(',', $value) as $token) {
+                self::collectReferencedFileIdsRecursive($token, $fileIds);
+            }
+            return;
+        }
+
+        if (is_int($value) || (is_string($value) && ctype_digit(trim($value)))) {
+            $fileId = (int) $value;
+            if ($fileId > 0) {
+                $fileIds[$fileId] = true;
+            }
+        }
     }
 
     private static function normalizeReferencePayload(mixed $value): string {

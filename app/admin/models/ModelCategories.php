@@ -308,8 +308,39 @@ class ModelCategories {
         try {
             $db = $this->db ?? SafeMySQL::gi(); // Используем $this->db если есть, иначе gi()
             $urlPolicyId = (int) ($categoryData['url_policy_id'] ?? 0);
+            $hasSearchControls = array_key_exists('search_enabled', $categoryData)
+                || array_key_exists('search_scope_mask', $categoryData)
+                || array_key_exists('search_scope_public', $categoryData)
+                || array_key_exists('search_scope_manager', $categoryData)
+                || array_key_exists('search_scope_admin', $categoryData);
+            $normalizedSearchEnabled = null;
+            $normalizedSearchScopeMask = null;
+            if ($hasSearchControls) {
+                $normalizedSearchEnabled = !empty($categoryData['search_enabled'])
+                    && !in_array((string) $categoryData['search_enabled'], ['0', 'false', 'off'], true)
+                    ? 1
+                    : 0;
+                if (array_key_exists('search_scope_mask', $categoryData) && is_numeric($categoryData['search_scope_mask'])) {
+                    $normalizedSearchScopeMask = max(0, min(Constants::SEARCH_SCOPE_ALL, (int) $categoryData['search_scope_mask']));
+                } else {
+                    $normalizedSearchScopeMask = 0;
+                    if (!empty($categoryData['search_scope_public'])) {
+                        $normalizedSearchScopeMask |= Constants::SEARCH_SCOPE_PUBLIC;
+                    }
+                    if (!empty($categoryData['search_scope_manager'])) {
+                        $normalizedSearchScopeMask |= Constants::SEARCH_SCOPE_MANAGER;
+                    }
+                    if (!empty($categoryData['search_scope_admin'])) {
+                        $normalizedSearchScopeMask |= Constants::SEARCH_SCOPE_ADMIN;
+                    }
+                }
+            }
             $allowedFields = SysClass::ee_getFieldsTable(Constants::CATEGORIES_TABLE);
             $categoryData = $db->filterArray($categoryData, $allowedFields);
+            if ($hasSearchControls) {
+                $categoryData['search_enabled'] = $normalizedSearchEnabled;
+                $categoryData['search_scope_mask'] = $normalizedSearchScopeMask;
+            }
             // Применяем trim только к строкам
             $categoryData = array_map(function ($value) {
                 return is_string($value) ? trim($value) : $value;
@@ -495,6 +526,79 @@ class ModelCategories {
             SafeMySQL::gi()->query("ROLLBACK");
             Logger::error('delete_category', 'Исключение при удалении категории: ' . $e->getMessage(), ['categoryId' => $categoryId, 'exception' => $e], ['initiator' => __FUNCTION__, 'include_trace' => true]);
             return OperationResult::failure('Исключение при удалении категории: ' . $e->getMessage(), 'delete_category_exception', ['categoryId' => $categoryId]);
+        }
+    }
+
+    /**
+     * Быстро обновляет участие в поиске для категории и всех её дочерних категорий в рамках языка.
+     */
+    public function updateCategorySearchBranchState(int $categoryId, bool $searchEnabled, string $languageCode = ENV_DEF_LANG): OperationResult {
+        if ($categoryId <= 0) {
+            return OperationResult::validation('Неверный ID категории', ['category_id' => $categoryId]);
+        }
+
+        try {
+            $languageCode = strtoupper(trim($languageCode)) ?: ENV_DEF_LANG;
+            $categoryData = $this->getCategoryData($categoryId, $languageCode);
+            if (!is_array($categoryData) || empty($categoryData['category_id'])) {
+                return OperationResult::failure('Категория не найдена', 'category_not_found', [
+                    'category_id' => $categoryId,
+                    'language_code' => $languageCode,
+                ]);
+            }
+
+            $branchRows = $this->getCategoryDescendantsShort($categoryId, $languageCode);
+            $branchCategoryIds = array_values(array_unique(array_filter(array_map(
+                static fn(array $row): int => (int) ($row['category_id'] ?? 0),
+                (array) $branchRows
+            ), static fn(int $id): bool => $id > 0)));
+            if ($branchCategoryIds === []) {
+                $branchCategoryIds = [$categoryId];
+            }
+
+            SafeMySQL::gi()->query(
+                'UPDATE ?n SET search_enabled = ?i WHERE category_id IN (?a) AND language_code = ?s',
+                Constants::CATEGORIES_TABLE,
+                $searchEnabled ? 1 : 0,
+                $branchCategoryIds,
+                $languageCode
+            );
+
+            if ($searchEnabled) {
+                SafeMySQL::gi()->query(
+                    'UPDATE ?n SET search_scope_mask = ?i WHERE category_id IN (?a) AND language_code = ?s AND search_scope_mask = 0',
+                    Constants::CATEGORIES_TABLE,
+                    Constants::SEARCH_SCOPE_ALL,
+                    $branchCategoryIds,
+                    $languageCode
+                );
+            }
+
+            scheduleSearchBranchReindex($branchCategoryIds, $languageCode);
+            schedulePublicHtmlCacheClear(__FUNCTION__, [
+                'category_id' => $categoryId,
+                'language_code' => $languageCode,
+                'affected_categories' => $branchCategoryIds,
+                'search_enabled' => $searchEnabled ? 1 : 0,
+            ]);
+
+            return OperationResult::success([
+                'category_id' => $categoryId,
+                'affected_categories' => $branchCategoryIds,
+            ], '', 'updated');
+        } catch (\Throwable $e) {
+            Logger::error('category_search_branch', 'Ошибка при обновлении поиска для ветки категории: ' . $e->getMessage(), [
+                'category_id' => $categoryId,
+                'language_code' => $languageCode,
+                'search_enabled' => $searchEnabled ? 1 : 0,
+                'exception' => $e,
+            ], ['initiator' => __FUNCTION__, 'include_trace' => true]);
+
+            return OperationResult::failure(
+                'Ошибка при обновлении поиска для ветки категории: ' . $e->getMessage(),
+                'category_search_branch_error',
+                ['category_id' => $categoryId]
+            );
         }
     }
 

@@ -236,6 +236,20 @@ trait PagesTrait {
     }
 
     /**
+     * Быстро включает участие страницы в поиске.
+     */
+    public function page_search_enable(array $params = []): void {
+        $this->togglePageSearchFromList($params, true);
+    }
+
+    /**
+     * Быстро выключает участие страницы в поиске.
+     */
+    public function page_search_disable(array $params = []): void {
+        $this->togglePageSearchFromList($params, false);
+    }
+
+    /**
      * Вернёт таблицу страниц
      */
     public function getPagesDataTable(?string $contentLanguageCode = null) {
@@ -295,6 +309,12 @@ trait PagesTrait {
                     'sorted' => 'ASC',
                     'filterable' => true
                 ], [
+                    'field' => 'search_state',
+                    'title' => $this->lang['sys.search.title'] ?? 'Поиск',
+                    'sorted' => false,
+                    'filterable' => false,
+                    'raw' => true
+                ], [
                     'field' => 'language_code',
                     'title' => $this->lang['sys.language'],
                     'sorted' => 'ASC',
@@ -312,7 +332,7 @@ trait PagesTrait {
                     'title' => $this->lang['sys.action'],
                     'sorted' => false,
                     'filterable' => false,
-                    'width' => 10,
+                    'width' => 16,
                     'align' => 'center'
                 ],
             ]
@@ -354,6 +374,17 @@ trait PagesTrait {
                 'options' => $statuses,
                 'multiple' => true
             ],
+            'search_enabled' => [
+                'type' => 'select',
+                'id' => 'search_enabled',
+                'value' => '',
+                'label' => $this->lang['sys.search.title'] ?? 'Поиск',
+                'options' => [
+                    ['value' => '', 'label' => $this->lang['sys.any'] ?? 'Any'],
+                    ['value' => 1, 'label' => $this->lang['sys.yes'] ?? 'Да'],
+                    ['value' => 0, 'label' => $this->lang['sys.no'] ?? 'Нет'],
+                ],
+            ],
             'created_at' => [
                 'type' => 'date',
                 'id' => "created_at",
@@ -384,6 +415,7 @@ trait PagesTrait {
                 'type_id' => $item['type_name'],
                 'parent_page_id' => $this->models['m_pages']->getPageTitleById($item['parent_page_id'], $languageCode) ?? $this->lang['sys.no'],
                 'status' => $statuses_text[$item['status']],
+                'search_state' => $this->renderPageSearchStateCell($item),
                 'language_code' => strtoupper((string) ($item['language_code'] ?? $languageCode)),
                 'translations' => $this->renderEntityTranslationBadges(
                     'page',
@@ -395,6 +427,13 @@ trait PagesTrait {
                 'updated_at' => $item['updated_at'] ? date('d.m.Y', strtotime($item['updated_at'])) : '',
                 'actions' => '<a href="/admin/page_edit/id/' . $item['page_id'] . '?language_code=' . rawurlencode((string) ($item['language_code'] ?? $languageCode)) . '"'
                 . 'class="btn btn-primary me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.edit'] . '"><i class="fas fa-edit"></i></a>'
+                . (
+                    !empty($item['search_enabled'])
+                    ? '<a href="/admin/page_search_disable/id/' . $item['page_id'] . '?language_code=' . rawurlencode((string) ($item['language_code'] ?? $languageCode)) . '" onclick="return confirm(\'' . htmlspecialchars((string) ($this->lang['sys.search_page_disable_confirm'] ?? 'Отключить участие страницы в поиске?'), ENT_QUOTES) . '\');" '
+                    . 'class="btn btn-warning me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . htmlspecialchars((string) ($this->lang['sys.search_page_disable'] ?? 'Отключить поиск страницы'), ENT_QUOTES, 'UTF-8') . '"><i class="fas fa-magnifying-glass-minus"></i></a>'
+                    : '<a href="/admin/page_search_enable/id/' . $item['page_id'] . '?language_code=' . rawurlencode((string) ($item['language_code'] ?? $languageCode)) . '" onclick="return confirm(\'' . htmlspecialchars((string) ($this->lang['sys.search_page_enable_confirm'] ?? 'Включить участие страницы в поиске?'), ENT_QUOTES) . '\');" '
+                    . 'class="btn btn-success me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . htmlspecialchars((string) ($this->lang['sys.search_page_enable'] ?? 'Включить поиск страницы'), ENT_QUOTES, 'UTF-8') . '"><i class="fas fa-magnifying-glass"></i></a>'
+                )
                 . '<a href="/admin/pageDell/id/' . $item['page_id'] . '" onclick="return confirm(\'' . $this->lang['sys.delete'] . '?\');" '
                 . 'class="btn btn-danger me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.delete'] . '"><i class="fas fa-trash"></i></a>'
             ];
@@ -541,5 +580,75 @@ trait PagesTrait {
         }
 
         return implode('', $badges);
+    }
+
+    private function togglePageSearchFromList(array $params, bool $enabled): void {
+        $this->access = [Constants::ADMIN, Constants::MODERATOR];
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect();
+            exit();
+        }
+
+        $pageId = 0;
+        if (in_array('id', $params, true)) {
+            $keyId = array_search('id', $params, true);
+            if ($keyId !== false && isset($params[$keyId + 1])) {
+                $pageId = (int) filter_var($params[$keyId + 1], FILTER_VALIDATE_INT);
+            }
+        }
+
+        $this->loadModel('m_pages');
+        $languageCode = ee_get_default_content_lang_code((string) ($_GET['language_code'] ?? \classes\system\Session::get('admin_pages_lang')));
+        \classes\system\Session::set('admin_pages_lang', $languageCode);
+
+        if ($pageId > 0) {
+            $this->notifyOperationResult(
+                $this->models['m_pages']->updatePageSearchState($pageId, $enabled),
+                [
+                    'success_message' => $enabled
+                        ? ($this->lang['sys.search_page_enabled'] ?? 'Поиск для страницы включён')
+                        : ($this->lang['sys.search_page_disabled'] ?? 'Поиск для страницы отключён'),
+                    'default_error_message' => $this->lang['sys.error'] ?? 'Ошибка',
+                ]
+            );
+        } else {
+            ClassNotifications::addNotificationUser($this->logged_in, [
+                'text' => $this->lang['sys.required_id_parameter_missing'] ?? 'Required parameter id is missing.',
+                'status' => 'warning',
+            ]);
+        }
+
+        SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/pages?language_code=' . rawurlencode($languageCode));
+    }
+
+    private function renderPageSearchStateCell(array $item): string {
+        $isEnabled = !empty($item['search_enabled']);
+        $scopeMask = (int) ($item['search_scope_mask'] ?? Constants::SEARCH_SCOPE_ALL);
+        $badges = [];
+
+        $badges[] = $isEnabled
+            ? '<span class="badge text-bg-success me-1">' . htmlspecialchars((string) ($this->lang['sys.yes'] ?? 'Да'), ENT_QUOTES, 'UTF-8') . '</span>'
+            : '<span class="badge text-bg-secondary me-1">' . htmlspecialchars((string) ($this->lang['sys.no'] ?? 'Нет'), ENT_QUOTES, 'UTF-8') . '</span>';
+
+        if ($isEnabled) {
+            foreach ($this->getSearchScopeLabelsForPages() as $bit => $label) {
+                if (($scopeMask & $bit) === $bit) {
+                    $badges[] = '<span class="badge text-bg-light border text-dark me-1">' . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '</span>';
+                }
+            }
+            if ($scopeMask === 0) {
+                $badges[] = '<span class="badge text-bg-warning text-dark me-1">' . htmlspecialchars((string) ($this->lang['sys.not_assigned'] ?? 'Не назначено'), ENT_QUOTES, 'UTF-8') . '</span>';
+            }
+        }
+
+        return implode('', $badges);
+    }
+
+    private function getSearchScopeLabelsForPages(): array {
+        return [
+            Constants::SEARCH_SCOPE_PUBLIC => (string) ($this->lang['sys.site'] ?? 'Сайт'),
+            Constants::SEARCH_SCOPE_MANAGER => (string) ($this->lang['sys.manager'] ?? 'Менеджер'),
+            Constants::SEARCH_SCOPE_ADMIN => (string) ($this->lang['sys.admin'] ?? 'Админ'),
+        ];
     }
 }
