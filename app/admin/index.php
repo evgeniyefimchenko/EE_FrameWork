@@ -4,6 +4,7 @@ use classes\system\ControllerBase;
 use classes\system\SysClass;
 use classes\system\Constants;
 use classes\system\AuthService;
+use classes\system\AuthSessionService;
 use classes\system\Plugins;
 use classes\plugins\SafeMySQL;
 use classes\helpers\ClassNotifications;
@@ -71,6 +72,32 @@ use MessagesTrait,
         $this->showLayout($this->parameters_layout);
     }
 
+    public function dashboard_online_users($params = []): void {
+        if (!$this->requireAccess([Constants::ADMIN], [
+            'ajax' => true,
+            'return' => 'admin',
+            'initiator' => __METHOD__,
+        ])) {
+            return;
+        }
+        if ($params || !SysClass::isAjaxRequestFromSameSite()) {
+            die(json_encode(['error' => 'it`s a lie'], JSON_UNESCAPED_UNICODE));
+        }
+
+        $minutes = 15;
+        $snapshot = AuthSessionService::getOnlineUsersSnapshot($minutes);
+        $this->getStandardViews();
+        $this->view->set('online_users_snapshot', $snapshot);
+        $this->view->set('online_users_minutes', $minutes);
+        $html = $this->view->read('v_dashboard_online_users');
+
+        die(json_encode([
+            'error' => '',
+            'html' => $html,
+            'generated_at' => (string) ($snapshot['generated_at'] ?? ''),
+        ], JSON_UNESCAPED_UNICODE));
+    }
+
     private function getAdminDashboardOverview(array $userData): array {
         $isAdmin = (int) ($userData['user_role'] ?? 0) === Constants::ADMIN;
         $overview = [
@@ -93,7 +120,7 @@ use MessagesTrait,
         $operations = $this->getAdminDashboardOperations();
         $recentBackups = BackupService::getRecentJobs(10);
         $overview['catalog'] = $this->getAdminDashboardCatalogStats();
-        $overview['quality'] = $this->getAdminDashboardContentQuality();
+        $overview['platform'] = $this->getAdminDashboardPlatformStats();
         $overview['operations'] = $operations;
         $overview['recent_imports'] = $this->getAdminDashboardRecentImports();
         $overview['recent_runs'] = CronAgentService::getRecentRuns(10);
@@ -186,19 +213,12 @@ use MessagesTrait,
             'categories' => [
                 'total' => $categoryStatus['total'],
                 'active' => $categoryStatus['active'],
-                'with_photos' => $this->countDistinctPropertyEntities(19, 'category', 'active'),
-                'with_map' => $this->countDistinctPropertyEntities(20, 'category', 'active'),
+                'hidden' => $categoryStatus['hidden'],
             ],
             'users' => [
                 'total' => (int) $db->getOne('SELECT COUNT(*) FROM ?n WHERE deleted = 0', Constants::USERS_TABLE),
-                'owners_linked' => (int) $db->getOne(
-                    "SELECT COUNT(DISTINCT l.page_id)
-                     FROM ?n AS l
-                     INNER JOIN ?n AS p ON p.page_id = l.page_id
-                     WHERE l.relation_type = 'owner' AND p.status = 'active'",
-                    Constants::PAGE_USER_LINKS_TABLE,
-                    Constants::PAGES_TABLE
-                ),
+                'active' => (int) $db->getOne('SELECT COUNT(*) FROM ?n WHERE deleted = 0 AND active = 2', Constants::USERS_TABLE),
+                'blocked' => (int) $db->getOne('SELECT COUNT(*) FROM ?n WHERE deleted = 0 AND active = 3', Constants::USERS_TABLE),
             ],
             'files' => [
                 'total' => (int) $db->getOne('SELECT COUNT(*) FROM ?n', Constants::FILES_TABLE),
@@ -206,54 +226,81 @@ use MessagesTrait,
         ];
     }
 
-    private function getAdminDashboardContentQuality(): array {
+    private function getAdminDashboardPlatformStats(): array {
         $db = SafeMySQL::gi();
-        $activePages = (int) $db->getOne("SELECT COUNT(*) FROM ?n WHERE status = 'active'", Constants::PAGES_TABLE);
-        $propertyIds = $this->getPropertyIdsByName([
-            'Телефоны',
-            'Электронная почта',
-            'Фотографии объекта',
-            'Номера и цены',
-            'Контакты проверены',
-            'Режим размещения',
-            'Размещение активно до',
-        ], 'page');
-
-        $ownerPages = (int) $db->getOne(
-            "SELECT COUNT(DISTINCT p.page_id)
-             FROM ?n AS p
-             INNER JOIN ?n AS l ON l.page_id = p.page_id AND l.relation_type = 'owner'
-             WHERE p.status = 'active'",
-            Constants::PAGES_TABLE,
-            Constants::PAGE_USER_LINKS_TABLE
-        );
-
-        $contactPages = $this->countActivePagesWithPropertyIds([
-            (int) ($propertyIds['Телефоны'] ?? 0),
-            (int) ($propertyIds['Электронная почта'] ?? 0),
-        ]);
-        $photoPages = $this->countActivePagesWithPropertyIds([(int) ($propertyIds['Фотографии объекта'] ?? 0)]);
-        $roomPages = $this->countActivePagesWithPropertyIds([(int) ($propertyIds['Номера и цены'] ?? 0)]);
-        $readyPages = $this->countReadyPages(
-            [(int) ($propertyIds['Телефоны'] ?? 0), (int) ($propertyIds['Электронная почта'] ?? 0)],
-            (int) ($propertyIds['Фотографии объекта'] ?? 0),
-            (int) ($propertyIds['Номера и цены'] ?? 0)
-        );
-        $contactsVerified = $this->countActivePagesByJsonValue((int) ($propertyIds['Контакты проверены'] ?? 0), 'yes');
-        $paidPlacements = $this->countActivePagesByJsonValues((int) ($propertyIds['Режим размещения'] ?? 0), ['paid', 'urgent']);
-        $expiringSoon = $this->countPagesWithDatePropertyWithinDays((int) ($propertyIds['Размещение активно до'] ?? 0), 30);
 
         return [
-            'active_pages' => $activePages,
-            'ready_pages' => $readyPages,
-            'readiness_percent' => $activePages > 0 ? round(($readyPages / $activePages) * 100, 1) : 0,
-            'without_owner' => max(0, $activePages - $ownerPages),
-            'without_contacts' => max(0, $activePages - $contactPages),
-            'without_photos' => max(0, $activePages - $photoPages),
-            'without_rooms' => max(0, $activePages - $roomPages),
-            'contacts_verified' => $contactsVerified,
-            'paid_placements' => $paidPlacements,
-            'expiring_soon' => $expiringSoon,
+            'data_model' => [
+                'category_types' => (int) $db->getOne('SELECT COUNT(*) FROM ?n', Constants::CATEGORIES_TYPES_TABLE),
+                'property_types' => (int) $db->getOne('SELECT COUNT(*) FROM ?n', Constants::PROPERTY_TYPES_TABLE),
+                'property_sets' => (int) $db->getOne('SELECT COUNT(*) FROM ?n', Constants::PROPERTY_SETS_TABLE),
+                'properties' => (int) $db->getOne('SELECT COUNT(*) FROM ?n', Constants::PROPERTIES_TABLE),
+            ],
+            'search_routing' => [
+                'search_index' => (int) $db->getOne('SELECT COUNT(*) FROM ?n', Constants::SEARCH_INDEX_TABLE),
+                'search_ngrams' => (int) $db->getOne('SELECT COUNT(*) FROM ?n', Constants::SEARCH_NGRAMS_TABLE),
+                'url_policies' => (int) $db->getOne('SELECT COUNT(*) FROM ?n', Constants::URL_POLICIES_TABLE),
+                'redirects' => (int) $db->getOne('SELECT COUNT(*) FROM ?n', Constants::REDIRECTS_TABLE),
+            ],
+            'auth_access' => [
+                'session_tokens' => (int) $db->getOne(
+                    'SELECT COUNT(*) FROM ?n WHERE revoked_at IS NULL AND expires_at > NOW()',
+                    Constants::USERS_AUTH_SESSIONS_TABLE
+                ),
+                'users_with_valid_sessions' => (int) $db->getOne(
+                    'SELECT COUNT(DISTINCT user_id) FROM ?n WHERE revoked_at IS NULL AND expires_at > NOW()',
+                    Constants::USERS_AUTH_SESSIONS_TABLE
+                ),
+                'users_online_15m' => (int) $db->getOne(
+                    'SELECT COUNT(DISTINCT user_id) FROM ?n WHERE revoked_at IS NULL AND expires_at > NOW() AND last_seen_at >= (NOW() - INTERVAL 15 MINUTE)',
+                    Constants::USERS_AUTH_SESSIONS_TABLE
+                ),
+                'admins_online_15m' => (int) $db->getOne(
+                    'SELECT COUNT(DISTINCT s.user_id)
+                     FROM ?n AS s
+                     INNER JOIN ?n AS u ON u.user_id = s.user_id
+                     WHERE s.revoked_at IS NULL
+                       AND s.expires_at > NOW()
+                       AND s.last_seen_at >= (NOW() - INTERVAL 15 MINUTE)
+                       AND u.deleted = 0
+                       AND u.user_role = ?i',
+                    Constants::USERS_AUTH_SESSIONS_TABLE,
+                    Constants::USERS_TABLE,
+                    Constants::ADMIN
+                ),
+                'managers_online_15m' => (int) $db->getOne(
+                    'SELECT COUNT(DISTINCT s.user_id)
+                     FROM ?n AS s
+                     INNER JOIN ?n AS u ON u.user_id = s.user_id
+                     WHERE s.revoked_at IS NULL
+                       AND s.expires_at > NOW()
+                       AND s.last_seen_at >= (NOW() - INTERVAL 15 MINUTE)
+                       AND u.deleted = 0
+                       AND u.user_role = ?i',
+                    Constants::USERS_AUTH_SESSIONS_TABLE,
+                    Constants::USERS_TABLE,
+                    Constants::MANAGER
+                ),
+                'regular_users_online_15m' => (int) $db->getOne(
+                    'SELECT COUNT(DISTINCT s.user_id)
+                     FROM ?n AS s
+                     INNER JOIN ?n AS u ON u.user_id = s.user_id
+                     WHERE s.revoked_at IS NULL
+                       AND s.expires_at > NOW()
+                       AND s.last_seen_at >= (NOW() - INTERVAL 15 MINUTE)
+                       AND u.deleted = 0
+                       AND u.user_role = ?i',
+                    Constants::USERS_AUTH_SESSIONS_TABLE,
+                    Constants::USERS_TABLE,
+                    Constants::USER
+                ),
+                'credentials' => (int) $db->getOne('SELECT COUNT(*) FROM ?n', Constants::USERS_AUTH_CREDENTIALS_TABLE),
+                'identities' => (int) $db->getOne('SELECT COUNT(*) FROM ?n', Constants::USERS_AUTH_IDENTITIES_TABLE),
+                'active_challenges' => (int) $db->getOne(
+                    'SELECT COUNT(*) FROM ?n WHERE consumed_at IS NULL AND expires_at > NOW()',
+                    Constants::USERS_AUTH_CHALLENGES_TABLE
+                ),
+            ],
         ];
     }
 
@@ -339,202 +386,6 @@ use MessagesTrait,
              LIMIT 10",
             Constants::IMPORT_SETTINGS_TABLE
         );
-    }
-
-    private function getPropertyIdsByName(array $names, string $entityType): array {
-        $lookup = array_fill_keys($names, 0);
-        $rows = SafeMySQL::gi()->getAll(
-            'SELECT property_id, name FROM ?n WHERE entity_type = ?s',
-            Constants::PROPERTIES_TABLE,
-            $entityType
-        );
-        foreach ((array) $rows as $row) {
-            $name = (string) ($row['name'] ?? '');
-            if (array_key_exists($name, $lookup)) {
-                $lookup[$name] = (int) ($row['property_id'] ?? 0);
-            }
-        }
-        return $lookup;
-    }
-
-    private function countDistinctPropertyEntities(int $propertyId, string $entityType, ?string $status = null): int {
-        if ($propertyId <= 0) {
-            return 0;
-        }
-
-        if ($status === null) {
-            return (int) SafeMySQL::gi()->getOne(
-                'SELECT COUNT(DISTINCT entity_id) FROM ?n WHERE property_id = ?i AND entity_type = ?s',
-                Constants::PROPERTY_VALUES_TABLE,
-                $propertyId,
-                $entityType
-            );
-        }
-
-        $tableName = $entityType === 'category' ? Constants::CATEGORIES_TABLE : Constants::PAGES_TABLE;
-        $idField = $entityType === 'category' ? 'category_id' : 'page_id';
-
-        return (int) SafeMySQL::gi()->getOne(
-            "SELECT COUNT(DISTINCT v.entity_id)
-             FROM ?n AS v
-             INNER JOIN ?n AS e ON e.{$idField} = v.entity_id
-             WHERE v.property_id = ?i
-               AND v.entity_type = ?s
-               AND e.status = ?s",
-            Constants::PROPERTY_VALUES_TABLE,
-            $tableName,
-            $propertyId,
-            $entityType,
-            $status
-        );
-    }
-
-    private function countActivePagesWithPropertyIds(array $propertyIds): int {
-        $propertyIds = array_values(array_filter(array_map('intval', $propertyIds)));
-        if ($propertyIds === []) {
-            return 0;
-        }
-
-        return (int) SafeMySQL::gi()->getOne(
-            "SELECT COUNT(DISTINCT p.page_id)
-             FROM ?n AS p
-             INNER JOIN ?n AS v ON v.entity_id = p.page_id AND v.entity_type = 'page'
-             WHERE p.status = 'active'
-               AND v.property_id IN (?a)",
-            Constants::PAGES_TABLE,
-            Constants::PROPERTY_VALUES_TABLE,
-            $propertyIds
-        );
-    }
-
-    private function countReadyPages(array $contactPropertyIds, int $photoPropertyId, int $roomPropertyId): int {
-        $contactPropertyIds = array_values(array_filter(array_map('intval', $contactPropertyIds)));
-        if ($contactPropertyIds === [] || $photoPropertyId <= 0 || $roomPropertyId <= 0) {
-            return 0;
-        }
-
-        return (int) SafeMySQL::gi()->getOne(
-            "SELECT COUNT(DISTINCT p.page_id)
-             FROM ?n AS p
-             INNER JOIN ?n AS l ON l.page_id = p.page_id AND l.relation_type = 'owner'
-             INNER JOIN ?n AS vc ON vc.entity_id = p.page_id AND vc.entity_type = 'page' AND vc.property_id IN (?a)
-             INNER JOIN ?n AS vp ON vp.entity_id = p.page_id AND vp.entity_type = 'page' AND vp.property_id = ?i
-             INNER JOIN ?n AS vr ON vr.entity_id = p.page_id AND vr.entity_type = 'page' AND vr.property_id = ?i
-             WHERE p.status = 'active'",
-            Constants::PAGES_TABLE,
-            Constants::PAGE_USER_LINKS_TABLE,
-            Constants::PROPERTY_VALUES_TABLE,
-            $contactPropertyIds,
-            Constants::PROPERTY_VALUES_TABLE,
-            $photoPropertyId,
-            Constants::PROPERTY_VALUES_TABLE,
-            $roomPropertyId
-        );
-    }
-
-    private function countActivePagesByJsonValue(int $propertyId, string $needle): int {
-        if ($propertyId <= 0 || $needle === '') {
-            return 0;
-        }
-
-        return (int) SafeMySQL::gi()->getOne(
-            "SELECT COUNT(DISTINCT p.page_id)
-             FROM ?n AS p
-             INNER JOIN ?n AS v ON v.entity_id = p.page_id AND v.entity_type = 'page' AND v.property_id = ?i
-             WHERE p.status = 'active'
-               AND v.property_values LIKE ?s",
-            Constants::PAGES_TABLE,
-            Constants::PROPERTY_VALUES_TABLE,
-            $propertyId,
-            '%"' . $needle . '"%'
-        );
-    }
-
-    private function countActivePagesByJsonValues(int $propertyId, array $needles): int {
-        if ($propertyId <= 0) {
-            return 0;
-        }
-
-        $matches = [];
-        foreach ($needles as $needle) {
-            $needle = trim((string) $needle);
-            if ($needle !== '') {
-                $matches[] = '%"' . $needle . '"%';
-            }
-        }
-        if ($matches === []) {
-            return 0;
-        }
-
-        $conditions = [];
-        $params = [Constants::PAGES_TABLE, Constants::PROPERTY_VALUES_TABLE, $propertyId];
-        foreach ($matches as $pattern) {
-            $conditions[] = 'v.property_values LIKE ?s';
-            $params[] = $pattern;
-        }
-
-        return (int) SafeMySQL::gi()->getOne(
-            "SELECT COUNT(DISTINCT p.page_id)
-             FROM ?n AS p
-             INNER JOIN ?n AS v ON v.entity_id = p.page_id AND v.entity_type = 'page' AND v.property_id = ?i
-             WHERE p.status = 'active'
-               AND (" . implode(' OR ', $conditions) . ")",
-            ...$params
-        );
-    }
-
-    private function countPagesWithDatePropertyWithinDays(int $propertyId, int $days): int {
-        if ($propertyId <= 0 || $days <= 0) {
-            return 0;
-        }
-
-        $rows = SafeMySQL::gi()->getAll(
-            "SELECT p.page_id, v.property_values
-             FROM ?n AS p
-             INNER JOIN ?n AS v ON v.entity_id = p.page_id AND v.entity_type = 'page' AND v.property_id = ?i
-             WHERE p.status = 'active'",
-            Constants::PAGES_TABLE,
-            Constants::PROPERTY_VALUES_TABLE,
-            $propertyId
-        );
-
-        $now = time();
-        $deadline = strtotime('+' . $days . ' days', $now);
-        $count = 0;
-        foreach ((array) $rows as $row) {
-            $value = $this->extractPrimaryFieldValue((string) ($row['property_values'] ?? ''));
-            if ($value === '') {
-                continue;
-            }
-            $timestamp = strtotime($value);
-            if ($timestamp === false) {
-                continue;
-            }
-            if ($timestamp >= $now && $timestamp <= $deadline) {
-                $count++;
-            }
-        }
-
-        return $count;
-    }
-
-    private function extractPrimaryFieldValue(string $payload): string {
-        $decoded = json_decode($payload, true);
-        if (!is_array($decoded) || $decoded === []) {
-            return '';
-        }
-
-        $first = $decoded[0] ?? null;
-        if (!is_array($first)) {
-            return '';
-        }
-
-        $value = $first['value'] ?? '';
-        if (is_array($value)) {
-            $value = $value[0] ?? '';
-        }
-
-        return trim((string) $value);
     }
 
     private function getDashboardStorageSummary(): array {
@@ -1041,6 +892,7 @@ use MessagesTrait,
             $filters['active']['options'][] = ['value' => $k, 'label' => $this->lang[$v]];
         }
 
+        $selected_sorting = [];
         if ($postData && SysClass::isAjaxRequestFromSameSite()) { // AJAX
             list($params, $filters, $selected_sorting) = Plugins::ee_showTablePrepareParams($postData, $data_table['columns']);
             $users_array = $this->users->getUsersData($params['order'], $params['where'], $params['start'], $params['limit']);
@@ -1049,12 +901,20 @@ use MessagesTrait,
         }
 
         foreach ($users_array['data'] as $item) {
+            $impersonateButton = '';
+            if ((int) ($this->users->data['user_role'] ?? 0) === Constants::ADMIN && (int) ($item['user_id'] ?? 0) !== (int) $this->logged_in) {
+                $impersonateButton = '<a href="/admin/login_as_user/id/' . $item['user_id'] . '" class="btn btn-outline-secondary me-2" '
+                    . 'onclick="return confirm(\'' . ($this->lang['sys.login_as_user_confirm'] ?? 'Войти под этим пользователем?') . '\');" '
+                    . 'data-bs-toggle="tooltip" data-bs-placement="top" title="' . ($this->lang['sys.login_as_user'] ?? 'Войти как пользователь') . '"><i class="fas fa-user-secret"></i></a>';
+            }
             if (!in_array($item['user_id'], [1, 2, 3])) {
-                $html_actions = '<a href="/admin/user_edit/id/' . $item['user_id'] . '" class="btn btn-primary me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.edit'] . '"><i class="fas fa-edit"></i></a>'
+                $html_actions = $impersonateButton
+                        . '<a href="/admin/user_edit/id/' . $item['user_id'] . '" class="btn btn-primary me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.edit'] . '"><i class="fas fa-edit"></i></a>'
                         . '<a href="/admin/delete_user/id/' . $item['user_id'] . '"  onclick="return confirm(\'' . $this->lang['sys.delete'] . '?\');" '
                         . 'class="btn btn-danger" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.delete'] . '"><i class="fas fa-trash-alt"></i></a>';
             } else {
-                $html_actions = '<a href="/admin/user_edit/id/' . $item['user_id'] . '" class="btn btn-primary me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.edit'] . '"><i class="fas fa-edit"></i></a>';
+                $html_actions = $impersonateButton
+                        . '<a href="/admin/user_edit/id/' . $item['user_id'] . '" class="btn btn-primary me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.edit'] . '"><i class="fas fa-edit"></i></a>';
             }
             $data_table['rows'][] = [
                 'user_id' => $item['user_id'],
@@ -1074,6 +934,68 @@ use MessagesTrait,
         } else {
             return Plugins::ee_show_table('users_table', $data_table, 'get_users_table', $filters);
         }
+    }
+
+    public function login_as_user($params = []): void {
+        if (!$this->requireAccess([Constants::ADMIN], [
+            'return' => 'admin/users',
+            'initiator' => __METHOD__,
+        ])) {
+            return;
+        }
+
+        $userId = 0;
+        if (in_array('id', $params, true)) {
+            $keyId = array_search('id', $params, true);
+            if ($keyId !== false && isset($params[$keyId + 1])) {
+                $userId = (int) filter_var($params[$keyId + 1], FILTER_VALIDATE_INT);
+            }
+        }
+
+        if ($userId <= 0 || $userId === (int) $this->logged_in) {
+            SysClass::handleRedirect(200, '/admin/users');
+            return;
+        }
+
+        try {
+            $state = AuthSessionService::startImpersonation($userId);
+            if (($state['status'] ?? '') === 'started') {
+                SysClass::handleRedirect(200, $this->getDefaultAuthorizedLandingUrl((int) ($state['target_user_role'] ?? 0)));
+                return;
+            }
+        } catch (\Throwable $e) {
+            ClassNotifications::addNotificationUser((int) $this->logged_in, [
+                'text' => $this->lang['sys.login_as_user_failed'] ?? ('Не удалось войти под пользователем: ' . $e->getMessage()),
+                'status' => 'danger',
+                'url' => '/admin/users',
+                'icon' => 'fa-solid fa-user-secret',
+            ]);
+        }
+
+        SysClass::handleRedirect(200, '/admin/users');
+    }
+
+    public function stop_impersonation($params = []): void {
+        if (!$this->requireAccess([Constants::ALL_AUTH], [
+            'return' => 'admin',
+            'initiator' => __METHOD__,
+        ])) {
+            return;
+        }
+
+        $state = AuthSessionService::getImpersonationState();
+        $originUserId = (int) ($state['origin_user_id'] ?? 0);
+        $restored = AuthSessionService::stopImpersonation();
+        if ($restored && $originUserId > 0) {
+            ClassNotifications::addNotificationUser($originUserId, [
+                'text' => $this->lang['sys.impersonation_stopped'] ?? 'Вы вернулись в учётную запись администратора.',
+                'status' => 'success',
+                'url' => '/admin/users',
+                'icon' => 'fa-solid fa-user-shield',
+            ]);
+        }
+
+        SysClass::handleRedirect(200, '/admin');
     }
 
     /**
@@ -1134,6 +1056,7 @@ use MessagesTrait,
         ];
         $filters = [];
         $this->loadModel('m_user_edit');
+        $selected_sorting = [];
         if ($postData && SysClass::isAjaxRequestFromSameSite()) { // AJAX
             list($params, $filters, $selected_sorting) = Plugins::ee_showTablePrepareParams($postData, $data_table['columns']);
             $users_array = $this->models['m_user_edit']->get_users_roles_data($params['order'], $params['where'], $params['start'], $params['limit']);
@@ -1385,6 +1308,7 @@ use MessagesTrait,
         ];
         $filters = [];
         $this->loadModel('m_user_edit');
+        $selected_sorting = [];
         if ($postData && SysClass::isAjaxRequestFromSameSite()) { // AJAX
             list($params, $filters, $selected_sorting) = Plugins::ee_showTablePrepareParams($postData, $data_table['columns']);
             $users_array = $this->users->getUsersData($params['order'], $params['where'], $params['start'], $params['limit'], true);

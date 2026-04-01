@@ -169,7 +169,7 @@ class ControllerIndex Extends ControllerBase {
             $this->html = $this->view->read('v_login_form');
         } else {
             /* Уже авторизован */
-            SysClass::handleRedirect(200, '/admin');
+            SysClass::handleRedirect(200, $this->getDefaultAuthorizedLandingUrl((int) ($this->users->data['user_role'] ?? 0)));
         }
         /* layouts */
         $this->parameters_layout["add_script"] .= '<script src="' . ENV_URL_SITE . '/assets/js/plugins/validator.min.js" type="text/javascript" /></script>';
@@ -208,11 +208,12 @@ class ControllerIndex Extends ControllerBase {
         $json['redirect'] = '';
         $json['error'] = $this->users->confirmUser($email, $pass);
         $status = (string) ($this->users->lastAuthResult['status'] ?? '');
+        $authorizedUserId = (int) ($this->users->lastAuthResult['user_id'] ?? 0);
         $json['status'] = $status;
         if ($status === 'success') {
             $json['error'] = '';
             $json['message'] = $this->lang['sys.welcome'] . '!';
-            $json['redirect'] = '/admin';
+            $json['redirect'] = $this->getAuthorizedLandingUrlForUserId($authorizedUserId);
         } elseif ($status === 'password_setup_required') {
             $json['error'] = '';
             $json['message'] = $this->lang['sys.password_setup_link_sent'];

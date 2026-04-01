@@ -319,6 +319,7 @@ trait SystemsTrait {
             ]
         ];
         $postData = SysClass::ee_cleanArray($_POST);
+        $selected_sorting = [];
         if ($postData && SysClass::isAjaxRequestFromSameSite()) { // AJAX
             list($params, $filters, $selected_sorting) = Plugins::ee_showTablePrepareParams($postData, $data_table['columns']);
             $php_logs_array = $this->models['m_systems']->get_all_logs($params['order'], $params['where'], $params['start'], $params['limit']);
@@ -433,6 +434,7 @@ trait SystemsTrait {
             $data_table['columns'][0]['filterable'] = false;
         }
         $postData = SysClass::ee_cleanArray($_POST);
+        $selected_sorting = [];
         if ($postData && SysClass::isAjaxRequestFromSameSite()) { // AJAX
             list($params, $filters, $selected_sorting) = Plugins::ee_showTablePrepareParams($postData, $data_table['columns']);
             $type = $this->get_table_name_from_post($postData);

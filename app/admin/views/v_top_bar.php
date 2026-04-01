@@ -2,6 +2,10 @@
 $uri = parse_url(__REQUEST['_SERVER']['REQUEST_URI'])['path'];
 $interfaceLanguageCodes = ee_get_interface_lang_codes();
 $currentInterfaceLanguageCode = ee_get_current_lang_code();
+$impersonationState = classes\system\AuthSessionService::getImpersonationState();
+$currentUserName = trim((string) (($userData['name'] ?? '') ?: ($userData['email'] ?? '')));
+$currentUserEmail = trim((string) ($userData['email'] ?? ''));
+$platformVersion = trim((string) ENV_VERSION_CORE);
 $currentQuery = $_GET;
 unset($currentQuery['ui_lang']);
 $languageButtons = [];
@@ -13,12 +17,44 @@ foreach ($interfaceLanguageCodes as $languageCode) {
         . htmlspecialchars((string) $languageCode, ENT_QUOTES) . '">' . htmlspecialchars((string) $languageCode, ENT_QUOTES) . '</a>';
 }
 $toolbarHtml = '';
+if (!empty($impersonationState['active'])) {
+    $originUserName = trim((string) ($impersonationState['origin_user_name'] ?? ''));
+    $targetUserName = trim((string) ($impersonationState['target_user_name'] ?? ''));
+    $returnLabel = (string) ($lang['sys.stop_impersonation'] ?? 'Вернуться в аккаунт администратора');
+    if ($originUserName !== '') {
+        $returnLabel = sprintf(
+            (string) ($lang['sys.return_to_admin'] ?? 'Вернуться к: %s'),
+            $originUserName
+        );
+    }
+    $impersonationText = (string) ($lang['sys.impersonation_active'] ?? 'Вы работаете от имени другого пользователя');
+    if ($targetUserName !== '') {
+        $impersonationText .= ': ' . $targetUserName;
+    }
+    $toolbarHtml .= '<div class="d-flex flex-wrap align-items-center gap-2 ms-2 ms-lg-3">'
+        . '<span class="badge rounded-pill text-bg-warning text-dark">' . htmlspecialchars($impersonationText, ENT_QUOTES) . '</span>'
+        . '<a href="/admin/stop_impersonation" class="btn btn-sm btn-warning">' . htmlspecialchars($returnLabel, ENT_QUOTES) . '</a>'
+        . '</div>';
+}
 if ($languageButtons !== []) {
-    $toolbarHtml = '<div class="d-flex flex-wrap align-items-center gap-2 ms-2 ms-lg-3">'
+    $toolbarHtml .= '<div class="d-flex flex-wrap align-items-center gap-2 ms-2 ms-lg-3">'
         . '<span class="small text-light opacity-75">' . htmlspecialchars((string) ($lang['sys.interface_language'] ?? 'Interface language'), ENT_QUOTES) . ':</span>'
         . '<div class="btn-group btn-group-sm" role="group" aria-label="' . htmlspecialchars((string) ($lang['sys.interface_language'] ?? 'Interface language'), ENT_QUOTES) . '">'
         . implode('', $languageButtons)
         . '</div></div>';
+}
+$userMenuHeaderParts = [];
+if ($currentUserName !== '') {
+    $userMenuHeaderParts[] = '<div class="small text-muted">' . htmlspecialchars((string) ($lang['sys.current_user'] ?? 'Current user'), ENT_QUOTES) . '</div>'
+        . '<div class="fw-semibold">' . htmlspecialchars($currentUserName, ENT_QUOTES) . '</div>';
+}
+if ($currentUserEmail !== '' && $currentUserEmail !== $currentUserName) {
+    $userMenuHeaderParts[] = '<div class="small text-muted">' . htmlspecialchars($currentUserEmail, ENT_QUOTES) . '</div>';
+}
+if ($platformVersion !== '') {
+    $userMenuHeaderParts[] = '<div class="small text-muted mt-1">' .
+        htmlspecialchars((string) ($lang['sys.platform_version'] ?? 'Platform version'), ENT_QUOTES) . ': ' .
+        htmlspecialchars($platformVersion, ENT_QUOTES) . '</div>';
 }
 // Подготовка данных для верхней панели. Включает в себя бренд и меню пользователя.
 $topbarData = [
@@ -29,6 +65,7 @@ $topbarData = [
     'searchPlaceholder' => (string) ($lang['sys.search_placeholder'] ?? 'Search...'),
     'searchAriaLabel' => (string) ($lang['sys.search_placeholder'] ?? 'Search...'),
     'toolbarHtml' => $toolbarHtml,
+    'userMenuHeaderHtml' => implode('', $userMenuHeaderParts),
     'userMenu' => [// Меню пользователя с опциями
         [
             'title' => (string) ($lang['sys.settings'] ?? 'Settings'),
@@ -37,12 +74,6 @@ $topbarData = [
         [
             'title' => (string) ($lang['sys.messages'] ?? 'Messages'),
             'link' => '/admin/messages'
-        ],
-        'divider',
-        [
-            'title' => (string) ($lang['sys.start_tour'] ?? 'Start tour'),
-            'link' => 'javascript:void(0)',
-            'meta' => 'onclick="$.cleanTour(\'' . $uri . '\'); location.reload();"'
         ],
         'divider',
         [

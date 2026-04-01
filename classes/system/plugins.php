@@ -105,25 +105,42 @@ class Plugins {
         $html .= '<input type="hidden" name="' . $idTable . '_table_name" value="' . $idTable . '">';
         // Добавим префикс при его отсутствии
         foreach ($filters as $key => $filter) {
-            if (strpos($filter['id'], $idTable . '_filter_') === false) {
+            if (!is_array($filter)) {
+                continue;
+            }
+            $currentFilterId = (string) ($filter['id'] ?? '');
+            if ($currentFilterId === '') {
+                $filters[$key]['id'] = $idTable . '_filter_' . $key;
+                continue;
+            }
+            if (strpos($currentFilterId, $idTable . '_filter_') === false) {
                 $filters[$key]['id'] = $idTable . '_filter_' . $filters[$key]['id'];
             }
         }
         $html .= '<input type="hidden" name="' . $idTable . '_old_filters" value="' . htmlspecialchars(json_encode($filters), ENT_QUOTES, 'UTF-8') . '">';
         $html .= '<div class="row justify-content-center">';
         foreach ($filters as $key => $filter) {
+            if (!is_array($filter)) {
+                continue;
+            }
             $html .= '<div class="col-6 col-sm-3 text-center">';
             $filterId = $filter['id'] ?? $idTable . '_filter_' . $key;
             $filterValue = $filter['value'] ?? "";
             $filterLabel = !empty($filter['label']) ? $filter['label'] : 'Unknown';
+            $filterType = (string) ($filter['type'] ?? 'text');
+            $filterOptions = is_array($filter['options'] ?? null) ? $filter['options'] : [];
+            $filterValueList = self::normalizeFilterValues($filterValue);
             $html .= '<label for="' . $filterId . '">' . htmlspecialchars((string) $filterLabel, ENT_QUOTES, 'UTF-8') . '</label>';
-            switch ($filter['type']) {
+            switch ($filterType) {
                 case 'text':
                     $html .= '<input type="text" class="form-control mb-2" name="' . $filterId . '" id="' . $filterId . '" value="' . htmlspecialchars((string) $filterValue, ENT_QUOTES, 'UTF-8') . '">';
                     break;
                 case 'checkbox':
-                    foreach ($filter['options'] as $option) {
-                        $checked = in_array($option['value'], (array) $filterValue) ? ' checked' : '';
+                    foreach ($filterOptions as $option) {
+                        if (!is_array($option)) {
+                            continue;
+                        }
+                        $checked = in_array((string) ($option['value'] ?? ''), $filterValueList, true) ? ' checked' : '';
                         $html .= '<div class="form-check mb-2">';
                         $html .= '<input class="form-check-input" type="checkbox" value="' . htmlspecialchars((string) ($option['value'] ?? ''), ENT_QUOTES, 'UTF-8') . '" name="' . $filterId . '_' . ($option['id'] ?? '') . '" id="' . $filterId . '_' . ($option['id'] ?? '') . '"' . $checked . '>';
                         $html .= '<label class="form-check-label" for="' . ($option['id'] ?? '') . '">' . htmlspecialchars((string) ($option['label'] ?? ''), ENT_QUOTES, 'UTF-8') . '</label>';
@@ -131,14 +148,19 @@ class Plugins {
                     }
                     break;
                 case 'select':
-                    $multiple = $filter['multiple'] ?? false ? ' multiple' : '';
-                    if (!$multiple && count($filterValue) > 1) {
+                    $isMultiple = !empty($filter['multiple']);
+                    $multiple = $isMultiple ? ' multiple' : '';
+                    if (!$isMultiple && count($filterValueList) > 1) {
                         $html .= '<div class="alert alert-danger text-center">Ошибка: количество значений в select больше одного при отсутствии multiple!</div>';
                         break;
                     }
-                    $html .= '<select class="form-select mb-2" name="' . $filterId . '[]" id="' . $filterId . '"' . $multiple . '>';
-                    foreach ($filter['options'] as $option) {
-                        $selected = in_array($option['value'], (array) $filterValue) ? ' selected' : '';
+                    $selectName = $isMultiple ? $filterId . '[]' : $filterId;
+                    $html .= '<select class="form-select mb-2" name="' . $selectName . '" id="' . $filterId . '"' . $multiple . '>';
+                    foreach ($filterOptions as $option) {
+                        if (!is_array($option)) {
+                            continue;
+                        }
+                        $selected = in_array((string) ($option['value'] ?? ''), $filterValueList, true) ? ' selected' : '';
                         $html .= '<option value="' . htmlspecialchars((string) ($option['value'] ?? ''), ENT_QUOTES, 'UTF-8') . '"' . $selected . '>' . htmlspecialchars((string) ($option['label'] ?? ''), ENT_QUOTES, 'UTF-8') . '</option>';
                     }
                     $html .= '</select>';
@@ -155,6 +177,18 @@ class Plugins {
         $html .= '</form>';
         $html .= '</div></div>'; // Закрываем .card-body и .collapse
         return $html;
+    }
+
+    private static function normalizeFilterValues($value): array {
+        if (is_array($value)) {
+            return array_values(array_map(static function ($item): string {
+                return (string) $item;
+            }, $value));
+        }
+        if ($value === null || $value === '') {
+            return [];
+        }
+        return [(string) $value];
     }
 
     /**
@@ -531,6 +565,9 @@ class Plugins {
             }
         }
         $whereString = !empty($whereConditions) ? implode(" AND ", $whereConditions) : '';
+        if ($sort === []) {
+            $sort = self::getDefaultTableSorting($columns);
+        }
         // Преобразование sort
         $orderString = '';
         foreach ($sort as $key => $direction) {
@@ -561,6 +598,21 @@ class Plugins {
 
         $field = strtolower(trim((string) ($column['field'] ?? '')));
         return in_array($field, self::RAW_TABLE_FIELDS, true);
+    }
+
+    private static function getDefaultTableSorting(array $columns): array {
+        foreach ($columns as $column) {
+            if (!is_array($column)) {
+                continue;
+            }
+            $field = trim((string) ($column['field'] ?? ''));
+            $sorted = strtoupper(trim((string) ($column['sorted'] ?? '')));
+            if ($field === '' || ($sorted !== 'ASC' && $sorted !== 'DESC')) {
+                continue;
+            }
+            return [$field => $sorted];
+        }
+        return [];
     }
 
     private static function quoteSqlIdentifier(string $field, array $allowedFields): ?string {
@@ -636,27 +688,28 @@ class Plugins {
                 }
             }
         }
-        $html .= '</div></div><div class="sb-sidenav-footer" style="height: 50px; cursor: cell;"><div class="nav">' .
-                '<div class="sb-sidenav-menu-heading">' . $footerTitle . '</div>';
-        foreach ($menuItems['footer'] as $item) {
-            $footerAttributes = isset($item['attributes']) ? ' ' . $item['attributes'] : '';
-            if ($item['link']) {
-                $html .= '<a class="nav-link" href="' . $item['link'] . '"' . $footerAttributes . '>' . $item['title'] . '</a>';
-            } else {
-                $html .= '<span class="nav">' . $item['title'] . '</span>';
+        $showFooter = array_key_exists('showFooter', $data)
+            ? (bool) $data['showFooter']
+            : (!defined('ENV_SHOW_SIDENAV_FOOTER') || (bool) ENV_SHOW_SIDENAV_FOOTER);
+        $footerItems = is_array($menuItems['footer'] ?? null) ? $menuItems['footer'] : [];
+        if ($showFooter && $footerItems !== []) {
+            $html .= '</div></div><div class="sb-sidenav-footer"><div class="nav">';
+            if ($footerTitle !== '') {
+                $html .= '<div class="sb-sidenav-menu-heading">' . $footerTitle . '</div>';
             }
+            foreach ($footerItems as $item) {
+                $footerAttributes = isset($item['attributes']) ? ' ' . $item['attributes'] : '';
+                if ($item['link']) {
+                    $html .= '<a class="nav-link" href="' . $item['link'] . '"' . $footerAttributes . '>' . $item['title'] . '</a>';
+                } else {
+                    $html .= '<span class="nav">' . $item['title'] . '</span>';
+                }
+            }
+            $html .= '</div></div></nav></div>';
+        } else {
+            $html .= '</div></div></nav></div>';
         }
-        $html .= '</div></nav></div>';
-        // TODO что тут делает скрипт?!!!
-        $script = '<script>$(document).ready(function() {
-        var isOpen = false;
-        $(\'.sb-sidenav-footer\').click(function() {
-          var newHeight = isOpen ? 50 : 140;
-          $(this).animate({ height: newHeight }, 500);
-          isOpen = !isOpen;
-        });
-        });</script>';
-        return $html . $script;
+        return $html;
     }
 
     /**
@@ -705,6 +758,9 @@ class Plugins {
         $html .= '<li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" id="navbarDropdown" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fas fa-user fa-fw"></i></a>
                     <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">';
+        if (!empty($data['userMenuHeaderHtml'])) {
+            $html .= '<li class="px-3 py-2">' . (string) $data['userMenuHeaderHtml'] . '</li><li><hr class="dropdown-divider" /></li>';
+        }
         foreach ($data['userMenu'] as $item) {
             if ($item === 'divider') {
                 $html .= '<li><hr class="dropdown-divider" /></li>';

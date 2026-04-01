@@ -476,6 +476,7 @@ trait CategoriesTrait {
         foreach ($this->models['m_categories_types']->getAllTypes(null, true, null, $languageCode) as $item) {
             $filters['type_id']['options'][] = ['value' => $item['type_id'], 'label' => $item['name']];
         }
+        $selected_sorting = [];
         if ($postData && SysClass::isAjaxRequestFromSameSite()) { // AJAX
             list($params, $filters, $selected_sorting) = Plugins::ee_showTablePrepareParams($postData, $data_table['columns']);
             $category_array = $this->models['m_categories']->getCategoriesData($params['order'], $params['where'], $params['start'], $params['limit'], $languageCode);

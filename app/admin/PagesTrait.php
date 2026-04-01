@@ -252,11 +252,15 @@ trait PagesTrait {
     /**
      * Вернёт таблицу страниц
      */
-    public function getPagesDataTable(?string $contentLanguageCode = null) {
+    public function getPagesDataTable(array|string|null $params = null, ?string $contentLanguageCode = null) {
         $this->access = [Constants::ADMIN, Constants::MODERATOR];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect();
             exit();
+        }
+        if (is_string($params) && $contentLanguageCode === null) {
+            $contentLanguageCode = $params;
+            $params = [];
         }
         $this->loadModel('m_pages');
         $this->loadModel('m_categories_types', []);
@@ -398,6 +402,7 @@ trait PagesTrait {
                 'label' => $this->lang['sys.date_update']
             ],
         ];
+        $selected_sorting = [];
         if ($postData && SysClass::isAjaxRequestFromSameSite()) { // AJAX
             list($params, $filters, $selected_sorting) = Plugins::ee_showTablePrepareParams($postData, $data_table['columns']);
             $arrPages = $this->models['m_pages']->getPagesData($params['order'], $params['where'], $params['start'], $params['limit'], $languageCode);

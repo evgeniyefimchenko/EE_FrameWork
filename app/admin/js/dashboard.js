@@ -136,5 +136,54 @@ $(document).ready(function () {
         $('body').toggleClass('sb-sidenav-toggled');
         localStorage.setItem('sb|sidebar-toggle', $('body').hasClass('sb-sidenav-toggled'));
     });
+
+    $(document).on('click', '[data-dashboard-online-users-toggle]', function (event) {
+        event.preventDefault();
+
+        const $button = $(this);
+        const targetSelector = ($button.attr('data-target') || '').toString().trim();
+        const requestUrl = ($button.attr('data-url') || '').toString().trim();
+        const $target = targetSelector ? $(targetSelector) : $();
+
+        if (!$target.length || !requestUrl) {
+            return;
+        }
+
+        if ($target.attr('data-loaded') === '1') {
+            $target.toggleClass('d-none');
+            return;
+        }
+
+        const loadingText = ($target.attr('data-loading-text') || AppCore.getLangVar('sys.loading') || 'Loading...').toString();
+        const errorText = ($target.attr('data-load-error-text') || AppCore.getLangVar('sys.dashboard_auth_online_load_error') || 'Load error').toString();
+
+        $button.prop('disabled', true);
+        $target
+            .removeClass('d-none')
+            .html('<div class="small text-muted">' + loadingText + '</div>');
+
+        AppCore.sendAjaxRequest(
+            requestUrl,
+            {},
+            'GET',
+            'json',
+            function (data) {
+                if (data && !data.error && data.html) {
+                    $target.html(data.html);
+                    $target.attr('data-loaded', '1');
+                    $button.prop('disabled', false);
+                    return;
+                }
+
+                $target.html('<div class="alert alert-danger mb-0">' + errorText + '</div>');
+                $button.prop('disabled', false);
+            },
+            function () {
+                $target.html('<div class="alert alert-danger mb-0">' + errorText + '</div>');
+                $button.prop('disabled', false);
+            }
+        );
+    });
+
     $(".preloader").fadeOut();
 });

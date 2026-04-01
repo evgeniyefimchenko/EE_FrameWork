@@ -185,6 +185,7 @@ $menuItems = [
         ]
     ],
     'footerTitle' => $lang['sys.project_development'],
+    'showFooter' => defined('ENV_SHOW_SIDENAV_FOOTER') ? (bool) ENV_SHOW_SIDENAV_FOOTER : true,
 ];
 
 echo classes\system\Plugins::generateVerticalMenu($menuItems);

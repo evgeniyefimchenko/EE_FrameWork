@@ -7,6 +7,77 @@ use classes\plugins\SafeMySQL;
 class AuthSessionService {
 
     private const STORAGE_KEY = 'user_session';
+    private const IMPERSONATION_ORIGIN_TOKEN_KEY = 'impersonation_origin_token';
+    private const IMPERSONATION_ORIGIN_USER_ID_KEY = 'impersonation_origin_user_id';
+    private const IMPERSONATION_ORIGIN_TRANSPORT_KEY = 'impersonation_origin_transport';
+
+    public static function getOnlineUsersSnapshot(int $minutes = 15): array {
+        AuthService::ensureInfrastructure();
+
+        $minutes = max(1, $minutes);
+        $rows = SafeMySQL::gi()->getAll(
+            'SELECT
+                u.user_id,
+                u.name,
+                u.email,
+                u.user_role,
+                COALESCE(r.name, "") AS role_name,
+                MAX(s.last_seen_at) AS last_seen_at,
+                COUNT(DISTINCT s.auth_session_id) AS session_count
+             FROM ?n AS s
+             INNER JOIN ?n AS u ON u.user_id = s.user_id
+             LEFT JOIN ?n AS r ON r.role_id = u.user_role
+             WHERE s.revoked_at IS NULL
+               AND s.expires_at > NOW()
+               AND s.last_seen_at >= (NOW() - INTERVAL ?i MINUTE)
+               AND u.deleted = 0
+             GROUP BY u.user_id, u.name, u.email, u.user_role, r.name
+             ORDER BY FIELD(u.user_role, ?i, ?i, ?i), MAX(s.last_seen_at) DESC, u.user_id ASC',
+            Constants::USERS_AUTH_SESSIONS_TABLE,
+            Constants::USERS_TABLE,
+            Constants::USERS_ROLES_TABLE,
+            $minutes,
+            Constants::ADMIN,
+            Constants::MANAGER,
+            Constants::USER
+        );
+
+        $groups = [
+            'admins' => [],
+            'managers' => [],
+            'users' => [],
+            'others' => [],
+        ];
+
+        foreach ((array) $rows as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $item = [
+                'user_id' => (int) ($row['user_id'] ?? 0),
+                'name' => (string) ($row['name'] ?? ''),
+                'email' => (string) ($row['email'] ?? ''),
+                'user_role' => (int) ($row['user_role'] ?? 0),
+                'role_name' => (string) ($row['role_name'] ?? ''),
+                'last_seen_at' => (string) ($row['last_seen_at'] ?? ''),
+                'session_count' => (int) ($row['session_count'] ?? 0),
+            ];
+
+            $groupKey = match ($item['user_role']) {
+                Constants::ADMIN => 'admins',
+                Constants::MANAGER => 'managers',
+                Constants::USER => 'users',
+                default => 'others',
+            };
+            $groups[$groupKey][] = $item;
+        }
+
+        return [
+            'minutes' => $minutes,
+            'generated_at' => gmdate('Y-m-d H:i:s'),
+            'groups' => $groups,
+        ];
+    }
 
     public static function establishSession(int $userId, ?string $transport = null, ?string $rawToken = null): array {
         AuthService::ensureInfrastructure();
@@ -21,6 +92,8 @@ class AuthSessionService {
         $ip = SysClass::getClientIp();
         $userAgent = self::getCurrentUserAgent();
         $expiresAt = date('Y-m-d H:i:s', time() + (int) ENV_TIME_AUTH_SESSION);
+
+        self::revokeDuplicateSessionsForFingerprint($userId, $transport, $ip, $userAgent);
 
         $sql = 'INSERT INTO ?n SET user_id = ?i, token_hash = ?s, transport = ?s, ip = ?s, user_agent = ?s, expires_at = ?s';
         SafeMySQL::gi()->query(
@@ -42,6 +115,7 @@ class AuthSessionService {
             $ip,
             $userId
         );
+        self::enforceActiveSessionLimit($userId);
 
         return [
             'transport' => $transport,
@@ -68,7 +142,13 @@ class AuthSessionService {
             return false;
         }
 
-        if ((int) ($session['deleted'] ?? 0) === 1 || (int) ($session['active'] ?? 0) !== 2) {
+        if ((int) ($session['deleted'] ?? 0) === 1) {
+            self::revokeSessionByToken($rawToken);
+            self::clearTransportState();
+            return false;
+        }
+
+        if ((int) ($session['active'] ?? 0) !== 2 && !self::isImpersonationSessionAllowed((int) ($session['user_id'] ?? 0), $rawToken)) {
             self::revokeSessionByToken($rawToken);
             self::clearTransportState();
             return false;
@@ -96,6 +176,133 @@ class AuthSessionService {
         return (int) $session['user_id'];
     }
 
+    public static function startImpersonation(int $targetUserId): array {
+        AuthService::ensureInfrastructure();
+
+        $targetUserId = (int) $targetUserId;
+        if ($targetUserId <= 0) {
+            throw new \InvalidArgumentException('Target user ID is required for impersonation');
+        }
+
+        $originToken = (string) (self::readCurrentToken() ?? '');
+        $originSession = $originToken !== '' ? self::findSessionByRawToken($originToken) : null;
+        if (!is_array($originSession) || (int) ($originSession['user_role'] ?? 0) !== Constants::ADMIN) {
+            throw new \RuntimeException('Only an administrator can start impersonation');
+        }
+
+        $originUserId = (int) ($originSession['user_id'] ?? 0);
+        if ($originUserId <= 0) {
+            throw new \RuntimeException('Origin administrator session is invalid');
+        }
+
+        if ($originUserId === $targetUserId) {
+            return [
+                'origin_user_id' => $originUserId,
+                'target_user_id' => $targetUserId,
+                'status' => 'noop',
+            ];
+        }
+
+        $targetUser = SafeMySQL::gi()->getRow(
+            'SELECT user_id, deleted, active, user_role FROM ?n WHERE user_id = ?i LIMIT 1',
+            Constants::USERS_TABLE,
+            $targetUserId
+        );
+        if (!is_array($targetUser) || (int) ($targetUser['deleted'] ?? 0) === 1 || (int) ($targetUser['active'] ?? 0) !== 2) {
+            throw new \RuntimeException('Target user is not available for impersonation');
+        }
+
+        self::clearImpersonationState();
+        self::revokeSessionByToken($originToken);
+        SafeMySQL::gi()->query(
+            'UPDATE ?n SET session = NULL WHERE session = ?s',
+            Constants::USERS_TABLE,
+            $originToken
+        );
+        self::clearTransportState();
+        self::establishSession($targetUserId, (string) ($originSession['transport'] ?? null));
+
+        return [
+            'origin_user_id' => $originUserId,
+            'target_user_id' => $targetUserId,
+            'target_user_role' => (int) ($targetUser['user_role'] ?? 0),
+            'status' => 'started',
+        ];
+    }
+
+    public static function stopImpersonation(): bool {
+        AuthService::ensureInfrastructure();
+
+        $originToken = trim((string) Session::get(self::IMPERSONATION_ORIGIN_TOKEN_KEY));
+        $originUserId = (int) (Session::get(self::IMPERSONATION_ORIGIN_USER_ID_KEY) ?? 0);
+        $originTransport = trim((string) Session::get(self::IMPERSONATION_ORIGIN_TRANSPORT_KEY));
+        if ($originToken === '' || $originUserId <= 0) {
+            self::clearImpersonationState();
+            return false;
+        }
+
+        $originSession = self::findSessionByRawToken($originToken);
+        if (!is_array($originSession)
+            || (int) ($originSession['user_id'] ?? 0) !== $originUserId
+            || (int) ($originSession['user_role'] ?? 0) !== Constants::ADMIN
+            || (int) ($originSession['deleted'] ?? 0) === 1
+            || (int) ($originSession['active'] ?? 0) !== 2) {
+            self::clearImpersonationState();
+            self::clearTransportState();
+            return false;
+        }
+
+        $currentToken = (string) (self::readCurrentToken() ?? '');
+        if ($currentToken !== '' && $currentToken !== $originToken) {
+            self::revokeSessionByToken($currentToken);
+            SafeMySQL::gi()->query(
+                'UPDATE ?n SET session = NULL WHERE session = ?s',
+                Constants::USERS_TABLE,
+                $currentToken
+            );
+        }
+
+        self::clearTransportState();
+        self::persistTokenToTransport(self::normalizeTransport($originTransport !== '' ? $originTransport : self::getConfiguredTransport()), $originToken);
+        self::clearImpersonationState();
+
+        return true;
+    }
+
+    public static function getImpersonationState(): array {
+        $originToken = trim((string) Session::get(self::IMPERSONATION_ORIGIN_TOKEN_KEY));
+        $originUserId = (int) (Session::get(self::IMPERSONATION_ORIGIN_USER_ID_KEY) ?? 0);
+        $currentToken = (string) (self::readCurrentToken() ?? '');
+        if ($originToken === '' || $originUserId <= 0 || $currentToken === '' || $originToken === $currentToken) {
+            return ['active' => false];
+        }
+
+        $originSession = self::findSessionByRawToken($originToken);
+        $currentSession = self::findSessionByRawToken($currentToken);
+        if (!is_array($originSession) || !is_array($currentSession)) {
+            return ['active' => false];
+        }
+
+        $originName = (string) (SafeMySQL::gi()->getOne(
+            'SELECT name FROM ?n WHERE user_id = ?i LIMIT 1',
+            Constants::USERS_TABLE,
+            (int) ($originSession['user_id'] ?? 0)
+        ) ?? '');
+        $targetName = (string) (SafeMySQL::gi()->getOne(
+            'SELECT name FROM ?n WHERE user_id = ?i LIMIT 1',
+            Constants::USERS_TABLE,
+            (int) ($currentSession['user_id'] ?? 0)
+        ) ?? '');
+
+        return [
+            'active' => true,
+            'origin_user_id' => (int) ($originSession['user_id'] ?? 0),
+            'origin_user_name' => $originName,
+            'target_user_id' => (int) ($currentSession['user_id'] ?? 0),
+            'target_user_name' => $targetName,
+        ];
+    }
+
     public static function revokeCurrentSession(): void {
         AuthService::ensureInfrastructure();
 
@@ -109,6 +316,7 @@ class AuthSessionService {
             );
         }
 
+        self::clearImpersonationState();
         self::clearTransportState();
     }
 
@@ -214,6 +422,97 @@ class AuthSessionService {
             Constants::USERS_AUTH_SESSIONS_TABLE,
             hash('sha256', $rawToken)
         );
+    }
+
+    private static function revokeDuplicateSessionsForFingerprint(int $userId, string $transport, string $ip, string $userAgent): void {
+        if ($userId <= 0) {
+            return;
+        }
+
+        SafeMySQL::gi()->query(
+            'UPDATE ?n
+             SET revoked_at = NOW()
+             WHERE user_id = ?i
+               AND transport = ?s
+               AND ip = ?s
+               AND user_agent = ?s
+               AND revoked_at IS NULL
+               AND expires_at > NOW()',
+            Constants::USERS_AUTH_SESSIONS_TABLE,
+            $userId,
+            $transport,
+            $ip,
+            $userAgent
+        );
+    }
+
+    private static function enforceActiveSessionLimit(int $userId): void {
+        if ($userId <= 0) {
+            return;
+        }
+
+        $maxSessions = self::getMaxActiveSessionsPerUser();
+        if ($maxSessions <= 0) {
+            return;
+        }
+
+        $sessionIds = SafeMySQL::gi()->getCol(
+            'SELECT auth_session_id
+             FROM ?n
+             WHERE user_id = ?i
+               AND revoked_at IS NULL
+               AND expires_at > NOW()
+             ORDER BY last_seen_at DESC, created_at DESC, auth_session_id DESC',
+            Constants::USERS_AUTH_SESSIONS_TABLE,
+            $userId
+        );
+        $sessionIds = array_map('intval', (array) $sessionIds);
+        if (count($sessionIds) <= $maxSessions) {
+            return;
+        }
+
+        $revokeIds = array_slice($sessionIds, $maxSessions);
+        if ($revokeIds === []) {
+            return;
+        }
+
+        SafeMySQL::gi()->query(
+            'UPDATE ?n SET revoked_at = NOW() WHERE auth_session_id IN (?a) AND revoked_at IS NULL',
+            Constants::USERS_AUTH_SESSIONS_TABLE,
+            $revokeIds
+        );
+    }
+
+    private static function getMaxActiveSessionsPerUser(): int {
+        $configured = defined('ENV_AUTH_MAX_ACTIVE_SESSIONS_PER_USER')
+            ? (int) ENV_AUTH_MAX_ACTIVE_SESSIONS_PER_USER
+            : 5;
+
+        return max(1, $configured);
+    }
+
+    private static function isImpersonationSessionAllowed(int $userId, string $rawToken): bool {
+        $originToken = trim((string) Session::get(self::IMPERSONATION_ORIGIN_TOKEN_KEY));
+        $originUserId = (int) (Session::get(self::IMPERSONATION_ORIGIN_USER_ID_KEY) ?? 0);
+        if ($userId <= 0 || $rawToken === '' || $originToken === '' || $originUserId <= 0 || $originToken === $rawToken) {
+            return false;
+        }
+
+        $originSession = self::findSessionByRawToken($originToken);
+        if (!is_array($originSession)) {
+            return false;
+        }
+
+        return (int) ($originSession['user_id'] ?? 0) === $originUserId
+            && (int) ($originSession['user_role'] ?? 0) === Constants::ADMIN
+            && (int) ($originSession['deleted'] ?? 0) === 0
+            && (int) ($originSession['active'] ?? 0) === 2;
+    }
+
+    private static function clearImpersonationState(): void {
+        Session::un_set(self::IMPERSONATION_ORIGIN_TOKEN_KEY);
+        Session::un_set(self::IMPERSONATION_ORIGIN_USER_ID_KEY);
+        Session::un_set(self::IMPERSONATION_ORIGIN_TRANSPORT_KEY);
     }
 
     private static function migrateLegacySessionToken(string $rawToken): int|bool {

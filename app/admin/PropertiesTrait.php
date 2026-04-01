@@ -133,6 +133,7 @@ trait PropertiesTrait {
                 'label' => $this->lang['sys.date_update']
             ],
         ];
+        $selected_sorting = [];
         if ($postData && SysClass::isAjaxRequestFromSameSite()) { // AJAX
             list($params, $filters, $selected_sorting) = Plugins::ee_showTablePrepareParams($postData, $dataTable['columns']);
             $features_array = $this->models['m_properties']->getTypePropertiesData($params['order'], $params['where'], $params['start'], $params['limit']);
@@ -249,6 +250,7 @@ trait PropertiesTrait {
         foreach ($this->models['m_properties']->getAllPropertyTypes() as $item) {
             $filters['type_id']['options'][] = ['value' => $item['type_id'], 'label' => $item['name']];
         }
+        $selected_sorting = [];
         if ($postData && SysClass::isAjaxRequestFromSameSite()) { // AJAX
             list($params, $filters, $selected_sorting) = Plugins::ee_showTablePrepareParams($postData, $dataTable['columns']);
             $features_array = $this->models['m_properties']->getPropertiesData($params['order'], $params['where'], $params['start'], $params['limit']);
@@ -1224,6 +1226,7 @@ trait PropertiesTrait {
                 'label' => $this->lang['sys.date_update']
             ],
         ];
+        $selected_sorting = [];
         if ($postData && SysClass::isAjaxRequestFromSameSite()) { // AJAX
             list($params, $filters, $selected_sorting) = Plugins::ee_showTablePrepareParams($postData, $dataTable['columns']);
             $features_array = $this->models['m_properties']->getPropertySetsData($params['order'], $params['where'], $params['start'], $params['limit']);

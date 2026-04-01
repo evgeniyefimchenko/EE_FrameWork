@@ -88,6 +88,10 @@ abstract class ControllerBase {
         if (get_class($this) !== 'ControllerAdmin' || empty($this->logged_in)) {
             return;
         }
+        $impersonationState = AuthSessionService::getImpersonationState();
+        if (!empty($impersonationState['active'])) {
+            return;
+        }
         if (LegalConsentService::hasRequiredConsents($userData)) {
             return;
         }
@@ -222,6 +226,30 @@ abstract class ControllerBase {
         }
 
         return $this->applyInterfaceLanguage($requestedLangCode);
+    }
+
+    protected function getDefaultAuthorizedLandingUrl(int $userRole): string {
+        return match ((int) $userRole) {
+            Constants::ADMIN,
+            Constants::MODERATOR,
+            Constants::SYSTEM => '/admin',
+            Constants::MANAGER => '/manager',
+            default => '/',
+        };
+    }
+
+    protected function getAuthorizedLandingUrlForUserId(int $userId): string {
+        if ($userId <= 0) {
+            return '/';
+        }
+
+        $userRole = (int) (SafeMySQL::gi()->getOne(
+            'SELECT user_role FROM ?n WHERE user_id = ?i LIMIT 1',
+            Constants::USERS_TABLE,
+            $userId
+        ) ?? 0);
+
+        return $this->getDefaultAuthorizedLandingUrl($userRole);
     }
 
     protected function normalizeOperationResult(mixed $result, array $options = []): OperationResult {

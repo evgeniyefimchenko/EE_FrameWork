@@ -267,6 +267,7 @@ trait EntitiesTrait {
                 'label' => $this->lang['sys.date_update']
             ],
         ];
+        $selected_sorting = [];
         if ($post_data && isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest') { // AJAX
             list($params, $filters, $selected_sorting) = Plugins::ee_show_table_prepare_params($post_data, $data_table['columns']);
             $entities_array = $this->models['m_entities']->get_entities_data($params['order'], $params['where'], $params['start'], $params['limit']);

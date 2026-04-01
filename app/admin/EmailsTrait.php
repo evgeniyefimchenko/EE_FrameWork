@@ -128,6 +128,7 @@ trait EmailsTrait {
                 'label' => $this->lang['sys.description']
             ]
         ];
+        $selected_sorting = [];
         if ($postData && SysClass::isAjaxRequestFromSameSite()) { // AJAX
             list($params, $filters, $selected_sorting) = Plugins::ee_showTablePrepareParams($postData, $data_table['columns']);
             $snippets_array = $this->models['m_email_templates']->getEmailSnippets($params['order'], $params['where'], $params['start'], $params['limit']);
@@ -236,6 +237,7 @@ trait EmailsTrait {
                 'label' => $this->lang['sys.date_update']
             ],
         ];
+        $selected_sorting = [];
         if ($postData && SysClass::isAjaxRequestFromSameSite()) { // AJAX
             list($params, $filters, $selected_sorting) = Plugins::ee_showTablePrepareParams($postData, $dataTable['columns']);
             $email_templates_array = $this->models['m_email_templates']->getEmailTemplates($params['order'], $params['where'], $params['start'], $params['limit']);

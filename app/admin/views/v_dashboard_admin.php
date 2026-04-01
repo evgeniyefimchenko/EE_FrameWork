@@ -3,7 +3,7 @@
 $overview = is_array($dashboard_overview ?? null) ? $dashboard_overview : [];
 $isAdmin = !empty($overview['is_admin']);
 $catalog = is_array($overview['catalog'] ?? null) ? $overview['catalog'] : [];
-$quality = is_array($overview['quality'] ?? null) ? $overview['quality'] : [];
+$platform = is_array($overview['platform'] ?? null) ? $overview['platform'] : [];
 $operations = is_array($overview['operations'] ?? null) ? $overview['operations'] : [];
 $alerts = is_array($overview['health_alerts'] ?? null) ? $overview['health_alerts'] : [];
 $alertsSummary = is_array($operations['alerts_summary'] ?? null) ? $operations['alerts_summary'] : ['total' => 0, 'critical' => 0, 'warning' => 0, 'info' => 0];
@@ -43,7 +43,7 @@ unset($currentQuery['ui_lang']);
             <div>
                 <h1 class="mb-1"><?= htmlspecialchars((string) ($lang['sys.dashboard_overview_heading'] ?? 'Обзор проекта')) ?></h1>
                 <div class="text-muted small">
-                    <?= htmlspecialchars((string) ($lang['sys.dashboard_overview_subtitle'] ?? 'Живой срез каталога, импорта, агентов и операционного состояния.')) ?>
+                    <?= htmlspecialchars((string) ($lang['sys.dashboard_overview_subtitle'] ?? 'Живой срез данных, поиска, фоновых процессов и операционного состояния.')) ?>
                     <?php if ($generatedAt !== ''): ?>
                         <span class="ms-2"><?= htmlspecialchars((string) ($lang['sys.updated_at'] ?? 'Обновлено')) ?>: <strong><?= htmlspecialchars($generatedAt) ?></strong></span>
                     <?php endif; ?>
@@ -153,8 +153,8 @@ unset($currentQuery['ui_lang']);
                         <div class="card-body">
                             <div class="small text-muted mb-1"><?= htmlspecialchars((string) ($lang['sys.categories'] ?? 'Категории')) ?></div>
                             <div class="h4 mb-1"><?= (int) ($catalog['categories']['total'] ?? 0) ?></div>
-                            <div class="small text-muted"><?= htmlspecialchars((string) ($lang['sys.dashboard_categories_with_photos'] ?? 'С галереей')) ?>: <strong><?= (int) ($catalog['categories']['with_photos'] ?? 0) ?></strong></div>
-                            <div class="small text-muted"><?= htmlspecialchars((string) ($lang['sys.dashboard_categories_with_map'] ?? 'С картой')) ?>: <strong><?= (int) ($catalog['categories']['with_map'] ?? 0) ?></strong></div>
+                            <div class="small text-muted"><?= htmlspecialchars((string) ($lang['sys.dashboard_categories_active'] ?? 'Активных')) ?>: <strong><?= (int) ($catalog['categories']['active'] ?? 0) ?></strong></div>
+                            <div class="small text-muted"><?= htmlspecialchars((string) ($lang['sys.dashboard_categories_hidden'] ?? 'Скрытых')) ?>: <strong><?= (int) ($catalog['categories']['hidden'] ?? 0) ?></strong></div>
                         </div>
                     </div>
                 </div>
@@ -163,15 +163,15 @@ unset($currentQuery['ui_lang']);
                         <div class="card-body">
                             <div class="small text-muted mb-1"><?= htmlspecialchars((string) ($lang['sys.users'] ?? 'Пользователи')) ?></div>
                             <div class="h4 mb-1"><?= (int) ($catalog['users']['total'] ?? 0) ?></div>
-                            <div class="small text-muted"><?= htmlspecialchars((string) ($lang['sys.dashboard_owner_links'] ?? 'Связано владельцев')) ?>: <strong><?= (int) ($catalog['users']['owners_linked'] ?? 0) ?></strong></div>
-                            <div class="small text-muted"><?= htmlspecialchars((string) ($lang['sys.dashboard_pages_without_owner'] ?? 'Без владельца')) ?>: <strong><?= (int) ($quality['without_owner'] ?? 0) ?></strong></div>
+                            <div class="small text-muted"><?= htmlspecialchars((string) ($lang['sys.dashboard_users_active'] ?? 'Активных')) ?>: <strong><?= (int) ($catalog['users']['active'] ?? 0) ?></strong></div>
+                            <div class="small text-muted"><?= htmlspecialchars((string) ($lang['sys.dashboard_users_blocked'] ?? 'Заблокированных')) ?>: <strong><?= (int) ($catalog['users']['blocked'] ?? 0) ?></strong></div>
                         </div>
                     </div>
                 </div>
                 <div class="col-12 col-md-6 col-xl-3">
                     <div class="card shadow-sm border h-100">
                         <div class="card-body">
-                            <div class="small text-muted mb-1"><?= htmlspecialchars((string) ($lang['sys.media_queue'] ?? 'Медиа')) ?></div>
+                            <div class="small text-muted mb-1"><?= htmlspecialchars((string) ($lang['sys.dashboard_files_and_media'] ?? 'Файлы и медиа')) ?></div>
                             <div class="h4 mb-1"><?= (int) ($catalog['files']['total'] ?? 0) ?></div>
                             <div class="small text-muted"><?= htmlspecialchars((string) ($lang['sys.media_queue_pending'] ?? 'Ожидают')) ?>: <strong><?= (int) ($mediaQueue['pending'] ?? 0) ?></strong></div>
                             <div class="small text-muted"><?= htmlspecialchars((string) ($lang['sys.media_queue_done'] ?? 'Готово')) ?>: <strong><?= (int) ($mediaQueue['done'] ?? 0) ?></strong></div>
@@ -184,32 +184,55 @@ unset($currentQuery['ui_lang']);
                 <div class="col-12 col-md-6 col-xl-3">
                     <div class="card shadow-sm border h-100">
                         <div class="card-body">
-                            <div class="small text-muted mb-1"><?= htmlspecialchars((string) ($lang['sys.dashboard_content_quality'] ?? 'Контентная готовность')) ?></div>
-                            <div class="h4 mb-2"><?= (int) ($quality['ready_pages'] ?? 0) ?> / <?= (int) ($quality['active_pages'] ?? 0) ?></div>
-                            <div class="progress" style="height: 8px;">
-                                <div class="progress-bar" role="progressbar" style="width: <?= htmlspecialchars((string) ($quality['readiness_percent'] ?? 0)) ?>%;" aria-valuenow="<?= htmlspecialchars((string) ($quality['readiness_percent'] ?? 0)) ?>" aria-valuemin="0" aria-valuemax="100"></div>
+                            <div class="small text-muted mb-1"><?= htmlspecialchars((string) ($lang['sys.dashboard_data_model'] ?? 'Структура данных')) ?></div>
+                            <div class="small text-muted"><?= htmlspecialchars((string) ($lang['sys.dashboard_category_types'] ?? 'Типы категорий')) ?>: <strong><?= (int) ($platform['data_model']['category_types'] ?? 0) ?></strong></div>
+                            <div class="small text-muted"><?= htmlspecialchars((string) ($lang['sys.dashboard_property_types'] ?? 'Типы свойств')) ?>: <strong><?= (int) ($platform['data_model']['property_types'] ?? 0) ?></strong></div>
+                            <div class="small text-muted"><?= htmlspecialchars((string) ($lang['sys.dashboard_property_sets'] ?? 'Наборы свойств')) ?>: <strong><?= (int) ($platform['data_model']['property_sets'] ?? 0) ?></strong></div>
+                            <div class="small text-muted"><?= htmlspecialchars((string) ($lang['sys.dashboard_properties'] ?? 'Свойства')) ?>: <strong><?= (int) ($platform['data_model']['properties'] ?? 0) ?></strong></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 col-md-6 col-xl-3">
+                    <div class="card shadow-sm border h-100">
+                        <div class="card-body">
+                            <div class="small text-muted mb-1"><?= htmlspecialchars((string) ($lang['sys.dashboard_search_routing'] ?? 'Поиск и маршрутизация')) ?></div>
+                            <div class="small text-muted"><?= htmlspecialchars((string) ($lang['sys.dashboard_search_index'] ?? 'Строк индекса')) ?>: <strong><?= (int) ($platform['search_routing']['search_index'] ?? 0) ?></strong></div>
+                            <div class="small text-muted"><?= htmlspecialchars((string) ($lang['sys.dashboard_search_ngrams'] ?? 'N-граммы')) ?>: <strong><?= (int) ($platform['search_routing']['search_ngrams'] ?? 0) ?></strong></div>
+                            <div class="small text-muted"><?= htmlspecialchars((string) ($lang['sys.dashboard_url_policies'] ?? 'URL-политики')) ?>: <strong><?= (int) ($platform['search_routing']['url_policies'] ?? 0) ?></strong></div>
+                            <div class="small text-muted"><?= htmlspecialchars((string) ($lang['sys.dashboard_redirects'] ?? 'Редиректы')) ?>: <strong><?= (int) ($platform['search_routing']['redirects'] ?? 0) ?></strong></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 col-md-6 col-xl-3">
+                    <div class="card shadow-sm border h-100">
+                        <div class="card-body">
+                            <div class="small text-muted mb-1"><?= htmlspecialchars((string) ($lang['sys.dashboard_auth_access'] ?? 'Доступ и авторизация')) ?></div>
+                            <div class="small text-muted"><?= htmlspecialchars((string) ($lang['sys.dashboard_auth_online_users'] ?? 'Пользователи онлайн за 15 минут')) ?>: <strong><?= (int) ($platform['auth_access']['users_online_15m'] ?? 0) ?></strong></div>
+                            <div class="small text-muted"><?= htmlspecialchars((string) ($lang['sys.dashboard_auth_admins_online'] ?? 'Администраторы онлайн за 15 минут')) ?>: <strong><?= (int) ($platform['auth_access']['admins_online_15m'] ?? 0) ?></strong></div>
+                            <div class="small text-muted"><?= htmlspecialchars((string) ($lang['sys.dashboard_auth_managers_online'] ?? 'Менеджеры онлайн за 15 минут')) ?>: <strong><?= (int) ($platform['auth_access']['managers_online_15m'] ?? 0) ?></strong></div>
+                            <div class="small text-muted"><?= htmlspecialchars((string) ($lang['sys.dashboard_auth_regular_users_online'] ?? 'Обычные пользователи онлайн за 15 минут')) ?>: <strong><?= (int) ($platform['auth_access']['regular_users_online_15m'] ?? 0) ?></strong></div>
+                            <div class="small text-muted"><?= htmlspecialchars((string) ($lang['sys.dashboard_auth_session_tokens'] ?? 'Действующие токены сессий')) ?>: <strong><?= (int) ($platform['auth_access']['session_tokens'] ?? 0) ?></strong></div>
+                            <div class="small text-muted"><?= htmlspecialchars((string) ($lang['sys.dashboard_auth_credentials'] ?? 'Локальные учётные данные')) ?>: <strong><?= (int) ($platform['auth_access']['credentials'] ?? 0) ?></strong></div>
+                            <div class="small text-muted"><?= htmlspecialchars((string) ($lang['sys.dashboard_auth_challenges_active'] ?? 'Активные одноразовые вызовы')) ?>: <strong><?= (int) ($platform['auth_access']['active_challenges'] ?? 0) ?></strong></div>
+                            <div class="mt-3">
+                                <button
+                                    type="button"
+                                    class="btn btn-sm btn-outline-primary"
+                                    data-dashboard-online-users-toggle
+                                    data-target="#dashboard_online_users_panel"
+                                    data-url="/admin/dashboard_online_users"
+                                >
+                                    <i class="fa-solid fa-user-clock"></i>
+                                    &nbsp;<?= htmlspecialchars((string) ($lang['sys.dashboard_auth_show_online_users'] ?? 'Показать кто онлайн')) ?>
+                                </button>
                             </div>
-                            <div class="small text-muted mt-2"><?= htmlspecialchars((string) ($lang['sys.dashboard_readiness_percent'] ?? 'Готово к публикации')) ?>: <strong><?= htmlspecialchars((string) ($quality['readiness_percent'] ?? 0)) ?>%</strong></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-12 col-md-6 col-xl-3">
-                    <div class="card shadow-sm border h-100">
-                        <div class="card-body">
-                            <div class="small text-muted mb-1"><?= htmlspecialchars((string) ($lang['sys.dashboard_contacts_block'] ?? 'Контакты и фото')) ?></div>
-                            <div class="small text-muted"><?= htmlspecialchars((string) ($lang['sys.dashboard_pages_without_contacts'] ?? 'Без контактов')) ?>: <strong><?= (int) ($quality['without_contacts'] ?? 0) ?></strong></div>
-                            <div class="small text-muted"><?= htmlspecialchars((string) ($lang['sys.dashboard_pages_without_photos'] ?? 'Без фото')) ?>: <strong><?= (int) ($quality['without_photos'] ?? 0) ?></strong></div>
-                            <div class="small text-muted"><?= htmlspecialchars((string) ($lang['sys.dashboard_contacts_verified'] ?? 'Контакты проверены')) ?>: <strong><?= (int) ($quality['contacts_verified'] ?? 0) ?></strong></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-12 col-md-6 col-xl-3">
-                    <div class="card shadow-sm border h-100">
-                        <div class="card-body">
-                            <div class="small text-muted mb-1"><?= htmlspecialchars((string) ($lang['sys.dashboard_room_block'] ?? 'Номера и размещение')) ?></div>
-                            <div class="small text-muted"><?= htmlspecialchars((string) ($lang['sys.dashboard_pages_without_rooms'] ?? 'Без блока номеров')) ?>: <strong><?= (int) ($quality['without_rooms'] ?? 0) ?></strong></div>
-                            <div class="small text-muted"><?= htmlspecialchars((string) ($lang['sys.dashboard_paid_placements'] ?? 'Платное размещение')) ?>: <strong><?= (int) ($quality['paid_placements'] ?? 0) ?></strong></div>
-                            <div class="small text-muted"><?= htmlspecialchars((string) ($lang['sys.dashboard_placements_expiring'] ?? 'Истекает в 30 дней')) ?>: <strong><?= (int) ($quality['expiring_soon'] ?? 0) ?></strong></div>
+                            <div
+                                id="dashboard_online_users_panel"
+                                class="mt-3 d-none"
+                                data-loaded="0"
+                                data-loading-text="<?= htmlspecialchars((string) ($lang['sys.loading'] ?? 'Загрузка...'), ENT_QUOTES, 'UTF-8') ?>"
+                                data-load-error-text="<?= htmlspecialchars((string) ($lang['sys.dashboard_auth_online_load_error'] ?? 'Не удалось загрузить список онлайн-пользователей'), ENT_QUOTES, 'UTF-8') ?>"
+                            ></div>
                         </div>
                     </div>
                 </div>

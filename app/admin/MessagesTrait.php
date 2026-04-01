@@ -137,6 +137,7 @@ trait MessagesTrait {
                 'label' => $this->lang['sys.read_at']
             ],
         ];
+        $selected_sorting = [];
         if ($postData && SysClass::isAjaxRequestFromSameSite()) { // AJAX
             list($params, $filters, $selected_sorting) = Plugins::ee_showTablePrepareParams($postData, $data_table['columns']);            
             $user_id = Session::get('get_messages_data_table_userID');

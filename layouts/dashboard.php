@@ -67,8 +67,6 @@ $alternateHreflang = is_array($alternate_hreflang ?? null) ? $alternate_hreflang
         <?php } else { ?>
             <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
         <?php } ?>
-        <!-- Wizard -->
-        <link rel="stylesheet" href="<?= ENV_URL_SITE ?>/assets/js/plugins/ee_wizard.css" type="text/css" />
         <!-- General Styles -->
         <link rel="stylesheet" href="<?= ENV_URL_SITE . '/' . ENV_APP_DIRECTORY ?>/admin/css/index.css" type="text/css" />				
         <!-- canonical -->
@@ -108,8 +106,6 @@ $alternateHreflang = is_array($alternate_hreflang ?? null) ? $alternate_hreflang
             <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" type="text/javascript"></script>
         <?php } ?>
         <script src="<?= ENV_URL_SITE ?>/assets/js/plugins/notify.js" type="text/javascript"></script>
-        <!-- Wizard -->
-        <script src="<?= ENV_URL_SITE ?>/assets/js/plugins/ee_wizard.js" type="text/javascript"></script>
         <!-- core -->
         <script src="<?= htmlspecialchars($langBundleUrl, ENT_QUOTES, 'UTF-8') ?>" type="text/javascript"></script>
         <script src="<?= ENV_URL_SITE ?>/assets/js/core.js" type="text/javascript"></script>
