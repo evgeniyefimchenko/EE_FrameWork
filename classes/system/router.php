@@ -441,6 +441,9 @@ class Router {
         if ($routeNormalized === '' || !class_exists(EntityPublicUrlService::class)) {
             return null;
         }
+        if (!$this->hasPublicEntityInfrastructure()) {
+            return null;
+        }
 
         $resolvedRoute = EntityPublicUrlService::resolvePath($routeNormalized);
         if (!is_array($resolvedRoute) || empty($resolvedRoute['entity_type']) || empty($resolvedRoute['entity_id'])) {
@@ -462,6 +465,19 @@ class Router {
                 (string) ($resolvedRoute['language_code'] ?? ''),
             ],
         ];
+    }
+
+    private function hasPublicEntityInfrastructure(): bool {
+        $pagesExists = (int) \classes\plugins\SafeMySQL::gi()->getOne(
+            'SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?s',
+            Constants::PAGES_TABLE
+        );
+        $categoriesExists = (int) \classes\plugins\SafeMySQL::gi()->getOne(
+            'SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?s',
+            Constants::CATEGORIES_TABLE
+        );
+
+        return $pagesExists > 0 && $categoriesExists > 0;
     }
 
     /**

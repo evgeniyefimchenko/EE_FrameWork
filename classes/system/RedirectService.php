@@ -222,7 +222,9 @@ final class RedirectService {
     }
 
     public static function resolveRequestRedirect(string $sourcePath, string $host = '', string $languageCode = ''): ?array {
-        self::assertInfrastructure();
+        if (!self::hasInfrastructure()) {
+            return null;
+        }
 
         $sourcePath = self::normalizePath($sourcePath);
         $host = self::normalizeHost($host);
@@ -490,6 +492,14 @@ final class RedirectService {
     }
 
     private static function assertInfrastructure(): void {
+        if (self::hasInfrastructure()) {
+            return;
+        }
+
+        throw new \RuntimeException('Redirect infrastructure is not installed. Run install/upgrade first.');
+    }
+
+    private static function hasInfrastructure(): bool {
         $redirectsExists = (int) SafeMySQL::gi()->getOne(
             'SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?s',
             Constants::REDIRECTS_TABLE
@@ -498,8 +508,6 @@ final class RedirectService {
             'SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?s',
             Constants::ENTITY_LEGACY_PATHS_TABLE
         );
-        if ($redirectsExists <= 0 || $legacyExists <= 0) {
-            throw new \RuntimeException('Redirect infrastructure is not installed. Run install/upgrade first.');
-        }
+        return $redirectsExists > 0 && $legacyExists > 0;
     }
 }

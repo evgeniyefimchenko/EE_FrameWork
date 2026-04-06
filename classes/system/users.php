@@ -685,6 +685,7 @@ class Users {
             $this->createUsersNotificationsTable();
             $this->createUsersMessageTable();
             $this->createUsersActivationTable();
+            ApiKeyService::ensureInfrastructure(true);
             $this->createCategoriesTypesTable();
             $this->createCategoriesTable();
             $this->createPagesTable();

@@ -24,6 +24,8 @@ class Constants {
             USERS_AUTH_SESSIONS_TABLE_FIELDS = [],
             USERS_AUTH_CREDENTIALS_TABLE = ENV_DB_PREF . 'user_auth_credentials',
             USERS_AUTH_CREDENTIALS_TABLE_FIELDS = [],
+            USERS_API_KEYS_TABLE = ENV_DB_PREF . 'user_api_keys',
+            USERS_API_KEYS_TABLE_FIELDS = [],
             USERS_AUTH_IDENTITIES_TABLE = ENV_DB_PREF . 'user_auth_identities',
             USERS_AUTH_IDENTITIES_TABLE_FIELDS = [],
             USERS_AUTH_CHALLENGES_TABLE = ENV_DB_PREF . 'user_auth_challenges',
