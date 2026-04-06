@@ -137,34 +137,6 @@ $pageSearchScopeMask = isset($pageData['search_scope_mask']) ? (int) $pageData['
                                     </div>
                                 </div>
                                 <div class="row mb-3">
-                                    <div class="col-12 col-lg-8">
-                                        <div class="card border-light shadow-sm">
-                                            <div class="card-body">
-                                                <div class="form-check mb-3">
-                                                    <input class="form-check-input" type="checkbox" id="search_enabled-input" name="search_enabled" <?= $pageSearchEnabled ? 'checked' : '' ?>>
-                                                    <label class="form-check-label" for="search_enabled-input"><?= htmlspecialchars((string) ($lang['sys.search_enabled'] ?? 'Участвует в поиске')) ?></label>
-                                                </div>
-                                                <div class="small text-muted mb-2"><?= htmlspecialchars((string) ($lang['sys.search_scope_help_page'] ?? 'Страница попадёт в поиск только в выбранных разделах и только если разрешена родительской категорией.')) ?></div>
-                                                <label class="form-label d-block mb-2"><?= htmlspecialchars((string) ($lang['sys.search_sections'] ?? 'Разделы поиска')) ?>:</label>
-                                                <div class="d-flex flex-wrap gap-3">
-                                                    <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" id="search_scope_public-input" name="search_scope_public" <?= ($pageSearchScopeMask & \classes\system\Constants::SEARCH_SCOPE_PUBLIC) ? 'checked' : '' ?>>
-                                                        <label class="form-check-label" for="search_scope_public-input"><?= htmlspecialchars((string) ($lang['sys.site'] ?? 'Сайт')) ?></label>
-                                                    </div>
-                                                    <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" id="search_scope_manager-input" name="search_scope_manager" <?= ($pageSearchScopeMask & \classes\system\Constants::SEARCH_SCOPE_MANAGER) ? 'checked' : '' ?>>
-                                                        <label class="form-check-label" for="search_scope_manager-input"><?= htmlspecialchars((string) ($lang['sys.manager'] ?? 'Менеджер')) ?></label>
-                                                    </div>
-                                                    <div class="form-check">
-                                                        <input class="form-check-input" type="checkbox" id="search_scope_admin-input" name="search_scope_admin" <?= ($pageSearchScopeMask & \classes\system\Constants::SEARCH_SCOPE_ADMIN) ? 'checked' : '' ?>>
-                                                        <label class="form-check-label" for="search_scope_admin-input"><?= htmlspecialchars((string) ($lang['sys.admin'] ?? 'Администратор')) ?></label>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="row mb-3">
                                     <div class="col-12 col-sm-12">
                                         <label for="short_description-input"><?= $lang['sys.short_description'] ?>:</label>
                                         <textarea id="short_description-input" name="short_description" class="form-control"><?= $pageData['short_description'] ?></textarea>
@@ -185,6 +157,34 @@ $pageSearchScopeMask = isset($pageData['search_scope_mask']) ? (int) $pageData['
                                 <div class="col-2">
                                     <label><?= $lang['sys.date_update'] ?>:</label>
                                     <input type="text" disabled class="form-control" value="<?= $pageData['updated_at'] ?>">
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-12 col-xl-9">
+                                    <div class="card border-light shadow-sm">
+                                        <div class="card-body">
+                                            <div class="form-check mb-3">
+                                                <input class="form-check-input" type="checkbox" id="search_enabled-input" name="search_enabled" <?= $pageSearchEnabled ? 'checked' : '' ?>>
+                                                <label class="form-check-label" for="search_enabled-input"><?= htmlspecialchars((string) ($lang['sys.search_visibility_title'] ?? 'Показывать в поиске')) ?></label>
+                                            </div>
+                                            <div class="small text-muted mb-2"><?= htmlspecialchars((string) ($lang['sys.search_scope_help_page'] ?? 'Страница появится только в выбранных контурах поиска и только если это разрешено родительской категорией.')) ?></div>
+                                            <label class="form-label d-block mb-2"><?= htmlspecialchars((string) ($lang['sys.search_scope_title'] ?? 'Контуры поиска')) ?>:</label>
+                                            <div class="d-flex flex-wrap gap-3">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="search_scope_public-input" name="search_scope_public" <?= ($pageSearchScopeMask & \classes\system\Constants::SEARCH_SCOPE_PUBLIC) ? 'checked' : '' ?>>
+                                                    <label class="form-check-label" for="search_scope_public-input"><?= htmlspecialchars((string) ($lang['sys.search_scope_public_label'] ?? 'Публичный сайт')) ?></label>
+                                                </div>
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="search_scope_manager-input" name="search_scope_manager" <?= ($pageSearchScopeMask & \classes\system\Constants::SEARCH_SCOPE_MANAGER) ? 'checked' : '' ?>>
+                                                    <label class="form-check-label" for="search_scope_manager-input"><?= htmlspecialchars((string) ($lang['sys.search_scope_manager_label'] ?? 'Рабочий интерфейс')) ?></label>
+                                                </div>
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="search_scope_admin-input" name="search_scope_admin" <?= ($pageSearchScopeMask & \classes\system\Constants::SEARCH_SCOPE_ADMIN) ? 'checked' : '' ?>>
+                                                    <label class="form-check-label" for="search_scope_admin-input"><?= htmlspecialchars((string) ($lang['sys.search_scope_admin_label'] ?? 'Системный интерфейс')) ?></label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>

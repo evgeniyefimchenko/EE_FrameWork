@@ -4406,6 +4406,12 @@ class WordpressImporter extends BaseImporter {
         }
 
         $escapedHost = preg_quote($donorHost, '~');
+        $text = preg_replace(
+            '~(?:(https?):)+(//(?:www\.)?' . $escapedHost . '(?::\d+)?(?:/[^\s"\'<>()]*)?)~iu',
+            '$1:$2',
+            $text
+        ) ?? $text;
+
         $text = preg_replace_callback(
             '~https?://(?:www\.)?' . $escapedHost . '(?::\d+)?(?:/[^\s"\'<>()]*)?~iu',
             fn(array $matches): string => $this->rewriteDonorUrl((string) ($matches[0] ?? '')),
@@ -4413,7 +4419,7 @@ class WordpressImporter extends BaseImporter {
         ) ?? $text;
 
         $text = preg_replace_callback(
-            '~//(?:www\.)?' . $escapedHost . '(?::\d+)?(?:/[^\s"\'<>()]*)?~iu',
+            '~(?<!:)//(?:www\.)?' . $escapedHost . '(?::\d+)?(?:/[^\s"\'<>()]*)?~iu',
             fn(array $matches): string => $this->rewriteDonorUrl((string) ($matches[0] ?? '')),
             $text
         ) ?? $text;
@@ -4511,8 +4517,8 @@ class WordpressImporter extends BaseImporter {
 
         do {
             $previous = $url;
-            $url = preg_replace('~^(https?):(?=(?:https?:)+//)~iu', '', $url) ?? $url;
-            $url = preg_replace('~^(http?):(?=(?:http?:)+//)~iu', '', $url) ?? $url;
+            $url = preg_replace('~^(?:(https?):)+(//.+)$~iu', '$1:$2', $url) ?? $url;
+            $url = preg_replace('~^(?:(https?):)+(\\\\/\\\\/.+)$~iu', '$1:$2', $url) ?? $url;
         } while ($url !== $previous);
 
         return $url;

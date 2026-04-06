@@ -27,7 +27,7 @@ trait PropertiesTrait {
         /* view */
         $this->getStandardViews();
         $properties_data = $this->getPropertiesDataTable();
-        $getAllPropertyTypes = $this->models['m_properties']->getAllPropertyTypes();
+        $getAllPropertyTypes = $this->models['m_properties']->getAllPropertyTypes(Constants::ACTIVE_STATUS);
         $this->view->set('all_property_types', $getAllPropertyTypes);
         $this->view->set('properties_table', $properties_data);
         $this->view->set('body_view', $this->view->read('v_properties'));
@@ -94,6 +94,13 @@ trait PropertiesTrait {
                     'sorted' => 'ASC',
                     'filterable' => false
                 ], [
+                    'field' => 'usage_count',
+                    'title' => $this->lang['sys.used'],
+                    'sorted' => 'DESC',
+                    'filterable' => false,
+                    'width' => 8,
+                    'align' => 'center'
+                ], [
                     'field' => 'created_at',
                     'title' => $this->lang['sys.date_create'],
                     'sorted' => 'ASC',
@@ -146,6 +153,7 @@ trait PropertiesTrait {
                 'type_id' => $item['type_id'],
                 'name' => $item['name'],
                 'status' => $this->lang['sys.' . $item['status']],
+                'usage_count' => (int) ($item['usage_count'] ?? 0),
                 'created_at' => date('d.m.Y', strtotime($item['created_at'])),
                 'updated_at' => $item['updated_at'] ? date('d.m.Y', strtotime($item['updated_at'])) : '',
                 'actions' => '<a href="/admin/type_properties_edit/id/' . $item['type_id'] . '" class="btn btn-primary me-2" data-bs-toggle="tooltip"'
@@ -247,7 +255,7 @@ trait PropertiesTrait {
                 'label' => $this->lang['sys.date_update']
             ],
         ];
-        foreach ($this->models['m_properties']->getAllPropertyTypes() as $item) {
+        foreach ($this->models['m_properties']->getAllPropertyTypes(Constants::ACTIVE_STATUS) as $item) {
             $filters['type_id']['options'][] = ['value' => $item['type_id'], 'label' => $item['name']];
         }
         $selected_sorting = [];
@@ -507,7 +515,7 @@ trait PropertiesTrait {
         } else { // Не передан ключевой параметр id
             SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/user_edit/id/' . $this->logged_in);
         }
-        $getAllPropertyTypes = $this->models['m_properties']->getAllPropertyTypes();
+        $getAllPropertyTypes = $this->models['m_properties']->getAllPropertyTypes(Constants::ACTIVE_STATUS);
         foreach (Constants::ALL_STATUS as $key => $value) {
             $allStatus[$key] = $this->lang['sys.' . $value];
         }

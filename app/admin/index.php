@@ -907,7 +907,8 @@ use MessagesTrait,
                     . 'onclick="return confirm(\'' . ($this->lang['sys.login_as_user_confirm'] ?? 'Войти под этим пользователем?') . '\');" '
                     . 'data-bs-toggle="tooltip" data-bs-placement="top" title="' . ($this->lang['sys.login_as_user'] ?? 'Войти как пользователь') . '"><i class="fas fa-user-secret"></i></a>';
             }
-            if (!in_array($item['user_id'], [1, 2, 3])) {
+            $isProtectedUser = in_array((int) ($item['user_role'] ?? 0), [Constants::ADMIN, Constants::SYSTEM], true);
+            if (!$isProtectedUser) {
                 $html_actions = $impersonateButton
                         . '<a href="/admin/user_edit/id/' . $item['user_id'] . '" class="btn btn-primary me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.edit'] . '"><i class="fas fa-edit"></i></a>'
                         . '<a href="/admin/delete_user/id/' . $item['user_id'] . '"  onclick="return confirm(\'' . $this->lang['sys.delete'] . '?\');" '
@@ -1137,7 +1138,8 @@ use MessagesTrait,
             } else {
                 $user_id = 0;
             }
-            if (in_array($user_id, [1, 2, 8])) {
+            $targetUserRole = (int) $this->users->getUserRole((int) $user_id);
+            if (in_array($targetUserRole, [Constants::ADMIN, Constants::SYSTEM], true)) {
                 ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.system_roles_cannot_be_deleted'] ?? 'System roles cannot be deleted.', 'status' => 'danger']);
             } else {
                 $this->loadModel('m_user_edit');

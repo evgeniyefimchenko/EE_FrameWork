@@ -49,6 +49,27 @@ final class PropertyFieldContract {
             return [];
         }
 
+        if ($payload !== [] && !isset($payload['type']) && !isset($payload['default']) && !isset($payload['value']) && !isset($payload['uid'])) {
+            $containsScalarItems = false;
+            foreach ($payload as $item) {
+                if (is_scalar($item) || $item === null) {
+                    $containsScalarItems = true;
+                    break;
+                }
+            }
+            if ($containsScalarItems) {
+                $normalized = [];
+                foreach (array_values($payload) as $item) {
+                    $type = strtolower(trim((string) $item));
+                    if ($type === '') {
+                        continue;
+                    }
+                    $normalized[] = ['type' => $type];
+                }
+                return $normalized;
+            }
+        }
+
         if (isset($payload['type']) || isset($payload['default']) || isset($payload['value']) || isset($payload['uid'])) {
             return [$payload];
         }

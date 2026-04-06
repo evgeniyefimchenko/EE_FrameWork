@@ -713,9 +713,9 @@ trait CategoriesTrait {
 
     private function getSearchScopeLabelsForCategories(): array {
         return [
-            Constants::SEARCH_SCOPE_PUBLIC => (string) ($this->lang['sys.site'] ?? 'Сайт'),
-            Constants::SEARCH_SCOPE_MANAGER => (string) ($this->lang['sys.manager'] ?? 'Менеджер'),
-            Constants::SEARCH_SCOPE_ADMIN => (string) ($this->lang['sys.admin'] ?? 'Админ'),
+            Constants::SEARCH_SCOPE_PUBLIC => (string) ($this->lang['sys.search_scope_public_label'] ?? 'Публичный сайт'),
+            Constants::SEARCH_SCOPE_MANAGER => (string) ($this->lang['sys.search_scope_manager_label'] ?? 'Рабочий интерфейс'),
+            Constants::SEARCH_SCOPE_ADMIN => (string) ($this->lang['sys.search_scope_admin_label'] ?? 'Системный интерфейс'),
         ];
     }
 }

@@ -164,7 +164,12 @@ trait PagesTrait {
         unset($result);
         $getAllCategories = $this->models['m_categories']->getCategoriesTree(null, null, true, $languageCode ?: ee_get_default_content_lang_code());
         $getAllPages = $this->models['m_pages']->getAllPages($pageId, $languageCode ?: ee_get_default_content_lang_code());
-        $getAllProperties = $this->getPropertiesByCategoryId((int) ($getPageData['category_id'] ?? 0), (int) $pageId, $languageCode ?: ee_get_default_content_lang_code());
+        $getAllProperties = $this->getPropertiesByCategoryId(
+            (int) ($getPageData['category_id'] ?? 0),
+            (int) $pageId,
+            (string) ($getPageData['title'] ?? ''),
+            $languageCode ?: ee_get_default_content_lang_code()
+        );
         $contentLanguageCodes = ee_get_content_lang_codes();
         $translationUi = (int) $pageId > 0
             ? $this->buildPageTranslationUi((int) $pageId, $languageCode ?: ee_get_default_content_lang_code(), $contentLanguageCodes)
@@ -197,12 +202,12 @@ trait PagesTrait {
         $this->showLayout($this->parameters_layout);
     }
 
-    private function getPropertiesByCategoryId(int $categoryId, int $pageId, string $languageCode = ''): array {
+    private function getPropertiesByCategoryId(int $categoryId, int $pageId, string $pageTitle = '', string $languageCode = ''): array {
         $languageCode = ee_get_default_content_lang_code($languageCode);
         $categoryTypeId = $this->models['m_categories']->getCategoryTypeId($categoryId, $languageCode);
         $getCategoriesTypeSets = $this->models['m_categories_types']->getCategoriesTypeSetsData($categoryTypeId);
-        // $getCategoriesTypeSetsData = $this->processPageProperties($getCategoriesTypeSets, $pageId);
-        $getCategoriesTypeSetsData = $this->formattingEntityProperties($getCategoriesTypeSets, $pageId, 'page', $pageId, $languageCode);
+        $entityTitle = trim($pageTitle) !== '' ? trim($pageTitle) : ('page_' . $pageId);
+        $getCategoriesTypeSetsData = $this->formattingEntityProperties($getCategoriesTypeSets, $pageId, 'page', $entityTitle, $languageCode);
         return $getCategoriesTypeSetsData;
     }
 
@@ -651,9 +656,9 @@ trait PagesTrait {
 
     private function getSearchScopeLabelsForPages(): array {
         return [
-            Constants::SEARCH_SCOPE_PUBLIC => (string) ($this->lang['sys.site'] ?? 'Сайт'),
-            Constants::SEARCH_SCOPE_MANAGER => (string) ($this->lang['sys.manager'] ?? 'Менеджер'),
-            Constants::SEARCH_SCOPE_ADMIN => (string) ($this->lang['sys.admin'] ?? 'Админ'),
+            Constants::SEARCH_SCOPE_PUBLIC => (string) ($this->lang['sys.search_scope_public_label'] ?? 'Публичный сайт'),
+            Constants::SEARCH_SCOPE_MANAGER => (string) ($this->lang['sys.search_scope_manager_label'] ?? 'Рабочий интерфейс'),
+            Constants::SEARCH_SCOPE_ADMIN => (string) ($this->lang['sys.search_scope_admin_label'] ?? 'Системный интерфейс'),
         ];
     }
 }

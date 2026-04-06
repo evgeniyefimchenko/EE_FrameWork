@@ -1,5 +1,8 @@
 <?php if (!defined('ENV_SITE')) exit(header('Location: /', true, 301)); ?>
 <!-- Редактирование пользователя сайта -->
+<?php
+$isProtectedSystemUser = in_array((int) ($user_context['user_role'] ?? 0), [\classes\system\Constants::ADMIN, \classes\system\Constants::SYSTEM], true);
+?>
 <main>
     <form id="edit_users">
         <input type="hidden" name="fake" value="1" />
@@ -44,7 +47,7 @@
                             <div class="row mb-3">
                                 <div class="col-md-6">
                                     <label><?= $lang['sys.status'] ?></label>
-                                    <select <?= $user_context['user_id'] == 1 ? 'disabled' : '' ?> name="active" class="selectpicker form-control">
+                                    <select <?= $isProtectedSystemUser ? 'disabled' : '' ?> name="active" class="selectpicker form-control">
                                         <option value="<?= $user_context['active'] ?>"><?= $user_context['active_text'] ?></option>
                                         <?php foreach ($free_active_status as $key => $val){?>
                                         <option value="<?= $key ?>"><?= $lang[$val] ?></option>
@@ -56,7 +59,7 @@
                                     <!-- Роль пользователя может сменить только администратор -->
                                     <label><?= $lang['sys.role'] ?></label>
                                     <?php if ($userData['user_role'] == 1) { ?>
-                                        <select <?= $user_context['user_id'] == 1 || $user_context['user_role'] == 3 ? 'disabled' : '' ?> name="user_role" class="selectpicker form-control">
+                                        <select <?= $isProtectedSystemUser || $user_context['user_role'] == 3 ? 'disabled' : '' ?> name="user_role" class="selectpicker form-control">
                                             <option value="<?= $user_context['user_role'] ?>"><?= $user_context['user_role_text'] ?></option>
                                             <?php foreach ($get_free_roles as $role) { ?>
                                                 <option value="<?= $role['role_id'] ?>"><?= $role['name'] ?></option>

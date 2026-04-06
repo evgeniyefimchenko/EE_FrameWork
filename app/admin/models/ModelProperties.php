@@ -207,8 +207,16 @@ class ModelProperties {
         } else if (!is_array($status)) {
             $status = Constants::ALL_STATUS;
         }
-        $sql = "SELECT * FROM ?n WHERE status IN (?a) AND language_code = ?s";
-        $property_types = SafeMySQL::gi()->getInd('type_id', $sql, Constants::PROPERTY_TYPES_TABLE, $status, $languageCode);
+        $orderString = $this->getPropertyTypeDisplayOrderSql();
+        $sql = "SELECT pt.*, (
+                    SELECT COUNT(*)
+                    FROM ?n p
+                    WHERE p.type_id = pt.type_id
+                ) AS usage_count
+                FROM ?n pt
+                WHERE pt.status IN (?a) AND pt.language_code = ?s
+                ORDER BY $orderString";
+        $property_types = SafeMySQL::gi()->getInd('type_id', $sql, Constants::PROPERTIES_TABLE, Constants::PROPERTY_TYPES_TABLE, $status, $languageCode);
         return $property_types;
     }
 
@@ -222,19 +230,26 @@ class ModelProperties {
      * @return array РњР°СЃСЃРёРІ, СЃРѕРґРµСЂР¶Р°С‰РёР№ РґР°РЅРЅС‹Рµ С‚РёРїРѕРІ СЃРІРѕР№СЃС‚РІ Рё РѕР±С‰РµРµ РєРѕР»РёС‡РµСЃС‚РІРѕ С‚РёРїРѕРІ СЃРІРѕР№СЃС‚РІ
      */
     public function getTypePropertiesData(string $order = 'type_id ASC', $where = null, int $start = 0, int $limit = 100, string $languageCode = ENV_DEF_LANG) {
-        $orderString = $order ? $order : 'type_id ASC';
-        $whereString = $where ? $where . ' AND language_code = ?s' : 'WHERE language_code = ?s';
-        if ($orderString) {
-            $sql_types = "SELECT type_id FROM ?n $whereString ORDER BY $orderString LIMIT ?i, ?i";
-        } else {
-            $sql_types = "SELECT type_id FROM ?n $whereString LIMIT ?i, ?i";
+        $orderString = trim((string) $order);
+        if ($orderString === '') {
+            $orderString = $this->getPropertyTypeDisplayOrderSql();
         }
-        $res_array = SafeMySQL::gi()->getAll($sql_types, Constants::PROPERTY_TYPES_TABLE, $languageCode, $start, $limit);
-        $res = [];
-        foreach ($res_array as $type) {
-            $res[] = $this->getTypePropertyData($type['type_id'], $languageCode);
-        }
-        $sql_count = "SELECT COUNT(*) as total_count FROM ?n $whereString";
+        $whereString = $where
+            ? "WHERE " . $where . " AND pt.status <> 'hidden' AND pt.language_code = ?s"
+            : "WHERE pt.status <> 'hidden' AND pt.language_code = ?s";
+
+        $sql = "SELECT pt.*, (
+                    SELECT COUNT(*)
+                    FROM ?n p
+                    WHERE p.type_id = pt.type_id
+                ) AS usage_count
+                FROM ?n pt
+                $whereString
+                ORDER BY $orderString
+                LIMIT ?i, ?i";
+        $res = SafeMySQL::gi()->getAll($sql, Constants::PROPERTIES_TABLE, Constants::PROPERTY_TYPES_TABLE, $languageCode, $start, $limit);
+
+        $sql_count = "SELECT COUNT(*) as total_count FROM ?n pt $whereString";
         $total_count = SafeMySQL::gi()->getOne($sql_count, Constants::PROPERTY_TYPES_TABLE, $languageCode);
         return [
             'data' => $res,
@@ -249,12 +264,36 @@ class ModelProperties {
      * @return array|null РњР°СЃСЃРёРІ СЃ РґР°РЅРЅС‹РјРё С‚РёРїР° СЃРІРѕР№СЃС‚РІР° РёР»Рё NULL, РµСЃР»Рё С‚РёРї СЃРІРѕР№СЃС‚РІР° РЅРµ РЅР°Р№РґРµРЅ
      */
     public function getTypePropertyData(int $typeId, string $languageCode = ENV_DEF_LANG) {
-        $sql = "SELECT * FROM ?n WHERE type_id = ?i AND language_code = ?s";
-        $typeData = SafeMySQL::gi()->getRow($sql, Constants::PROPERTY_TYPES_TABLE, $typeId, $languageCode);
+        $sql = "SELECT pt.*, (
+                    SELECT COUNT(*)
+                    FROM ?n p
+                    WHERE p.type_id = pt.type_id
+                ) AS usage_count
+                FROM ?n pt
+                WHERE pt.type_id = ?i AND pt.language_code = ?s";
+        $typeData = SafeMySQL::gi()->getRow($sql, Constants::PROPERTIES_TABLE, Constants::PROPERTY_TYPES_TABLE, $typeId, $languageCode);
         if (!$typeData) {
             return null;
         }
         return $typeData;
+    }
+
+    private function getPropertyTypeDisplayOrderSql(): string {
+        return "CASE pt.fields
+            WHEN '[\"text\"]' THEN 10
+            WHEN '[\"textarea\"]' THEN 20
+            WHEN '[\"number\"]' THEN 30
+            WHEN '[\"date\"]' THEN 40
+            WHEN '[\"email\"]' THEN 50
+            WHEN '[\"image\"]' THEN 60
+            WHEN '[\"file\"]' THEN 70
+            WHEN '[\"select\"]' THEN 80
+            WHEN '[\"checkbox\"]' THEN 90
+            WHEN '[\"radio\"]' THEN 100
+            WHEN '[\"phone\",\"text\"]' THEN 200
+            WHEN '[\"text\",\"number\"]' THEN 210
+            ELSE 300
+        END ASC, pt.name ASC, pt.type_id ASC";
     }
 
     /**
