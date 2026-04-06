@@ -172,9 +172,9 @@ class ControllerIndex Extends ControllerBase {
             SysClass::handleRedirect(200, $this->getDefaultAuthorizedLandingUrl((int) ($this->users->data['user_role'] ?? 0)));
         }
         /* layouts */
-        $this->parameters_layout["add_script"] .= '<script src="' . ENV_URL_SITE . '/assets/js/plugins/validator.min.js" type="text/javascript" /></script>';
-        $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/login-register.js" type="text/javascript" /></script>';
-        $this->parameters_layout["add_script"] .= '<script>$(document).ready(function () {openLoginModal();});</script>';
+        $this->parameters_layout["add_script"] .= '<script src="' . ENV_URL_SITE . '/assets/js/plugins/validator.min.js" type="text/javascript"></script>';
+        $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/login-register.js" type="text/javascript"></script>';
+        $this->parameters_layout["add_script"] .= '<script>$(document).ready(function () { if (typeof openLoginModal === "function") { openLoginModal(); } });</script>';
         $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="' . $this->getPathController() . '/css/login-register.css"/>';
         $this->parameters_layout["title"] = ENV_SITE_NAME;
         $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION . ' - ' . (string) ($this->lang['sys.login_registration_form'] ?? 'Login / registration form');

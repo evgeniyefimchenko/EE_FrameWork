@@ -62,6 +62,20 @@ function openRecoveryModal() {
     showModalWithContent(MODAL_TITLE_RESTORE_PASSWORD, '.PasswordRecoveryBox, .recovery-footer');
 }
 
+$(document).on('click', '[data-auth-modal]', function (event) {
+    event.preventDefault();
+    const target = $(this).data('auth-modal');
+    if (target === 'register') {
+        openRegisterModal();
+        return;
+    }
+    if (target === 'recovery') {
+        openRecoveryModal();
+        return;
+    }
+    openLoginModal();
+});
+
 /**
  * Выполняет AJAX-запрос.
  * @param {string} url URL для запроса.

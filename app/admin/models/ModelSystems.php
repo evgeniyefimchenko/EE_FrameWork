@@ -295,6 +295,7 @@ class ModelSystems {
         $order = ($order !== false && trim((string) $order) !== '')
             ? (string) $order
             : self::DEFAULT_PHP_LOG_ORDER;
+        $type = ($type === 'fatal_errors') ? 'fatal_errors' : 'php_logs';
 
         $selectedLogs = [];
         $totalCount = 0;

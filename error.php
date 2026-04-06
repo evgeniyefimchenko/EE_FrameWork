@@ -7,7 +7,7 @@
  */
 use classes\system\Session;
 
-if (!ENV_SITE) {
+if (!defined('ENV_SITE') || !ENV_SITE) {
     http_response_code(404);
     die;
 }
@@ -20,7 +20,6 @@ if (!ENV_SITE) {
         <meta http-equiv="refresh" content="3;<?= ENV_URL_SITE ?>">
         <meta name="viewport" content="width=device-width, initial-scale=0.5">
         <link rel="shortcut icon" href="favicon.ico" type="image/x-icon" />
-        <link href='http://fonts.googleapis.com/css?family=Open+Sans:400italic,400,700&subset=latin,cyrillic' rel='stylesheet' type='text/css'>
         <style type="text/css">
             html, body {
                 width:100%;

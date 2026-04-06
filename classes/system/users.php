@@ -718,6 +718,7 @@ class Users {
             $this->createImportMapTable();
             $this->createCronAgentsInfrastructure();
             // Вставка начальных данных            
+            $this->insertDefaultContentModelScaffold();
             $this->insertDefaultEmailSnippets();
             $this->insertDefaultEmailTemplates();
             SafeMySQL::gi()->query("COMMIT");
@@ -727,6 +728,114 @@ class Users {
             return false;
         }
         $this->logSqlInfo('create_tables', 'База данных успешно развёрнута');
+    }
+
+    /**
+     * Создаёт минимальную рабочую контентную модель для чистой установки.
+     * Нужна, чтобы после install админка не стартовала с пустыми типами категорий и свойств.
+     */
+    private function insertDefaultContentModelScaffold(): void {
+        $languageCode = $this->getBootstrapContentLanguageCode();
+        $this->insertDefaultCategoryTypes($languageCode);
+        $this->insertDefaultPropertyTypes($languageCode);
+        $this->logSqlInfo('insert_default_content_model_scaffold', 'Базовая контентная модель создана', [
+            'language_code' => $languageCode,
+        ]);
+    }
+
+    private function getBootstrapContentLanguageCode(): string {
+        $languageCode = strtoupper(trim((string) (defined('ENV_DEF_LANG') ? ENV_DEF_LANG : 'RU')));
+        return preg_match('~^[A-Z]{2}$~', $languageCode) ? $languageCode : 'RU';
+    }
+
+    private function insertDefaultCategoryTypes(string $languageCode): void {
+        foreach ($this->getDefaultCategoryTypeSeeds($languageCode) as $seed) {
+            SafeMySQL::gi()->query(
+                'INSERT IGNORE INTO ?n SET ?u',
+                Constants::CATEGORIES_TYPES_TABLE,
+                [
+                    'parent_type_id' => null,
+                    'name' => (string) $seed['name'],
+                    'description' => (string) $seed['description'],
+                    'language_code' => $languageCode,
+                ]
+            );
+        }
+    }
+
+    private function insertDefaultPropertyTypes(string $languageCode): void {
+        foreach ($this->getDefaultPropertyTypeSeeds($languageCode) as $seed) {
+            SafeMySQL::gi()->query(
+                'INSERT IGNORE INTO ?n SET ?u',
+                Constants::PROPERTY_TYPES_TABLE,
+                [
+                    'name' => (string) $seed['name'],
+                    'status' => 'active',
+                    'fields' => json_encode($seed['fields'], JSON_UNESCAPED_UNICODE),
+                    'schema_version' => 1,
+                    'description' => (string) $seed['description'],
+                    'language_code' => $languageCode,
+                ]
+            );
+        }
+    }
+
+    private function getDefaultCategoryTypeSeeds(string $languageCode): array {
+        if ($languageCode === 'EN') {
+            return [
+                [
+                    'name' => 'Default section',
+                    'description' => 'Base category type for a clean installation.',
+                ],
+            ];
+        }
+
+        return [
+            [
+                'name' => 'Основной раздел',
+                'description' => 'Базовый тип категории для чистой установки.',
+            ],
+        ];
+    }
+
+    private function getDefaultPropertyTypeSeeds(string $languageCode): array {
+        if ($languageCode === 'EN') {
+            return [
+                ['name' => 'Text', 'description' => 'Single-line text field.', 'fields' => ['text']],
+                ['name' => 'Textarea', 'description' => 'Multi-line text field.', 'fields' => ['textarea']],
+                ['name' => 'Number', 'description' => 'Numeric field.', 'fields' => ['number']],
+                ['name' => 'Date', 'description' => 'Date field.', 'fields' => ['date']],
+                ['name' => 'Time', 'description' => 'Time field.', 'fields' => ['time']],
+                ['name' => 'Date and time', 'description' => 'Datetime field.', 'fields' => ['datetime-local']],
+                ['name' => 'Email', 'description' => 'Email field.', 'fields' => ['email']],
+                ['name' => 'Phone', 'description' => 'Phone field.', 'fields' => ['phone']],
+                ['name' => 'Select', 'description' => 'Select options field.', 'fields' => ['select']],
+                ['name' => 'Checkboxes', 'description' => 'Checkbox options field.', 'fields' => ['checkbox']],
+                ['name' => 'Radio', 'description' => 'Radio options field.', 'fields' => ['radio']],
+                ['name' => 'Image', 'description' => 'Image field.', 'fields' => ['image']],
+                ['name' => 'File', 'description' => 'File field.', 'fields' => ['file']],
+                ['name' => 'Hidden', 'description' => 'Hidden field.', 'fields' => ['hidden']],
+                ['name' => 'Password', 'description' => 'Password field.', 'fields' => ['password']],
+            ];
+        }
+
+        return [
+            ['name' => 'Строка', 'description' => 'Однострочное текстовое поле.', 'fields' => ['text']],
+            ['name' => 'Текст', 'description' => 'Многострочное текстовое поле.', 'fields' => ['textarea']],
+            ['name' => 'Число', 'description' => 'Числовое поле.', 'fields' => ['number']],
+            ['name' => 'Дата', 'description' => 'Поле даты.', 'fields' => ['date']],
+            ['name' => 'Время', 'description' => 'Поле времени.', 'fields' => ['time']],
+            ['name' => 'Дата и время', 'description' => 'Поле даты и времени.', 'fields' => ['datetime-local']],
+            ['name' => 'Email', 'description' => 'Поле электронной почты.', 'fields' => ['email']],
+            ['name' => 'Телефон', 'description' => 'Поле телефона.', 'fields' => ['phone']],
+            ['name' => 'Список выбора', 'description' => 'Поле выбора одного или нескольких вариантов.', 'fields' => ['select']],
+            ['name' => 'Чекбоксы', 'description' => 'Поле множественного выбора.', 'fields' => ['checkbox']],
+            ['name' => 'Переключатели', 'description' => 'Поле выбора одного варианта.', 'fields' => ['radio']],
+            ['name' => 'Изображение', 'description' => 'Поле изображения.', 'fields' => ['image']],
+            ['name' => 'Файл', 'description' => 'Поле файла.', 'fields' => ['file']],
+            ['name' => 'Скрытое поле', 'description' => 'Скрытое поле формы.', 'fields' => ['hidden']],
+            ['name' => 'Пароль', 'description' => 'Поле пароля.', 'fields' => ['password']],
+        ];
     }
 
     private function logSqlInfo(string $initiator, string $message, array $context = []): void {

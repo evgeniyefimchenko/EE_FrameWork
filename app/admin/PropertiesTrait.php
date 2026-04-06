@@ -27,7 +27,7 @@ trait PropertiesTrait {
         /* view */
         $this->getStandardViews();
         $properties_data = $this->getPropertiesDataTable();
-        $getAllPropertyTypes = $this->models['m_properties']->getAllPropertyTypes(Constants::ACTIVE_STATUS);
+        $getAllPropertyTypes = $this->models['m_properties']->getAllPropertyTypes('active');
         $this->view->set('all_property_types', $getAllPropertyTypes);
         $this->view->set('properties_table', $properties_data);
         $this->view->set('body_view', $this->view->read('v_properties'));
@@ -255,7 +255,7 @@ trait PropertiesTrait {
                 'label' => $this->lang['sys.date_update']
             ],
         ];
-        foreach ($this->models['m_properties']->getAllPropertyTypes(Constants::ACTIVE_STATUS) as $item) {
+        foreach ($this->models['m_properties']->getAllPropertyTypes('active') as $item) {
             $filters['type_id']['options'][] = ['value' => $item['type_id'], 'label' => $item['name']];
         }
         $selected_sorting = [];
@@ -515,7 +515,7 @@ trait PropertiesTrait {
         } else { // Не передан ключевой параметр id
             SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/user_edit/id/' . $this->logged_in);
         }
-        $getAllPropertyTypes = $this->models['m_properties']->getAllPropertyTypes(Constants::ACTIVE_STATUS);
+        $getAllPropertyTypes = $this->models['m_properties']->getAllPropertyTypes('active');
         foreach (Constants::ALL_STATUS as $key => $value) {
             $allStatus[$key] = $this->lang['sys.' . $value];
         }

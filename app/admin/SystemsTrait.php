@@ -437,9 +437,11 @@ trait SystemsTrait {
         $selected_sorting = [];
         if ($postData && SysClass::isAjaxRequestFromSameSite()) { // AJAX
             list($params, $filters, $selected_sorting) = Plugins::ee_showTablePrepareParams($postData, $data_table['columns']);
-            $type = $this->get_table_name_from_post($postData);
+            $resolvedType = $this->get_table_name_from_post($postData);
+            $type = ($resolvedType === 'fatal_errors') ? 'fatal_errors' : 'php_logs';
             $php_logs_array = $this->models['m_systems']->get_php_logs($params['order'], $params['where'], $params['start'], $params['limit'], $type);
         } else {
+            $type = ($type === 'fatal_errors') ? 'fatal_errors' : 'php_logs';
             $php_logs_array = $this->models['m_systems']->get_php_logs(false, false, false, 25, $type);
         }
         foreach ($php_logs_array['data'] as $key => $item) {

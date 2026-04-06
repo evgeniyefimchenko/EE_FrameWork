@@ -71,7 +71,16 @@ abstract class ControllerBase {
     function __construct($view = \null) {
         SysClass::checkInstall();
         $this->view = $view instanceof View ? $view : new View();
-        $this->logged_in = AuthSessionService::resolveCurrentUserId();
+        try {
+            $this->logged_in = AuthSessionService::resolveCurrentUserId();
+        } catch (\RuntimeException $exception) {
+            if (str_contains($exception->getMessage(), 'Authentication infrastructure is not installed')) {
+                $this->logged_in = false;
+                AuthSessionService::clearTransportState();
+            } else {
+                throw $exception;
+            }
+        }
         if ($this->logged_in) {
             $this->logged_in = $this->logged_in ?? false;
         } else {
