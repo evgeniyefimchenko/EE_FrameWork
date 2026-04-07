@@ -739,6 +739,12 @@ trait SystemsTrait {
             return;
         }
 
+        if (!$this->requireCsrfRequest([
+            'redirect' => '/admin/property_lifecycle_jobs',
+        ])) {
+            return;
+        }
+
         $this->loadModel('m_systems');
         $this->notifyOperationResult(
             $this->models['m_systems']->recoverStaleLifecycleJobs(),
@@ -758,6 +764,12 @@ trait SystemsTrait {
             if (array_filter($params)) {
                 SysClass::handleRedirect();
             }
+            return;
+        }
+
+        if (!$this->requireCsrfRequest([
+            'redirect' => '/admin/health#alerts',
+        ])) {
             return;
         }
 
@@ -783,6 +795,12 @@ trait SystemsTrait {
             return;
         }
 
+        if (!$this->requireCsrfRequest([
+            'redirect' => '/admin/health#media',
+        ])) {
+            return;
+        }
+
         $this->loadModel('m_systems');
         $this->notifyOperationResult(
             $this->models['m_systems']->refreshMediaMetadata(),
@@ -802,6 +820,12 @@ trait SystemsTrait {
             if (array_filter($params)) {
                 SysClass::handleRedirect();
             }
+            return;
+        }
+
+        if (!$this->requireCsrfRequest([
+            'redirect' => '/admin/backup',
+        ])) {
             return;
         }
 
@@ -995,6 +1019,12 @@ trait SystemsTrait {
         ])) {
             return;
         }
+        if (!$this->requireCsrfRequest([
+            'initiator' => __METHOD__,
+            'redirect' => '/admin/backup',
+        ])) {
+            return;
+        }
 
         $this->loadModel('m_backups');
         $targetId = $this->extractBackupTargetIdFromParams($params);
@@ -1015,6 +1045,12 @@ trait SystemsTrait {
         ])) {
             return;
         }
+        if (!$this->requireCsrfRequest([
+            'initiator' => __METHOD__,
+            'redirect' => '/admin/backup',
+        ])) {
+            return;
+        }
 
         $this->loadModel('m_backups');
         $planId = $this->extractBackupPlanIdFromParams($params);
@@ -1032,6 +1068,12 @@ trait SystemsTrait {
         if (!$this->requireAccess([Constants::ADMIN], [
             'return' => 'admin/backup',
             'initiator' => __METHOD__,
+        ])) {
+            return;
+        }
+        if (!$this->requireCsrfRequest([
+            'initiator' => __METHOD__,
+            'redirect' => '/admin/backup',
         ])) {
             return;
         }

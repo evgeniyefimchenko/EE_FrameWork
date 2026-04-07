@@ -60,10 +60,10 @@
                                                 <a href="/admin/redirect_edit/id/<?= (int)($redirect['redirect_id'] ?? 0) ?>" class="btn btn-sm btn-outline-primary" title="<?= htmlspecialchars((string)($lang['sys.edit'] ?? 'Редактировать')) ?>">
                                                     <i class="fas fa-edit"></i>
                                                 </a>
-                                                <a href="/admin/toggle_redirect/id/<?= (int)($redirect['redirect_id'] ?? 0) ?>" class="btn btn-sm btn-outline-secondary" title="<?= htmlspecialchars((string)($lang['sys.status'] ?? 'Статус')) ?>">
+                                                <a href="<?= htmlspecialchars(\classes\system\CsrfService::appendToUrl('/admin/toggle_redirect/id/' . (int)($redirect['redirect_id'] ?? 0)), ENT_QUOTES, 'UTF-8') ?>" class="btn btn-sm btn-outline-secondary" title="<?= htmlspecialchars((string)($lang['sys.status'] ?? 'Статус')) ?>">
                                                     <i class="fa-solid <?= (string)($redirect['status'] ?? 'active') === 'active' ? 'fa-toggle-on' : 'fa-toggle-off' ?>"></i>
                                                 </a>
-                                                <a href="/admin/delete_redirect/id/<?= (int)($redirect['redirect_id'] ?? 0) ?>" onclick="return confirm('<?= htmlspecialchars((string)($lang['sys.delete'] ?? 'Удалить'), ENT_QUOTES, 'UTF-8') ?>?');" class="btn btn-sm btn-outline-danger" title="<?= htmlspecialchars((string)($lang['sys.delete'] ?? 'Удалить')) ?>">
+                                                <a href="<?= htmlspecialchars(\classes\system\CsrfService::appendToUrl('/admin/delete_redirect/id/' . (int)($redirect['redirect_id'] ?? 0)), ENT_QUOTES, 'UTF-8') ?>" onclick="return confirm('<?= htmlspecialchars((string)($lang['sys.delete'] ?? 'Удалить'), ENT_QUOTES, 'UTF-8') ?>?');" class="btn btn-sm btn-outline-danger" title="<?= htmlspecialchars((string)($lang['sys.delete'] ?? 'Удалить')) ?>">
                                                     <i class="fas fa-trash"></i>
                                                 </a>
                                             </div>

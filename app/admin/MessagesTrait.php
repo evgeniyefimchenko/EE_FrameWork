@@ -208,6 +208,12 @@ trait MessagesTrait {
             SysClass::handleRedirect(401);
             exit();
         }
+        if (!$this->requireCsrfRequest([
+            'initiator' => __METHOD__,
+            'redirect' => '/admin/messages',
+        ])) {
+            return;
+        }
         $this->loadModel('m_messages');
         $this->models['m_messages']->kill_all_message($this->logged_in);
         SysClass::handleRedirect(200, '/admin/messages');

@@ -254,7 +254,7 @@ trait EmailsTrait {
                 'updated_at' => $item['updated_at'] ? date('d.m.Y', strtotime($item['updated_at'])) : '',
                 'actions' => '<a href="/admin/edit_email_template/id/' . $item['template_id'] . '"'
                 . 'class="btn btn-primary me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.edit'] . '"><i class="fas fa-edit"></i></a>'
-                . '<a href="/admin/delete_email_template/id/' . $item['template_id'] . '" onclick="return confirm(\'' . $this->lang['sys.delete'] . '?\');" '
+                . '<a href="' . htmlspecialchars($this->withCsrfUrl('/admin/delete_email_template/id/' . $item['template_id']), ENT_QUOTES, 'UTF-8') . '" onclick="return confirm(\'' . $this->lang['sys.delete'] . '?\');" '
                 . 'class="btn btn-danger me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.delete'] . '"><i class="fas fa-trash"></i></a>'
             ];
         }
@@ -452,6 +452,12 @@ trait EmailsTrait {
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect();
             exit();
+        }
+        if (!$this->requireCsrfRequest([
+            'initiator' => __METHOD__,
+            'redirect' => ENV_URL_SITE . '/admin/email_templates',
+        ])) {
+            return;
         }
         /* model */
         $this->loadModel('m_email_templates');

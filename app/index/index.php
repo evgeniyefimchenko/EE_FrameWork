@@ -30,19 +30,107 @@ class ControllerIndex Extends ControllerBase {
     }
 
     /**
+     * Подключение публичной темы allbriz поверх штатного публичного layout.
+     */
+    private function addPublicThemeAssets(): void {
+        $themeBase = ENV_URL_SITE . '/assets/vendor/tourm';
+        $this->parameters_layout["meta_author"] = ENV_SITE_NAME;
+        $this->parameters_layout["meta_reply_to"] = '';
+        $this->parameters_layout["meta_copyright"] = ENV_SITE_NAME;
+        $this->parameters_layout["add_style"] .= '<link rel="preconnect" href="https://fonts.googleapis.com">';
+        $this->parameters_layout["add_style"] .= '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>';
+        $this->parameters_layout["add_style"] .= '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Manrope:wght@200..800&family=Montez&display=swap" rel="stylesheet">';
+        $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="' . $themeBase . '/css/swiper-bundle.min.css"/>';
+        $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="' . $themeBase . '/css/magnific-popup.min.css"/>';
+        $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="' . $themeBase . '/css/style.css"/>';
+        $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="' . $this->getPathController() . '/css/theme-tourm.css"/>';
+        $this->parameters_layout["add_script"] .= '<script src="' . $themeBase . '/js/swiper-bundle.min.js" type="text/javascript"></script>';
+        $this->parameters_layout["add_script"] .= '<script src="' . $themeBase . '/js/jquery.magnific-popup.min.js" type="text/javascript"></script>';
+        $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/theme-tourm.js" type="text/javascript"></script>';
+        $this->view->set('footer_public', $this->view->read('v_public_footer', false));
+    }
+
+    private function getFrontAuthorizedLandingUrl(int $userRole): string {
+        return match ((int) $userRole) {
+            Constants::ADMIN,
+            Constants::SYSTEM => '/admin',
+            Constants::MODERATOR,
+            Constants::MANAGER => '/manager',
+            default => '/',
+        };
+    }
+
+    private function getFrontAuthorizedLandingUrlForUserId(int $userId): string {
+        if ($userId <= 0) {
+            return '/';
+        }
+
+        $userRole = (int) (\classes\plugins\SafeMySQL::gi()->getOne(
+            'SELECT user_role FROM ?n WHERE user_id = ?i LIMIT 1',
+            Constants::USERS_TABLE,
+            $userId
+        ) ?? 0);
+
+        return $this->getFrontAuthorizedLandingUrl($userRole);
+    }
+
+    private function renderPublicCatalogPayload(array $payload): void {
+        $this->getStandardViews();
+        $this->addPublicThemeAssets();
+        $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="' . $this->getPathController() . '/css/public_catalog.css"/>';
+        $this->view->set('top_panel', $this->view->read('v_top_panel', false));
+        $this->view->set('publicCatalog', $payload);
+        $viewTemplate = trim((string) ($payload['view_template'] ?? ''));
+        if ($viewTemplate === '') {
+            $viewTemplate = (($payload['view_type'] ?? '') === 'category') ? 'v_public_category' : 'v_public_page';
+        }
+        $this->html = $this->view->read($viewTemplate);
+
+        $entityTitle = trim((string) ($payload['title'] ?? ''));
+        $metaDescription = trim((string) ($payload['meta_description'] ?? ''));
+        $plainText = trim((string) ($payload['plain_text'] ?? ''));
+
+        $this->parameters_layout["title"] = $entityTitle !== '' ? ($entityTitle . ' - ' . ENV_SITE_NAME) : ENV_SITE_NAME;
+        $this->parameters_layout["description"] = $metaDescription !== '' ? $metaDescription : ENV_SITE_DESCRIPTION;
+        $this->parameters_layout["keywords"] = SysClass::getKeywordsFromText($plainText !== '' ? $plainText : $entityTitle);
+        $this->parameters_layout["canonical_href"] = (string) ($payload['canonical_url'] ?? ENV_URL_SITE);
+        $this->parameters_layout["alternate_hreflang"] = (array) ($payload['alternate_links'] ?? []);
+        $this->parameters_layout["layout_content"] = $this->html;
+        $this->showLayout($this->parameters_layout);
+    }
+
+    private function resolveSitePagePayload(string $routeOrSlug): ?array {
+        $this->loadModel('m_public_catalog');
+        $pageId = (int) $this->models['m_public_catalog']->findPublicPageIdByRouteOrSlug(
+            $routeOrSlug,
+            ['Страницы сайта', 'Site Pages', 'Страницы', 'Pages'],
+            ee_get_current_lang_code()
+        );
+        if ($pageId <= 0) {
+            return null;
+        }
+
+        return $this->models['m_public_catalog']->getPagePayload($pageId, ee_get_current_lang_code());
+    }
+
+    /**
      * Главная страница проекта
      */
     public function index($params = NULL) {
         if ($params) {
             SysClass::handleRedirect();
         }
+        $this->access = [Constants::ALL];
         /* view */
         $this->getStandardViews();
+        $this->addPublicThemeAssets();
+        $this->loadModel('m_public_catalog');
+        $this->view->set('homePayload', $this->models['m_public_catalog']->getHomePayload(ee_get_current_lang_code()));
         $this->view->set('top_panel', $this->view->read('v_top_panel', false));
         $this->html = $this->view->read('v_index');
         /* layouts */
         $this->parameters_layout["title"] = ENV_SITE_NAME . ' - ' . ($this->lang['sys.home'] ?? 'Home');
-        $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION;
+        $this->parameters_layout["description"] = 'Демонстрационный каталог курортов, объектов размещения, статических страниц и блоговых материалов на новой платформе allbriz.';
         $this->parameters_layout["keywords"] = SysClass::getKeywordsFromText($this->html);
         $this->parameters_layout["layout_content"] = $this->html;
         $this->showLayout($this->parameters_layout);
@@ -71,13 +159,20 @@ class ControllerIndex Extends ControllerBase {
         if ($params) {
             SysClass::handleRedirect();
         }
+        if ($payload = $this->resolveSitePagePayload('about')) {
+            $this->renderPublicCatalogPayload($payload);
+            return;
+        }
         /* view */
         $this->getStandardViews();
+        $this->addPublicThemeAssets();
+        $this->view->set('top_panel', $this->view->read('v_top_panel', false));
         $this->html = $this->view->read('v_about');
         /* layouts */
         $this->parameters_layout["title"] = ENV_SITE_NAME . ' - ' . ($this->lang['sys.about_project'] ?? 'About project');
         $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION;
         $this->parameters_layout["keywords"] = SysClass::getKeywordsFromText($this->html);
+        $this->parameters_layout["canonical_href"] = ENV_URL_SITE . '/about';
         $this->parameters_layout["layout_content"] = $this->html;
         $this->showLayout($this->parameters_layout);
     }
@@ -89,13 +184,20 @@ class ControllerIndex Extends ControllerBase {
         if ($params) {
             SysClass::handleRedirect();
         }
+        if ($payload = $this->resolveSitePagePayload('contact')) {
+            $this->renderPublicCatalogPayload($payload);
+            return;
+        }
         /* view */
         $this->getStandardViews();
+        $this->addPublicThemeAssets();
+        $this->view->set('top_panel', $this->view->read('v_top_panel', false));
         $this->html = $this->view->read('v_contact');
         /* layouts */
         $this->parameters_layout["title"] = ENV_SITE_NAME . ' - ' . ($this->lang['sys.contacts'] ?? 'Contacts');
         $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION;
         $this->parameters_layout["keywords"] = SysClass::getKeywordsFromText($this->html);
+        $this->parameters_layout["canonical_href"] = ENV_URL_SITE . '/contact';
         $this->parameters_layout["layout_content"] = $this->html;
         $this->showLayout($this->parameters_layout);
     }
@@ -117,7 +219,7 @@ class ControllerIndex Extends ControllerBase {
 
         $this->applyInterfaceLanguage((string) ($basePayload['language_code'] ?? ee_get_current_lang_code()), false);
 
-        $this->access = [Constants::ALL_AUTH];
+        $this->access = [Constants::ALL];
         $this->loadModel('m_public_catalog');
 
         $entityType = strtolower(trim($entityType));
@@ -128,28 +230,7 @@ class ControllerIndex Extends ControllerBase {
             SysClass::handleRedirect(404);
             return;
         }
-
-        $this->getStandardViews();
-        $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="' . $this->getPathController() . '/css/public_catalog.css"/>';
-        $this->view->set('top_panel', $this->view->read('v_top_panel', false));
-        $this->view->set('publicCatalog', $payload);
-        $this->html = $this->view->read(
-            ($payload['view_type'] ?? '') === 'category'
-                ? 'v_public_category'
-                : 'v_public_page'
-        );
-
-        $entityTitle = trim((string) ($payload['title'] ?? ''));
-        $metaDescription = trim((string) ($payload['meta_description'] ?? ''));
-        $plainText = trim((string) ($payload['plain_text'] ?? ''));
-
-        $this->parameters_layout["title"] = $entityTitle !== '' ? ($entityTitle . ' - ' . ENV_SITE_NAME) : ENV_SITE_NAME;
-        $this->parameters_layout["description"] = $metaDescription !== '' ? $metaDescription : ENV_SITE_DESCRIPTION;
-        $this->parameters_layout["keywords"] = SysClass::getKeywordsFromText($plainText !== '' ? $plainText : $entityTitle);
-        $this->parameters_layout["canonical_href"] = (string) ($payload['canonical_url'] ?? ENV_URL_SITE);
-        $this->parameters_layout["alternate_hreflang"] = (array) ($payload['alternate_links'] ?? []);
-        $this->parameters_layout["layout_content"] = $this->html;
-        $this->showLayout($this->parameters_layout);
+        $this->renderPublicCatalogPayload($payload);
     }
 
     /**
@@ -169,13 +250,16 @@ class ControllerIndex Extends ControllerBase {
             $this->html = $this->view->read('v_login_form');
         } else {
             /* Уже авторизован */
-            SysClass::handleRedirect(200, $this->getDefaultAuthorizedLandingUrl((int) ($this->users->data['user_role'] ?? 0)));
+            SysClass::handleRedirect(200, $this->getFrontAuthorizedLandingUrl((int) ($this->users->data['user_role'] ?? 0)));
         }
         /* layouts */
-        $this->parameters_layout["add_script"] .= '<script src="' . ENV_URL_SITE . '/assets/js/plugins/validator.min.js" type="text/javascript"></script>';
-        $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/login-register.js" type="text/javascript"></script>';
+        $loginRegisterJs = $_SERVER['DOCUMENT_ROOT'] . $this->getPathController() . '/js/login-register.js';
+        $loginRegisterJsVersion = is_file($loginRegisterJs) ? (string) filemtime($loginRegisterJs) : (string) time();
+        $loginRegisterCss = $_SERVER['DOCUMENT_ROOT'] . $this->getPathController() . '/css/login-register.css';
+        $loginRegisterCssVersion = is_file($loginRegisterCss) ? (string) filemtime($loginRegisterCss) : (string) time();
+        $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/login-register.js?v=' . $loginRegisterJsVersion . '" type="text/javascript"></script>';
         $this->parameters_layout["add_script"] .= '<script>$(document).ready(function () { if (typeof openLoginModal === "function") { openLoginModal(); } });</script>';
-        $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="' . $this->getPathController() . '/css/login-register.css"/>';
+        $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="' . $this->getPathController() . '/css/login-register.css?v=' . $loginRegisterCssVersion . '"/>';
         $this->parameters_layout["title"] = ENV_SITE_NAME;
         $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION . ' - ' . (string) ($this->lang['sys.login_registration_form'] ?? 'Login / registration form');
         $this->parameters_layout["keywords"] = SysClass::getKeywordsFromText($this->html);
@@ -209,14 +293,15 @@ class ControllerIndex Extends ControllerBase {
         $json['error'] = $this->users->confirmUser($email, $pass);
         $status = (string) ($this->users->lastAuthResult['status'] ?? '');
         $authorizedUserId = (int) ($this->users->lastAuthResult['user_id'] ?? 0);
+        if ($status !== 'success' && $status !== 'temporarily_locked') {
+            $status = 'invalid_credentials';
+            $json['error'] = $this->lang['sys.invalid_login_or_password'] ?? 'Неверный логин или пароль.';
+        }
         $json['status'] = $status;
         if ($status === 'success') {
             $json['error'] = '';
             $json['message'] = $this->lang['sys.welcome'] . '!';
-            $json['redirect'] = $this->getAuthorizedLandingUrlForUserId($authorizedUserId);
-        } elseif ($status === 'password_setup_required') {
-            $json['error'] = '';
-            $json['message'] = $this->lang['sys.password_setup_link_sent'];
+            $json['redirect'] = $this->getFrontAuthorizedLandingUrlForUserId($authorizedUserId);
         }
         die(json_encode($json, JSON_UNESCAPED_UNICODE));
     }

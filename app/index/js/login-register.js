@@ -12,8 +12,18 @@ const urlReturn = urlParams['return'] || '/';
  */
 function shakeOrFadeModal(message, isSuccess = false) {
     return new Promise((resolve) => {
-        const alertClass = isSuccess ? 'alert alert-success' : 'alert alert-danger';
-        $('.error').removeClass('alert alert-danger alert-success').addClass(alertClass).html(message);
+        const feedback = $('#auth-feedback');
+        feedback
+            .removeClass('is-success is-error is-visible')
+            .empty();
+
+        if (message) {
+            feedback
+                .addClass(isSuccess ? 'is-success' : 'is-error')
+                .addClass('is-visible')
+                .html(message);
+        }
+
         if (isSuccess) {
            $('#loginModal').fadeTo(500, 0.5, resolve);
         } else {
@@ -35,7 +45,7 @@ function showModalWithContent(title, contentClassToShow) {
     $('.modal-title').html(title);
     $('.loginBox, .login-footer, .registerBox, .register-footer, .PasswordRecoveryBox, .recovery-footer').hide();
     $(contentClassToShow).show();
-    $('.error').removeClass('alert alert-danger').html('');
+    $('#auth-feedback').removeClass('is-success is-error is-visible').empty();
     setTimeout(function () {
         $('#loginModal').modal('show');
     }, 230);
@@ -92,8 +102,74 @@ function performAjaxRequest(url, data, successCallback) {
         function (jqXHR, textStatus, errorThrown) {
             console.error("AJAX request failed:", textStatus, errorThrown);
             console.error("Response details:", jqXHR.status, jqXHR.responseText);
+            const fallbackMessage = AppCore.getLangVar('sys.server_request_error') || 'Server request error.';
+            shakeOrFadeModal(fallbackMessage);
         }
     );
+}
+
+function isValidEmail(value) {
+    const email = String(value || '').trim();
+    return /^([a-zа-яё0-9_\.-])+@[a-zа-яё0-9-]+\.([a-zа-яё]{2,4}\.)?[a-zа-яё]{2,4}$/i.test(email);
+}
+
+function getTrimmedValue(selector) {
+    return String($(selector).val() || '').trim();
+}
+
+function validateLoginForm() {
+    const email = getTrimmedValue('#log_email');
+    const password = getTrimmedValue('#log_password');
+
+    if (email === '' || password === '') {
+        return AppCore.getLangVar('sys.empty_field') || 'Пустое поле';
+    }
+    if (!isValidEmail(email)) {
+        return AppCore.getLangVar('sys.invalid_mail_format') || 'Неверный формат почты';
+    }
+
+    return '';
+}
+
+function validateRegisterForm() {
+    const email = getTrimmedValue('#reg_email');
+    const password = getTrimmedValue('#reg_password');
+    const confirmation = getTrimmedValue('#reg_password_confirmation');
+    const privacyAccepted = $('#reg_privacy_policy_accepted').is(':checked');
+    const consentAccepted = $('#reg_personal_data_consent_accepted').is(':checked');
+
+    if (email === '' || password === '' || confirmation === '') {
+        return AppCore.getLangVar('sys.empty_field') || 'Пустое поле';
+    }
+    if (!isValidEmail(email)) {
+        return AppCore.getLangVar('sys.invalid_mail_format') || 'Неверный формат почты';
+    }
+    if (password.length < 5) {
+        return AppCore.getLangVar('sys.password_too_short') || 'Пароль слишком короткий';
+    }
+    if (password !== confirmation) {
+        return AppCore.getLangVar('sys.password_mismatch') || 'Пароли не совпадают.';
+    }
+    if (!privacyAccepted) {
+        return AppCore.getLangVar('sys.privacy_policy_acceptance_required') || 'Необходимо принять Политику в отношении обработки персональных данных.';
+    }
+    if (!consentAccepted) {
+        return AppCore.getLangVar('sys.personal_data_consent_required') || 'Необходимо дать согласие на обработку персональных данных.';
+    }
+
+    return '';
+}
+
+function validateRecoveryForm() {
+    const email = getTrimmedValue('#rec_email');
+    if (email === '') {
+        return AppCore.getLangVar('sys.empty_field') || 'Пустое поле';
+    }
+    if (!isValidEmail(email)) {
+        return AppCore.getLangVar('sys.invalid_mail_format') || 'Неверный формат почты';
+    }
+
+    return '';
 }
 
 $(document).ready(function () {
@@ -123,6 +199,11 @@ $(document).ready(function () {
 
     $("#log_form").submit(async function (e) {
         e.preventDefault();
+        const validationError = validateLoginForm();
+        if (validationError !== '') {
+            await shakeOrFadeModal(validationError);
+            return false;
+        }
         const formData = $(this).serialize();
         const urlParams = new URLSearchParams(window.location.search);
         const returnUrl = urlParams.get('return');
@@ -141,6 +222,11 @@ $(document).ready(function () {
 
     // Отправка регистрационной формы
     $("#reg_form").submit(function () {
+        const validationError = validateRegisterForm();
+        if (validationError !== '') {
+            shakeOrFadeModal(validationError);
+            return false;
+        }
         const formData = $(this).serialize();
         performAjaxRequest('/register', formData, function (data) {
             if (data.error !== "") {
@@ -159,6 +245,11 @@ $(document).ready(function () {
 
     // Отправка формы восстановления пароля
     $("#recovery_form").submit(function () {
+        const validationError = validateRecoveryForm();
+        if (validationError !== '') {
+            shakeOrFadeModal(validationError);
+            return false;
+        }
         const formData = $(this).serialize();
         performAjaxRequest('/recovery_password', formData, function (data) {
             if (data.error !== "") {
@@ -190,11 +281,6 @@ $(document).ready(function () {
 
     $('#registration_button').on('click', cleanForm);
     $('#loginModal').on('shown.bs.modal', cleanForm);
-
-    // init plugins
-    if (jQuery().validator) {
-        $('[data-validator]').validator();
-    }
 
     function validatePhone(phone) {
         const filter = /^\+?(\d[\d-. ]+)?(\([\d-. ]+\))?[\d-. ]+\d$/;

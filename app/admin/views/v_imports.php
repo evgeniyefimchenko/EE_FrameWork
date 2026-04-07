@@ -73,7 +73,7 @@
                                         <a href="/admin/sync_import_cron_agent/id/<?= (int)$job['id'] ?>" class="btn btn-sm btn-outline-secondary">
                                             <?= htmlspecialchars((string)($lang['sys.imports_cron_agent_sync'] ?? 'Sync cron agent')) ?>
                                         </a>
-                                        <a href="/admin/delete_import_profile/id/<?= (int)$job['id'] ?>"
+                                        <a href="<?= htmlspecialchars(\classes\system\CsrfService::appendToUrl('/admin/delete_import_profile/id/' . (int)$job['id']), ENT_QUOTES, 'UTF-8') ?>"
                                            class="btn btn-sm btn-danger"
                                            onclick="return confirm('<?= htmlspecialchars((string) ($lang['sys.imports_delete_confirm_short'] ?? 'Delete this profile?'), ENT_QUOTES, 'UTF-8') ?>');">
                                             <?= htmlspecialchars((string) ($lang['sys.delete'] ?? 'Delete')) ?>

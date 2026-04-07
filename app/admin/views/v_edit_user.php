@@ -190,6 +190,82 @@ $isProtectedSystemUser = in_array((int) ($user_context['user_role'] ?? 0), [\cla
                                     <div class="text-muted small"><?= $lang['sys.no_linked_providers'] ?></div>
                                 <?php } ?>
                             </div>
+                            <?php if (!empty($can_manage_own_api_key)) { ?>
+                                <div class="card border-0 bg-light mt-4">
+                                    <div class="card-body">
+                                        <h5 class="card-title mb-3"><?= htmlspecialchars((string) ($lang['sys.api_key_access'] ?? 'API-доступ')) ?></h5>
+                                        <p class="text-muted mb-3"><?= htmlspecialchars((string) ($lang['sys.api_key_access_hint'] ?? 'Сгенерируйте API-ключ для интеграций. Ключ показывается только один раз сразу после генерации.')) ?></p>
+                                        <div class="row g-3 align-items-end">
+                                            <div class="col-md-6">
+                                                <label class="form-label"><?= htmlspecialchars((string) ($lang['sys.api_key_status'] ?? 'Статус ключа')) ?></label>
+                                                <div id="api-key-status" class="form-control bg-white">
+                                                    <?php if (!empty($api_key_meta)) { ?>
+                                                        <span class="badge text-bg-success"><?= htmlspecialchars((string) ($lang['sys.active'] ?? 'active')) ?></span>
+                                                        <span class="ms-2 text-muted"><?= htmlspecialchars((string) ($api_key_meta['key_prefix'] ?? '')) ?>...</span>
+                                                    <?php } else { ?>
+                                                        <span class="text-muted"><?= htmlspecialchars((string) ($lang['sys.api_key_missing'] ?? 'Активный API-ключ не создан')) ?></span>
+                                                    <?php } ?>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <button
+                                                    type="button"
+                                                    class="btn btn-outline-primary w-100"
+                                                    id="generate-api-key-btn"
+                                                    data-user-id="<?= (int) ($user_context['user_id'] ?? 0) ?>"
+                                                    data-generate-label="<?= htmlspecialchars((string) ($lang['sys.api_key_generate'] ?? 'Сгенерировать ключ')) ?>"
+                                                    data-regenerate-label="<?= htmlspecialchars((string) ($lang['sys.api_key_regenerate'] ?? 'Перегенерировать ключ')) ?>"
+                                                    data-pending-label="<?= htmlspecialchars((string) ($lang['sys.api_key_pending'] ?? 'Генерация...')) ?>"
+                                                    data-success-text="<?= htmlspecialchars((string) ($lang['sys.api_key_generate_success'] ?? 'API-ключ сгенерирован')) ?>"
+                                                >
+                                                    <?= htmlspecialchars((string) (!empty($api_key_meta) ? ($lang['sys.api_key_regenerate'] ?? 'Перегенерировать ключ') : ($lang['sys.api_key_generate'] ?? 'Сгенерировать ключ'))) ?>
+                                                </button>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <button
+                                                    type="button"
+                                                    class="btn btn-outline-danger w-100"
+                                                    id="revoke-api-key-btn"
+                                                    data-user-id="<?= (int) ($user_context['user_id'] ?? 0) ?>"
+                                                    data-confirm-text="<?= htmlspecialchars((string) ($lang['sys.api_key_revoke_confirm'] ?? 'Отозвать активный API-ключ?')) ?>"
+                                                    data-pending-label="<?= htmlspecialchars((string) ($lang['sys.api_key_pending_revoke'] ?? 'Отзыв...')) ?>"
+                                                    data-success-text="<?= htmlspecialchars((string) ($lang['sys.api_key_revoke_success'] ?? 'API-ключ отозван')) ?>"
+                                                    <?= empty($api_key_meta) ? 'disabled' : '' ?>
+                                                >
+                                                    <?= htmlspecialchars((string) ($lang['sys.api_key_revoke'] ?? 'Отозвать ключ')) ?>
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="mt-3">
+                                            <label for="generated-api-key-output" class="form-label"><?= htmlspecialchars((string) ($lang['sys.api_key_once'] ?? 'Сгенерированный ключ')) ?></label>
+                                            <textarea id="generated-api-key-output" class="form-control" rows="3" readonly placeholder="<?= htmlspecialchars((string) ($lang['sys.api_key_once_placeholder'] ?? 'Новый ключ появится здесь только после генерации.')) ?>"></textarea>
+                                        </div>
+                                        <div
+                                            class="small text-muted mt-2"
+                                            id="api-key-meta"
+                                            data-never-label="<?= htmlspecialchars((string) ($lang['sys.never'] ?? 'никогда')) ?>"
+                                            data-prefix-label="<?= htmlspecialchars((string) ($lang['sys.api_key_prefix'] ?? 'Префикс')) ?>"
+                                            data-created-label="<?= htmlspecialchars((string) ($lang['sys.date_create'] ?? 'Дата создания')) ?>"
+                                            data-last-used-label="<?= htmlspecialchars((string) ($lang['sys.api_key_last_used'] ?? 'Последнее использование')) ?>"
+                                            data-last-ip-label="<?= htmlspecialchars((string) ($lang['sys.api_key_last_ip'] ?? 'Последний IP')) ?>"
+                                            data-missing-label="<?= htmlspecialchars((string) ($lang['sys.api_key_missing'] ?? 'Активный API-ключ не создан')) ?>"
+                                            data-access-only-admin="<?= htmlspecialchars((string) ($lang['sys.api_key_access_only_admin'] ?? 'API пока доступен только администратору CMS.')) ?>"
+                                            data-active-label="<?= htmlspecialchars((string) ($lang['sys.active'] ?? 'active')) ?>"
+                                        >
+                                            <?php if (!empty($api_key_meta)) { ?>
+                                                <div><strong><?= htmlspecialchars((string) ($lang['sys.api_key_prefix'] ?? 'Префикс')) ?>:</strong> <?= htmlspecialchars((string) (($api_key_meta['key_prefix'] ?? '') . '...')) ?></div>
+                                                <div><strong><?= htmlspecialchars((string) ($lang['sys.date_create'] ?? 'Дата создания')) ?>:</strong> <?= htmlspecialchars((string) ($api_key_meta['created_at'] ?? '')) ?></div>
+                                                <div><strong><?= htmlspecialchars((string) ($lang['sys.api_key_last_used'] ?? 'Последнее использование')) ?>:</strong> <?= htmlspecialchars((string) (($api_key_meta['last_used_at'] ?? '') ?: ($lang['sys.never'] ?? 'никогда'))) ?></div>
+                                                <?php if (!empty($api_key_meta['last_used_ip'])) { ?>
+                                                    <div><strong><?= htmlspecialchars((string) ($lang['sys.api_key_last_ip'] ?? 'Последний IP')) ?>:</strong> <?= htmlspecialchars((string) $api_key_meta['last_used_ip']) ?></div>
+                                                <?php } ?>
+                                            <?php } else { ?>
+                                                <?= htmlspecialchars((string) ($lang['sys.api_key_access_only_admin'] ?? 'API пока доступен только администратору CMS.')) ?>
+                                            <?php } ?>
+                                        </div>
+                                    </div>
+                                </div>
+                            <?php } ?>
                         </div>
                         <!-- Содержимое для комментария -->
                         <div class="tab-pane fade mt-3 mb-3" id="comment-tab-pane" role="tabpanel" aria-labelledby="comment-tab">

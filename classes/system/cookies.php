@@ -12,6 +12,10 @@ class Cookies {
     private static string $_prefix = 'ee_';         // Префикс для всех cookie
     private static string $_securekey = 'efimchenko.com';  // Ключ шифрования cookie
     private static int $_expire = 2592000;             // Время жизни cookie по умолчанию 30 суток (в секундах)
+    private const FORMAT_V2_PREFIX = 'v2.';
+    private const CIPHER_V2 = 'aes-256-gcm';
+    private const IV_LENGTH_V2 = 12;
+    private const TAG_LENGTH_V2 = 16;
 
     /**
      * Устанавливает cookie с шифрованием
@@ -23,7 +27,7 @@ class Cookies {
         $cookie_name = self::getName($name);
         $cookie_expire = time() + ($expire ?: self::$_expire);
         $cookie_value = self::pack($value, $cookie_expire);
-        $cookie_value = self::authcode($cookie_value, 'ENCODE');
+        $cookie_value = self::encryptCookiePayload($cookie_value);
         if ($cookie_name && $cookie_value && $cookie_expire) {
             setcookie($cookie_name, $cookie_value, self::buildCookieOptions($cookie_expire));
         }
@@ -38,7 +42,7 @@ class Cookies {
     public static function get(string $name): mixed {
         $cookie_name = self::getName($name);
         if (isset($_COOKIE[$cookie_name])) {
-            $cookie_value = self::authcode($_COOKIE[$cookie_name], 'DECODE');
+            $cookie_value = self::decryptCookiePayload((string) $_COOKIE[$cookie_name]);
             $cookie_value = self::unpack($cookie_value);
             return $cookie_value[0] ?? null;
         }
@@ -54,14 +58,15 @@ class Cookies {
     public static function update(string $name, mixed $value): bool {
         $cookie_name = self::getName($name);
         if (isset($_COOKIE[$cookie_name])) {
-            $old_cookie_value = self::authcode($_COOKIE[$cookie_name], 'DECODE');
+            $old_cookie_value = self::decryptCookiePayload((string) $_COOKIE[$cookie_name]);
             $old_cookie_value = self::unpack($old_cookie_value);
             if (isset($old_cookie_value[1]) && $old_cookie_value[1] > 0) {
                 $cookie_expire = $old_cookie_value[1];
                 $cookie_value = self::pack($value, $cookie_expire);
-                $cookie_value = self::authcode($cookie_value, 'ENCODE');
+                $cookie_value = self::encryptCookiePayload($cookie_value);
                 if ($cookie_name && $cookie_value && $cookie_expire) {
                     setcookie($cookie_name, $cookie_value, self::buildCookieOptions($cookie_expire));
+                    $_COOKIE[$cookie_name] = $cookie_value;
                     return true;
                 }
             }
@@ -149,13 +154,95 @@ class Cookies {
         return ['', 0];
     }
 
+    private static function encryptCookiePayload(string $payload): string {
+        if (!function_exists('openssl_encrypt')) {
+            throw new \RuntimeException('OpenSSL is required for secure cookie encryption.');
+        }
+
+        $iv = random_bytes(self::IV_LENGTH_V2);
+        $tag = '';
+        $ciphertext = openssl_encrypt(
+            $payload,
+            self::CIPHER_V2,
+            self::getEncryptionKey(),
+            OPENSSL_RAW_DATA,
+            $iv,
+            $tag
+        );
+
+        if (!is_string($ciphertext) || $ciphertext === '' || strlen($tag) !== self::TAG_LENGTH_V2) {
+            throw new \RuntimeException('Failed to encrypt cookie payload.');
+        }
+
+        return self::FORMAT_V2_PREFIX . self::base64UrlEncode($iv . $tag . $ciphertext);
+    }
+
+    private static function decryptCookiePayload(string $payload): string {
+        if (str_starts_with($payload, self::FORMAT_V2_PREFIX)) {
+            return self::decryptCookiePayloadV2(substr($payload, strlen(self::FORMAT_V2_PREFIX)));
+        }
+
+        return self::legacyAuthcode($payload, 'DECODE');
+    }
+
+    private static function decryptCookiePayloadV2(string $payload): string {
+        if (!function_exists('openssl_decrypt')) {
+            return '';
+        }
+
+        $decoded = self::base64UrlDecode($payload);
+        if ($decoded === '' || strlen($decoded) <= (self::IV_LENGTH_V2 + self::TAG_LENGTH_V2)) {
+            return '';
+        }
+
+        $iv = substr($decoded, 0, self::IV_LENGTH_V2);
+        $tag = substr($decoded, self::IV_LENGTH_V2, self::TAG_LENGTH_V2);
+        $ciphertext = substr($decoded, self::IV_LENGTH_V2 + self::TAG_LENGTH_V2);
+        if ($ciphertext === '') {
+            return '';
+        }
+
+        $plaintext = openssl_decrypt(
+            $ciphertext,
+            self::CIPHER_V2,
+            self::getEncryptionKey(),
+            OPENSSL_RAW_DATA,
+            $iv,
+            $tag
+        );
+
+        return is_string($plaintext) ? $plaintext : '';
+    }
+
+    private static function getEncryptionKey(): string {
+        $baseKey = defined('ENV_SECRET_KEY') ? (string) ENV_SECRET_KEY : '';
+        if ($baseKey === '') {
+            $baseKey = self::$_securekey;
+        }
+
+        return hash('sha256', 'ee-cookie-v2|' . $baseKey . '|' . self::$_prefix, true);
+    }
+
+    private static function base64UrlEncode(string $binary): string {
+        return rtrim(strtr(base64_encode($binary), '+/', '-_'), '=');
+    }
+
+    private static function base64UrlDecode(string $payload): string {
+        $payload = strtr($payload, '-_', '+/');
+        $padding = strlen($payload) % 4;
+        if ($padding > 0) {
+            $payload .= str_repeat('=', 4 - $padding);
+        }
+
+        $decoded = base64_decode($payload, true);
+        return is_string($decoded) ? $decoded : '';
+    }
+
     /**
-     * Шифрует или расшифровывает строку с использованием ключа
-     * @param string $string Строка для шифрования/дешифрования
-     * @param string $operation ENCODE или DECODE
-     * @return string Результат шифрования/дешифрования
+     * Legacy decoder kept only for backward compatibility with already-issued cookies.
+     * New cookies must use v2 authenticated encryption.
      */
-    private static function authcode(string $string, string $operation = 'DECODE'): string {
+    private static function legacyAuthcode(string $string, string $operation = 'DECODE'): string {
         $ckey_length = 7;   // Случайная длина ключа, значение 0-32;
         $key = self::$_securekey;
         $key = md5($key);

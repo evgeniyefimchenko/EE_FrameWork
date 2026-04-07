@@ -287,6 +287,12 @@ trait ImportTrait {
             SysClass::handleRedirect(200, '/show_login_form?return=admin/imports');
             return;
         }
+        if (!$this->requireCsrfRequest([
+            'initiator' => __METHOD__,
+            'redirect' => '/admin/imports',
+        ])) {
+            return;
+        }
 
         $jobId = $this->extractImportJobIdFromParams($params);
         if ($jobId <= 0) {
@@ -347,6 +353,11 @@ trait ImportTrait {
         $this->access = [Constants::ADMIN];
         if (!SysClass::getAccessUser($this->logged_in, $this->access) || !SysClass::isAjaxRequestFromSameSite()) {
             echo json_encode(['success' => false, 'message' => 'Доступ запрещён']);
+            return;
+        }
+
+        if (!\classes\system\CsrfService::isValidForCurrentRequest()) {
+            echo json_encode(['success' => false, 'message' => $this->lang['sys.security_action_expired'] ?? 'Действие безопасности устарело. Обновите страницу и повторите попытку.']);
             return;
         }
 
@@ -527,6 +538,22 @@ trait ImportTrait {
     }
 
     public function run_wp_import($params = []) {
+        if (!\classes\system\CsrfService::isValidForCurrentRequest()) {
+            if ((defined('EE_CRON_RUN') && EE_CRON_RUN === true) === false) {
+                $message = $this->lang['sys.security_action_expired'] ?? 'Действие безопасности устарело. Обновите страницу и повторите попытку.';
+                if (SysClass::isAjaxRequestFromSameSite()) {
+                    header('Content-Type: application/json; charset=utf-8');
+                    echo json_encode(['success' => false, 'message' => $message], JSON_UNESCAPED_UNICODE);
+                } else {
+                    $this->notifyOperationResult(false, [
+                        'default_error_message' => $message,
+                    ]);
+                    SysClass::handleRedirect(200, '/admin/import');
+                }
+                return;
+            }
+        }
+
         $job_id = 0;
         $postData = [];
         $isStepModeRequest = false;
@@ -949,6 +976,12 @@ trait ImportTrait {
         $this->access = [Constants::ADMIN];
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect(200, '/show_login_form');
+            return;
+        }
+        if (!$this->requireCsrfRequest([
+            'initiator' => __METHOD__,
+            'redirect' => '/admin/imports',
+        ])) {
             return;
         }
 

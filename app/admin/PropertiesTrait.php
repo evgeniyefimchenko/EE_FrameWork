@@ -276,7 +276,7 @@ trait PropertiesTrait {
                 'created_at' => date('d.m.Y', strtotime($item['created_at'])),
                 'updated_at' => $item['updated_at'] ? date('d.m.Y', strtotime($item['updated_at'])) : '',
                 'actions' => '<a href="/admin/edit_property/id/' . $item['property_id'] . '" class="btn btn-primary me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.edit'] . '"><i class="fas fa-edit"></i></a>'
-                . '<a href="/admin/property_delete/id/' . $item['property_id'] . '" onclick="return confirm(\'' . $this->lang['sys.delete'] . '?\');" '
+                . '<a href="' . htmlspecialchars($this->withCsrfUrl('/admin/property_delete/id/' . $item['property_id']), ENT_QUOTES, 'UTF-8') . '" onclick="return confirm(\'' . $this->lang['sys.delete'] . '?\');" '
                 . 'class="btn btn-danger me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.delete'] . '"><i class="fas fa-trash"></i></a>'
             ];
         }
@@ -1094,6 +1094,12 @@ trait PropertiesTrait {
             SysClass::handleRedirect();
             exit();
         }
+        if (!$this->requireCsrfRequest([
+            'initiator' => __METHOD__,
+            'redirect' => '/admin/properties',
+        ])) {
+            return;
+        }
         if (in_array('id', $params)) {
             $keyId = array_search('id', $params);
             if ($keyId !== false && isset($params[$keyId + 1])) {
@@ -1249,7 +1255,7 @@ trait PropertiesTrait {
                 'created_at' => date('d.m.Y', strtotime($item['created_at'])),
                 'updated_at' => $item['updated_at'] ? date('d.m.Y', strtotime($item['updated_at'])) : '',
                 'actions' => '<a href="/admin/edit_property_set/id/' . $item['set_id'] . '" class="btn btn-primary me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.edit'] . '"><i class="fas fa-edit"></i></a>'
-                . '<a href="/admin/property_set_delete/id/' . $item['set_id'] . '" onclick="return confirm(\'' . $this->lang['sys.delete'] . '?\');" '
+                . '<a href="' . htmlspecialchars($this->withCsrfUrl('/admin/property_set_delete/id/' . $item['set_id']), ENT_QUOTES, 'UTF-8') . '" onclick="return confirm(\'' . $this->lang['sys.delete'] . '?\');" '
                 . 'class="btn btn-danger me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.delete'] . '"><i class="fas fa-trash"></i></a>'
             ];
         }
@@ -1424,6 +1430,12 @@ trait PropertiesTrait {
             SysClass::handleRedirect();
             exit();
         }
+        if (!$this->requireCsrfRequest([
+            'initiator' => __METHOD__,
+            'redirect' => '/admin/properties_sets',
+        ])) {
+            return;
+        }
         if (in_array('id', $params)) {
             $keyId = array_search('id', $params);
             if ($keyId !== false && isset($params[$keyId + 1])) {
@@ -1450,6 +1462,12 @@ trait PropertiesTrait {
         if (!$this->requireAccess([Constants::ADMIN, Constants::MODERATOR], [
             'return' => 'admin/property_lifecycle_jobs',
             'initiator' => __METHOD__,
+        ])) {
+            return;
+        }
+        if (!$this->requireCsrfRequest([
+            'initiator' => __METHOD__,
+            'redirect' => '/admin/property_lifecycle_jobs',
         ])) {
             return;
         }

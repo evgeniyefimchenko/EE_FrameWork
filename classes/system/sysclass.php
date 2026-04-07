@@ -1638,15 +1638,36 @@ class SysClass {
         };
         $alko_index = $func($add_hash);
         $alko_index = $alko_index ? $alko_index : 11;
-        $arr_data = unserialize(base64_decode($data));
+        $outerPayload = base64_decode((string) $data, true);
+        if (!is_string($outerPayload) || $outerPayload === '') {
+            throw new Exception('Ошибка декодирования!');
+        }
+
+        $arr_data = @unserialize($outerPayload, ['allowed_classes' => false]);
         $res = [];
         if (is_array($arr_data)) {
             foreach ($arr_data as $item) {
+                if (!is_array($item)) {
+                    throw new Exception('Ошибка декодирования!');
+                }
                 $key = array_key_first($item);
+                if ($key === null || !isset($item[$key])) {
+                    throw new Exception('Ошибка декодирования!');
+                }
                 $res[$key] = chr($item[$key] - $alko_index);
             }
             ksort($res);
-            return unserialize(str_replace($add_hash, '', base64_decode(implode($res))));
+            $innerPayload = base64_decode(implode($res), true);
+            if (!is_string($innerPayload) || $innerPayload === '') {
+                throw new Exception('Ошибка декодирования!');
+            }
+
+            $decodedValue = @unserialize(str_replace((string) $add_hash, '', $innerPayload), ['allowed_classes' => false]);
+            if ($decodedValue === false && str_replace((string) $add_hash, '', $innerPayload) !== serialize(false)) {
+                throw new Exception('Ошибка декодирования!');
+            }
+
+            return $decodedValue;
         }
         throw new Exception('Ошибка декодирования!');
     }

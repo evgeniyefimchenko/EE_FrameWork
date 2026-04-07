@@ -30,7 +30,7 @@ $statusLabels = [
                     <i class="fa-solid fa-server"></i>&nbsp;<?= htmlspecialchars((string) ($lang['sys.backup_target_new'] ?? 'Добавить удалённый хост')) ?>
                 </a>
                 <?php if (!empty($workerAgent['agent_id'])): ?>
-                    <a href="/admin/run_cron_agent/id/<?= (int) ($workerAgent['agent_id'] ?? 0) ?>" class="btn btn-outline-secondary">
+                    <a href="<?= htmlspecialchars(\classes\system\CsrfService::appendToUrl('/admin/run_cron_agent/id/' . (int) ($workerAgent['agent_id'] ?? 0)), ENT_QUOTES, 'UTF-8') ?>" class="btn btn-outline-secondary">
                         <i class="fa-solid fa-play"></i>&nbsp;<?= htmlspecialchars((string) ($lang['sys.backup_run_worker_now'] ?? 'Запустить backup-worker')) ?>
                     </a>
                 <?php endif; ?>
@@ -66,7 +66,7 @@ $statusLabels = [
 
         <div class="row g-4 mb-4">
             <div class="col-12 col-xl-5">
-                <form method="post" action="/admin/run_backup" class="card shadow-sm border h-100">
+                <form method="post" action="<?= htmlspecialchars(\classes\system\CsrfService::appendToUrl('/admin/run_backup'), ENT_QUOTES, 'UTF-8') ?>" class="card shadow-sm border h-100">
                     <div class="card-header"><strong><?= htmlspecialchars((string) ($lang['sys.run_backup'] ?? 'Создать резервную копию')) ?></strong></div>
                     <div class="card-body">
                         <div class="mb-3">
@@ -201,7 +201,7 @@ $statusLabels = [
                                         </td>
                                         <td>
                                             <div class="d-flex flex-wrap gap-1">
-                                                <form method="post" action="/admin/run_backup" class="d-inline">
+                                                <form method="post" action="<?= htmlspecialchars(\classes\system\CsrfService::appendToUrl('/admin/run_backup'), ENT_QUOTES, 'UTF-8') ?>" class="d-inline">
                                                     <input type="hidden" name="plan_id" value="<?= (int) ($plan['backup_plan_id'] ?? 0) ?>">
                                                     <button type="submit" class="btn btn-sm btn-outline-success" title="<?= htmlspecialchars((string) ($lang['sys.run_backup'] ?? 'Создать резервную копию')) ?>">
                                                         <i class="fa-solid fa-play"></i>
@@ -210,7 +210,7 @@ $statusLabels = [
                                                 <a href="/admin/backup_plan_edit/id/<?= (int) ($plan['backup_plan_id'] ?? 0) ?>" class="btn btn-sm btn-outline-primary" title="<?= htmlspecialchars((string) ($lang['sys.edit'] ?? 'Редактировать')) ?>">
                                                     <i class="fas fa-edit"></i>
                                                 </a>
-                                                <a href="/admin/delete_backup_plan/id/<?= (int) ($plan['backup_plan_id'] ?? 0) ?>" onclick="return confirm('<?= htmlspecialchars((string) ($lang['sys.delete'] ?? 'Удалить'), ENT_QUOTES, 'UTF-8') ?>?');" class="btn btn-sm btn-outline-danger" title="<?= htmlspecialchars((string) ($lang['sys.delete'] ?? 'Удалить')) ?>">
+                                                <a href="<?= htmlspecialchars(\classes\system\CsrfService::appendToUrl('/admin/delete_backup_plan/id/' . (int) ($plan['backup_plan_id'] ?? 0)), ENT_QUOTES, 'UTF-8') ?>" onclick="return confirm('<?= htmlspecialchars((string) ($lang['sys.delete'] ?? 'Удалить'), ENT_QUOTES, 'UTF-8') ?>?');" class="btn btn-sm btn-outline-danger" title="<?= htmlspecialchars((string) ($lang['sys.delete'] ?? 'Удалить')) ?>">
                                                     <i class="fas fa-trash"></i>
                                                 </a>
                                             </div>
@@ -282,10 +282,10 @@ $statusLabels = [
                                                 <a href="/admin/backup_target_edit/id/<?= (int) ($target['target_id'] ?? 0) ?>" class="btn btn-sm btn-outline-primary" title="<?= htmlspecialchars((string) ($lang['sys.edit'] ?? 'Редактировать')) ?>">
                                                     <i class="fas fa-edit"></i>
                                                 </a>
-                                                <a href="/admin/test_backup_target/id/<?= (int) ($target['target_id'] ?? 0) ?>" class="btn btn-sm btn-outline-success" title="<?= htmlspecialchars((string) ($lang['sys.backup_target_test'] ?? 'Проверить подключение')) ?>">
+                                                <a href="<?= htmlspecialchars(\classes\system\CsrfService::appendToUrl('/admin/test_backup_target/id/' . (int) ($target['target_id'] ?? 0)), ENT_QUOTES, 'UTF-8') ?>" class="btn btn-sm btn-outline-success" title="<?= htmlspecialchars((string) ($lang['sys.backup_target_test'] ?? 'Проверить подключение')) ?>">
                                                     <i class="fa-solid fa-plug-circle-check"></i>
                                                 </a>
-                                                <a href="/admin/delete_backup_target/id/<?= (int) ($target['target_id'] ?? 0) ?>" onclick="return confirm('<?= htmlspecialchars((string) ($lang['sys.delete'] ?? 'Удалить'), ENT_QUOTES, 'UTF-8') ?>?');" class="btn btn-sm btn-outline-danger" title="<?= htmlspecialchars((string) ($lang['sys.delete'] ?? 'Удалить')) ?>">
+                                                <a href="<?= htmlspecialchars(\classes\system\CsrfService::appendToUrl('/admin/delete_backup_target/id/' . (int) ($target['target_id'] ?? 0)), ENT_QUOTES, 'UTF-8') ?>" onclick="return confirm('<?= htmlspecialchars((string) ($lang['sys.delete'] ?? 'Удалить'), ENT_QUOTES, 'UTF-8') ?>?');" class="btn btn-sm btn-outline-danger" title="<?= htmlspecialchars((string) ($lang['sys.delete'] ?? 'Удалить')) ?>">
                                                     <i class="fas fa-trash"></i>
                                                 </a>
                                             </div>

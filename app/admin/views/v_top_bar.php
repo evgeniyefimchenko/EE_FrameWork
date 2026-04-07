@@ -33,7 +33,7 @@ if (!empty($impersonationState['active'])) {
     }
     $toolbarHtml .= '<div class="d-flex flex-wrap align-items-center gap-2 ms-2 ms-lg-3">'
         . '<span class="badge rounded-pill text-bg-warning text-dark">' . htmlspecialchars($impersonationText, ENT_QUOTES) . '</span>'
-        . '<a href="/admin/stop_impersonation" class="btn btn-sm btn-warning">' . htmlspecialchars($returnLabel, ENT_QUOTES) . '</a>'
+        . '<a href="' . htmlspecialchars(\classes\system\CsrfService::appendToUrl('/admin/stop_impersonation'), ENT_QUOTES, 'UTF-8') . '" class="btn btn-sm btn-warning">' . htmlspecialchars($returnLabel, ENT_QUOTES) . '</a>'
         . '</div>';
 }
 if ($languageButtons !== []) {

@@ -4,8 +4,8 @@
         <div class="d-flex align-items-center justify-content-between mt-4 mb-3">
             <h1 class="mb-0"><?= htmlspecialchars((string)($lang['sys.property_lifecycle_jobs'] ?? 'Задачи жизненного цикла')) ?></h1>
             <div class="d-flex gap-2">
-                <a href="/admin/recover_stale_lifecycle_jobs" class="btn btn-outline-warning"><?= htmlspecialchars((string)($lang['sys.recover_stale_jobs'] ?? 'Восстановить зависшие задачи')) ?></a>
-                <a href="/admin/run_property_lifecycle_job" class="btn btn-primary"><?= htmlspecialchars((string)($lang['sys.property_lifecycle_run_next'] ?? 'Запустить следующую задачу')) ?></a>
+                <a href="<?= htmlspecialchars(\classes\system\CsrfService::appendToUrl('/admin/recover_stale_lifecycle_jobs'), ENT_QUOTES, 'UTF-8') ?>" class="btn btn-outline-warning"><?= htmlspecialchars((string)($lang['sys.recover_stale_jobs'] ?? 'Восстановить зависшие задачи')) ?></a>
+                <a href="<?= htmlspecialchars(\classes\system\CsrfService::appendToUrl('/admin/run_property_lifecycle_job'), ENT_QUOTES, 'UTF-8') ?>" class="btn btn-primary"><?= htmlspecialchars((string)($lang['sys.property_lifecycle_run_next'] ?? 'Запустить следующую задачу')) ?></a>
             </div>
         </div>
 
@@ -62,7 +62,7 @@
                                         <td><?= !empty($job['updated_at']) ? date('d.m.Y H:i', strtotime((string) $job['updated_at'])) : '' ?></td>
                                         <td>
                                             <?php if (in_array((string) ($job['status'] ?? ''), ['queued', 'failed'], true)): ?>
-                                                <a class="btn btn-sm btn-outline-primary" href="/admin/run_property_lifecycle_job/id/<?= (int) ($job['job_id'] ?? 0) ?>"><?= htmlspecialchars((string)($lang['sys.run'] ?? 'Запустить')) ?></a>
+                                                <a class="btn btn-sm btn-outline-primary" href="<?= htmlspecialchars(\classes\system\CsrfService::appendToUrl('/admin/run_property_lifecycle_job/id/' . (int) ($job['job_id'] ?? 0)), ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars((string)($lang['sys.run'] ?? 'Запустить')) ?></a>
                                             <?php else: ?>
                                                 <span class="text-muted">-</span>
                                             <?php endif; ?>

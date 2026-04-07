@@ -4,21 +4,26 @@
     <div class="modal fade login" id="loginModal">    
         <div class="modal-dialog login animated modal-dialog-centered">
             <div class="modal-content">
-                <div class="modal-header">                     
-                    <h4 class="modal-title text-center col-sm pl-5"></h4>                    
+                <div class="modal-header">
+                    <div class="w-100 pe-4">
+                        <h4 class="modal-title text-center col-sm pl-5"></h4>
+                        <p class="login-modal-subtitle mb-0"><?= htmlspecialchars((string) ($lang['sys.login_modal_hint'] ?? 'Используйте свою почту и пароль для входа в систему.')) ?></p>
+                    </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" id="close_button"></button>
                 </div>
                 <div class="modal-body">
+                    <div class="auth-feedback" id="auth-feedback" role="alert" aria-live="polite"></div>
                     <div class="box-login">
                         <div class="content">
-                            <div class="error"></div>
                             <div class="form loginBox">
-                                <form id="log_form" method="post" accept-charset="UTF-8">
+                                <form id="log_form" method="post" accept-charset="UTF-8" novalidate>
                                     <div class="form-group">
-                                        <input id="log_email" class="form-control" type="email" autocomplete="email" placeholder="<?= $lang['sys.email'] ?>" data-validator="email" required="true" name="email" data-toggle="tooltip" title="<?= $lang['sys.your_email'] ?>">
+                                        <label class="form-label" for="log_email"><?= htmlspecialchars((string) $lang['sys.email']) ?></label>
+                                        <input id="log_email" class="form-control" type="email" autocomplete="email" placeholder="<?= $lang['sys.email'] ?>" required="true" name="email">
                                     </div>
                                     <div class="form-group">
-                                        <input id="log_password" class="form-control" type="password" autocomplete="current-password" placeholder="<?= $lang['sys.password'] ?>" name="password" data-validator="password" required="true" data-toggle="tooltip" title="<?= $lang['sys.your_password'] ?>">
+                                        <label class="form-label" for="log_password"><?= htmlspecialchars((string) $lang['sys.password']) ?></label>
+                                        <input id="log_password" class="form-control" type="password" autocomplete="current-password" placeholder="<?= $lang['sys.password'] ?>" name="password" required="true">
                                     </div>
                                     <div class="form-group">
                                         <input class="btn btn-default btn-login" type="submit" value="<?= $lang['sys.log_in'] ?>">
@@ -35,15 +40,18 @@
                     <div class="box-login">
                         <div class="content registerBox" style="display:none;">
                             <div class="form">
-                                <form id="reg_form" method="post" accept-charset="UTF-8">
+                                <form id="reg_form" method="post" accept-charset="UTF-8" novalidate>
                                     <div class="form-group">
-                                        <input id="reg_email" class="form-control" autocomplete="email" type="email" placeholder="<?= $lang['sys.email'] ?>" name="email" data-validator="email" required="true" value="" data-toggle="tooltip" title="<?= $lang['sys.your_email'] ?>">
+                                        <label class="form-label" for="reg_email"><?= htmlspecialchars((string) $lang['sys.email']) ?></label>
+                                        <input id="reg_email" class="form-control" autocomplete="email" type="email" placeholder="<?= $lang['sys.email'] ?>" name="email" required="true" value="">
                                     </div>
                                     <div class="form-group">
-                                        <input id="reg_password" class="form-control" type="password" autocomplete="new-password" placeholder="<?= $lang['sys.password'] ?>" name="password" data-validator="password_strength" required="true" value="" data-toggle="tooltip" title="<?= $lang['sys.your_password'] ?>">
+                                        <label class="form-label" for="reg_password"><?= htmlspecialchars((string) $lang['sys.password']) ?></label>
+                                        <input id="reg_password" class="form-control" type="password" autocomplete="new-password" placeholder="<?= $lang['sys.password'] ?>" name="password" required="true" value="">
                                     </div>
                                     <div class="form-group">
-                                        <input id="reg_password_confirmation" class="form-control" autocomplete="new-password" type="password" placeholder="<?= $lang['sys.confirm_password'] ?>" name="password_confirmation" data-validator="confirm_password" required="true" data-toggle="tooltip" title="<?= $lang['sys.confirm_password'] ?>">
+                                        <label class="form-label" for="reg_password_confirmation"><?= htmlspecialchars((string) $lang['sys.confirm_password']) ?></label>
+                                        <input id="reg_password_confirmation" class="form-control" autocomplete="new-password" type="password" placeholder="<?= $lang['sys.confirm_password'] ?>" name="password_confirmation" required="true">
                                     </div>
                                     <div class="form-check mb-3">
                                         <input class="form-check-input" type="checkbox" id="reg_privacy_policy_accepted" name="privacy_policy_accepted" value="1" required>
@@ -72,9 +80,10 @@
                     <div class="box-login">
                         <div class="content PasswordRecoveryBox" style="display:none;">
                             <div class="form">
-                                <form id="recovery_form" method="post" accept-charset="UTF-8">
+                                <form id="recovery_form" method="post" accept-charset="UTF-8" novalidate>
                                     <div class="form-group">
-                                        <input id="rec_email" class="form-control" autocomplete="email" type="email" placeholder="<?= $lang['sys.your_email'] ?>" name="email" data-validator="email" required="true" value="" data-toggle="tooltip" title="<?= $lang['sys.your_email'] ?>">
+                                        <label class="form-label" for="rec_email"><?= htmlspecialchars((string) $lang['sys.email']) ?></label>
+                                        <input id="rec_email" class="form-control" autocomplete="email" type="email" placeholder="<?= $lang['sys.your_email'] ?>" name="email" required="true" value="">
                                     </div>
                                     <input class="btn btn-default btn-recovery" type="submit" value="<?= $lang['sys.restore_password'] ?>" name="commit">
                                 </form>

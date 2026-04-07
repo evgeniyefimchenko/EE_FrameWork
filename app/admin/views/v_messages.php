@@ -2,7 +2,7 @@
 <!-- Страница просмотра сообщений -->
 <main>
     <div class="container-fluid px-4">
-        <a href="/admin/kill_all_message" onclick="return confirm('<?= $lang['sys.delete_all'] ?>');" data-bs-toggle="tooltip" data-bs-placement="top"
+        <a href="<?= htmlspecialchars(\classes\system\CsrfService::appendToUrl('/admin/kill_all_message'), ENT_QUOTES, 'UTF-8') ?>" onclick="return confirm('<?= $lang['sys.delete_all'] ?>');" data-bs-toggle="tooltip" data-bs-placement="top"
            title="<?= $lang['sys.delete_all'] ?>" type="button"
            class="btn btn-danger mx-1 float-end">
             <i class="fa-solid fa-trash-arrow-up"></i>&nbsp;<?= $lang['sys.delete_all'] ?>

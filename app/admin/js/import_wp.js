@@ -1841,8 +1841,10 @@
         $status.text('');
         $log.text('');
 
+        var saveImportUrl = form.getAttribute('action') || '/admin/save_import_wp';
+
         $.ajax({
-            url: '/admin/save_import_wp',
+            url: saveImportUrl,
             type: 'POST',
             data: formData,
             processData: false,
@@ -1992,8 +1994,10 @@
             stepIndex = currentStep;
             var startedAt = Date.now();
 
+            var runImportUrl = $('#run-wp-import-url').val() || '/admin/run_wp_import';
+
             $.ajax({
-                url: '/admin/run_wp_import',
+                url: runImportUrl,
                 type: 'POST',
                 dataType: 'text',
                 data: {

@@ -17,10 +17,10 @@ $autoCreatedAgents = is_array($summary['auto_created_agents'] ?? null) ? $summar
         <div class="d-flex align-items-center justify-content-between mt-4 mb-3 flex-wrap gap-2">
             <h1 class="mb-0"><?= htmlspecialchars((string)($lang['sys.cron_agents'] ?? 'Cron-агенты')) ?></h1>
             <div class="d-flex flex-wrap gap-2">
-                <a href="/admin/run_cron_scheduler" class="btn btn-primary">
+                <a href="<?= htmlspecialchars(\classes\system\CsrfService::appendToUrl('/admin/run_cron_scheduler'), ENT_QUOTES, 'UTF-8') ?>" class="btn btn-primary">
                     <i class="fa-solid fa-play"></i>&nbsp;<?= htmlspecialchars((string)($lang['sys.cron_agent_run_scheduler'] ?? 'Запустить scheduler')) ?>
                 </a>
-                <a href="/admin/recover_stale_cron_agents" class="btn btn-outline-warning">
+                <a href="<?= htmlspecialchars(\classes\system\CsrfService::appendToUrl('/admin/recover_stale_cron_agents'), ENT_QUOTES, 'UTF-8') ?>" class="btn btn-outline-warning">
                     <i class="fa-solid fa-arrows-rotate"></i>&nbsp;<?= htmlspecialchars((string)($lang['sys.cron_agent_recover_stale'] ?? 'Восстановить зависшие')) ?>
                 </a>
                 <a href="/admin/cron_agent_edit/id/0" class="btn btn-success">
@@ -109,7 +109,7 @@ $autoCreatedAgents = is_array($summary['auto_created_agents'] ?? null) ? $summar
                 <strong><?= htmlspecialchars((string)($lang['sys.media_queue_worker'] ?? 'Системный агент media-mirror-worker')) ?></strong>
                 <div class="d-flex gap-2 flex-wrap">
                     <?php if (!empty($mediaMirrorAgent['agent_id'])): ?>
-                        <a href="/admin/run_cron_agent/id/<?= (int) ($mediaMirrorAgent['agent_id'] ?? 0) ?>" class="btn btn-sm btn-outline-success">
+                        <a href="<?= htmlspecialchars(\classes\system\CsrfService::appendToUrl('/admin/run_cron_agent/id/' . (int) ($mediaMirrorAgent['agent_id'] ?? 0)), ENT_QUOTES, 'UTF-8') ?>" class="btn btn-sm btn-outline-success">
                             <i class="fa-solid fa-play"></i>&nbsp;<?= htmlspecialchars((string)($lang['sys.cron_agent_run_now'] ?? 'Запустить сейчас')) ?>
                         </a>
                         <a href="/admin/cron_agent_edit/id/<?= (int) ($mediaMirrorAgent['agent_id'] ?? 0) ?>" class="btn btn-sm btn-outline-primary">
@@ -141,7 +141,7 @@ $autoCreatedAgents = is_array($summary['auto_created_agents'] ?? null) ? $summar
                 </div>
 
                 <?php if (!empty($mediaMirrorAgent['agent_id'])): ?>
-                    <form method="post" action="/admin/update_media_mirror_worker" class="row g-3 align-items-end">
+                    <form method="post" action="<?= htmlspecialchars(\classes\system\CsrfService::appendToUrl('/admin/update_media_mirror_worker'), ENT_QUOTES, 'UTF-8') ?>" class="row g-3 align-items-end">
                         <div class="col-12 col-lg-4">
                             <label class="form-label"><?= htmlspecialchars((string)($lang['sys.cron_agent_payload_batch_limit'] ?? 'Файлов за один тик')) ?></label>
                             <input type="number" min="1" max="100" step="1" name="batch_limit" class="form-control" value="<?= $mediaBatchLimit ?>">
@@ -231,16 +231,16 @@ $autoCreatedAgents = is_array($summary['auto_created_agents'] ?? null) ? $summar
                                                 <a href="/admin/cron_agent_edit/id/<?= (int) ($agent['agent_id'] ?? 0) ?>" class="btn btn-sm btn-outline-primary" title="<?= htmlspecialchars((string)($lang['sys.edit'] ?? 'Редактировать')) ?>">
                                                     <i class="fas fa-edit"></i>
                                                 </a>
-                                                <a href="/admin/run_cron_agent/id/<?= (int) ($agent['agent_id'] ?? 0) ?>" class="btn btn-sm btn-outline-success" title="<?= htmlspecialchars((string)($lang['sys.cron_agent_run_now'] ?? 'Запустить сейчас')) ?>">
+                                                <a href="<?= htmlspecialchars(\classes\system\CsrfService::appendToUrl('/admin/run_cron_agent/id/' . (int) ($agent['agent_id'] ?? 0)), ENT_QUOTES, 'UTF-8') ?>" class="btn btn-sm btn-outline-success" title="<?= htmlspecialchars((string)($lang['sys.cron_agent_run_now'] ?? 'Запустить сейчас')) ?>">
                                                     <i class="fa-solid fa-play"></i>
                                                 </a>
-                                                <a href="/admin/toggle_cron_agent/id/<?= (int) ($agent['agent_id'] ?? 0) ?>" class="btn btn-sm btn-outline-secondary" title="<?= htmlspecialchars((string)(!empty($agent['is_active']) ? ($lang['sys.cron_agent_disable'] ?? 'Отключить') : ($lang['sys.cron_agent_enable'] ?? 'Включить'))) ?>">
+                                                <a href="<?= htmlspecialchars(\classes\system\CsrfService::appendToUrl('/admin/toggle_cron_agent/id/' . (int) ($agent['agent_id'] ?? 0)), ENT_QUOTES, 'UTF-8') ?>" class="btn btn-sm btn-outline-secondary" title="<?= htmlspecialchars((string)(!empty($agent['is_active']) ? ($lang['sys.cron_agent_disable'] ?? 'Отключить') : ($lang['sys.cron_agent_enable'] ?? 'Включить'))) ?>">
                                                     <i class="fa-solid <?= !empty($agent['is_active']) ? 'fa-toggle-on' : 'fa-toggle-off' ?>"></i>
                                                 </a>
                                                 <a href="/admin/cron_agent_runs/id/<?= (int) ($agent['agent_id'] ?? 0) ?>" class="btn btn-sm btn-outline-dark" title="<?= htmlspecialchars((string)($lang['sys.cron_agent_runs'] ?? 'История запусков')) ?>">
                                                     <i class="fa-solid fa-clock-rotate-left"></i>
                                                 </a>
-                                                <a href="/admin/delete_cron_agent/id/<?= (int) ($agent['agent_id'] ?? 0) ?>" onclick="return confirm('<?= htmlspecialchars((string)($lang['sys.delete'] ?? 'Удалить'), ENT_QUOTES, 'UTF-8') ?>?');" class="btn btn-sm btn-outline-danger" title="<?= htmlspecialchars((string)($lang['sys.delete'] ?? 'Удалить')) ?>">
+                                                <a href="<?= htmlspecialchars(\classes\system\CsrfService::appendToUrl('/admin/delete_cron_agent/id/' . (int) ($agent['agent_id'] ?? 0)), ENT_QUOTES, 'UTF-8') ?>" onclick="return confirm('<?= htmlspecialchars((string)($lang['sys.delete'] ?? 'Удалить'), ENT_QUOTES, 'UTF-8') ?>?');" class="btn btn-sm btn-outline-danger" title="<?= htmlspecialchars((string)($lang['sys.delete'] ?? 'Удалить')) ?>">
                                                     <i class="fas fa-trash"></i>
                                                 </a>
                                             </div>

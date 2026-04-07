@@ -8,6 +8,9 @@ use classes\plugins\SafeMySQL;
 
 class AuthService {
 
+    private const MAX_FAILED_PASSWORD_ATTEMPTS = 5;
+    private const FAILED_PASSWORD_LOCK_MINUTES = 15;
+
     private static bool $infrastructureReady = false;
 
     public static function ensureInfrastructure(bool $force = false): void {
@@ -95,10 +98,15 @@ class AuthService {
             ];
         }
 
-        if (!password_verify($password, (string) $credential['password_hash'])) {
-            return ['status' => 'invalid_credentials'];
+        if ($this->isPasswordCredentialLocked($credential)) {
+            return ['status' => 'temporarily_locked'];
         }
 
+        if (!password_verify($password, (string) $credential['password_hash'])) {
+            return ['status' => $this->registerFailedPasswordAttempt($credential) ? 'temporarily_locked' : 'invalid_credentials'];
+        }
+
+        $this->clearPasswordCredentialFailures($credential);
         AuthSessionService::establishSession((int) $user['user_id']);
         return ['status' => 'success', 'user_id' => (int) $user['user_id']];
     }
@@ -601,6 +609,56 @@ class AuthService {
         );
 
         return is_array($row) ? $row : [];
+    }
+
+    private function isPasswordCredentialLocked(array $credential): bool {
+        $lockedUntil = trim((string) ($credential['locked_until'] ?? ''));
+        if ($lockedUntil === '') {
+            return false;
+        }
+
+        $lockedTimestamp = strtotime($lockedUntil);
+        return $lockedTimestamp !== false && $lockedTimestamp > time();
+    }
+
+    private function registerFailedPasswordAttempt(array $credential): bool {
+        $credentialId = (int) ($credential['credential_id'] ?? 0);
+        if ($credentialId <= 0) {
+            return false;
+        }
+
+        $attempts = max(0, (int) ($credential['failed_attempts'] ?? 0)) + 1;
+        $payload = ['failed_attempts' => $attempts];
+        $isLocked = $attempts >= self::MAX_FAILED_PASSWORD_ATTEMPTS;
+        if ($isLocked) {
+            $payload['locked_until'] = date('Y-m-d H:i:s', time() + (self::FAILED_PASSWORD_LOCK_MINUTES * 60));
+        }
+
+        SafeMySQL::gi()->query(
+            'UPDATE ?n SET ?u WHERE credential_id = ?i',
+            Constants::USERS_AUTH_CREDENTIALS_TABLE,
+            $payload,
+            $credentialId
+        );
+
+        return $isLocked;
+    }
+
+    private function clearPasswordCredentialFailures(array $credential): void {
+        $credentialId = (int) ($credential['credential_id'] ?? 0);
+        if ($credentialId <= 0) {
+            return;
+        }
+
+        if ((int) ($credential['failed_attempts'] ?? 0) === 0 && trim((string) ($credential['locked_until'] ?? '')) === '') {
+            return;
+        }
+
+        SafeMySQL::gi()->query(
+            'UPDATE ?n SET failed_attempts = 0, locked_until = NULL WHERE credential_id = ?i',
+            Constants::USERS_AUTH_CREDENTIALS_TABLE,
+            $credentialId
+        );
     }
 
     private function createOrUpdatePasswordCredential(int $userId, ?string $passwordHash, bool $mustSetPassword): void {

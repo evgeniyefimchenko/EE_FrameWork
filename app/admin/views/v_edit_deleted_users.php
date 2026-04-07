@@ -8,7 +8,7 @@
             </li>
         </ol>
         <div class="mb-3">
-            <a href="/admin/restore_user/id/<?= (int) $deleted_user_data['user_id'] ?>" class="btn btn-success" onclick="return confirm('<?= htmlspecialchars($lang['sys.restore_user_confirm']) ?>');">
+            <a href="<?= htmlspecialchars(\classes\system\CsrfService::appendToUrl('/admin/restore_user/id/' . (int) $deleted_user_data['user_id']), ENT_QUOTES, 'UTF-8') ?>" class="btn btn-success" onclick="return confirm('<?= htmlspecialchars($lang['sys.restore_user_confirm']) ?>');">
                 <?= $lang['sys.restore_user'] ?>
             </a>
         </div>

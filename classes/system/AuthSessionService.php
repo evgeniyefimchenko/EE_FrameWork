@@ -109,9 +109,8 @@ class AuthSessionService {
 
         self::persistTokenToTransport($transport, $rawToken);
         SafeMySQL::gi()->query(
-            'UPDATE ?n SET session = ?s, last_ip = ?s, last_activ = NOW() WHERE user_id = ?i',
+            'UPDATE ?n SET last_ip = ?s, last_activ = NOW() WHERE user_id = ?i',
             Constants::USERS_TABLE,
-            $rawToken,
             $ip,
             $userId
         );
@@ -134,10 +133,6 @@ class AuthSessionService {
 
         $session = self::findSessionByRawToken($rawToken);
         if (!$session) {
-            $legacyUserId = self::migrateLegacySessionToken($rawToken);
-            if ($legacyUserId) {
-                return $legacyUserId;
-            }
             self::clearTransportState();
             return false;
         }
@@ -513,20 +508,6 @@ class AuthSessionService {
         Session::un_set(self::IMPERSONATION_ORIGIN_TOKEN_KEY);
         Session::un_set(self::IMPERSONATION_ORIGIN_USER_ID_KEY);
         Session::un_set(self::IMPERSONATION_ORIGIN_TRANSPORT_KEY);
-    }
-
-    private static function migrateLegacySessionToken(string $rawToken): int|bool {
-        $sql = 'SELECT user_id, deleted, active
-            FROM ?n
-            WHERE session = ?s
-            LIMIT 1';
-        $legacyUser = SafeMySQL::gi()->getRow($sql, Constants::USERS_TABLE, $rawToken);
-        if (!is_array($legacyUser) || (int) ($legacyUser['deleted'] ?? 0) === 1 || (int) ($legacyUser['active'] ?? 0) !== 2) {
-            return false;
-        }
-
-        self::establishSession((int) $legacyUser['user_id'], self::getConfiguredTransport(), $rawToken);
-        return (int) $legacyUser['user_id'];
     }
 
     private static function isCurrentIpAllowed(string $storedIp): bool {

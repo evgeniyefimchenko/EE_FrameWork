@@ -465,7 +465,13 @@ class Users {
             return $configPassword;
         }
 
-        return substr(hash('sha256', (string) ENV_SECRET_KEY . '|bootstrap|' . $role), 0, 16);
+        $configKey = match ($role) {
+            'admin' => 'ENV_INSTALL_ADMIN_PASSWORD',
+            'moderator' => 'ENV_INSTALL_MODERATOR_PASSWORD',
+            default => 'ENV_INSTALL_PASSWORD',
+        };
+
+        throw new \RuntimeException('Bootstrap password is not configured. Set ' . $configKey . ' in inc/configuration.php before install.');
     }
 
     public function hasAnotherActiveUserWithRole(int $roleId, int $excludeUserId = 0): bool {
@@ -870,8 +876,8 @@ class Users {
             'deleted' => $this->langValue('sys.account_deleted', $this->langValue('sys.no_access', 'Access denied.')),
             'password_setup_required' => $this->langValue('sys.password_setup_link_sent', $this->langValue('sys.verify_email', 'Check your email.')),
             'password_setup_mail_failed' => $this->langValue('sys.password_setup_mail_failed', $this->langValue('sys.email_sending_error', 'Email sending error.')),
-            'invalid_credentials' => $this->langValue('sys.the_password_was_not_verified', 'The password was not verified.'),
-            'user_not_found' => $this->langValue('sys.no_such_data_was_found', 'No such data was found.'),
+            'invalid_credentials', 'user_not_found' => $this->langValue('sys.invalid_login_or_password', 'Invalid login or password.'),
+            'temporarily_locked' => $this->langValue('sys.account_temporarily_locked', 'Too many failed attempts. Try again later.'),
             default => $this->langValue('sys.error', 'Error'),
         };
     }

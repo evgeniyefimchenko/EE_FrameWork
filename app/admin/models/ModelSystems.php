@@ -1183,17 +1183,17 @@ class ModelSystems {
         if ((int) ($cron['stale_locked'] ?? 0) > 0) {
             $alerts[] = $this->makeHealthAlert('warning', 'sys.health_alert_cron_stale_title', 'sys.health_alert_cron_stale_message', [
                 'count' => (string) ((int) ($cron['stale_locked'] ?? 0)),
-            ], '/admin/recover_stale_operations', 'sys.recover_stale_operations');
+            ], \classes\system\CsrfService::appendToUrl('/admin/recover_stale_operations'), 'sys.recover_stale_operations');
         }
         if ((int) ($lifecycle['stale_running'] ?? 0) > 0) {
             $alerts[] = $this->makeHealthAlert('warning', 'sys.health_alert_lifecycle_stale_title', 'sys.health_alert_lifecycle_stale_message', [
                 'count' => (string) ((int) ($lifecycle['stale_running'] ?? 0)),
-            ], '/admin/recover_stale_operations', 'sys.recover_stale_operations');
+            ], \classes\system\CsrfService::appendToUrl('/admin/recover_stale_operations'), 'sys.recover_stale_operations');
         }
         if ((int) ($mediaQueue['stale_running'] ?? 0) > 0) {
             $alerts[] = $this->makeHealthAlert('warning', 'sys.health_alert_media_stale_title', 'sys.health_alert_media_stale_message', [
                 'count' => (string) ((int) ($mediaQueue['stale_running'] ?? 0)),
-            ], '/admin/recover_stale_operations', 'sys.recover_stale_operations');
+            ], \classes\system\CsrfService::appendToUrl('/admin/recover_stale_operations'), 'sys.recover_stale_operations');
         }
         if ((int) ($mediaQueue['failed'] ?? 0) > 0) {
             $alerts[] = $this->makeHealthAlert('warning', 'sys.health_alert_media_failed_title', 'sys.health_alert_media_failed_message', [
@@ -1213,7 +1213,7 @@ class ModelSystems {
         if ((int) ($backups['stale_running'] ?? 0) > 0) {
             $alerts[] = $this->makeHealthAlert('warning', 'sys.health_alert_backup_stale_title', 'sys.health_alert_backup_stale_message', [
                 'count' => (string) ((int) ($backups['stale_running'] ?? 0)),
-            ], '/admin/recover_stale_operations', 'sys.recover_stale_operations');
+            ], \classes\system\CsrfService::appendToUrl('/admin/recover_stale_operations'), 'sys.recover_stale_operations');
         }
         if ((int) (($backups['jobs']['failed'] ?? 0)) > 0) {
             $alerts[] = $this->makeHealthAlert('warning', 'sys.health_alert_backup_failed_title', 'sys.health_alert_backup_failed_message', [

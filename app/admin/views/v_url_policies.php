@@ -62,7 +62,7 @@
                                                     <i class="fas fa-edit"></i>
                                                 </a>
                                                 <?php if (empty($policy['is_default'])): ?>
-                                                    <a href="/admin/delete_url_policy/id/<?= (int)($policy['policy_id'] ?? 0) ?>" onclick="return confirm('<?= htmlspecialchars((string)($lang['sys.delete'] ?? 'Удалить'), ENT_QUOTES, 'UTF-8') ?>?');" class="btn btn-sm btn-outline-danger" title="<?= htmlspecialchars((string)($lang['sys.delete'] ?? 'Удалить')) ?>">
+                                                    <a href="<?= htmlspecialchars(\classes\system\CsrfService::appendToUrl('/admin/delete_url_policy/id/' . (int)($policy['policy_id'] ?? 0)), ENT_QUOTES, 'UTF-8') ?>" onclick="return confirm('<?= htmlspecialchars((string)($lang['sys.delete'] ?? 'Удалить'), ENT_QUOTES, 'UTF-8') ?>?');" class="btn btn-sm btn-outline-danger" title="<?= htmlspecialchars((string)($lang['sys.delete'] ?? 'Удалить')) ?>">
                                                         <i class="fas fa-trash"></i>
                                                     </a>
                                                 <?php else: ?>

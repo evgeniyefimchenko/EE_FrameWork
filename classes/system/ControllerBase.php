@@ -362,6 +362,46 @@ abstract class ControllerBase {
         return false;
     }
 
+    protected function withCsrfUrl(string $url): string {
+        return CsrfService::appendToUrl($url);
+    }
+
+    protected function csrfTokenForUrl(string $url): string {
+        return CsrfService::tokenForUrl($url);
+    }
+
+    protected function requireCsrfRequest(array $options = []): bool {
+        if (CsrfService::isValidForCurrentRequest()) {
+            return true;
+        }
+
+        Logger::warning('csrf_blocked', 'CSRF validation failed for state-changing request', [
+            'user_id' => (int) ($this->logged_in ?? 0),
+            'request_uri' => (string) ($_SERVER['REQUEST_URI'] ?? ''),
+            'method' => (string) ($_SERVER['REQUEST_METHOD'] ?? ''),
+            'referer' => (string) ($_SERVER['HTTP_REFERER'] ?? ''),
+        ], [
+            'initiator' => $options['initiator'] ?? __METHOD__,
+            'details' => 'CSRF token missing or invalid',
+            'include_trace' => false,
+        ]);
+
+        if (!empty($this->logged_in)) {
+            ClassNotifications::addNotificationUser((int) $this->logged_in, [
+                'text' => (string) ($options['message'] ?? ($this->lang['sys.security_action_expired'] ?? 'Проверка безопасности не пройдена. Повторите действие снова.')),
+                'status' => 'warning',
+            ]);
+        }
+
+        $redirect = trim((string) ($options['redirect'] ?? ''));
+        if ($redirect === '') {
+            $redirect = (string) ($_SERVER['HTTP_REFERER'] ?? '/admin');
+        }
+
+        SysClass::handleRedirect(200, $redirect);
+        return false;
+    }
+
     /**
      * Загружает модель для контроллера
      * @param string $model Имя файла модели без расширения, например 'm_index'

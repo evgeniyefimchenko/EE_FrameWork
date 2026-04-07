@@ -305,6 +305,12 @@ trait CategoriesTrait {
             SysClass::handleRedirect();
             exit();
         }
+        if (!$this->requireCsrfRequest([
+            'initiator' => __METHOD__,
+            'redirect' => '/admin/categories',
+        ])) {
+            return;
+        }
         $categoryId = 0;
         if (in_array('id', $params)) {
             $keyId = array_search('id', $params);
@@ -506,12 +512,12 @@ trait CategoriesTrait {
                 . 'class="btn btn-primary me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.edit'] . '"><i class="fas fa-edit"></i></a>'
                 . (
                     !empty($item['search_enabled'])
-                    ? '<a href="/admin/category_search_branch_disable/id/' . $item['category_id'] . '?language_code=' . rawurlencode((string) ($item['language_code'] ?? $languageCode)) . '" onclick="return confirm(\'' . htmlspecialchars((string) ($this->lang['sys.search_branch_disable_confirm'] ?? 'Отключить поиск для всей ветки категории?'), ENT_QUOTES) . '\');" '
+                    ? '<a href="' . htmlspecialchars($this->withCsrfUrl('/admin/category_search_branch_disable/id/' . $item['category_id'] . '?language_code=' . rawurlencode((string) ($item['language_code'] ?? $languageCode))), ENT_QUOTES, 'UTF-8') . '" onclick="return confirm(\'' . htmlspecialchars((string) ($this->lang['sys.search_branch_disable_confirm'] ?? 'Отключить поиск для всей ветки категории?'), ENT_QUOTES) . '\');" '
                     . 'class="btn btn-warning me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . htmlspecialchars((string) ($this->lang['sys.search_branch_disable'] ?? 'Отключить поиск для ветки'), ENT_QUOTES, 'UTF-8') . '"><i class="fas fa-magnifying-glass-minus"></i></a>'
-                    : '<a href="/admin/category_search_branch_enable/id/' . $item['category_id'] . '?language_code=' . rawurlencode((string) ($item['language_code'] ?? $languageCode)) . '" onclick="return confirm(\'' . htmlspecialchars((string) ($this->lang['sys.search_branch_enable_confirm'] ?? 'Включить поиск для всей ветки категории?'), ENT_QUOTES) . '\');" '
+                    : '<a href="' . htmlspecialchars($this->withCsrfUrl('/admin/category_search_branch_enable/id/' . $item['category_id'] . '?language_code=' . rawurlencode((string) ($item['language_code'] ?? $languageCode))), ENT_QUOTES, 'UTF-8') . '" onclick="return confirm(\'' . htmlspecialchars((string) ($this->lang['sys.search_branch_enable_confirm'] ?? 'Включить поиск для всей ветки категории?'), ENT_QUOTES) . '\');" '
                     . 'class="btn btn-success me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . htmlspecialchars((string) ($this->lang['sys.search_branch_enable'] ?? 'Включить поиск для ветки'), ENT_QUOTES, 'UTF-8') . '"><i class="fas fa-magnifying-glass"></i></a>'
                 )
-                . '<a href="/admin/category_delete/id/' . $item['category_id'] . '" onclick="return confirm(\'' . $this->lang['sys.delete'] . '?\');" '
+                . '<a href="' . htmlspecialchars($this->withCsrfUrl('/admin/category_delete/id/' . $item['category_id']), ENT_QUOTES, 'UTF-8') . '" onclick="return confirm(\'' . $this->lang['sys.delete'] . '?\');" '
                 . 'class="btn btn-danger me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.delete'] . '"><i class="fas fa-trash"></i></a>'
             ];
         }
@@ -654,6 +660,12 @@ trait CategoriesTrait {
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect();
             exit();
+        }
+        if (!$this->requireCsrfRequest([
+            'initiator' => __METHOD__,
+            'redirect' => ENV_URL_SITE . '/admin/categories',
+        ])) {
+            return;
         }
 
         $categoryId = 0;

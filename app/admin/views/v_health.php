@@ -30,10 +30,10 @@ $renderHealthAlertText = static function (array $alert, string $kind, array $lan
         <div class="d-flex align-items-center justify-content-between mt-4 mb-3 flex-wrap gap-2">
             <h1 class="mb-0"><?= htmlspecialchars($pageHeading) ?></h1>
             <div class="d-flex flex-wrap gap-2">
-                <a href="/admin/recover_stale_operations" class="btn btn-outline-warning">
+                <a href="<?= htmlspecialchars(\classes\system\CsrfService::appendToUrl('/admin/recover_stale_operations'), ENT_QUOTES, 'UTF-8') ?>" class="btn btn-outline-warning">
                     <i class="fa-solid fa-arrows-rotate"></i>&nbsp;<?= htmlspecialchars((string)($lang['sys.recover_stale_operations'] ?? 'Восстановить зависшие процессы')) ?>
                 </a>
-                <a href="/admin/refresh_media_metadata" class="btn btn-outline-primary">
+                <a href="<?= htmlspecialchars(\classes\system\CsrfService::appendToUrl('/admin/refresh_media_metadata'), ENT_QUOTES, 'UTF-8') ?>" class="btn btn-outline-primary">
                     <i class="fa-solid fa-photo-film"></i>&nbsp;<?= htmlspecialchars((string)($lang['sys.refresh_media_metadata'] ?? 'Обновить метаданные файлов')) ?>
                 </a>
                 <a href="/admin/backup" class="btn btn-primary">

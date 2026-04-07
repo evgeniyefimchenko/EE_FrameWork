@@ -250,13 +250,13 @@ $importCronAgent = is_array($import_cron_agent ?? null) ? $import_cron_agent : n
                                         <a href="/admin/cron_agent_edit/id/<?= (int) ($importCronAgent['agent_id'] ?? 0) ?>" class="btn btn-sm btn-outline-secondary">
                                             <i class="fa-solid fa-gear"></i> <?= htmlspecialchars((string)($lang['sys.edit'] ?? 'Редактировать')) ?>
                                         </a>
-                                        <a href="/admin/run_cron_agent/id/<?= (int) ($importCronAgent['agent_id'] ?? 0) ?>" class="btn btn-sm btn-outline-success">
+                                        <a href="<?= htmlspecialchars(\classes\system\CsrfService::appendToUrl('/admin/run_cron_agent/id/' . (int) ($importCronAgent['agent_id'] ?? 0)), ENT_QUOTES, 'UTF-8') ?>" class="btn btn-sm btn-outline-success">
                                             <i class="fa-solid fa-play"></i> <?= htmlspecialchars((string)($lang['sys.cron_agent_run_now'] ?? 'Запустить сейчас')) ?>
                                         </a>
                                         <a href="/admin/cron_agent_runs/id/<?= (int) ($importCronAgent['agent_id'] ?? 0) ?>" class="btn btn-sm btn-outline-dark">
                                             <i class="fa-solid fa-clock-rotate-left"></i> <?= htmlspecialchars((string)($lang['sys.cron_agent_runs'] ?? 'История запусков')) ?>
                                         </a>
-                                        <a href="/admin/delete_import_cron_agent/id/<?= (int)$job_id ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('<?= htmlspecialchars((string)($lang['sys.imports_delete_cron_agent_confirm'] ?? 'Delete the linked cron agent?'), ENT_QUOTES, 'UTF-8') ?>');">
+                                        <a href="<?= htmlspecialchars(\classes\system\CsrfService::appendToUrl('/admin/delete_import_cron_agent/id/' . (int)$job_id), ENT_QUOTES, 'UTF-8') ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('<?= htmlspecialchars((string)($lang['sys.imports_delete_cron_agent_confirm'] ?? 'Delete the linked cron agent?'), ENT_QUOTES, 'UTF-8') ?>');">
                                             <i class="fa-solid fa-trash"></i> <?= htmlspecialchars((string)($lang['sys.delete'] ?? 'Удалить')) ?>
                                         </a>
                                     <?php endif; ?>
@@ -310,7 +310,7 @@ $importCronAgent = is_array($import_cron_agent ?? null) ? $import_cron_agent : n
             <div class="col-12">
                 <h3><?= htmlspecialchars((string)($lang['sys.import_profile_settings'] ?? 'Profile settings')) ?></h3>
 
-                <form id="import-settings-form" method="POST" enctype="multipart/form-data">
+                <form id="import-settings-form" method="POST" action="<?= htmlspecialchars(\classes\system\CsrfService::appendToUrl('/admin/save_import_wp'), ENT_QUOTES, 'UTF-8') ?>" enctype="multipart/form-data">
                     <input type="hidden" name="job_id" id="job_id" value="<?= (int)$job_id ?>">
                     <input type="hidden" name="file_id_package" id="file_id_package" value="<?= (int)($job['file_id_package'] ?? 0) ?>">
                     <input type="hidden" name="package_filename_hidden" id="package_filename_hidden" value="<?= htmlspecialchars((string)($job['package_filename'] ?? '')) ?>">
@@ -321,6 +321,7 @@ $importCronAgent = is_array($import_cron_agent ?? null) ? $import_cron_agent : n
                     <input type="hidden" name="wizard_content_completed_at" id="wizard_content_completed_at" value="<?= htmlspecialchars($wizardContentCompletedAt) ?>">
                     <input type="hidden" name="composite_properties_map" id="composite_properties_map" value="<?= htmlspecialchars($compositePropertiesMapRaw) ?>">
                     <input type="hidden" name="excluded_property_source_ids" id="excluded_property_source_ids" value="<?= htmlspecialchars((string)($job['excluded_property_source_ids'] ?? '')) ?>">
+                    <input type="hidden" id="run-wp-import-url" value="<?= htmlspecialchars(\classes\system\CsrfService::appendToUrl('/admin/run_wp_import'), ENT_QUOTES, 'UTF-8') ?>">
 
                     <div class="mb-3">
                         <label for="settings_name" class="form-label"><?= htmlspecialchars((string)($lang['sys.profile_name_required'] ?? 'Profile name*')) ?></label>

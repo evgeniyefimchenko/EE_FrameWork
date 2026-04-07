@@ -152,6 +152,12 @@ trait CronAgentsTrait {
         ])) {
             return;
         }
+        if (!$this->requireCsrfRequest([
+            'initiator' => __METHOD__,
+            'redirect' => '/admin/cron_agents',
+        ])) {
+            return;
+        }
 
         $this->loadModel('m_cron_agents');
         $agentId = $this->extractAgentIdFromParams($params);
@@ -169,6 +175,12 @@ trait CronAgentsTrait {
         if (!$this->requireAccess([Constants::ADMIN], [
             'return' => 'admin/cron_agents',
             'initiator' => __METHOD__,
+        ])) {
+            return;
+        }
+        if (!$this->requireCsrfRequest([
+            'initiator' => __METHOD__,
+            'redirect' => '/admin/cron_agents',
         ])) {
             return;
         }
@@ -196,6 +208,12 @@ trait CronAgentsTrait {
         ])) {
             return;
         }
+        if (!$this->requireCsrfRequest([
+            'initiator' => __METHOD__,
+            'redirect' => '/admin/cron_agents',
+        ])) {
+            return;
+        }
 
         $this->loadModel('m_cron_agents');
         $agentId = $this->extractAgentIdFromParams($params);
@@ -217,6 +235,12 @@ trait CronAgentsTrait {
         if (!$this->requireAccess([Constants::ADMIN], [
             'return' => 'admin/cron_agents',
             'initiator' => __METHOD__,
+        ])) {
+            return;
+        }
+
+        if (!$this->requireCsrfRequest([
+            'redirect' => '/admin/cron_agents',
         ])) {
             return;
         }
@@ -279,6 +303,12 @@ trait CronAgentsTrait {
         ])) {
             return;
         }
+        if (!$this->requireCsrfRequest([
+            'initiator' => __METHOD__,
+            'redirect' => '/admin/cron_agents',
+        ])) {
+            return;
+        }
 
         $this->loadModel('m_cron_agents');
         $result = $this->models['m_cron_agents']->runSchedulerTick('manual_dashboard');
@@ -299,6 +329,12 @@ trait CronAgentsTrait {
         if (!$this->requireAccess([Constants::ADMIN], [
             'return' => 'admin/cron_agents',
             'initiator' => __METHOD__,
+        ])) {
+            return;
+        }
+        if (!$this->requireCsrfRequest([
+            'initiator' => __METHOD__,
+            'redirect' => '/admin/cron_agents',
         ])) {
             return;
         }

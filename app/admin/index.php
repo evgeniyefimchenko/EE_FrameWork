@@ -1,6 +1,7 @@
 <?php
 
 use classes\system\ControllerBase;
+use classes\system\ApiKeyService;
 use classes\system\SysClass;
 use classes\system\Constants;
 use classes\system\AuthService;
@@ -639,9 +640,19 @@ use MessagesTrait,
         $get_free_roles = $this->models['m_user_edit']->get_free_roles($get_user_context['user_role'], (int) ($get_user_context['user_id'] ?? 0)); // Получим свободные роли
         $this->view->set('free_active_status', $free_active_status);
         $this->view->set('get_free_roles', $get_free_roles);
+        $canManageOwnApiKey = (int) ($this->users->data['user_role'] ?? 0) === Constants::ADMIN
+            && (int) ($get_user_context['user_id'] ?? 0) === (int) $this->logged_in
+            && (int) ($get_user_context['user_role'] ?? 0) === Constants::ADMIN;
+        $apiKeyMeta = null;
+        if ($canManageOwnApiKey && !empty($get_user_context['user_id'])) {
+            ApiKeyService::ensureInfrastructure();
+            $apiKeyMeta = ApiKeyService::getActiveKeyMetaForUser((int) $get_user_context['user_id']);
+        }
 
         /* view */
         $this->view->set('user_context', $get_user_context);
+        $this->view->set('can_manage_own_api_key', $canManageOwnApiKey);
+        $this->view->set('api_key_meta', $apiKeyMeta);
         $this->getStandardViews();
         $this->view->set('body_view', $this->view->read('v_edit_user'));
         $this->html = $this->view->read('v_dashboard');
@@ -751,6 +762,89 @@ use MessagesTrait,
             echo json_encode(array('error' => 'error ajax_user_edit'));
             exit();
         }
+    }
+
+    public function user_api_key_generate($params = []): void {
+        if (!$this->requireAccess([Constants::ADMIN], [
+            'ajax' => true,
+            'initiator' => __METHOD__,
+        ])) {
+            return;
+        }
+
+        $targetUserId = 0;
+        if (in_array('id', $params, true)) {
+            $keyId = array_search('id', $params, true);
+            if ($keyId !== false && isset($params[$keyId + 1]) && is_numeric($params[$keyId + 1])) {
+                $targetUserId = (int) $params[$keyId + 1];
+            }
+        }
+        if ($targetUserId <= 0) {
+            $targetUserId = (int) $this->logged_in;
+        }
+
+        if ($targetUserId !== (int) $this->logged_in) {
+            echo json_encode(['error' => 'access denied']);
+            exit();
+        }
+
+        $currentUser = $this->users->getUserData($targetUserId);
+        if ((int) ($currentUser['user_role'] ?? 0) !== Constants::ADMIN) {
+            echo json_encode(['error' => 'API key is available only for administrator']);
+            exit();
+        }
+
+        try {
+            ApiKeyService::ensureInfrastructure();
+            $generated = ApiKeyService::generateForUser($targetUserId, 'Administrator API key');
+            $meta = ApiKeyService::getActiveKeyMetaForUser($targetUserId);
+
+            echo json_encode([
+                'error' => 'no',
+                'api_key' => (string) ($generated['api_key'] ?? ''),
+                'meta' => $meta,
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            exit();
+        } catch (\Throwable $e) {
+            echo json_encode([
+                'error' => 'api_key_generate_failed',
+                'message' => $e->getMessage(),
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            exit();
+        }
+    }
+
+    public function user_api_key_revoke($params = []): void {
+        if (!$this->requireAccess([Constants::ADMIN], [
+            'ajax' => true,
+            'initiator' => __METHOD__,
+        ])) {
+            return;
+        }
+
+        $targetUserId = 0;
+        if (in_array('id', $params, true)) {
+            $keyId = array_search('id', $params, true);
+            if ($keyId !== false && isset($params[$keyId + 1]) && is_numeric($params[$keyId + 1])) {
+                $targetUserId = (int) $params[$keyId + 1];
+            }
+        }
+        if ($targetUserId <= 0) {
+            $targetUserId = (int) $this->logged_in;
+        }
+
+        if ($targetUserId !== (int) $this->logged_in) {
+            echo json_encode(['error' => 'access denied']);
+            exit();
+        }
+
+        ApiKeyService::ensureInfrastructure();
+        ApiKeyService::revokeActiveKeysForUser($targetUserId);
+        echo json_encode([
+            'error' => 'no',
+            'meta' => null,
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        exit();
     }
 
     /**
@@ -903,7 +997,7 @@ use MessagesTrait,
         foreach ($users_array['data'] as $item) {
             $impersonateButton = '';
             if ((int) ($this->users->data['user_role'] ?? 0) === Constants::ADMIN && (int) ($item['user_id'] ?? 0) !== (int) $this->logged_in) {
-                $impersonateButton = '<a href="/admin/login_as_user/id/' . $item['user_id'] . '" class="btn btn-outline-secondary me-2" '
+                $impersonateButton = '<a href="' . htmlspecialchars($this->withCsrfUrl('/admin/login_as_user/id/' . $item['user_id']), ENT_QUOTES, 'UTF-8') . '" class="btn btn-outline-secondary me-2" '
                     . 'onclick="return confirm(\'' . ($this->lang['sys.login_as_user_confirm'] ?? 'Войти под этим пользователем?') . '\');" '
                     . 'data-bs-toggle="tooltip" data-bs-placement="top" title="' . ($this->lang['sys.login_as_user'] ?? 'Войти как пользователь') . '"><i class="fas fa-user-secret"></i></a>';
             }
@@ -911,7 +1005,7 @@ use MessagesTrait,
             if (!$isProtectedUser) {
                 $html_actions = $impersonateButton
                         . '<a href="/admin/user_edit/id/' . $item['user_id'] . '" class="btn btn-primary me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.edit'] . '"><i class="fas fa-edit"></i></a>'
-                        . '<a href="/admin/delete_user/id/' . $item['user_id'] . '"  onclick="return confirm(\'' . $this->lang['sys.delete'] . '?\');" '
+                        . '<a href="' . htmlspecialchars($this->withCsrfUrl('/admin/delete_user/id/' . $item['user_id']), ENT_QUOTES, 'UTF-8') . '"  onclick="return confirm(\'' . $this->lang['sys.delete'] . '?\');" '
                         . 'class="btn btn-danger" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.delete'] . '"><i class="fas fa-trash-alt"></i></a>';
             } else {
                 $html_actions = $impersonateButton
@@ -941,6 +1035,12 @@ use MessagesTrait,
         if (!$this->requireAccess([Constants::ADMIN], [
             'return' => 'admin/users',
             'initiator' => __METHOD__,
+        ])) {
+            return;
+        }
+        if (!$this->requireCsrfRequest([
+            'initiator' => __METHOD__,
+            'redirect' => '/admin/users',
         ])) {
             return;
         }
@@ -980,6 +1080,12 @@ use MessagesTrait,
         if (!$this->requireAccess([Constants::ALL_AUTH], [
             'return' => 'admin',
             'initiator' => __METHOD__,
+        ])) {
+            return;
+        }
+        if (!$this->requireCsrfRequest([
+            'initiator' => __METHOD__,
+            'redirect' => '/admin',
         ])) {
             return;
         }
@@ -1096,6 +1202,12 @@ use MessagesTrait,
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect();
             exit();
+        }
+        if (!$this->requireCsrfRequest([
+            'initiator' => __METHOD__,
+            'redirect' => '/admin/users',
+        ])) {
+            return;
         }
         if (in_array('id', $params)) {
             $keyId = array_search('id', $params);
@@ -1325,7 +1437,7 @@ use MessagesTrait,
                     'user_role_text' => $item['user_role_text'],
                     'last_ip' => $item['last_ip'],
                     'actions' => '<a href="/admin/deleted_user_edit/id/' . $item['user_id'] . '" class="btn btn-primary me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.edit'] . '"><i class="fas fa-edit"></i></a>'
-                    . '<a href="/admin/restore_user/id/' . $item['user_id'] . '" onclick="return confirm(\'' . $this->lang['sys.restore_user_confirm'] . '\');" class="btn btn-success" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.restore_user'] . '"><i class="fas fa-rotate-left"></i></a>',
+                    . '<a href="' . htmlspecialchars($this->withCsrfUrl('/admin/restore_user/id/' . $item['user_id']), ENT_QUOTES, 'UTF-8') . '" onclick="return confirm(\'' . $this->lang['sys.restore_user_confirm'] . '\');" class="btn btn-success" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.restore_user'] . '"><i class="fas fa-rotate-left"></i></a>',
                 ];
         }
         $data_table['total_rows'] = $users_array['total_count'];
@@ -1386,6 +1498,12 @@ use MessagesTrait,
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect();
             exit();
+        }
+        if (!$this->requireCsrfRequest([
+            'initiator' => __METHOD__,
+            'redirect' => '/admin/deleted_users',
+        ])) {
+            return;
         }
 
         if (!in_array('id', $params, true)) {
