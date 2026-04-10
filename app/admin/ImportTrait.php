@@ -521,7 +521,7 @@ trait ImportTrait {
             die('Access denied');
         }
 
-        $adapterPath = ENV_SITE_PATH . 'classes/system/wp_adapter_template.php';
+        $adapterPath = ENV_SITE_PATH . 'classes/system/WpAdapterTemplate.php';
         if (!is_file($adapterPath) || !is_readable($adapterPath)) {
             die('Файл шаблона экспортёра не найден: ' . $adapterPath);
         }

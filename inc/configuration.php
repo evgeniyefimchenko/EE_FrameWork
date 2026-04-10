@@ -7,7 +7,7 @@
  */
 
 return [
-    'ENV_VERSION_CORE' => '1.0.0',
+    'ENV_VERSION_CORE' => '5.4.0',
 
     // Настройка базы данных
     'ENV_DB_HOST' => 'localhost',

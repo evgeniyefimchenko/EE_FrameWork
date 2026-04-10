@@ -166,6 +166,7 @@ trait EntitiesTrait {
         }
         $this->loadModel('m_entities');
         $this->loadModel('m_categories_types', []);
+        $this->loadModel('m_categories');
         $all_types = $this->models['m_categories_types']->getAllTypes();
         $post_data = SysClass::ee_cleanArray($_POST);
         $data_table = [
@@ -217,9 +218,18 @@ trait EntitiesTrait {
                 ],
             ]
         ];
-        $filter_types[] = ['value' => 0, 'label' => $this->lang['sys.any'] ?? 'Any'];
         foreach ($all_types as $item) {
             $filter_types[] = ['value' => $item['type_id'], 'label' => $item['name']];
+        }
+        $filter_categories = [
+            ['value' => '', 'label' => $this->lang['sys.any'] ?? 'Any'],
+            ['value' => 0, 'label' => $this->lang['sys.without_category'] ?? 'Без категории'],
+        ];
+        foreach ((array) $this->models['m_categories']->getAllCategories(false, ['category_id', 'title']) as $categoryItem) {
+            $filter_categories[] = [
+                'value' => (int) ($categoryItem['category_id'] ?? 0),
+                'label' => (string) ($categoryItem['title'] ?? ''),
+            ];
         }
         foreach (Constants::ALL_STATUS as $key => $value) {
             $statuses[] = ['value' => $key, 'label' => $this->lang['sys.' . $value]];
@@ -233,10 +243,13 @@ trait EntitiesTrait {
                 'label' => $this->lang['sys.name']
             ],
             'category_id' => [
-                'type' => 'text',
+                'type' => 'select',
                 'id' => "category_id",
-                'value' => '',
-                'label' => $this->lang['sys.category']
+                'value' => [],
+                'label' => $this->lang['sys.category'],
+                'options' => $filter_categories,
+                'multiple' => false,
+                'help_text' => 'Показывает записи, привязанные к выбранной категории.'
             ],
             'type_id' => [
                 'type' => 'select',
@@ -244,7 +257,9 @@ trait EntitiesTrait {
                 'value' => [],
                 'label' => $this->lang['sys.type'],
                 'options' => $filter_types,
-                'multiple' => true
+                'multiple' => true,
+                'ignore_values' => ['0', 0, ''],
+                'help_text' => 'Если ничего не выбрано, показываются записи всех типов.'
             ],
             'status' => [
                 'type' => 'select',
@@ -252,7 +267,8 @@ trait EntitiesTrait {
                 'value' => [],
                 'label' => $this->lang['sys.status'],
                 'options' => $statuses,
-                'multiple' => true
+                'multiple' => true,
+                'help_text' => 'Можно выбрать несколько статусов сразу.'
             ],
             'created_at' => [
                 'type' => 'date',

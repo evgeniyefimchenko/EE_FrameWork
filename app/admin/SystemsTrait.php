@@ -645,7 +645,7 @@ trait SystemsTrait {
         @mkdir(ENV_SITE_PATH . 'logs', 0775, true);
         @mkdir(ENV_SITE_PATH . 'logs' . ENV_DIRSEP . 'errors', 0775, true);
         @mkdir(ENV_SITE_PATH . 'uploads' . ENV_DIRSEP . 'files', 0775, true);
-        // Перезапись файла Constants.php содержимым Constants_clean.php
+        // Перезапись файла Constants.php содержимым ConstantsClean.php
         $constantsCleanPath = SysClass::getConstantsCleanFilePath();
         $constantsPath = SysClass::getConstantsRuntimeFilePath();
         if (file_exists($constantsCleanPath)) {
@@ -660,7 +660,7 @@ trait SystemsTrait {
             }
         } else {
             $this->notifyOperationResult(
-                \classes\system\OperationResult::failure('Constants_clean.php не найден.', 'constants_clean_missing'),
+                \classes\system\OperationResult::failure('ConstantsClean.php не найден.', 'constants_clean_missing'),
                 ['skip_success_notification' => true]
             );
             SysClass::handleRedirect(200, '/admin');

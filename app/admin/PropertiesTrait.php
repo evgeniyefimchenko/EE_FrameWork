@@ -239,8 +239,10 @@ trait PropertiesTrait {
                 'id' => "type_id",
                 'value' => [],
                 'label' => $this->lang['sys.type'],
-                'options' => [['value' => 0, 'label' => $this->lang['sys.any'] ?? 'Any']],
-                'multiple' => true
+                'options' => [],
+                'multiple' => true,
+                'ignore_values' => ['0', 0, ''],
+                'help_text' => 'Если ничего не выбрано, показываются свойства всех типов.'
             ],
             'created_at' => [
                 'type' => 'date',
@@ -1465,12 +1467,6 @@ trait PropertiesTrait {
         ])) {
             return;
         }
-        if (!$this->requireCsrfRequest([
-            'initiator' => __METHOD__,
-            'redirect' => '/admin/property_lifecycle_jobs',
-        ])) {
-            return;
-        }
 
         $this->loadModel('m_property_lifecycle');
         $jobsData = $this->models['m_property_lifecycle']->getLifecycleJobsData('job_id DESC', null, 0, 100);
@@ -1495,6 +1491,12 @@ trait PropertiesTrait {
         if (!$this->requireAccess([Constants::ADMIN, Constants::MODERATOR], [
             'return' => 'admin/property_lifecycle_jobs',
             'initiator' => __METHOD__,
+        ])) {
+            return;
+        }
+
+        if (!$this->requireCsrfRequest([
+            'redirect' => '/admin/property_lifecycle_jobs',
         ])) {
             return;
         }

@@ -126,6 +126,7 @@ trait CategoriesTrait {
             }
         }
         if (!empty($postData) && isset($postData['title'])) {
+            $wasNewEntity = $newEntity;
             if (!$newEntity) {
                 $postData['category_id'] = $categoryId;
             }
@@ -151,12 +152,12 @@ trait CategoriesTrait {
                         EntityTranslationService::getEntityLanguageCode('category', (int) $categoryId)
                     );
                 }
-                $newEntity = false;
                 $this->saveFileProperty($postData);
                 if (isset($postData['property_data']) && is_array($postData['property_data']) && !empty($postData['property_data_changed'])) {
                     $this->processPropertyData($postData['property_data'], $languageCode);
                 }
-                $this->processPostParams($postData, $newEntity, $categoryId);
+                $this->processPostParams($postData, $wasNewEntity, $categoryId);
+                $newEntity = false;
             }
         }
         $getCategoryData = ($categoryId > 0 ? $this->models['m_categories']->getCategoryData($categoryId, $languageCode ?: ee_get_default_content_lang_code()) : null) ?: $defaultData;
@@ -408,7 +409,8 @@ trait CategoriesTrait {
                     'field' => 'search_state',
                     'title' => $this->lang['sys.search.title'] ?? 'Поиск',
                     'sorted' => false,
-                    'filterable' => false,
+                    'filterable' => true,
+                    'filter_field' => 'search_enabled',
                     'raw' => true
                 ], [
                     'field' => 'language_code',
@@ -441,18 +443,21 @@ trait CategoriesTrait {
                 'label' => $this->lang['sys.name']
             ],
             'parent_id' => [
-                'type' => 'text',
+                'type' => 'select',
                 'id' => "parent_id",
-                'value' => '',
-                'label' => $this->lang['sys.parent']
+                'value' => [],
+                'label' => 'Родительская категория',
+                'help_text' => 'Показывает только дочерние категории выбранного родителя.'
             ],
             'type_id' => [
                 'type' => 'select',
                 'id' => "type_id",
                 'value' => [],
                 'label' => $this->lang['sys.type'],
-                'options' => [['value' => 0, 'label' => $this->lang['sys.any'] ?? 'Any']],
-                'multiple' => true
+                'options' => [],
+                'multiple' => true,
+                'ignore_values' => ['0', 0, ''],
+                'help_text' => 'Если ничего не выбрано, показываются категории всех типов.'
             ],
             'search_enabled' => [
                 'type' => 'select',
@@ -479,6 +484,16 @@ trait CategoriesTrait {
             ],
         ];
         $this->loadModel('m_categories_types');
+        $filters['parent_id']['options'] = [
+            ['value' => '', 'label' => $this->lang['sys.any'] ?? 'Any'],
+            ['value' => 0, 'label' => $this->lang['sys.without_category'] ?? 'Без категории'],
+        ];
+        foreach ((array) $this->models['m_categories']->getAllCategories(false, ['category_id', 'title'], $languageCode) as $parentCategory) {
+            $filters['parent_id']['options'][] = [
+                'value' => (int) ($parentCategory['category_id'] ?? 0),
+                'label' => (string) ($parentCategory['title'] ?? ''),
+            ];
+        }
         foreach ($this->models['m_categories_types']->getAllTypes(null, true, null, $languageCode) as $item) {
             $filters['type_id']['options'][] = ['value' => $item['type_id'], 'label' => $item['name']];
         }

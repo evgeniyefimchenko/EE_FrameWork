@@ -99,11 +99,16 @@ trait CategoriesTypesTrait {
                 'value' => '',
                 'label' => $this->lang['sys.name']
             ],
-            'name' => [
-                'type' => 'text',
+            'parent_type_id' => [
+                'type' => 'select',
                 'id' => "parent_type_id",
-                'value' => '',
-                'label' => $this->lang['sys.parent']
+                'value' => [],
+                'label' => $this->lang['sys.parent'],
+                'options' => [
+                    ['value' => '', 'label' => $this->lang['sys.any'] ?? 'Any'],
+                    ['value' => 0, 'label' => $this->lang['sys.without_category'] ?? 'Без родителя'],
+                ],
+                'multiple' => false,
             ],
             'created_at' => [
                 'type' => 'date',
@@ -118,6 +123,12 @@ trait CategoriesTypesTrait {
                 'label' => $this->lang['sys.date_update']
             ],
         ];
+        foreach ((array) $this->models['m_categories_types']->getAllTypes(null, true) as $typeItem) {
+            $filters['parent_type_id']['options'][] = [
+                'value' => (int) ($typeItem['type_id'] ?? 0),
+                'label' => (string) ($typeItem['name'] ?? ''),
+            ];
+        }
         $selected_sorting = [];
         if ($postData && SysClass::isAjaxRequestFromSameSite()) { // AJAX
             list($params, $filters, $selected_sorting) = Plugins::ee_showTablePrepareParams($postData, $data_table['columns']);

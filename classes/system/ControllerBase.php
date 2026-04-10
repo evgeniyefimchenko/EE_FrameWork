@@ -387,9 +387,10 @@ abstract class ControllerBase {
         ]);
 
         if (!empty($this->logged_in)) {
-            ClassNotifications::addNotificationUser((int) $this->logged_in, [
+            ClassNotifications::upsertSourceNotification((int) $this->logged_in, 'security', 1, [
                 'text' => (string) ($options['message'] ?? ($this->lang['sys.security_action_expired'] ?? 'Проверка безопасности не пройдена. Повторите действие снова.')),
                 'status' => 'warning',
+                'url' => '/admin/health',
             ]);
         }
 

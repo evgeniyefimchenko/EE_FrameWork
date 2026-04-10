@@ -17,12 +17,6 @@ trait UrlManagementTrait {
         ])) {
             return;
         }
-        if (!$this->requireCsrfRequest([
-            'initiator' => __METHOD__,
-            'redirect' => '/admin/url_policies',
-        ])) {
-            return;
-        }
 
         $this->loadModel('m_url_management');
         $this->getStandardViews();
@@ -139,6 +133,12 @@ trait UrlManagementTrait {
         ])) {
             return;
         }
+        if (!$this->requireCsrfRequest([
+            'initiator' => __METHOD__,
+            'redirect' => '/admin/url_policies',
+        ])) {
+            return;
+        }
 
         $this->loadModel('m_url_management');
         $policyId = $this->extractUrlManagementIdFromParams($params);
@@ -156,12 +156,6 @@ trait UrlManagementTrait {
         if (!$this->requireAccess([Constants::ADMIN], [
             'return' => 'admin/redirects',
             'initiator' => __METHOD__,
-        ])) {
-            return;
-        }
-        if (!$this->requireCsrfRequest([
-            'initiator' => __METHOD__,
-            'redirect' => '/admin/redirects',
         ])) {
             return;
         }

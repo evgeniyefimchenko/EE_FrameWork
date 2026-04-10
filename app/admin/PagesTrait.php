@@ -268,6 +268,7 @@ trait PagesTrait {
             $params = [];
         }
         $this->loadModel('m_pages');
+        $this->loadModel('m_categories');
         $this->loadModel('m_categories_types', []);
         $languageCode = ee_get_default_content_lang_code((string) ($contentLanguageCode ?: \classes\system\Session::get('admin_pages_lang')));
         \classes\system\Session::set('admin_pages_lang', $languageCode);
@@ -321,7 +322,8 @@ trait PagesTrait {
                     'field' => 'search_state',
                     'title' => $this->lang['sys.search.title'] ?? 'Поиск',
                     'sorted' => false,
-                    'filterable' => false,
+                    'filterable' => true,
+                    'filter_field' => 'search_enabled',
                     'raw' => true
                 ], [
                     'field' => 'language_code',
@@ -346,9 +348,18 @@ trait PagesTrait {
                 ],
             ]
         ];
-        $filter_types[] = ['value' => 0, 'label' => $this->lang['sys.any'] ?? 'Any'];
         foreach ($all_types as $item) {
             $filter_types[] = ['value' => $item['type_id'], 'label' => $item['name']];
+        }
+        $filter_categories = [
+            ['value' => '', 'label' => $this->lang['sys.any'] ?? 'Any'],
+            ['value' => 0, 'label' => $this->lang['sys.without_category'] ?? 'Без категории'],
+        ];
+        foreach ((array) $this->models['m_categories']->getAllCategories(false, ['category_id', 'title'], $languageCode) as $categoryItem) {
+            $filter_categories[] = [
+                'value' => (int) ($categoryItem['category_id'] ?? 0),
+                'label' => (string) ($categoryItem['title'] ?? ''),
+            ];
         }
         foreach (Constants::ALL_STATUS as $key => $value) {
             $statuses[] = ['value' => $key, 'label' => $this->lang['sys.' . $value]];
@@ -362,10 +373,13 @@ trait PagesTrait {
                 'label' => $this->lang['sys.name']
             ],
             'category_id' => [
-                'type' => 'text',
+                'type' => 'select',
                 'id' => "category_id",
-                'value' => '',
-                'label' => $this->lang['sys.category']
+                'value' => [],
+                'label' => 'Категория страницы',
+                'options' => $filter_categories,
+                'multiple' => false,
+                'help_text' => 'Показывает страницы, привязанные к выбранной категории.'
             ],
             'type_id' => [
                 'type' => 'select',
@@ -373,7 +387,9 @@ trait PagesTrait {
                 'value' => [],
                 'label' => $this->lang['sys.type'],
                 'options' => $filter_types,
-                'multiple' => true
+                'multiple' => true,
+                'ignore_values' => ['0', 0, ''],
+                'help_text' => 'Если ничего не выбрано, показываются страницы всех типов.'
             ],
             'status' => [
                 'type' => 'select',
@@ -381,7 +397,8 @@ trait PagesTrait {
                 'value' => [],
                 'label' => $this->lang['sys.status'],
                 'options' => $statuses,
-                'multiple' => true
+                'multiple' => true,
+                'help_text' => 'Можно выбрать несколько статусов сразу.'
             ],
             'search_enabled' => [
                 'type' => 'select',

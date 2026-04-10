@@ -510,6 +510,8 @@ class BotGuard {
      * @return array<string, mixed>
      */
     private static function sanitizeTrustedRequestInputs(array $inputs): array {
+        $inputs = self::sanitizeUiStateRequestInputs($inputs);
+
         if (!self::isPropertyDefinitionsImportConfirmRequest()) {
             return $inputs;
         }
@@ -526,6 +528,35 @@ class BotGuard {
 
         if (isset($inputs['RAW_BODY'])) {
             $inputs['RAW_BODY'] = '[admin_property_definitions_submit]';
+        }
+
+        return $inputs;
+    }
+
+    /**
+     * Убирает из сигнатурного анализа штатные UI-параметры состояния,
+     * которые используются самой CMS для восстановления вкладок и collapse-блоков.
+     *
+     * @param array<string, mixed> $inputs
+     * @return array<string, mixed>
+     */
+    private static function sanitizeUiStateRequestInputs(array $inputs): array {
+        $trustedStateKeys = ['tabs', 'collapse'];
+
+        foreach (['GET', 'REQUEST', 'POST', 'FORM_BODY', 'JSON_BODY'] as $source) {
+            if (!isset($inputs[$source]) || !is_array($inputs[$source])) {
+                continue;
+            }
+
+            foreach ($trustedStateKeys as $trustedStateKey) {
+                if (array_key_exists($trustedStateKey, $inputs[$source])) {
+                    $inputs[$source][$trustedStateKey] = '[ui_state_param]';
+                }
+                $bracketKey = $trustedStateKey . '[]';
+                if (array_key_exists($bracketKey, $inputs[$source])) {
+                    $inputs[$source][$bracketKey] = '[ui_state_param]';
+                }
+            }
         }
 
         return $inputs;

@@ -179,6 +179,44 @@ const AppCore = (function () {
             });
             return vars;
         },
+        normalizeArrayParamValues: function (values) {
+            const normalized = [];
+            values.forEach(value => {
+                const stringValue = String(value || '').trim();
+                if (stringValue !== '' && !normalized.includes(stringValue)) {
+                    normalized.push(stringValue);
+                }
+            });
+            return normalized;
+        },
+        normalizeCollapseIds: function (values) {
+            const normalized = [];
+            values.forEach(value => {
+                let collapseId = String(value || '').trim();
+                if (collapseId === '') {
+                    return;
+                }
+                if (collapseId.endsWith('_button_filtersCollapse')) {
+                    collapseId = collapseId.replace(/_button_filtersCollapse$/, '_filtersCollapse');
+                }
+                if (collapseId !== '' && !normalized.includes(collapseId)) {
+                    normalized.push(collapseId);
+                }
+            });
+            return normalized;
+        },
+        updateArrayQueryParam: function (paramName, values) {
+            const url = new URL(window.location.href);
+            const searchParams = url.searchParams;
+            const normalizedValues = AppCore.normalizeArrayParamValues(values);
+            searchParams.delete(paramName);
+            normalizedValues.forEach(value => {
+                searchParams.append(paramName, value);
+            });
+            const queryString = searchParams.toString().replace(/%5B%5D/g, '[]');
+            const urlString = `${url.origin}${url.pathname}${queryString ? '?' + queryString : ''}`;
+            window.history.replaceState({}, '', urlString);
+        },
         handleTabsFromUrl: function () {
             let getParams = AppCore.getUrlVars();
             let tabs = [];
@@ -189,6 +227,7 @@ const AppCore = (function () {
                     tabs.push(decodeURIComponent(getParams['tabs[]']));
                 }
             }
+            tabs = AppCore.normalizeArrayParamValues(tabs);
             // Обрабатываем collapse[]
             let collapses = [];
             if (getParams['collapse[]']) {
@@ -198,6 +237,7 @@ const AppCore = (function () {
                     collapses.push(decodeURIComponent(getParams['collapse[]']));
                 }
             }
+            collapses = AppCore.normalizeCollapseIds(collapses);
             const clickTabsSequentially = (tabs, index = 0) => {
                 if (index >= tabs.length) return;
                 const tabId = tabs[index];
@@ -218,9 +258,13 @@ const AppCore = (function () {
                 if (index >= collapses.length) return;
                 const collapseId = collapses[index];
                 if (collapseId) {
-                    let collapseElement = $('#' + collapseId);
-                    if (collapseElement.length) {
-                        collapseElement.click();
+                    let collapseElement = document.getElementById(collapseId);
+                    if (collapseElement) {
+                        if (window.bootstrap && bootstrap.Collapse) {
+                            bootstrap.Collapse.getOrCreateInstance(collapseElement, {toggle: false}).show();
+                        } else {
+                            $('#' + collapseId).collapse('show');
+                        }
                         setTimeout(() => {
                             handleCollapses(collapses, index + 1);
                         }, 100);
@@ -270,28 +314,19 @@ const AppCore = (function () {
                     }
                 });
             });
-            // Обрабатываем элементы с data-bs-toggle="collapse"
-            const collapseElements = document.querySelectorAll('[data-bs-toggle="collapse"]');
+            const collapseElements = document.querySelectorAll('.collapse[id$="_filtersCollapse"]');
             collapseElements.forEach(collapseElement => {
-                collapseElement.addEventListener('click', function (event) {
-                    event.preventDefault();
-                    const collapseId = this.id;
-                    if (collapseId) {
-                        const url = new URL(window.location.href);
-                        const searchParams = url.searchParams;
-                        let collapseArray = searchParams.getAll('collapse[]');
-                        if (!collapseArray.includes(collapseId)) {
-                            collapseArray.push(collapseId);
-                        }
-                        searchParams.delete('collapse[]');
-                        collapseArray.forEach(collapseValue => {
-                            searchParams.append('collapse[]', collapseValue);
-                        });
-                        const urlString = `${url.origin}${url.pathname}?${searchParams.toString().replace(/%5B%5D/g, '[]')}`;
-                        window.history.pushState({}, '', urlString);
-                    } else {
-                        console.warn('Элемент аккордиона не имеет ID.');
+                collapseElement.addEventListener('shown.bs.collapse', function () {
+                    let collapseArray = AppCore.normalizeCollapseIds(new URL(window.location.href).searchParams.getAll('collapse[]'));
+                    if (!collapseArray.includes(this.id)) {
+                        collapseArray.push(this.id);
                     }
+                    AppCore.updateArrayQueryParam('collapse[]', collapseArray);
+                });
+                collapseElement.addEventListener('hidden.bs.collapse', function () {
+                    let collapseArray = AppCore.normalizeCollapseIds(new URL(window.location.href).searchParams.getAll('collapse[]'));
+                    collapseArray = collapseArray.filter(collapseId => collapseId !== this.id);
+                    AppCore.updateArrayQueryParam('collapse[]', collapseArray);
                 });
             });
         },

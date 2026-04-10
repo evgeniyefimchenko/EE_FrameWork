@@ -482,7 +482,10 @@ class ModelCategories {
      */
     public function deleteCategory(int $categoryId): OperationResult {
         if ($categoryId <= 0) {
-            Logger::warning('delete_category', 'Неверный ID категории для удаления', ['categoryId' => $categoryId], ['initiator' => __FUNCTION__]);
+            Logger::warning('delete_category', 'Неверный ID категории для удаления', ['categoryId' => $categoryId], [
+                'initiator' => __FUNCTION__,
+                'include_trace' => false,
+            ]);
             return OperationResult::validation('Неверный ID категории для удаления', ['categoryId' => $categoryId]);
         }
         try {
@@ -494,13 +497,19 @@ class ModelCategories {
             $sql_check_children = "SELECT COUNT(*) FROM ?n WHERE parent_id = ?i";
             $count_children = SafeMySQL::gi()->getOne($sql_check_children, Constants::CATEGORIES_TABLE, $categoryId);
             if ($count_children > 0) {
-                Logger::warning('delete_category', 'Нельзя удалить категорию, у которой есть дочерние категории', ['categoryId' => $categoryId], ['initiator' => __FUNCTION__]);
+                Logger::warning('delete_category', 'Нельзя удалить категорию, у которой есть дочерние категории', ['categoryId' => $categoryId], [
+                    'initiator' => __FUNCTION__,
+                    'include_trace' => false,
+                ]);
                 return OperationResult::failure('Нельзя удалить категорию, у которой есть дочерние категории', 'delete_category_blocked', ['categoryId' => $categoryId]);
             }
             $sql_check_pages = "SELECT COUNT(*) FROM ?n WHERE category_id = ?i";
             $count_pages = SafeMySQL::gi()->getOne($sql_check_pages, Constants::PAGES_TABLE, $categoryId);
             if ($count_pages > 0) {
-                Logger::warning('delete_category', 'Нельзя удалить категорию, в которой есть страницы', ['categoryId' => $categoryId], ['initiator' => __FUNCTION__]);
+                Logger::warning('delete_category', 'Нельзя удалить категорию, в которой есть страницы', ['categoryId' => $categoryId], [
+                    'initiator' => __FUNCTION__,
+                    'include_trace' => false,
+                ]);
                 return OperationResult::failure('Нельзя удалить категорию, в которой есть страницы', 'delete_category_blocked', ['categoryId' => $categoryId]);
             }
             SafeMySQL::gi()->query("START TRANSACTION");

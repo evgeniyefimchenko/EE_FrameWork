@@ -76,47 +76,10 @@ class Plugins {
         // Начало блока collapse
         $html .= '<div class="collapse" id="' . $idTable . '_filtersCollapse">';
         $html .= '<div class="card card-body">';
-        // Раздел фильтрации
-        if (!is_array($filters) || empty($filters)) {
-            $filters = [];
-            foreach ($dataTable['columns'] as $column) {
-                if ($column['filterable']) {
-                    $filters[$column['field']] = [
-                        'type' => 'text',
-                        'id' => $idTable . "_filter_" . $column['field'],
-                        'value' => '',
-                        'label' => $column['title']  // Значение по умолчанию для label
-                    ];
-                }
-            }
-        }
-        $filterableColumnsCount = 0;
-        foreach ($dataTable['columns'] as $column) {
-            if (isset($column['filterable']) && $column['filterable'] === true) { // Подсчет колонок с 'filterable' => true
-                $filterableColumnsCount++;
-            }
-        }
+        $filters = self::normalizeTableFilters($idTable, is_array($dataTable['columns'] ?? null) ? $dataTable['columns'] : [], $filters);
         $count_filters = count($filters);
-        if ($count_filters != $filterableColumnsCount) {
-            $count_filters = 0;
-            $html .= '<div class="alert alert-danger text-center">Ошибка: количество переданных фильтров не совпадает с количеством колонок для фильтрации!</div>';
-        }
         $html .= '<form class="mb-3 ' . (!$count_filters ? 'd-none' : '') . '" id="' . $idTable . '_filters">';
         $html .= '<input type="hidden" name="' . $idTable . '_table_name" value="' . $idTable . '">';
-        // Добавим префикс при его отсутствии
-        foreach ($filters as $key => $filter) {
-            if (!is_array($filter)) {
-                continue;
-            }
-            $currentFilterId = (string) ($filter['id'] ?? '');
-            if ($currentFilterId === '') {
-                $filters[$key]['id'] = $idTable . '_filter_' . $key;
-                continue;
-            }
-            if (strpos($currentFilterId, $idTable . '_filter_') === false) {
-                $filters[$key]['id'] = $idTable . '_filter_' . $filters[$key]['id'];
-            }
-        }
         $html .= '<input type="hidden" name="' . $idTable . '_old_filters" value="' . htmlspecialchars(json_encode($filters), ENT_QUOTES, 'UTF-8') . '">';
         $html .= '<div class="row justify-content-center">';
         foreach ($filters as $key => $filter) {
@@ -130,6 +93,7 @@ class Plugins {
             $filterType = (string) ($filter['type'] ?? 'text');
             $filterOptions = is_array($filter['options'] ?? null) ? $filter['options'] : [];
             $filterValueList = self::normalizeFilterValues($filterValue);
+            $filterHelpText = trim((string) ($filter['help_text'] ?? ''));
             $html .= '<label for="' . $filterId . '">' . htmlspecialchars((string) $filterLabel, ENT_QUOTES, 'UTF-8') . '</label>';
             switch ($filterType) {
                 case 'text':
@@ -169,6 +133,9 @@ class Plugins {
                     $html .= '<input type="date" class="form-control mb-2" name="' . $filterId . '" id="' . $filterId . '" value="' . htmlspecialchars((string) $filterValue, ENT_QUOTES, 'UTF-8') . '">';
                     break;
             }
+            if ($filterHelpText !== '') {
+                $html .= '<div class="form-text mt-n1 mb-2">' . htmlspecialchars($filterHelpText, ENT_QUOTES, 'UTF-8') . '</div>';
+            }
             $html .= '</div>';
         }
         $html .= '</div><div class="w-100 text-center"><button type="submit" class="btn btn-primary" form="' . $idTable . '_filters">' . htmlspecialchars($applyFiltersLabel, ENT_QUOTES, 'UTF-8') . '</button>
@@ -189,6 +156,117 @@ class Plugins {
             return [];
         }
         return [(string) $value];
+    }
+
+    private static function normalizeIgnoredFilterValues(array $filter): array {
+        $ignoredValues = [];
+        foreach ((array) ($filter['ignore_values'] ?? []) as $value) {
+            $ignoredValues[] = (string) $value;
+        }
+
+        return array_values(array_unique($ignoredValues));
+    }
+
+    private static function sanitizeSelectFilterValues(array $filter): array {
+        $values = self::normalizeFilterValues($filter['value'] ?? []);
+        $values = array_values(array_filter($values, static function ($value): bool {
+            return trim((string) $value) !== '';
+        }));
+
+        $ignoredValues = self::normalizeIgnoredFilterValues($filter);
+        if ($ignoredValues !== []) {
+            $values = array_values(array_filter($values, static function ($value) use ($ignoredValues): bool {
+                return !in_array((string) $value, $ignoredValues, true);
+            }));
+        }
+
+        return array_values(array_unique(array_map(static function ($value): string {
+            return (string) $value;
+        }, $values)));
+    }
+
+    private static function getFilterableColumnsMap(array $columns): array {
+        $map = [];
+        foreach ($columns as $column) {
+            if (!is_array($column) || empty($column['filterable'])) {
+                continue;
+            }
+            $filterField = trim((string) ($column['filter_field'] ?? ($column['field'] ?? '')));
+            if ($filterField === '') {
+                continue;
+            }
+            $map[$filterField] = $column;
+        }
+        return $map;
+    }
+
+    private static function buildDefaultFilterDefinition(string $tableId, string $field, array $column): array {
+        return [
+            'type' => 'text',
+            'id' => $tableId . '_filter_' . $field,
+            'field' => $field,
+            'value' => '',
+            'label' => $column['filter_label'] ?? ($column['title'] ?? $field),
+        ];
+    }
+
+    private static function resolveFilterFieldName(string|int $key, array $filter, string $tableId, array $filterableColumns): ?string {
+        $candidates = [];
+        $rawKey = trim((string) $key);
+        if ($rawKey !== '') {
+            $candidates[] = $rawKey;
+        }
+        $filterField = trim((string) ($filter['field'] ?? ''));
+        if ($filterField !== '') {
+            $candidates[] = $filterField;
+        }
+        $filterId = trim((string) ($filter['id'] ?? ''));
+        if ($filterId !== '') {
+            $prefix = $tableId . '_filter_';
+            if (str_starts_with($filterId, $prefix)) {
+                $candidates[] = substr($filterId, strlen($prefix));
+            } else {
+                $candidates[] = $filterId;
+            }
+        }
+        foreach ($candidates as $candidate) {
+            if ($candidate !== '' && isset($filterableColumns[$candidate])) {
+                return $candidate;
+            }
+        }
+        return null;
+    }
+
+    private static function normalizeTableFilters(string $tableId, array $columns, $filters): array {
+        $filterableColumns = self::getFilterableColumnsMap($columns);
+        if ($filterableColumns === []) {
+            return [];
+        }
+
+        $providedFilters = is_array($filters) ? $filters : [];
+        $resolvedFilters = [];
+
+        foreach ($providedFilters as $key => $filter) {
+            if (!is_array($filter)) {
+                continue;
+            }
+            $field = self::resolveFilterFieldName($key, $filter, $tableId, $filterableColumns);
+            if ($field === null) {
+                continue;
+            }
+            $defaultFilter = self::buildDefaultFilterDefinition($tableId, $field, $filterableColumns[$field]);
+            $normalizedFilter = array_replace($defaultFilter, $filter);
+            $normalizedFilter['id'] = $defaultFilter['id'];
+            $normalizedFilter['field'] = $field;
+            $resolvedFilters[$field] = $normalizedFilter;
+        }
+
+        $normalizedFilters = [];
+        foreach ($filterableColumns as $field => $column) {
+            $normalizedFilters[$field] = $resolvedFilters[$field] ?? self::buildDefaultFilterDefinition($tableId, $field, $column);
+        }
+
+        return $normalizedFilters;
     }
 
     /**
@@ -428,23 +506,17 @@ class Plugins {
      */
     public static function ee_show_table_buildFilters($extractedFilters, $columns, $table_name, $old_filters = null) {
         $filters = [];
+        $filterableColumns = self::getFilterableColumnsMap($columns);
         // Если старые фильтры не предоставлены, создаем новую структуру фильтров везде type text
         if (!$old_filters) {
-            foreach ($columns as $column) {
-                if ($column['filterable']) {
-                    $filters[$column['field']] = [
-                        'type' => 'text',
-                        'id' => $table_name . '_filter_' . $column['field'],
-                        'value' => '',
-                        'label' => $column['title']
-                    ];
-                    // Обновляем значение фильтра, если оно присутствует в извлеченных данных
-                    if (isset($extractedFilters[$column['field']])) {
-                        $filters[$column['field']]['value'] = $extractedFilters[$column['field']];
-                    }
+            foreach ($filterableColumns as $field => $column) {
+                $filters[$field] = self::buildDefaultFilterDefinition($table_name, $field, $column);
+                if (isset($extractedFilters[$field])) {
+                    $filters[$field]['value'] = $extractedFilters[$field];
                 }
             }
         } else {
+            $old_filters = self::normalizeTableFilters($table_name, $columns, $old_filters);
             $prefixedExtractedFilters = [];
             foreach ($extractedFilters as $key => $value) {
                 $prefixedKey = $table_name . '_filter_' . $key;
@@ -525,26 +597,33 @@ class Plugins {
         $rows_per_page = $limit['rows_per_page'] ?? 25;
         $start = ((int) $page - 1) * (int) $rows_per_page;
         $start = $start < 0 ? 0 : $start;
-        $allowedFields = [];
+        $allowedSortFields = [];
+        $allowedFilterFields = [];
         foreach ((array) $columns as $column) {
             $field = trim((string) ($column['field'] ?? ''));
             if ($field !== '') {
-                $allowedFields[$field] = true;
+                $allowedSortFields[$field] = true;
+                $allowedFilterFields[$field] = true;
+            }
+            $filterField = trim((string) ($column['filter_field'] ?? ''));
+            if ($filterField !== '') {
+                $allowedFilterFields[$filterField] = true;
             }
         }
         // Преобразование filter
         $whereConditions = [];
         foreach ($filter as $key => $filterItem) {
-            $identifier = self::quoteSqlIdentifier((string) $key, $allowedFields);
+            $identifier = self::quoteSqlIdentifier((string) $key, $allowedFilterFields);
             if ($identifier === null) {
                 continue;
             }
             if ($filterItem['type'] === 'text' && !empty($filterItem['value']) && $filterItem['value']) { // Отсекаем пустые значения
                 $whereConditions[] = $identifier . ' LIKE ' . self::escapeSqlLikeContains((string) $filterItem['value']) . " ESCAPE '\\\\'";
             } elseif ($filterItem['type'] === 'select' && !empty($filterItem['value'])) {
-                $values = array_values(array_filter((array) $filterItem['value'], static function ($value) {
-                    return trim((string) $value) !== '';
-                }));
+                $values = self::sanitizeSelectFilterValues($filterItem);
+                $filter[$key]['value'] = !empty($filterItem['multiple'])
+                    ? $values
+                    : ((isset($values[0])) ? $values[0] : '');
                 if (!empty($values)) {
                     if (!empty($filterItem['multiple'])) {
                         $whereConditions[] = $identifier . ' IN (' . implode(',', array_map([self::class, 'escapeSqlLiteral'], $values)) . ')';
@@ -571,7 +650,7 @@ class Plugins {
         // Преобразование sort
         $orderString = '';
         foreach ($sort as $key => $direction) {
-            $identifier = self::quoteSqlIdentifier((string) $key, $allowedFields);
+            $identifier = self::quoteSqlIdentifier((string) $key, $allowedSortFields);
             if ($identifier === null) {
                 continue;
             }

@@ -31,28 +31,32 @@ actions = {
                         if (data.notifications && typeof data.notifications[0] !== 'undefined') {
                             var d = new Date().getTime();
                             for (let key in data.notifications) {
-                                if (['info', 'success', 'danger'].includes(data.notifications[key].status)) {
-                                    actions.showNotification(data.notifications[key].text, data.notifications[key].status);
+                                const notification = data.notifications[key];
+                                const shouldAutoRemove = ['info', 'success', 'danger'].includes(notification.status)
+                                    || (notification.status === 'warning' && notification.source_type === 'security');
+
+                                if (shouldAutoRemove) {
+                                    actions.showNotification(notification.text, notification.status);
                                     AppCore.sendAjaxRequest(
                                             '/admin/killNotificationById',
-                                            {'id': data.notifications[key].id},
+                                            {'id': notification.id},
                                             'POST'
                                             );
-                                } else if (data.notifications[key].status === 'primary') {
-                                    if ((parseInt(data.notifications[key].showtime) - parseInt(d)) <= 0) {
-                                        actions.showNotification(data.notifications[key].text, data.notifications[key].status);
+                                } else if (notification.status === 'primary') {
+                                    if ((parseInt(notification.showtime) - parseInt(d)) <= 0) {
+                                        actions.showNotification(notification.text, notification.status);
                                         AppCore.sendAjaxRequest(
                                                 '/admin/setNotificationTime',
-                                                {'showtime': d + 300000, 'id': data.notifications[key].id},
+                                                {'showtime': d + 300000, 'id': notification.id},
                                                 'POST'
                                                 );
                                     }
                                 } else {
                                     // Показывать все остальные сообщения постоянно до удаления в контроллере
-                                    actions.showNotification(data.notifications[key].text, data.notifications[key].status);
+                                    actions.showNotification(notification.text, notification.status);
                                     AppCore.sendAjaxRequest(
                                             '/admin/setNotificationTime',
-                                            {'showtime': d, 'id': data.notifications[key].id},
+                                            {'showtime': d, 'id': notification.id},
                                             'POST'
                                             );
                                 }

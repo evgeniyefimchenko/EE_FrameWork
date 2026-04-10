@@ -375,7 +375,10 @@ class ModelPages {
             $sql_check = "SELECT COUNT(*) FROM ?n WHERE parent_page_id = ?i";
             $count = SafeMySQL::gi()->getOne($sql_check, Constants::PAGES_TABLE, $pageId);
             if ($count > 0) {
-                Logger::warning('delete_page', 'Нельзя удалить страницу, так как она является родительской для других.', ['page_id' => $pageId], ['initiator' => __FUNCTION__]);
+                Logger::warning('delete_page', 'Нельзя удалить страницу, так как она является родительской для других.', ['page_id' => $pageId], [
+                    'initiator' => __FUNCTION__,
+                    'include_trace' => false,
+                ]);
                 return OperationResult::failure('Нельзя удалить страницу, так как она является родительской для других.', 'delete_page_blocked', ['page_id' => $pageId]);
             }
             $sql_delete_page = "DELETE FROM ?n WHERE page_id = ?i";

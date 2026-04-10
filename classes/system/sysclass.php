@@ -1317,7 +1317,11 @@ class SysClass {
             return false;
         }
         if (file_exists($directory)) {
-            return is_dir($directory);
+            if (!is_dir($directory)) {
+                return false;
+            }
+            @chmod($directory, $permissions);
+            return true;
         }
         if (!mkdir($directory, $permissions, true) && !is_dir($directory)) {
             Logger::error('errors', 'Ошибка создания директории', ['directory' => $directory], [
@@ -1326,6 +1330,7 @@ class SysClass {
             ]);
             return false;
         }
+        @chmod($directory, $permissions);
         return true;
     }
 
@@ -1822,11 +1827,11 @@ class SysClass {
     /**
      * Получает поля указанной таблицы из базы данных
      * Если поля уже были получены ранее и сохранены в константе, возвращает их
-     * В противном случае получает поля из базы данных, обновляет файл constants.php и возвращает поля
+     * В противном случае получает поля из базы данных, обновляет файл Constants.php и возвращает поля
      * @param string $tableName Имя таблицы, поля которой нужно получить
      * @return array Массив имен полей таблицы
      * @throws ReflectionException Если класс Constants не найден
-     * @throws RuntimeException Если не удалось обновить файл constants.php
+     * @throws RuntimeException Если не удалось обновить файл Constants.php
      */
     public static function ee_getFieldsTable(string $tableName) {
         try {
@@ -1851,7 +1856,7 @@ class SysClass {
         $fieldNames = array_column($fields, 'Field');
         $constantsFile = self::getConstantsRuntimeFilePath();
         if (!is_writable($constantsFile)) {
-            $message = "Файл constants.php недоступен для записи.";
+            $message = "Файл Constants.php недоступен для записи.";
             Logger::error('sysclass', 'throw new \\ReflectionException', ['message' => $message], [
                 'initiator' => 'ee_getFieldsTable',
                 'details' => $message,
@@ -1860,7 +1865,7 @@ class SysClass {
         }
         $fileContent = file_get_contents($constantsFile);
         if ($fileContent === false) {
-            $message = "Не удалось прочитать файл constants.php.";
+            $message = "Не удалось прочитать файл Constants.php.";
             Logger::error('sysclass', 'throw new \\ReflectionException', ['message' => $message], [
                 'initiator' => 'ee_getFieldsTable',
                 'details' => $message,
@@ -1871,7 +1876,7 @@ class SysClass {
                             return "'" . addslashes($value) . "'";
                         }, $fieldNames)) . ']', $fileContent);
         if (file_put_contents($constantsFile, $newContent) === false) {
-            $message = "Не удалось обновить файл constants.php.";
+            $message = "Не удалось обновить файл Constants.php.";
             Logger::error('sysclass', 'throw new \\ReflectionException', ['message' => $message], [
                 'initiator' => 'ee_getFieldsTable',
                 'details' => $message,
@@ -1906,6 +1911,7 @@ class SysClass {
      */
     public static function getConstantsCleanFilePath(): string {
         $candidates = [
+            ENV_SITE_PATH . 'classes' . ENV_DIRSEP . 'system' . ENV_DIRSEP . 'ConstantsClean.php',
             ENV_SITE_PATH . 'classes' . ENV_DIRSEP . 'system' . ENV_DIRSEP . 'Constants_clean.php',
             ENV_SITE_PATH . 'classes' . ENV_DIRSEP . 'system' . ENV_DIRSEP . 'constants_clean.php',
         ];
