@@ -55,6 +55,8 @@ URL -> Router -> Controller -> Model -> View -> Layout -> Response
 - системные инструменты;
 - health/operational сценарии.
 
+Дополнительно в ядре предусмотрены role-based auth hooks, которые позволяют проекту управлять разделением контуров `/admin`, `/manager` и `/user` через `custom/hooks.php`, не зашивая project policy в core.
+
 ### 3. Гибкая контентная модель
 
 EE_FrameWork поддерживает связку:
@@ -170,13 +172,13 @@ EE_FrameWork особенно хорошо подходит для:
 Для первого smoke-теста достаточно:
 
 ```bash
-php -S 127.0.0.1:8080 -t /var/www/html
+php -S 127.0.0.1:8080 -t .
 ```
 
 После этого можно проверить:
 
 - `http://127.0.0.1:8080/index.php`
-- `http://127.0.0.1:8080/index.php?show_debug=1`
+- `php inc/cli.php help`
 
 Важно:
 
@@ -215,7 +217,7 @@ php -S 127.0.0.1:8080 -t /var/www/html
 Роль файлов констант такая:
 
 - `classes/system/Constants.php` — рабочий файл констант ядра;
-- `classes/system/ConstantsClean.php` — чистая копия для синхронизации и контроля изменений.
+- `classes/system/Constants_clean.php` — чистая копия для синхронизации и контроля изменений.
 
 Они не являются двумя разными механизмами схемы БД. Источник развёртывания один: install/deploy-контур ядра.
 
@@ -239,6 +241,24 @@ php -S 127.0.0.1:8080 -t /var/www/html
 - боевой `inc/configuration.php`
 
 `.gitignore` уже настроен под этот сценарий.
+
+---
+
+## Документация
+
+Продуктовая документация лежит в `custom/docs/`.
+
+Базовые разделы уже включают:
+
+- архитектуру;
+- routing;
+- content model;
+- импорт;
+- cron-агенты;
+- backup;
+- debug/health.
+
+`README.md` должен оставаться короткой входной точкой для разработчика, а подробные сценарии поддержки и эксплуатации — жить в `custom/docs/`.
 
 ---
 
@@ -297,7 +317,9 @@ class ControllerHello extends ControllerBase {
 /classes/system/           ядро платформы
 /classes/helpers/          helper- и service-классы
 /app/                      модули, контроллеры, views, js/css, модели
+/app/docs/                 docs-модуль как обычный маршрут
 /custom/                   upgrade-safe слой проектной логики
+/custom/docs/              исходники пользовательской документации
 /layouts/                  layout-шаблоны
 /assets/                   фронтовые и редакторские ассеты
 /uploads/                  пользовательские файлы
@@ -454,6 +476,31 @@ php app/cron/run.php
    - `app/` для модулей и маршрутов
    - `custom/` для project-specific поведения
    - `hooks` для точечного расширения
+
+---
+
+## Карта документации
+
+Подробная документация лежит в `custom/docs/` и доступна как в репозитории, так и через docs-модуль.
+
+### Основные разделы
+
+- [README / карта документации](custom/docs/README.md)
+- [Быстрый старт](custom/docs/00_QuickStart.md)
+- [Архитектура](custom/docs/01_Architecture.md)
+- [Маршрутизация](custom/docs/02_Routing.md)
+- [Модели](custom/docs/03_Models.md)
+- [Контентная модель](custom/docs/09_ContentModel.md)
+- [Views и Layouts](custom/docs/04_Views.md)
+- [Hooks и custom-слой](custom/docs/05_Hooks.md)
+- [Импорт типов, свойств и наборов](custom/docs/10_Imports.md)
+- [Auth и доступ](custom/docs/06_Auth.md)
+- [Cron-агенты и scheduler](custom/docs/11_CronAgents.md)
+- [Кэширование](custom/docs/07_Cache.md)
+- [Отладка](custom/docs/08_Debug.md)
+- [API Reference](custom/docs/99_API_Reference.md)
+
+Если вы только знакомитесь с проектом, лучше идти именно в этом порядке.
 
 ---
 

@@ -27,6 +27,7 @@ EE_FrameWork — это PHP-фреймворк с явным front controller, M
 12. [Резервное копирование](/docs/backup)
 13. [Отладка](/docs/debug)
 14. [API Reference](/docs/api-reference)
+15. [Проектный API каталога](/docs/catalog-api)
 
 ## Что важно понять про EE_FrameWork сразу
 
@@ -37,7 +38,8 @@ EE_FrameWork — это PHP-фреймворк с явным front controller, M
 - контроллеры живут в `app/<module>/index.php` или `app/<module>/<controller>.php`.
 - `View` и layout-слой отвечают за вывод, а не за бизнес-логику.
 - проектный код расширения должен идти в `custom/`, а не в `inc/hooks.php` и не в `inc/startup.php`.
-- ошибки маршрутизации и недоступные документы должны уходить в `/var/www/html/error.php`.
+- auth-routing и contour-policy должны настраиваться через hooks в `custom/hooks.php`, а не project-specific правками ядра.
+- ошибки маршрутизации и недоступные документы должны уходить в `error.php` в корне проекта.
 
 ## Базовая карта репозитория
 
@@ -78,7 +80,7 @@ EE_FrameWork — это PHP-фреймворк с явным front controller, M
 - Мутации из модели наружу должны возвращать `OperationResult`.
 - Хуки расширяют поведение, но не заменяют архитектуру.
 - Кэш — это слой ускорения, а не источник истины.
-- Логи и `show_debug=1` используются для диагностики, а не для повседневного UX.
+- Логи, CLI-диагностика и явные health-check сценарии используются для диагностики, а не для повседневного UX.
 
 ## Когда идти в API Reference
 

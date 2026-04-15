@@ -25,15 +25,19 @@
 
 - `Constants::ADMIN`
 - `Constants::MODERATOR`
+- `Constants::MANAGER`
+- `Constants::USER`
+- `Constants::SYSTEM`
 - `Constants::ALL_AUTH`
 
 ## Стандарт проверки доступа в контроллере
 
 ```php
-$this->access = [Constants::ADMIN, Constants::MODERATOR];
-if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
-    SysClass::handleRedirect();
-    exit();
+if (!$this->requireAccess([Constants::ADMIN, Constants::MODERATOR], [
+    'return' => 'admin',
+    'initiator' => __METHOD__,
+])) {
+    return;
 }
 ```
 
@@ -41,7 +45,80 @@ if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
 
 - проверка доступа выполняется в начале action;
 - модель не должна сама решать, можно ли пользователю открыть страницу админки;
-- если нужен доступ на уровне данных, это уже отдельная валидация в модели.
+- если нужен доступ на уровне данных, это уже отдельная валидация в модели;
+- прямой вызов `SysClass::getAccessUser()` допустим только как low-level API, а не как основной стандарт controller-кода.
+
+## Auth hooks для landing и contour routing
+
+В ядре есть три hook key для маршрутизации авторизованных пользователей:
+
+- `auth.landing_url`
+- `auth.front_landing_url`
+- `auth.route_guard`
+
+Практически это означает:
+
+- ядро знает только default policy и точки расширения;
+- project-specific поведение регистрируется в `custom/hooks.php`;
+- сам проект решает, кто должен попадать в `/admin`, `/manager` и `/user`.
+
+### `auth.landing_url`
+
+Используется для определения базового landing URL после авторизации во внутренних сценариях.
+
+Типичный пример:
+
+```php
+ee_add_custom_hook('auth.landing_url', [\custom\ProjectAuthPolicy::class, 'filterLandingUrl'], 10);
+```
+
+### `auth.front_landing_url`
+
+Используется публичными auth-flow:
+
+- login на фронте;
+- activation;
+- password recovery;
+- password setup;
+- external provider callback;
+- frontend account menu.
+
+Это позволяет держать единый маршрутный контракт без копипасты редиректов по всему проекту.
+
+### `auth.route_guard`
+
+Это `Hook::until(...)`-hook, который получает контекст текущего запроса и может вернуть решение о принудительном redirect.
+
+Типичный use case:
+
+- менеджер не должен заходить в `/admin`;
+- обычный пользователь не должен попадать в `/manager`;
+- администратор может оставаться в `/admin`.
+
+Пример:
+
+```php
+ee_add_custom_hook('auth.route_guard', [\custom\ProjectAuthPolicy::class, 'guardRoute'], 10);
+```
+
+Контекст guard-а обычно включает:
+
+- `controller`
+- `user_id`
+- `user_role`
+- `request_uri`
+- `request_path`
+- `request_area`
+- `is_ajax`
+
+А результат может вернуть:
+
+- `redirect`
+- `status`
+- `http_code`
+- `ajax_http_code`
+
+Это позволяет реализовать contour isolation на уровне проекта, не вшивая project policy в ядро.
 
 ## Где лежит текущий пользователь
 

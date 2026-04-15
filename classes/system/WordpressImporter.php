@@ -4170,6 +4170,9 @@ class WordpressImporter extends BaseImporter {
         if ($value === '') {
             return '';
         }
+        if ($this->isLegacySerializedChoiceDefinition($value)) {
+            return '';
+        }
 
         if ($fieldType === 'date') {
             if ((bool)preg_match('/^(\d{4})(\d{2})(\d{2})$/', $value, $matches)) {
@@ -4186,6 +4189,17 @@ class WordpressImporter extends BaseImporter {
         }
 
         return $fieldValue;
+    }
+
+    private function isLegacySerializedChoiceDefinition(string $value): bool {
+        $value = trim($value);
+        if ($value === '') {
+            return false;
+        }
+        if (!str_contains($value, '{|}') && !str_contains($value, '{*}')) {
+            return false;
+        }
+        return preg_match('/(^|\\{\\|\\})[^=]+=[^\\{\\|\\}]+/u', $value) === 1;
     }
 
     private function prepareImportedRichText(string $value): string {

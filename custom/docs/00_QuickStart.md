@@ -63,14 +63,13 @@
 Для быстрого smoke-теста можно начать так:
 
 ```bash
-php -S 127.0.0.1:8080 -t /var/www/html
+php -S 127.0.0.1:8080 -t .
 ```
 
 После этого проверьте:
 
 - `http://127.0.0.1:8080/index.php`
-- `http://127.0.0.1:8080/index.php?show_debug=1`
-- `php /var/www/html/inc/cli.php help`
+- `php inc/cli.php help`
 
 Важно:
 
@@ -85,7 +84,7 @@ php -S 127.0.0.1:8080 -t /var/www/html
 - `inc/configuration.php` содержит только настройки, а не project-specific логику;
 - веб-процесс действительно может писать в `logs/`, `cache/` и `uploads/`;
 - в окружении не осталось старых route/html cache после переноса проекта;
-- `show_debug=1` не отключён локально, если вы только начинаете разбираться с потоком запроса.
+- системный CLI поднимается без fatal через `php inc/cli.php help`.
 
 Если БД ещё пустая, фреймворк поднимает install-flow через системный контур `Users`. Для разработчика это значит: первый запуск нужно проверять не только по “открылась ли главная”, но и по тому, что install/bootstrap не споткнулся на правах, БД и конфигурации.
 
@@ -162,10 +161,10 @@ class ControllerHello extends ControllerBase {
 Минимальный чеклист:
 
 1. `index.php` открывается без fatal.
-2. `?show_debug=1` показывает `ENV_CONTROLLER_*`.
-3. новый маршрут из `app/hello/index.php` отдаёт ответ.
-4. `logs/` создаётся и writable.
-5. `cache/` writable.
+2. новый маршрут из `app/hello/index.php` отдаёт ответ.
+3. `logs/` создаётся и writable.
+4. `cache/` writable.
+5. `php inc/cli.php help` выполняется без ошибок.
 
 Если не сработало:
 

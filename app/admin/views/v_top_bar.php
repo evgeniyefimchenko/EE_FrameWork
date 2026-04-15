@@ -84,15 +84,21 @@ $topbarData = [
 ];
 
 // Обработка уведомлений для отображения в верхней панели
+$topbarNotifications = [];
 if (isset($notifications) && is_array($notifications)) {
     $nowMs = (int) round(microtime(true) * 1000);
     foreach ($notifications as $notification) {
         $status = (string) ($notification['status'] ?? 'info');
+        $sourceType = trim((string) ($notification['source_type'] ?? 'system'));
         $showtime = max(0, (int) ($notification['showtime'] ?? 0));
+        $isImportant = $sourceType === 'message' || in_array($status, ['warning', 'danger'], true);
+        if (!$isImportant) {
+            continue;
+        }
         if ($status === 'primary' && $showtime > $nowMs) {
             continue;
         }
-        $topbarData['notifications'][] = [
+        $topbarNotifications[] = [
             'text' => classes\system\SysClass::truncateString(strip_tags((string) ($notification['text'] ?? '')), 33),
             'url' => (string) ($notification['url'] ?? '/admin/messages'),
             'icon' => (string) ($notification['icon'] ?? 'fa-regular fa-circle-question'),
@@ -100,5 +106,6 @@ if (isset($notifications) && is_array($notifications)) {
         ];
     }
 }
+$topbarData['notifications'] = $topbarNotifications;
 
 echo classes\system\Plugins::generate_topbar($topbarData);

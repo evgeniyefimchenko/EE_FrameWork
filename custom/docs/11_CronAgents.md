@@ -324,7 +324,7 @@ Scheduler учитывает:
 Для production достаточно такой схемы:
 
 ```cron
-* * * * * php /var/www/html/app/cron/run.php >/dev/null 2>&1
+* * * * * php app/cron/run.php >/dev/null 2>&1
 ```
 
 Дальше вся работа уже идёт через:

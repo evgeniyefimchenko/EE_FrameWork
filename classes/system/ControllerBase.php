@@ -88,9 +88,73 @@ abstract class ControllerBase {
         }
         $this->users = new Users($this->logged_in);
         $userData = $this->users->data;
+        $this->guardCustomAuthRoute($userData);
         $this->guardRequiredLegalConsents($userData);
         // Прогрузка пользовательских данных в представления и языковой массив        
         $this->setUserData($userData);
+    }
+
+    private function guardCustomAuthRoute(array $userData): void {
+        if (empty($this->logged_in)) {
+            return;
+        }
+
+        $requestUri = (string) ($_SERVER['REQUEST_URI'] ?? '/');
+        $requestPath = (string) (parse_url($requestUri, PHP_URL_PATH) ?? '/');
+        $requestPath = $requestPath !== '' ? $requestPath : '/';
+        if ($requestPath[0] !== '/') {
+            $requestPath = '/' . ltrim($requestPath, '/');
+        }
+
+        $segments = array_values(array_filter(explode('/', trim($requestPath, '/')), static fn(string $value): bool => $value !== ''));
+        $requestArea = strtolower((string) ($segments[0] ?? ''));
+        $context = [
+            'controller' => get_class($this),
+            'user_id' => (int) $this->logged_in,
+            'user_role' => (int) ($userData['user_role'] ?? 0),
+            'request_uri' => $requestUri,
+            'request_path' => $requestPath,
+            'request_area' => $requestArea,
+            'is_ajax' => SysClass::isAjaxRequestFromSameSite(),
+        ];
+
+        $decision = Hook::until('auth.route_guard', null, $context);
+        if ($decision === null || $decision === false) {
+            return;
+        }
+
+        if (is_string($decision)) {
+            $decision = ['redirect' => $decision];
+        }
+        if (!is_array($decision)) {
+            return;
+        }
+
+        $redirect = trim((string) ($decision['redirect'] ?? ''));
+        if ($redirect === '') {
+            return;
+        }
+
+        $redirectPath = (string) (parse_url($redirect, PHP_URL_PATH) ?? $redirect);
+        if ($redirectPath !== '' && $redirectPath[0] !== '/') {
+            $redirectPath = '/' . ltrim($redirectPath, '/');
+        }
+        if ($redirectPath === $requestPath) {
+            return;
+        }
+
+        if (!empty($context['is_ajax'])) {
+            http_response_code((int) ($decision['ajax_http_code'] ?? 403));
+            echo json_encode([
+                'error' => 'access_denied',
+                'status' => (string) ($decision['status'] ?? 'contour_redirect'),
+                'redirect' => $redirect,
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            exit();
+        }
+
+        SysClass::handleRedirect((int) ($decision['http_code'] ?? 302), $redirect);
+        exit();
     }
 
     private function guardRequiredLegalConsents(array $userData): void {
@@ -238,13 +302,15 @@ abstract class ControllerBase {
     }
 
     protected function getDefaultAuthorizedLandingUrl(int $userRole): string {
-        return match ((int) $userRole) {
+        $defaultUrl = match ((int) $userRole) {
             Constants::ADMIN,
             Constants::MODERATOR,
             Constants::SYSTEM => '/admin',
             Constants::MANAGER => '/manager',
+            Constants::USER => '/user',
             default => '/',
         };
+        return (string) Hook::filter('auth.landing_url', $defaultUrl, $userRole, 'core');
     }
 
     protected function getAuthorizedLandingUrlForUserId(int $userId): string {

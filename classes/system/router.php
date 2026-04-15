@@ -29,6 +29,23 @@ class Router {
      */
     private string $routeCacheBackend = 'file';
 
+    private function shouldLogMissingControllerWarning(string $routeNormalized): bool {
+        $routeNormalized = trim($routeNormalized);
+        if ($routeNormalized === '') {
+            return true;
+        }
+
+        // Не засоряем логи внешними file-probe запросами вроде /.env, /api/.env, /foo.php.
+        if (preg_match('~(^|/)\.[^/]+(?:/|$)~', $routeNormalized)) {
+            return false;
+        }
+        if (preg_match('~(^|/)[^/]*\.[^/]+(?:/|$)~', $routeNormalized)) {
+            return false;
+        }
+
+        return true;
+    }
+
     /**
      * Устанавливает путь к контроллерам, задаётся в головном файле INDEX
      * @param string $path Путь к контроллерам
@@ -290,14 +307,16 @@ class Router {
 
         // Финальная проверка читаемости файла
         if (empty($file) || !is_readable($file)) {
-             Logger::warning('router_error', 'Файл контроллера не найден или недоступен для чтения', [
-                 'file' => $file,
-                 'route_raw' => $routeRaw,
-                 'route_normalized' => $routeNormalized,
-             ], [
-                 'initiator' => __FUNCTION__,
-                 'details' => $file,
-             ]);
+             if ($this->shouldLogMissingControllerWarning((string) $routeNormalized)) {
+                 Logger::warning('router_error', 'Файл контроллера не найден или недоступен для чтения', [
+                     'file' => $file,
+                     'route_raw' => $routeRaw,
+                     'route_normalized' => $routeNormalized,
+                 ], [
+                     'initiator' => __FUNCTION__,
+                     'details' => $file,
+                 ]);
+             }
              SysClass::handleRedirect(404);
              exit;
         }
@@ -534,6 +553,11 @@ class Router {
         $controllerInstance = new $class($view);
         $actualAction = $action ?: 'index';
         if (!is_callable([$controllerInstance, $actualAction])) {
+            if ($this->shouldRequireExplicitActionForFolder(ENV_CONTROLLER_FOLDER)) {
+                SysClass::handleRedirect(404);
+                exit;
+            }
+
             if (is_callable([$controllerInstance, 'index'])) {
                 if ($action) {
                     array_unshift($args, $action);
@@ -549,6 +573,15 @@ class Router {
             }
         }
         $controllerInstance->$actualAction($args);
+    }
+
+    /**
+     * В системных панелях неизвестные action не должны молча
+     * проваливаться в index(), иначе бот-пробы выглядят как доступ
+     * к реальной панели и засоряют access_denied.
+     */
+    private function shouldRequireExplicitActionForFolder(string $folder): bool {
+        return in_array($folder, ['admin', 'manager'], true);
     }
 
 /**

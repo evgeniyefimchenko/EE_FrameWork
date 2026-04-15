@@ -1,5 +1,6 @@
 /* Страница админ-панели подключается в layouts Подключается на всех страницах админ-панели */
 var text_message, color;
+var isAdminArea = window.location.pathname.indexOf('/admin') === 0;
 
 actions = {
     showNotification: function (text_message, color, from, align) {
@@ -100,7 +101,9 @@ actions = {
 };
 
 // Загрузка и активация пользовательских настроек
-actions.loadOptionsUser();
+if (isAdminArea) {
+    actions.loadOptionsUser();
+}
 
 function setActiveNavLink(path) {
     $('a.nav-link').removeClass('active');

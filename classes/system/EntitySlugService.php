@@ -12,6 +12,7 @@ final class EntitySlugService {
     private static bool $infrastructureReady = false;
     private const RESERVED_ROOT_SEGMENTS = [
         'admin',
+        'user',
         'about',
         'contact',
         'docs',

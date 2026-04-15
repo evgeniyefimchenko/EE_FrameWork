@@ -1123,11 +1123,11 @@ class FileSystem {
 
         $directory = is_dir($path) ? $path : dirname($path);
         if ($directory !== '' && is_dir($directory)) {
-            @chmod($directory, 0755);
+            @chmod($directory, 0775);
         }
 
         if (is_file($path)) {
-            @chmod($path, 0644);
+            @chmod($path, 0664);
         }
     }
 
@@ -1192,6 +1192,16 @@ class FileSystem {
             if (isset($transformations['flipV']) && $transformations['flipV']) {
                 $image->flipImage();
             }
+            if (!empty($transformations['crop']) && is_array($transformations['crop'])) {
+                $crop = $transformations['crop'];
+                $x = isset($crop['x']) ? (int) round($crop['x']) : 0;
+                $y = isset($crop['y']) ? (int) round($crop['y']) : 0;
+                $width = isset($crop['width']) ? (int) round($crop['width']) : 0;
+                $height = isset($crop['height']) ? (int) round($crop['height']) : 0;
+                if ($width > 0 && $height > 0) {
+                    $image->cropImage($width, $height, max(0, $x), max(0, $y));
+                }
+            }
             $image->writeImage($filePath);
             $image->clear();
             $image->destroy();
@@ -1220,6 +1230,26 @@ class FileSystem {
         }
         if (isset($transformations['flipV']) && $transformations['flipV']) {
             imageflip($image, IMG_FLIP_VERTICAL);
+        }
+        if (!empty($transformations['crop']) && is_array($transformations['crop'])) {
+            $crop = $transformations['crop'];
+            $x = isset($crop['x']) ? (int) round($crop['x']) : 0;
+            $y = isset($crop['y']) ? (int) round($crop['y']) : 0;
+            $width = isset($crop['width']) ? (int) round($crop['width']) : 0;
+            $height = isset($crop['height']) ? (int) round($crop['height']) : 0;
+            $imgW = imagesx($image);
+            $imgH = imagesy($image);
+            $x = max(0, min($x, $imgW - 1));
+            $y = max(0, min($y, $imgH - 1));
+            $width = max(1, min($width, $imgW - $x));
+            $height = max(1, min($height, $imgH - $y));
+            if ($width > 0 && $height > 0) {
+                $cropped = imagecrop($image, ['x' => $x, 'y' => $y, 'width' => $width, 'height' => $height]);
+                if ($cropped !== false) {
+                    imagedestroy($image);
+                    $image = $cropped;
+                }
+            }
         }
         self::saveImageToFile($image, $filePath);
         imagedestroy($image);
@@ -1397,6 +1427,16 @@ class FileSystem {
             $fileData = self::getFileData($fileId, false);
             if ($fileData) {
                 $mimeType = (string) ($fileData['mime_type'] ?? '');
+                $fileUrl = (string) ($fileData['file_url'] ?? '');
+                if ($fileUrl !== '' && str_contains($mimeType, 'image')) {
+                    $bustToken = trim((string) ($fileData['file_hash'] ?? ''));
+                    if ($bustToken === '') {
+                        $bustToken = trim((string) ($fileData['updated_at'] ?? ''));
+                    }
+                    if ($bustToken !== '') {
+                        $fileUrl .= (str_contains($fileUrl, '?') ? '&' : '?') . 'v=' . rawurlencode($bustToken);
+                    }
+                }
                 return [
                     'kind' => 'local',
                     'reference' => (string) $fileId,
@@ -1404,7 +1444,7 @@ class FileSystem {
                     'unique_id' => $fileId,
                     'original_name' => (string) ($fileData['original_name'] ?? ('file-' . $fileId)),
                     'file_path' => (string) ($fileData['file_path'] ?? ''),
-                    'file_url' => (string) ($fileData['file_url'] ?? ''),
+                    'file_url' => $fileUrl,
                     'mime_type' => $mimeType,
                     'is_image' => str_contains($mimeType, 'image'),
                     'allow_edit' => true,

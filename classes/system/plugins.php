@@ -14,6 +14,8 @@ class Plugins {
      * Загрузка библиотеки SortableJS на страницу
      */
     private static $sortableJS = false;
+    private static $cropperJS = false;
+    private static $repeatableEditorAssets = false;
     
     function __construct() {
         throw new Exception('Static only.');
@@ -66,7 +68,7 @@ class Plugins {
      * @return string Возвращает HTML-код раздела фильтрации.
      */
     private static function generateFilterSection($idTable, $dataTable, $filters) {
-        $langCode = Session::get('lang');
+        $langCode = (string) (Session::get('lang') ?: ENV_DEF_LANG);
         $globalLang = Lang::init($langCode);
         $applyFiltersLabel = (string) ($globalLang['sys.apply_filters'] ?? 'Применить фильтры');
         $html = '';
@@ -326,7 +328,7 @@ class Plugins {
      * @return string HTML для тела таблицы.
      */
     private static function generateTableBody($dataTable, $idTable) {
-        $langCode = Session::get('lang');
+        $langCode = (string) (Session::get('lang') ?: ENV_DEF_LANG);
         $globalLang = Lang::init($langCode);
         $html = '<tbody>';
         if ($dataTable['total_rows'] == 0 || count($dataTable['rows']) == 0) { // Если записей нет
@@ -1073,6 +1075,10 @@ class Plugins {
             $typeFields,
             $arrValue
         );
+        if (!empty($arrValue['is_multiple'])) {
+            return self::renderRepeatablePropertyEditor($arrValue, $runtimeFields, $valueId, $entityId, $entity_type, $propertyId, $setId);
+        }
+        $runtimeFields = self::trimCompositeFieldsForDisplay($runtimeFields, $arrValue);
 
         foreach ($runtimeFields as $key => $value) {
             $type = strtolower(trim((string) ($value['type'] ?? 'text')));
@@ -1093,6 +1099,810 @@ class Plugins {
             $result .= self::renderFieldsProperty($value, $type, $valueName, 'value');
         }
         return $result;
+    }
+
+
+    private static function buildRoomOfferEditorState(
+        array $runtimeFields,
+        string $valueId,
+        int $entityId,
+        string $entityType,
+        string $propertyId,
+        string $setId
+    ): array {
+        $roomFields = [];
+        $periodGroups = [];
+        $roomCount = 0;
+        $highestFilledPeriod = 0;
+        $highestDefinedPeriod = 0;
+
+        foreach ($runtimeFields as $index => $field) {
+            if (!is_array($field)) {
+                continue;
+            }
+            $displayLabel = self::resolveRoomOfferFieldLabel($field);
+            $valueName = self::buildRoomOfferValueName($valueId, $index, (string) ($field['type'] ?? 'text'), $entityId, $entityType, $propertyId, $setId);
+            $roomValues = self::extractRoomOfferFieldValues($field);
+            $roomCount = max($roomCount, count($roomValues));
+
+            if (preg_match('/^Период\s+(\d+):\s+(дата\s+с|дата\s+по|цена)$/u', $displayLabel, $matches) === 1) {
+                $periodIndex = (int) $matches[1];
+                $periodPart = match ($matches[2]) {
+                    'дата с' => 'from',
+                    'дата по' => 'to',
+                    default => 'price',
+                };
+                $highestDefinedPeriod = max($highestDefinedPeriod, $periodIndex);
+                if (self::roomOfferFieldValuesHaveMeaningfulData($field, $roomValues)) {
+                    $highestFilledPeriod = max($highestFilledPeriod, $periodIndex);
+                }
+                $periodGroups[$periodIndex][$periodPart] = [
+                    'index' => $index,
+                    'type' => strtolower(trim((string) ($field['type'] ?? 'text'))) ?: 'text',
+                    'label' => (string) ($field['label'] ?? ''),
+                    'display_label' => $displayLabel,
+                    'title' => (string) ($field['title'] ?? ''),
+                    'required' => !empty($field['required']),
+                    'options' => is_array($field['options'] ?? null) ? $field['options'] : [],
+                    'value_name' => $valueName,
+                    'room_values' => $roomValues,
+                ];
+                continue;
+            }
+
+            $roomFields[] = [
+                'index' => $index,
+                'type' => strtolower(trim((string) ($field['type'] ?? 'text'))) ?: 'text',
+                'label' => (string) ($field['label'] ?? ''),
+                'display_label' => $displayLabel,
+                'title' => (string) ($field['title'] ?? ''),
+                'required' => !empty($field['required']),
+                'options' => is_array($field['options'] ?? null) ? $field['options'] : [],
+                'value_name' => $valueName,
+                'room_values' => $roomValues,
+            ];
+        }
+
+        if ($roomCount <= 0) {
+            $roomCount = 1;
+        }
+
+        ksort($periodGroups);
+        $visiblePeriodCount = max(1, $highestFilledPeriod);
+        $maxAvailablePeriods = max($highestDefinedPeriod, 1);
+        $totalPeriodSlots = min(max($visiblePeriodCount + 4, 4), $maxAvailablePeriods);
+        $totalRoomSlots = min(max($roomCount + 4, 4), max($roomCount, 30));
+
+        $rooms = [];
+        for ($roomIndex = 0; $roomIndex < $totalRoomSlots; $roomIndex++) {
+            $roomFieldsForCard = [];
+            $roomName = '';
+            foreach ($roomFields as $fieldMeta) {
+                $roomValue = self::extractRoomOfferRoomValue($fieldMeta, $roomIndex);
+                $fieldMeta['room_value'] = $roomValue;
+                if (($fieldMeta['display_label'] ?? '') === 'Название номера' && trim((string) $roomValue) !== '') {
+                    $roomName = trim((string) $roomValue);
+                }
+                $roomFieldsForCard[] = $fieldMeta;
+            }
+            $rooms[] = [
+                'index' => $roomIndex,
+                'active' => $roomIndex < $roomCount,
+                'title' => $roomName !== '' ? $roomName : ('Номер ' . ($roomIndex + 1)),
+                'fields' => $roomFieldsForCard,
+            ];
+        }
+
+        return [
+            'rooms' => $rooms,
+            'period_groups' => $periodGroups,
+            'visible_period_count' => $visiblePeriodCount,
+            'total_period_slots' => $totalPeriodSlots,
+        ];
+    }
+
+    private static function buildRoomOfferValueName(
+        string $valueId,
+        int $index,
+        string $type,
+        int $entityId,
+        string $entityType,
+        string $propertyId,
+        string $setId
+    ): string {
+        $type = strtolower(trim($type)) ?: 'text';
+        return $valueId . '_' . $index . '_' . $type . '_' . $entityId . '_' . $entityType . '_' . $propertyId . '_' . $setId;
+    }
+
+    private static function extractRoomOfferFieldValues(array $field): array {
+        $value = $field['value'] ?? ($field['default'] ?? null);
+        if (is_array($value)) {
+            return array_values($value);
+        }
+        if (!self::isMeaningfulRoomOfferValue($field, $value)) {
+            return [];
+        }
+        return [$value];
+    }
+
+    private static function extractRoomOfferRoomValue(array $fieldMeta, int $roomIndex): mixed {
+        $roomValues = (array) ($fieldMeta['room_values'] ?? []);
+        $roomValue = $roomValues[$roomIndex] ?? self::defaultRoomOfferFieldValue((string) ($fieldMeta['type'] ?? 'text'));
+        return self::sanitizeRoomOfferEditorValue($fieldMeta, $roomValue);
+    }
+
+    private static function sanitizeRoomOfferEditorValue(array $fieldMeta, mixed $value): mixed {
+        $type = strtolower(trim((string) ($fieldMeta['type'] ?? 'text')));
+        if (is_scalar($value) && self::isLegacyRoomOfferArtifactString((string) $value)) {
+            return $type === 'image' ? [] : '';
+        }
+        if ($type === 'image') {
+            if (is_array($value)) {
+                return array_values(array_filter($value, static fn($item): bool => trim((string) $item) !== ''));
+            }
+            return $value === null || trim((string) $value) === '' ? [] : [(string) $value];
+        }
+        if (in_array($type, ['select', 'radio', 'checkbox'], true)) {
+            return self::normalizeRoomOfferChoiceValue($fieldMeta, $value);
+        }
+        if (is_array($value)) {
+            return '';
+        }
+        $scalar = trim((string) $value);
+        if (self::isRoomOfferPlaceholderZero($fieldMeta, $scalar)) {
+            return '';
+        }
+        return $scalar;
+    }
+
+    private static function normalizeRoomOfferChoiceValue(array $fieldMeta, mixed $value): mixed {
+        $options = is_array($fieldMeta['options'] ?? null) ? $fieldMeta['options'] : [];
+        $allowed = [];
+        foreach ($options as $option) {
+            if (!is_array($option)) {
+                continue;
+            }
+            $key = trim((string) ($option['key'] ?? $option['value'] ?? ''));
+            if ($key !== '') {
+                $allowed[$key] = $key;
+            }
+        }
+
+        if (is_array($value)) {
+            $normalized = [];
+            foreach ($value as $item) {
+                $mapped = self::mapLegacyRoomOfferChoiceValue($options, $item);
+                if ($mapped !== '') {
+                    $normalized[] = $mapped;
+                }
+            }
+            return array_values(array_unique($normalized));
+        }
+
+        $mapped = self::mapLegacyRoomOfferChoiceValue($options, $value);
+        if ($mapped === '') {
+            return '';
+        }
+        return $allowed[$mapped] ?? '';
+    }
+
+    private static function mapLegacyRoomOfferChoiceValue(array $options, mixed $value): string {
+        $value = trim((string) $value);
+        if ($value === '') {
+            return '';
+        }
+
+        foreach ($options as $offset => $option) {
+            if (!is_array($option)) {
+                continue;
+            }
+            $optionKey = trim((string) ($option['key'] ?? $option['value'] ?? ''));
+            if ($optionKey === '') {
+                continue;
+            }
+            if ($value === $optionKey) {
+                return $optionKey;
+            }
+            if (ctype_digit($value)) {
+                if ($optionKey === 'option_' . $value) {
+                    return $optionKey;
+                }
+                if ((int) $value === $offset + 1) {
+                    return $optionKey;
+                }
+            }
+        }
+
+        return $value;
+    }
+
+    private static function roomOfferFieldValuesHaveMeaningfulData(array $field, array $values): bool {
+        foreach ($values as $value) {
+            if (self::isMeaningfulRoomOfferValue($field, $value)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static function isMeaningfulRoomOfferValue(array $field, mixed $value): bool {
+        $type = strtolower(trim((string) ($field['type'] ?? 'text')));
+        if ($type === 'image') {
+            return !empty(FileSystem::normalizeFileReferences($value));
+        }
+        if (in_array($type, ['select', 'radio', 'checkbox'], true)) {
+            if (is_array($value)) {
+                foreach ($value as $item) {
+                    if (trim((string) $item) !== '' && !self::isLegacyRoomOfferArtifactString((string) $item)) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+            $scalar = trim((string) $value);
+            return $scalar !== '' && !self::isLegacyRoomOfferArtifactString($scalar);
+        }
+        if (is_array($value)) {
+            foreach ($value as $item) {
+                if (self::isMeaningfulRoomOfferValue($field, $item)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        $scalar = trim((string) $value);
+        if ($scalar === '') {
+            return false;
+        }
+        if (self::isLegacyRoomOfferArtifactString($scalar)) {
+            return false;
+        }
+        return !self::isRoomOfferPlaceholderZero($field, $scalar);
+    }
+
+    private static function isLegacyRoomOfferArtifactString(string $value): bool {
+        $value = trim($value);
+        if ($value === '') {
+            return false;
+        }
+        if (!str_contains($value, '{|}') && !str_contains($value, '{*}')) {
+            return false;
+        }
+        return preg_match('/(^|\\{\\|\\})[^=]+=[^\\{\\|\\}]+/u', $value) === 1;
+    }
+
+    private static function isRoomOfferPlaceholderZero(array $fieldMeta, string $value): bool {
+        if ($value !== '0') {
+            return false;
+        }
+        $type = strtolower(trim((string) ($fieldMeta['type'] ?? 'text')));
+        if (in_array($type, ['select', 'radio', 'checkbox', 'image'], true)) {
+            return false;
+        }
+        $label = trim((string) ($fieldMeta['display_label'] ?? ($fieldMeta['label'] ?? '')));
+        return $label === 'Название номера'
+            || $label === 'Площадь номера'
+            || $label === 'Дополнительные данные'
+            || str_starts_with($label, 'Период ');
+    }
+
+    private static function defaultRoomOfferFieldValue(string $type): mixed {
+        return $type === 'image' ? [] : '';
+    }
+
+    private static function resolveRoomOfferFieldLabel(array $field): string {
+        $label = trim((string) ($field['label'] ?? ''));
+        $title = trim((string) ($field['title'] ?? ''));
+        if ($label === 'Номера и цены' && $title !== '') {
+            return $title;
+        }
+        return $label !== '' ? $label : $title;
+    }
+
+    private static function isRoomOfferAmenityField(string $label): bool {
+        return in_array($label, [
+            'Туалет',
+            'Душ',
+            'Кондиционер',
+            'Телевизор',
+            'Спутниковое или кабельное ТВ',
+            'Wi‑Fi',
+            'Сейф',
+            'Холодильник',
+            'Кухня',
+            'Балкон',
+        ], true);
+    }
+
+    private static function renderRoomOfferFieldBlock(
+        array $fieldMeta,
+        int $roomIndex,
+        bool $disabled,
+        string $colClass = '',
+        int $periodIndex = 0
+    ): string {
+        $displayLabel = (string) ($fieldMeta['display_label'] ?? '');
+        $type = strtolower(trim((string) ($fieldMeta['type'] ?? 'text'))) ?: 'text';
+        $valueName = (string) ($fieldMeta['value_name'] ?? '');
+        $roomValue = $fieldMeta['room_value'] ?? '';
+        $required = !empty($fieldMeta['required']) ? ' required' : '';
+        $disabledAttr = $disabled ? ' disabled' : '';
+        $roomInputName = 'property_data[' . $valueName . '_value][' . $roomIndex . ']';
+        $periodAttr = $periodIndex > 0 ? ' data-period-slot-input="' . $periodIndex . '"' : '';
+        $nameMarkerAttr = $displayLabel === 'Название номера' ? ' data-room-editor-name="1"' : '';
+
+        if ($colClass === '') {
+            $colClass = $type === 'textarea' ? 'col-12' : 'col-md-6';
+        }
+
+        $html = '<div class="' . htmlspecialchars($colClass, ENT_QUOTES, 'UTF-8') . ' room-offer-editor__field">';
+        $html .= '<label class="form-label fw-semibold">' . htmlspecialchars($displayLabel, ENT_QUOTES, 'UTF-8') . '</label>';
+        if (!empty($fieldMeta['title']) && trim((string) $fieldMeta['title']) !== '' && trim((string) $fieldMeta['title']) !== $displayLabel && !self::isRoomOfferAmenityField($displayLabel)) {
+            $html .= '<div class="form-text mt-n1 mb-2">' . htmlspecialchars((string) $fieldMeta['title'], ENT_QUOTES, 'UTF-8') . '</div>';
+        }
+
+        switch ($type) {
+            case 'select':
+                $html .= '<select class="form-select room-offer-editor__input"' . $required . $disabledAttr . $periodAttr . $nameMarkerAttr . ' name="' . htmlspecialchars($roomInputName, ENT_QUOTES, 'UTF-8') . '">';
+                $html .= '<option value=""></option>';
+                foreach ((array) ($fieldMeta['options'] ?? []) as $option) {
+                    if (!is_array($option) || !empty($option['disabled'])) {
+                        continue;
+                    }
+                    $optionKey = (string) ($option['key'] ?? $option['value'] ?? '');
+                    if ($optionKey === '') {
+                        continue;
+                    }
+                    $selected = (string) $roomValue === $optionKey ? ' selected' : '';
+                    $html .= '<option value="' . htmlspecialchars($optionKey, ENT_QUOTES, 'UTF-8') . '"' . $selected . '>'
+                        . htmlspecialchars((string) ($option['label'] ?? $optionKey), ENT_QUOTES, 'UTF-8') . '</option>';
+                }
+                $html .= '</select>';
+                break;
+            case 'radio':
+                $radioGroupName = $roomInputName;
+                $html .= '<div class="room-offer-editor__radio-group"' . $periodAttr . '>';
+                foreach ((array) ($fieldMeta['options'] ?? []) as $option) {
+                    if (!is_array($option) || !empty($option['disabled'])) {
+                        continue;
+                    }
+                    $optionKey = (string) ($option['key'] ?? $option['value'] ?? '');
+                    if ($optionKey === '') {
+                        continue;
+                    }
+                    $checked = (string) $roomValue === $optionKey ? ' checked' : '';
+                    $html .= '<label class="form-check room-offer-editor__radio-item">';
+                    $html .= '<input class="form-check-input" type="radio" name="' . htmlspecialchars($radioGroupName, ENT_QUOTES, 'UTF-8') . '" value="' . htmlspecialchars($optionKey, ENT_QUOTES, 'UTF-8') . '"' . $checked . $disabledAttr . $required . '>';
+                    $html .= '<span class="form-check-label">' . htmlspecialchars((string) ($option['label'] ?? $optionKey), ENT_QUOTES, 'UTF-8') . '</span>';
+                    $html .= '</label>';
+                }
+                $html .= '</div>';
+                break;
+            case 'textarea':
+                $nameAttr = $roomInputName;
+                $html .= '<textarea class="form-control room-offer-editor__input"' . $required . $disabledAttr . $periodAttr . $nameMarkerAttr . ' rows="5" name="' . htmlspecialchars($nameAttr, ENT_QUOTES, 'UTF-8') . '">'
+                    . htmlspecialchars((string) $roomValue, ENT_QUOTES, 'UTF-8') . '</textarea>';
+                break;
+            default:
+                $inputType = match ($type) {
+                    'phone' => 'tel',
+                    'email' => 'email',
+                    'number' => 'number',
+                    'date' => 'text',
+                    default => 'text',
+                };
+                $placeholder = str_starts_with($displayLabel, 'Период ') ? 'дд.мм' : '';
+                $html .= '<input type="' . $inputType . '" class="form-control room-offer-editor__input"' . $required . $disabledAttr . $periodAttr . $nameMarkerAttr
+                    . ' name="' . htmlspecialchars($roomInputName, ENT_QUOTES, 'UTF-8') . '" value="' . htmlspecialchars((string) $roomValue, ENT_QUOTES, 'UTF-8') . '"'
+                    . ($placeholder !== '' ? ' placeholder="' . htmlspecialchars($placeholder, ENT_QUOTES, 'UTF-8') . '"' : '') . '>';
+                break;
+        }
+
+        $html .= '</div>';
+        return $html;
+    }
+
+    private static function renderRoomOfferGalleryField(array $fieldMeta, int $roomIndex, bool $disabled): string {
+        $valueName = (string) ($fieldMeta['value_name'] ?? '');
+        $roomValue = $fieldMeta['room_value'] ?? [];
+        $uploaderName = 'property_data[roomoffer__' . $valueName . '__room_' . $roomIndex . ']';
+        $html = '<div class="room-offer-editor__gallery"' . ($disabled ? ' data-room-editor-gallery-disabled="1"' : '') . '>';
+        $html .= self::ee_uploader([
+            'name' => $uploaderName,
+            'allowed_extensions' => FileSystem::getAllowedExtensionsStringForFieldType('image'),
+            'multiple' => 1,
+            'required' => 0,
+            'preloaded_files' => $roomValue,
+        ]);
+        $html .= '</div>';
+        return $html;
+    }
+
+    private static function renderRoomOfferEditorAssets(): string {
+        return self::renderRepeatableEditorAssets();
+    }
+
+    private static function renderRepeatablePropertyEditor(
+        array $propertyMeta,
+        array $runtimeFields,
+        string $valueId,
+        int $entityId,
+        string $entityType,
+        string $propertyId,
+        string $setId
+    ): string {
+        $langCode = Session::get('lang');
+        $globalLang = Lang::init($langCode);
+        $editorState = self::buildRepeatableEditorState($runtimeFields);
+        $items = (array) ($editorState['items'] ?? []);
+        $visibleSlots = (int) ($editorState['visible_slots'] ?? 1);
+        $totalSlots = (int) ($editorState['total_slots'] ?? $visibleSlots);
+        $hasSlots = !empty($editorState['has_slots']);
+
+        $result = self::renderRepeatableEditorAssets();
+        $result .= '<div class="repeatable-editor card shadow-sm border-0" data-repeatable-editor="1"'
+            . ' data-visible-slots="' . $visibleSlots . '"'
+            . ' data-total-slots="' . $totalSlots . '">';
+        $result .= '<div class="card-body">';
+        $result .= '<input type="hidden" name="property_data_changed" value="0" />';
+        $result .= '<div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">';
+        $result .= '<div><h3 class="h5 mb-1">' . htmlspecialchars((string) ($propertyMeta['name'] ?? ''), ENT_QUOTES, 'UTF-8') . '</h3>';
+        $result .= '<div class="small text-muted">' . htmlspecialchars((string) ($globalLang['sys.repeatable_help'] ?? 'Каждый элемент редактируется отдельно.'), ENT_QUOTES, 'UTF-8') . '</div></div>';
+        $result .= '<div class="d-flex flex-wrap gap-2">';
+        $result .= '<button type="button" class="btn btn-sm btn-outline-primary" data-repeatable-add>'
+            . htmlspecialchars((string) ($globalLang['sys.add_item'] ?? 'Добавить элемент'), ENT_QUOTES, 'UTF-8') . '</button>';
+        $result .= '<button type="button" class="btn btn-sm btn-outline-danger" data-repeatable-remove>'
+            . htmlspecialchars((string) ($globalLang['sys.remove_item'] ?? 'Убрать последний'), ENT_QUOTES, 'UTF-8') . '</button>';
+        if ($hasSlots) {
+            $result .= '<button type="button" class="btn btn-sm btn-outline-secondary" data-repeatable-add-slot>'
+                . htmlspecialchars((string) ($globalLang['sys.add_period'] ?? 'Добавить период'), ENT_QUOTES, 'UTF-8') . '</button>';
+            $result .= '<button type="button" class="btn btn-sm btn-outline-secondary" data-repeatable-remove-slot>'
+                . htmlspecialchars((string) ($globalLang['sys.remove_period'] ?? 'Убрать период'), ENT_QUOTES, 'UTF-8') . '</button>';
+        }
+        $result .= '</div></div>';
+        $result .= '<div class="repeatable-editor__items">';
+
+        foreach ($items as $itemIndex => $itemMeta) {
+            $isActive = !empty($itemMeta['active']);
+            $itemTitle = self::resolveRepeatableItemTitle($runtimeFields, $itemIndex, (string) ($itemMeta['title'] ?? ''));
+            $cardClasses = 'repeatable-editor__item card border mb-4';
+            if (!$isActive) {
+                $cardClasses .= ' d-none';
+            }
+            $result .= '<section class="' . $cardClasses . '" data-repeatable-item="' . (int) $itemIndex . '" data-repeatable-active="' . ($isActive ? '1' : '0') . '">';
+            $result .= '<div class="card-header bg-white d-flex justify-content-between align-items-center gap-3">';
+            $result .= '<div><div class="fw-semibold" data-repeatable-title>' . htmlspecialchars($itemTitle, ENT_QUOTES, 'UTF-8') . '</div>';
+            $result .= '<div class="small text-muted">' . htmlspecialchars((string) ($globalLang['sys.item_subtitle'] ?? 'Поля этого элемента'), ENT_QUOTES, 'UTF-8') . '</div></div>';
+            $result .= '<button type="button" class="btn btn-sm btn-outline-danger" data-repeatable-item-remove>'
+                . htmlspecialchars((string) ($globalLang['sys.delete'] ?? 'Удалить'), ENT_QUOTES, 'UTF-8') . '</button>';
+            $result .= '</div><div class="card-body"><div class="row g-3 repeatable-editor__section mb-3">';
+
+            foreach ($runtimeFields as $fieldIndex => $fieldMeta) {
+                $type = strtolower(trim((string) ($fieldMeta['type'] ?? 'text'))) ?: 'text';
+                $valueName = $valueId . '_' . $fieldIndex . '_' . $type . '_' . $entityId . '_' . $entityType . '_' . $propertyId . '_' . $setId;
+                $fieldMeta['value_name'] = $valueName;
+                $slotIndex = 0;
+                $label = trim((string) ($fieldMeta['label'] ?? ''));
+                if (preg_match('/^Период\\s+(\\d+):/u', $label, $matches) === 1) {
+                    $slotIndex = (int) $matches[1];
+                }
+                $result .= self::renderRepeatableFieldBlock($fieldMeta, $itemIndex, !$isActive, $slotIndex, $visibleSlots);
+            }
+
+            $result .= '</div></div></section>';
+        }
+
+        $result .= '</div></div></div>';
+
+        foreach ($runtimeFields as $fieldIndex => $fieldMeta) {
+            $type = strtolower(trim((string) ($fieldMeta['type'] ?? 'text'))) ?: 'text';
+            $valueName = $valueId . '_' . $fieldIndex . '_' . $type . '_' . $entityId . '_' . $entityType . '_' . $propertyId . '_' . $setId;
+            $result .= '<input type="hidden" name="property_data[' . $valueName . '_type]" value="' . htmlspecialchars($type, ENT_QUOTES) . '"/>';
+            $result .= '<input type="hidden" name="property_data[' . $valueName . '_uid]" value="' . htmlspecialchars((string) ($fieldMeta['uid'] ?? ''), ENT_QUOTES) . '"/>';
+        }
+
+        return $result;
+    }
+
+    private static function buildRepeatableEditorState(array $runtimeFields): array {
+        $itemCount = 0;
+        $slotGroups = [];
+
+        foreach ($runtimeFields as $field) {
+            $value = $field['value'] ?? null;
+            if (is_array($value)) {
+                $itemCount = max($itemCount, count($value));
+            } elseif (self::fieldHasMeaningfulValue($value)) {
+                $itemCount = max($itemCount, 1);
+            }
+
+            $label = trim((string) ($field['label'] ?? ''));
+            if (preg_match('/^Период\\s+(\\d+):/u', $label, $matches) === 1) {
+                $slotIndex = (int) $matches[1];
+                if ($slotIndex > 0) {
+                    if (!isset($slotGroups[$slotIndex])) {
+                        $slotGroups[$slotIndex] = ['has_data' => false];
+                    }
+                    if (self::fieldHasMeaningfulValue($value)) {
+                        $slotGroups[$slotIndex]['has_data'] = true;
+                    }
+                }
+            }
+        }
+
+        if ($itemCount <= 0) {
+            $itemCount = 1;
+        }
+        $totalItems = min(max($itemCount + 4, 4), max($itemCount, 30));
+
+        $items = [];
+        for ($index = 0; $index < $totalItems; $index++) {
+            $items[] = [
+                'active' => $index < $itemCount,
+                'title' => 'Элемент ' . ($index + 1),
+            ];
+        }
+
+        $visibleSlots = 1;
+        $totalSlots = 1;
+        if ($slotGroups !== []) {
+            ksort($slotGroups);
+            $totalSlots = max(array_keys($slotGroups));
+            $maxFilled = 0;
+            foreach ($slotGroups as $slotIndex => $slot) {
+                if (!empty($slot['has_data'])) {
+                    $maxFilled = max($maxFilled, (int) $slotIndex);
+                }
+            }
+            $visibleSlots = max($maxFilled > 0 ? $maxFilled + 1 : 0, min(4, $totalSlots));
+        }
+
+        return [
+            'items' => $items,
+            'visible_slots' => $visibleSlots,
+            'total_slots' => $totalSlots,
+            'has_slots' => $slotGroups !== [],
+        ];
+    }
+
+    private static function renderRepeatableFieldBlock(
+        array $fieldMeta,
+        int $itemIndex,
+        bool $disabled,
+        int $slotIndex = 0,
+        int $visibleSlots = 0
+    ): string {
+        $displayLabel = trim((string) ($fieldMeta['label'] ?? $fieldMeta['title'] ?? ''));
+        $type = strtolower(trim((string) ($fieldMeta['type'] ?? 'text'))) ?: 'text';
+        $valueName = (string) ($fieldMeta['value_name'] ?? '');
+        $required = !empty($fieldMeta['required']) ? ' required' : '';
+        $slotVisible = $slotIndex === 0 || $visibleSlots <= 0 || $slotIndex <= $visibleSlots;
+        $disabledAttr = ($disabled || !$slotVisible) ? ' disabled' : '';
+        $itemValue = self::extractRepeatableItemValue($fieldMeta, $itemIndex);
+        $fieldMultiple = !empty($fieldMeta['field_multiple']);
+
+        $colClass = $type === 'textarea' ? 'col-12' : 'col-md-6';
+        $slotAttr = $slotIndex > 0 ? ' data-repeatable-slot="' . $slotIndex . '"' : '';
+        $slotInputAttr = $slotIndex > 0 ? ' data-repeatable-slot-input="' . $slotIndex . '"' : '';
+        $titleMarkerAttr = !empty($fieldMeta['is_title']) ? ' data-repeatable-title-input="1"' : '';
+
+        $hiddenClass = (!$slotVisible && $slotIndex > 0) ? ' d-none' : '';
+        $html = '<div class="' . htmlspecialchars($colClass, ENT_QUOTES, 'UTF-8') . ' repeatable-editor__field' . $hiddenClass . '"' . $slotAttr . '>';
+        $html .= '<label class="form-label fw-semibold">' . htmlspecialchars($displayLabel, ENT_QUOTES, 'UTF-8') . '</label>';
+        if (!empty($fieldMeta['title']) && trim((string) $fieldMeta['title']) !== '' && trim((string) $fieldMeta['title']) !== $displayLabel) {
+            $html .= '<div class="form-text mt-n1 mb-2">' . htmlspecialchars((string) $fieldMeta['title'], ENT_QUOTES, 'UTF-8') . '</div>';
+        }
+
+        switch ($type) {
+            case 'select':
+            case 'checkbox':
+            case 'radio':
+                $html .= self::renderRepeatableChoiceInput($fieldMeta, $valueName, $itemIndex, $itemValue, $disabledAttr, $required, $slotInputAttr, $fieldMultiple);
+                break;
+            case 'textarea':
+                $nameAttr = 'property_data[' . $valueName . '_value][' . $itemIndex . ']';
+                $html .= '<textarea class="form-control repeatable-editor__input"' . $required . $disabledAttr . $slotInputAttr . $titleMarkerAttr . ' rows="5" name="' . htmlspecialchars($nameAttr, ENT_QUOTES, 'UTF-8') . '">'
+                    . htmlspecialchars((string) $itemValue, ENT_QUOTES, 'UTF-8') . '</textarea>';
+                break;
+            case 'file':
+            case 'image':
+                $uploaderName = 'property_data[' . $valueName . '_value][' . $itemIndex . ']';
+                if ($fieldMultiple) {
+                    $uploaderName .= '[]';
+                }
+                $html .= self::ee_uploader([
+                    'name' => $uploaderName,
+                    'allowed_extensions' => FileSystem::getAllowedExtensionsStringForFieldType($type),
+                    'multiple' => $fieldMultiple ? 1 : 0,
+                    'required' => $fieldMeta['required'] ?? 0,
+                    'preloaded_files' => FileSystem::normalizeFileReferences($itemValue),
+                ]);
+                break;
+            default:
+                $inputType = match ($type) {
+                    'phone' => 'tel',
+                    'email' => 'email',
+                    'number' => 'number',
+                    'date' => 'text',
+                    default => 'text',
+                };
+                $nameAttr = 'property_data[' . $valueName . '_value][' . $itemIndex . ']';
+                $placeholder = $slotIndex > 0 ? 'дд.мм' : '';
+                $html .= '<input type="' . $inputType . '" class="form-control repeatable-editor__input"' . $required . $disabledAttr . $slotInputAttr . $titleMarkerAttr
+                    . ' name="' . htmlspecialchars($nameAttr, ENT_QUOTES, 'UTF-8') . '" value="' . htmlspecialchars((string) $itemValue, ENT_QUOTES, 'UTF-8') . '"'
+                    . ($placeholder !== '' ? ' placeholder="' . htmlspecialchars($placeholder, ENT_QUOTES, 'UTF-8') . '"' : '') . '>';
+                break;
+        }
+
+        $html .= '</div>';
+        return $html;
+    }
+
+    private static function renderRepeatableChoiceInput(
+        array $fieldMeta,
+        string $valueName,
+        int $itemIndex,
+        mixed $itemValue,
+        string $disabledAttr,
+        string $required,
+        string $slotInputAttr,
+        bool $fieldMultiple
+    ): string {
+        $type = strtolower(trim((string) ($fieldMeta['type'] ?? 'select'))) ?: 'select';
+        $options = self::normalizeChoiceOptionsForRender($fieldMeta);
+        $selectedKeys = array_flip(self::normalizeChoiceSelectedKeys($itemValue));
+        $html = '';
+
+        if ($type === 'select') {
+            $name = 'property_data[' . $valueName . '_value][' . $itemIndex . ']' . ($fieldMultiple ? '[]' : '');
+            $html .= '<select class="form-select repeatable-editor__input" name="' . htmlspecialchars($name, ENT_QUOTES) . '"' . ($fieldMultiple ? ' multiple' : '') . $required . $disabledAttr . $slotInputAttr . '>';
+            $html .= '<option value=""></option>';
+            foreach ($options as $option) {
+                $key = (string) ($option['key'] ?? '');
+                if ($key === '' || !empty($option['disabled'])) {
+                    continue;
+                }
+                $html .= '<option value="' . htmlspecialchars($key, ENT_QUOTES) . '"' . (isset($selectedKeys[$key]) ? ' selected' : '') . '>'
+                    . htmlspecialchars((string) ($option['label'] ?? $key), ENT_QUOTES) . '</option>';
+            }
+            $html .= '</select>';
+            return $html;
+        }
+
+        $inputType = $type === 'radio' ? 'radio' : 'checkbox';
+        $name = 'property_data[' . $valueName . '_value][' . $itemIndex . ']' . ($inputType === 'checkbox' ? '[]' : '');
+        foreach ($options as $option) {
+            $key = (string) ($option['key'] ?? '');
+            if ($key === '' || !empty($option['disabled'])) {
+                continue;
+            }
+            $checked = isset($selectedKeys[$key]) ? ' checked' : '';
+            $html .= '<div class="form-check mb-2">';
+            $html .= '<input class="form-check-input" type="' . $inputType . '" name="' . htmlspecialchars($name, ENT_QUOTES) . '" value="' . htmlspecialchars($key, ENT_QUOTES) . '"' . $checked . $disabledAttr . $required . $slotInputAttr . '>';
+            $html .= '<label class="form-check-label">' . htmlspecialchars((string) ($option['label'] ?? $key), ENT_QUOTES) . '</label>';
+            $html .= '</div>';
+        }
+        return $html;
+    }
+
+    private static function extractRepeatableItemValue(array $fieldMeta, int $itemIndex): mixed {
+        $value = $fieldMeta['value'] ?? '';
+        if (is_array($value)) {
+            return $value[$itemIndex] ?? '';
+        }
+        return $itemIndex === 0 ? $value : '';
+    }
+
+    private static function resolveRepeatableItemTitle(array $runtimeFields, int $itemIndex, string $fallback = ''): string {
+        $fallbackTitle = $fallback !== '' ? $fallback : ('Элемент ' . ($itemIndex + 1));
+        foreach ($runtimeFields as $fieldMeta) {
+            $label = trim((string) ($fieldMeta['label'] ?? ''));
+            if (empty($fieldMeta['is_title'])) {
+                continue;
+            }
+            $value = self::extractRepeatableItemValue($fieldMeta, $itemIndex);
+            $value = is_array($value) ? (string) reset($value) : (string) $value;
+            $value = trim($value);
+            if ($value !== '') {
+                return $value;
+            }
+        }
+        return $fallbackTitle;
+    }
+
+    private static function renderRepeatableEditorAssets(): string {
+        if (self::$repeatableEditorAssets) {
+            return '';
+        }
+        self::$repeatableEditorAssets = true;
+        return '<link rel="stylesheet" href="' . ENV_URL_SITE . '/assets/js/plugins/ee_repeatable_editor.css" type="text/css" />'
+            . '<script src="' . ENV_URL_SITE . '/assets/js/plugins/ee_repeatable_editor.js" type="text/javascript"></script>';
+    }
+
+    private static function trimCompositeFieldsForDisplay(array $runtimeFields, array $propertyMeta): array {
+        $propertyName = trim((string) ($propertyMeta['name'] ?? ''));
+        if ($propertyName !== 'Номера и цены' || $runtimeFields === []) {
+            return $runtimeFields;
+        }
+
+        $periodGroups = [];
+        foreach ($runtimeFields as $index => $field) {
+            $label = trim((string) ($field['label'] ?? ''));
+            if (preg_match('/^Период\s+(\d+):/u', $label, $matches) !== 1) {
+                continue;
+            }
+            $period = (int) $matches[1];
+            if ($period <= 0) {
+                continue;
+            }
+            if (!isset($periodGroups[$period])) {
+                $periodGroups[$period] = [
+                    'indexes' => [],
+                    'has_data' => false,
+                ];
+            }
+            $periodGroups[$period]['indexes'][] = $index;
+            if (self::fieldHasMeaningfulValue($field['value'] ?? null)) {
+                $periodGroups[$period]['has_data'] = true;
+            }
+        }
+
+        if ($periodGroups === []) {
+            return $runtimeFields;
+        }
+
+        $maxPeriod = max(array_keys($periodGroups));
+        $maxFilledPeriod = 0;
+        foreach ($periodGroups as $period => $group) {
+            if (!empty($group['has_data'])) {
+                $maxFilledPeriod = max($maxFilledPeriod, (int) $period);
+            }
+        }
+
+        $visiblePeriodLimit = max($maxFilledPeriod > 0 ? $maxFilledPeriod + 1 : 0, min(4, $maxPeriod));
+        if ($visiblePeriodLimit >= $maxPeriod) {
+            return $runtimeFields;
+        }
+
+        $filtered = [];
+        foreach ($runtimeFields as $index => $field) {
+            $label = trim((string) ($field['label'] ?? ''));
+            if (preg_match('/^Период\s+(\d+):/u', $label, $matches) === 1) {
+                $period = (int) $matches[1];
+                $group = $periodGroups[$period] ?? null;
+                if (
+                    $period > $visiblePeriodLimit
+                    && is_array($group)
+                    && empty($group['has_data'])
+                ) {
+                    continue;
+                }
+            }
+            $filtered[] = $field;
+        }
+
+        return $filtered;
+    }
+
+    private static function fieldHasMeaningfulValue(mixed $value): bool {
+        if (is_array($value)) {
+            foreach ($value as $item) {
+                if (self::fieldHasMeaningfulValue($item)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        if ($value === null) {
+            return false;
+        }
+
+        if (is_string($value)) {
+            return trim($value) !== '';
+        }
+
+        return true;
     }
 
     /**
@@ -1128,7 +1938,7 @@ class Plugins {
                     default => $type,
                 };
                 $scalarValue = $value['value'] ?? ($value['default'] ?? '');
-                if ($multiple && is_array($scalarValue)) {
+                if ($multiple && is_array($scalarValue) && $scalarValue !== []) {
                     foreach ($scalarValue as $valueItem) {
                         $result .= '<div class="field_container d-flex align-items-center">';
                         $result .= '<input type="' . $itype . '" class="form-control"' . $required
@@ -1156,7 +1966,7 @@ class Plugins {
                 break;
             case 'textarea':
                 $textareaValue = $value['value'] ?? ($value['default'] ?? '');
-                if ($multiple && is_array($textareaValue)) {
+                if ($multiple && is_array($textareaValue) && $textareaValue !== []) {
                     foreach ($textareaValue as $valueItem) {
                         $result .= '<div class="field_container d-flex align-items-center">';
                         $result .= '<textarea class="form-control" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $type . '"' . $required
@@ -1381,7 +2191,14 @@ class Plugins {
         $requiredAttribute = $params['required'] ? 'data-required="1"' : '';
         if (!self::$sortableJS) {
             $html = '<link rel="stylesheet" href="' . ENV_URL_SITE . '/assets/js/plugins/ee_uploader.css" type="text/css" />';
+            if (!self::$cropperJS) {
+                $html .= '<link rel="stylesheet" href="' . ENV_URL_SITE . '/assets/js/plugins/cropper.min.css" type="text/css" />';
+            }
             $html .= '<script src="' . ENV_URL_SITE . '/assets/js/plugins/Sortable.min.js" type="text/javascript"></script>';
+            if (!self::$cropperJS) {
+                $html .= '<script src="' . ENV_URL_SITE . '/assets/js/plugins/cropper.min.js" type="text/javascript"></script>';
+                self::$cropperJS = true;
+            }
             $html .= '<script src="' . ENV_URL_SITE . '/assets/js/plugins/ee_uploader.js" type="text/javascript"></script>';
             self::$sortableJS = true;
         } else {

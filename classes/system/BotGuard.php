@@ -364,7 +364,7 @@ class BotGuard {
         if (self::inspectRequestVariables($inputs)) {
             $rejectionReason = 'Potential SQLi/XSS payload detected';
             $rejectionDetails['signal'] = 'request_variables';
-            $immediateBan = true;
+            $countStrike = true;
         } elseif (self::ENABLED_CHECKS[self::CHECK_MISSING_IP_OR_UA] && trim($userAgent) === '') {
             $rejectionReason = 'Missing User-Agent';
             $httpCode = 400;
@@ -413,10 +413,10 @@ class BotGuard {
     }
 
     /**
-     * Checks if current request is authenticated admin area request.
+     * Checks if current request is authenticated control panel request.
      */
     private static function shouldSkipRateLimitForCurrentRequest(): bool {
-        if (!self::isAdminAreaRequest()) {
+        if (!self::isControlPanelRequest()) {
             return false;
         }
 
@@ -429,9 +429,9 @@ class BotGuard {
     }
 
     /**
-     * Checks if request path belongs to /admin.
+     * Checks if request path belongs to /admin or /manager.
      */
-    private static function isAdminAreaRequest(): bool {
+    private static function isControlPanelRequest(): bool {
         $uri = (string) ($_SERVER['REQUEST_URI'] ?? '');
         if ($uri === '') {
             return false;
@@ -443,7 +443,10 @@ class BotGuard {
         }
 
         $path = '/' . ltrim($path, '/');
-        return $path === '/admin' || str_starts_with($path, '/admin/');
+        return $path === '/admin'
+            || str_starts_with($path, '/admin/')
+            || $path === '/manager'
+            || str_starts_with($path, '/manager/');
     }
 
     /**
@@ -511,6 +514,8 @@ class BotGuard {
      */
     private static function sanitizeTrustedRequestInputs(array $inputs): array {
         $inputs = self::sanitizeUiStateRequestInputs($inputs);
+        $inputs = self::sanitizeTrustedNavigationRequestInputs($inputs);
+        $inputs = self::sanitizeCookieRequestInputs($inputs);
 
         if (!self::isPropertyDefinitionsImportConfirmRequest()) {
             return $inputs;
@@ -560,6 +565,84 @@ class BotGuard {
         }
 
         return $inputs;
+    }
+
+    /**
+     * Убирает из сигнатурного анализа безопасные внутренние URL возврата,
+     * которые используются самой CMS для навигации между экранами.
+     *
+     * @param array<string, mixed> $inputs
+     * @return array<string, mixed>
+     */
+    private static function sanitizeTrustedNavigationRequestInputs(array $inputs): array {
+        $trustedNavigationKeys = ['return', 'redirect', 'return_url', 'back_url'];
+
+        foreach (['GET', 'REQUEST', 'POST', 'FORM_BODY', 'JSON_BODY'] as $source) {
+            if (!isset($inputs[$source]) || !is_array($inputs[$source])) {
+                continue;
+            }
+
+            foreach ($trustedNavigationKeys as $trustedNavigationKey) {
+                if (!array_key_exists($trustedNavigationKey, $inputs[$source])) {
+                    continue;
+                }
+
+                $value = $inputs[$source][$trustedNavigationKey];
+                if (is_string($value) && self::isSafeInternalNavigationPath($value)) {
+                    $inputs[$source][$trustedNavigationKey] = '[internal_navigation_path]';
+                }
+            }
+        }
+
+        return $inputs;
+    }
+
+    /**
+     * Cookie-значения часто содержат токены и аналитические идентификаторы,
+     * которые дают много ложных срабатываний на SQL/XSS-эвристику.
+     * Для guard-сигнатур оставляем только имена cookie, а значения не анализируем.
+     *
+     * @param array<string, mixed> $inputs
+     * @return array<string, mixed>
+     */
+    private static function sanitizeCookieRequestInputs(array $inputs): array {
+        if (!isset($inputs['COOKIE']) || !is_array($inputs['COOKIE'])) {
+            return $inputs;
+        }
+
+        foreach ($inputs['COOKIE'] as $cookieName => $cookieValue) {
+            if (is_array($cookieValue)) {
+                $inputs['COOKIE'][$cookieName] = '[cookie_array]';
+                continue;
+            }
+
+            if ($cookieValue !== null && !is_object($cookieValue)) {
+                $inputs['COOKIE'][$cookieName] = '[cookie_value]';
+            }
+        }
+
+        return $inputs;
+    }
+
+    /**
+     * Проверяет, что значение навигационного параметра указывает
+     * только на внутренний путь текущего сайта.
+     */
+    private static function isSafeInternalNavigationPath(string $value): bool {
+        $value = trim($value);
+        if ($value === '' || !str_starts_with($value, '/')) {
+            return false;
+        }
+
+        if (str_contains($value, '://') || str_starts_with($value, '//')) {
+            return false;
+        }
+
+        if (preg_match('/[\r\n\x00]/', $value) === 1) {
+            return false;
+        }
+
+        return true;
     }
 
     /**

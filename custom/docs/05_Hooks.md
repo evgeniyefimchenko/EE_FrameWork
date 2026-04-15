@@ -161,6 +161,30 @@ ee_add_custom_hook('C_docsCatalog', [\custom\docs\ProjectDocsPlugin::class, 'fil
 ee_add_custom_hook('afterUpdatePropertySetComposition', [\custom\PropertyHooks::class, 'afterSetComposition'], 20);
 ```
 
+### Auth-роутинг и разделение контуров
+
+Для auth и role-based маршрутизации в ядре есть три практических hook key:
+
+- `auth.landing_url` — определяет landing URL после авторизации внутри core-контуров;
+- `auth.front_landing_url` — определяет landing URL для публичных auth-flow и frontend-меню;
+- `auth.route_guard` — позволяет project-specific коду принять решение, можно ли пользователю оставаться в текущем контуре (`/admin`, `/manager`, `/user`) или его нужно перенаправить.
+
+Пример регистрации:
+
+```php
+<?php
+
+ee_add_custom_hook('auth.landing_url', [\custom\ProjectAuthPolicy::class, 'filterLandingUrl'], 10);
+ee_add_custom_hook('auth.front_landing_url', [\custom\ProjectAuthPolicy::class, 'filterFrontLandingUrl'], 10);
+ee_add_custom_hook('auth.route_guard', [\custom\ProjectAuthPolicy::class, 'guardRoute'], 10);
+```
+
+Практический смысл:
+
+- ядро знает только о точках расширения;
+- project-specific правило “менеджер живёт только в `/manager`, пользователь только в `/user`” описывается в `custom/`;
+- обновление ядра не должно затирать auth-политику проекта.
+
 ## Правила хорошего hook-кода
 
 - hook должен быть коротким и понятным;

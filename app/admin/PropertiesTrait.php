@@ -555,6 +555,7 @@ trait PropertiesTrait {
             $postData['property_data'] = [];
         }
         $groupedDataFiles = [];
+        $nestedGroupedDataFiles = [];
         $touchedProperties = [];
 
         if (is_array($dataFiles)) {
@@ -567,6 +568,14 @@ trait PropertiesTrait {
 
                 $propertyName = trim((string) ($dataFile['property_name'] ?? ''));
                 if ($propertyName === '') {
+                    continue;
+                }
+
+                $itemIndex = $dataFile['item_index'] ?? null;
+                if ($itemIndex !== null && is_numeric($itemIndex) && (int) $itemIndex >= 0) {
+                    $itemIndex = (int) $itemIndex;
+                    $nestedGroupedDataFiles[$propertyName][$itemIndex][] = $dataFile;
+                    $touchedProperties[$propertyName] = $this->resolveFileFieldConfigByPropertyName($propertyName);
                     continue;
                 }
 
@@ -693,6 +702,54 @@ trait PropertiesTrait {
                 : (($references === []) ? '' : (string) reset($references));
         }
 
+        foreach ($nestedGroupedDataFiles as $propertyName => $itemGroups) {
+            $fieldConfig = $touchedProperties[$propertyName] ?? ['field_type' => null, 'multiple' => false];
+            $fieldType = $fieldConfig['field_type'] ?? null;
+            $isMultiple = !empty($fieldConfig['multiple']);
+            $itemReferences = [];
+            $existing = $postData['property_data'][$propertyName] ?? null;
+            $maxIndex = -1;
+
+            foreach (array_keys($itemGroups) as $itemIndex) {
+                $maxIndex = max($maxIndex, (int) $itemIndex);
+            }
+            if (is_array($existing)) {
+                $maxIndex = max($maxIndex, count($existing) - 1);
+            }
+
+            ksort($itemGroups);
+            foreach ($itemGroups as $itemIndex => $propertyItems) {
+                $itemIndex = (int) $itemIndex;
+                if (!isset($uploadedFiles[$propertyName][$itemIndex]) || !is_array($uploadedFiles[$propertyName][$itemIndex])) {
+                    $uploadedFiles[$propertyName][$itemIndex] = [];
+                }
+                $references = $this->processPropertyFileItemsGroup(
+                    $propertyItems,
+                    $fieldType,
+                    $uploadedFiles[$propertyName][$itemIndex],
+                    $changed,
+                    $propertyName . '__item_' . $itemIndex
+                );
+                $itemReferences[$itemIndex] = $isMultiple
+                    ? $references
+                    : (($references === []) ? '' : (string) reset($references));
+            }
+
+            for ($i = 0; $i <= $maxIndex; $i++) {
+                if (array_key_exists($i, $itemReferences)) {
+                    continue;
+                }
+                if (is_array($existing) && array_key_exists($i, $existing)) {
+                    $itemReferences[$i] = $existing[$i];
+                } else {
+                    $itemReferences[$i] = $isMultiple ? [] : '';
+                }
+            }
+
+            ksort($itemReferences);
+            $postData['property_data'][$propertyName] = array_values($itemReferences);
+        }
+
         foreach ($touchedProperties as $propertyName => $fieldConfig) {
             if (!array_key_exists($propertyName, $postData['property_data'])) {
                 $postData['property_data'][$propertyName] = !empty($fieldConfig['multiple']) ? [] : '';
@@ -700,6 +757,119 @@ trait PropertiesTrait {
         }
 
         $postData['property_data_changed'] = $changed;
+    }
+
+    private function processPropertyFileItemsGroup(
+        array $propertyItems,
+        ?string $fieldType,
+        array &$uploadedFiles,
+        mixed &$changed,
+        string $logPropertyName
+    ): array {
+        $retainedReferences = [];
+
+        foreach ($propertyItems as $dataFile) {
+            $uniqueID = trim((string) ($dataFile['unique_id'] ?? ''));
+            $isDeleteRequested = !empty($dataFile['update']) && !empty($dataFile['delete']);
+
+            if ($uniqueID !== '' && ctype_digit($uniqueID) && (int) $uniqueID > 0) {
+                $fileId = (int) $uniqueID;
+                if ($isDeleteRequested) {
+                    FileSystem::deleteFileData($fileId);
+                    $changed = true;
+                    continue;
+                }
+
+                if (!empty($dataFile['update'])) {
+                    $updateData = [];
+                    if (!empty($dataFile['original_name'])) {
+                        $updateData['original_name'] = trim((string) $dataFile['original_name']);
+                    }
+                    if (!empty($dataFile['transformations']) && $fieldType === 'image') {
+                        $existingFileData = FileSystem::getFileData($fileId, false);
+                        if (!empty($existingFileData['file_path'])) {
+                            FileSystem::applyImageTransformations((string) $existingFileData['file_path'], $dataFile['transformations']);
+                            FileSystem::refreshFileDataFromDisk($fileId);
+                            $changed = true;
+                        }
+                    } elseif (!empty($dataFile['transformations']) && $fieldType !== 'image') {
+                        $message = 'Трансформации разрешены только для image-полей: ' . $logPropertyName;
+                        Logger::warning('file', $message, ['property_name' => $logPropertyName, 'field_type' => $fieldType], [
+                            'initiator' => __FUNCTION__,
+                            'details' => $message,
+                        ]);
+                        ClassNotifications::addNotificationUser(SysClass::getCurrentUserId(), ['text' => $message, 'status' => 'warning']);
+                    }
+                    if (!empty($updateData)) {
+                        FileSystem::updateFileData($fileId, $updateData);
+                        $changed = true;
+                    }
+                }
+
+                $retainedReferences[(string) $fileId] = (string) $fileId;
+                continue;
+            }
+
+            $legacyValue = trim((string) ($dataFile['legacy_value'] ?? ''));
+            if ($legacyValue !== '') {
+                if ($isDeleteRequested) {
+                    $changed = true;
+                    continue;
+                }
+                $retainedReferences[$legacyValue] = $legacyValue;
+                continue;
+            }
+
+            $matchedFile = $this->consumeUploadedPropertyFile($uploadedFiles, (string) ($dataFile['file_name'] ?? ''));
+            if (!$matchedFile) {
+                continue;
+            }
+
+            if (($matchedFile['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+                $message = FileSystem::getErrorDescriptionByUploadCode((int) $matchedFile['error']);
+                Logger::error('file', $message, ['matched_file' => $matchedFile], [
+                    'initiator' => __FUNCTION__,
+                    'details' => $message,
+                ]);
+                ClassNotifications::addNotificationUser($this->logged_in, ['text' => $message, 'status' => 'danger']);
+                continue;
+            }
+
+            if (!empty($dataFile['transformations']) && $fieldType === 'image') {
+                FileSystem::applyImageTransformations((string) $matchedFile['tmp_name'], $dataFile['transformations']);
+            } elseif (!empty($dataFile['transformations']) && $fieldType !== 'image') {
+                $message = 'Трансформации разрешены только для image-полей: ' . $logPropertyName;
+                Logger::warning('file', $message, ['property_name' => $logPropertyName, 'field_type' => $fieldType], [
+                    'initiator' => __FUNCTION__,
+                    'details' => $message,
+                ]);
+                ClassNotifications::addNotificationUser(SysClass::getCurrentUserId(), ['text' => $message, 'status' => 'warning']);
+            }
+
+            $fileData = FileSystem::safeMoveUploadedFile($matchedFile, FileSystem::getUploadPolicyForFieldType($fieldType));
+            if (!$fileData) {
+                $message = 'Файл не сохранён ' . ($matchedFile['name'] ?? '');
+                Logger::error('file', $message, ['matched_file' => $matchedFile], [
+                    'initiator' => __FUNCTION__,
+                    'details' => $message,
+                ]);
+                ClassNotifications::addNotificationUser(SysClass::getCurrentUserId(), ['text' => $message, 'status' => 'danger']);
+                continue;
+            }
+
+            $fileData['original_name'] = !empty($dataFile['original_name'])
+                ? trim((string) $dataFile['original_name'])
+                : trim((string) ($matchedFile['name'] ?? ''));
+            $fileData['user_id'] = SysClass::getCurrentUserId();
+
+            $newFileId = FileSystem::saveFileInfo($fileData);
+            if ($newFileId) {
+                $changed = true;
+                $retainedReferences[(string) $newFileId] = (string) $newFileId;
+            }
+        }
+
+        return array_values($retainedReferences);
     }
 
     private function resolveFileFieldTypeByPropertyName(string $propertyName): ?string {
@@ -749,6 +919,26 @@ trait PropertiesTrait {
             if (!is_array($names)) {
                 continue;
             }
+            $firstItem = $names === [] ? null : reset($names);
+            if (is_array($firstItem)) {
+                foreach ($names as $itemIndex => $itemNames) {
+                    if (!is_array($itemNames)) {
+                        continue;
+                    }
+                    $count = count($itemNames);
+                    for ($i = 0; $i < $count; $i++) {
+                        $grouped[$propertyName][$itemIndex][] = [
+                            'name' => $_FILES['property_data']['name'][$propertyName][$itemIndex][$i] ?? '',
+                            'type' => $_FILES['property_data']['type'][$propertyName][$itemIndex][$i] ?? '',
+                            'tmp_name' => $_FILES['property_data']['tmp_name'][$propertyName][$itemIndex][$i] ?? '',
+                            'error' => $_FILES['property_data']['error'][$propertyName][$itemIndex][$i] ?? UPLOAD_ERR_NO_FILE,
+                            'size' => $_FILES['property_data']['size'][$propertyName][$itemIndex][$i] ?? 0,
+                        ];
+                    }
+                }
+                continue;
+            }
+
             $count = count($names);
             for ($i = 0; $i < $count; $i++) {
                 $grouped[$propertyName][] = [

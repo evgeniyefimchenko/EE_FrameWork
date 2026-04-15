@@ -14,6 +14,34 @@ use classes\system\OperationResult;
  */
 class ModelPages {
 
+    private function addPrefixToPageFields(string $fragment, array $pageFields, string $prefix): string {
+        $fragment = trim($fragment);
+        if ($fragment === '') {
+            return '';
+        }
+
+        foreach ($pageFields as $field) {
+            $pattern = '/(?<![\\w\\.])' . preg_quote($field, '/') . '\\b/u';
+            $fragment = preg_replace($pattern, $prefix . $field, $fragment);
+        }
+
+        return $fragment;
+    }
+
+    private function normalizePageQueryFragment(string $fragment): string {
+        $fragment = trim($fragment);
+        if ($fragment === '') {
+            return '';
+        }
+
+        $pageFields = SysClass::ee_getFieldsTable(Constants::PAGES_TABLE);
+        foreach ($pageFields as $field) {
+            $fragment = preg_replace('/\be\.' . preg_quote($field, '/') . '\b/u', $field, $fragment);
+        }
+
+        return $this->addPrefixToPageFields($fragment, $pageFields, 'e.');
+    }
+
     /**
      * РџРѕР»СѓС‡Р°РµС‚ РґР°РЅРЅС‹Рµ РІСЃРµС… СЃС‚СЂР°РЅРёС† СЃ РІРѕР·РјРѕР¶РЅРѕСЃС‚СЊСЋ СЃРѕСЂС‚РёСЂРѕРІРєРё, С„РёР»СЊС‚СЂР°С†РёРё Рё РѕРіСЂР°РЅРёС‡РµРЅРёСЏ РєРѕР»РёС‡РµСЃС‚РІР° Р·Р°РїРёСЃРµР№
      * @param string $order РЎС‚СЂРѕРєР° СЃ СЃРѕСЂС‚РёСЂРѕРІРєРѕР№ (РЅР°РїСЂРёРјРµСЂ, 'page_id ASC')
@@ -25,11 +53,11 @@ class ModelPages {
      */
     public function getPagesData($order = 'page_id ASC', $where = null, $start = 0, $limit = 100, $language_code = ENV_DEF_LANG) {
         $start = $start ? $start : 0;
-        $order = is_string($order) ? trim($order) : '';
-        $where = is_string($where) ? trim($where) : '';
+        $order = $this->normalizePageQueryFragment(is_string($order) ? trim($order) : '');
+        $where = $this->normalizePageQueryFragment(is_string($where) ? trim($where) : '');
         // РџСЂРѕРІРµСЂРєР°, СЃРѕРґРµСЂР¶РёС‚ Р»Рё $where РёР»Рё $order type_id
         $needsJoin = str_contains($where, 'type_id') || str_contains($order, 'type_id');
-        $languageCondition = "language_code = ?s";
+        $languageCondition = "e.language_code = ?s";
         if ($where) {
             $where = "($where) AND $languageCondition";
         } else {
@@ -37,8 +65,6 @@ class ModelPages {
         }
         if ($needsJoin) {
             // Р•СЃР»Рё type_id РїСЂРёСЃСѓС‚СЃС‚РІСѓРµС‚ РІ $where РёР»Рё $order, РїСЂРёРјРµРЅСЏРµРј JOIN
-            $order = SysClass::ee_addPrefixToFields($order, SysClass::ee_getFieldsTable(Constants::PAGES_TABLE), 'e.');
-            $where = SysClass::ee_addPrefixToFields($where, SysClass::ee_getFieldsTable(Constants::PAGES_TABLE), 'e.');
             $order = str_replace('type_id', 't.type_id', $order);
             $where = str_replace('type_id', 't.type_id', $where);
             $sql_pages = "
@@ -52,9 +78,9 @@ class ModelPages {
             $res_array = SafeMySQL::gi()->getAll($sql_pages, Constants::PAGES_TABLE, Constants::CATEGORIES_TABLE, Constants::CATEGORIES_TYPES_TABLE, $language_code, $start, $limit);
         } else {
             // Р•СЃР»Рё type_id РѕС‚СЃСѓС‚СЃС‚РІСѓРµС‚, РїСЂРёРјРµРЅСЏРµРј РїСЂРѕСЃС‚РѕР№ Р·Р°РїСЂРѕСЃ
-            $normalizedWhere = preg_replace('/\b[a-zA-Z_][a-zA-Z0-9_]*\./', '', $where) ?: $where;
-            $orderString = $order ? (preg_replace('/\b[a-zA-Z_][a-zA-Z0-9_]*\./', '', $order) ?: $order) : 'page_id ASC';
-            $sql_pages = "SELECT e.page_id FROM ?n as e WHERE $normalizedWhere ORDER BY $orderString LIMIT ?i, ?i";
+            $whereString = $where ?: $languageCondition;
+            $orderString = $order ?: 'e.page_id ASC';
+            $sql_pages = "SELECT e.page_id FROM ?n AS e WHERE $whereString ORDER BY $orderString LIMIT ?i, ?i";
             $res_array = SafeMySQL::gi()->getAll($sql_pages, Constants::PAGES_TABLE, $language_code, $start, $limit);
         }
         $res = [];
@@ -70,8 +96,8 @@ class ModelPages {
             WHERE $where";
             $total_count = SafeMySQL::gi()->getOne($sql_count, Constants::PAGES_TABLE, Constants::CATEGORIES_TABLE, Constants::CATEGORIES_TYPES_TABLE, $language_code);
         } else {
-            $normalizedWhere = preg_replace('/\b[a-zA-Z_][a-zA-Z0-9_]*\./', '', $where) ?: $where;
-            $sql_count = "SELECT COUNT(*) as total_count FROM ?n WHERE $normalizedWhere";
+            $whereString = $where ?: $languageCondition;
+            $sql_count = "SELECT COUNT(*) as total_count FROM ?n AS e WHERE $whereString";
             $total_count = SafeMySQL::gi()->getOne($sql_count, Constants::PAGES_TABLE, $language_code);
         }
         return [

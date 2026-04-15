@@ -38,6 +38,15 @@
 
 Нормализует результат и показывает admin notification.
 
+### `requireAccess(array $access = [], array $options = []): bool`
+
+Единый guard controller/action-уровня:
+
+- проверяет доступ текущего пользователя;
+- умеет корректно отвечать для обычного HTTP и AJAX;
+- логирует отказ доступа;
+- поддерживает redirect и user-facing message policy через `options`.
+
 ## Router
 
 ### `setPath(string $path): void`
@@ -119,6 +128,18 @@
 ### `Hook::getAllHooks(): array`
 
 Возвращает все hooks с metadata.
+
+### Практические core hook key для auth-routing
+
+- `auth.landing_url`
+- `auth.front_landing_url`
+- `auth.route_guard`
+
+Практический смысл:
+
+- `auth.landing_url` — базовый landing URL внутри внутренних auth-flow;
+- `auth.front_landing_url` — landing URL для frontend login/activation/recovery/provider flows;
+- `auth.route_guard` — `Hook::until(...)` guard для contour isolation между `/admin`, `/manager` и `/user`.
 
 ## Users
 
@@ -388,6 +409,28 @@ Redirect и штатный error flow.
 ### `EntityPublicUrlService::buildHreflangLinks(string $entityType, int $entityId, array $availableLanguageCodes = []): array`
 
 Возвращает `canonical/hreflang`-совместимый набор ссылок для переводов сущности.
+
+## ContentApiService
+
+### `ContentApiService::getEntity(string $entityType, int $entityId, string $languageCode = ''): OperationResult`
+
+Читает категорию или страницу вместе с `properties`.
+
+### `ContentApiService::createEntity(string $entityType, array $payload): OperationResult`
+
+Создаёт категорию или страницу и затем сохраняет переданные `properties`.
+
+### `ContentApiService::updateEntity(string $entityType, int $entityId, array $payload): OperationResult`
+
+Обновляет core-поля сущности и значения её свойств.
+
+### `ContentApiService::getEntitySchema(string $entityType, array $context = []): OperationResult`
+
+Возвращает schema/template для API-создания:
+
+- для `page` нужен `category_id`;
+- для `category` нужен `type_id`;
+- в ответе приходят `entity_fields`, `entity_defaults` и `properties`.
 
 ## Константы, которые нужно помнить
 

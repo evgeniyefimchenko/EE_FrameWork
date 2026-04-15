@@ -1536,7 +1536,9 @@ use MessagesTrait,
      * Добавит необходимые стили и скрипты для подключения редактора
      */
     private function addEditorToLayout() {
+        $this->parameters_layout["add_style"] .= '<link rel="preload" href="' . ENV_URL_SITE . '/assets/editor/summernote/font/summernote.woff2" as="font" type="font/woff2" crossorigin>';
         $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="' . ENV_URL_SITE . '/assets/editor/summernote/summernote-bs5.min.css">';
+        $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="' . ENV_URL_SITE . '/assets/editor/summernote/summernote-font-display.css">';
         $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="' . ENV_URL_SITE . '/assets/js/plugins/cropper.min.css">';
         $this->parameters_layout["add_script"] .= '<script src="' . ENV_URL_SITE . '/assets/editor/summernote/summernote-bs5.min.js" type="text/javascript"></script>';
         $this->parameters_layout["add_script"] .= '<script src="' . ENV_URL_SITE . '/assets/js/plugins/cropper.min.js" type="text/javascript"></script>';

@@ -120,7 +120,9 @@ trait PagesTrait {
             }
             $saveSucceeded = false;
             if (isset($postData['title']) && $postData['title']) {
-                $postData['description'] = \classes\system\FileSystem::extractBase64Images($postData['description']);
+                if (array_key_exists('description', $postData)) {
+                    $postData['description'] = \classes\system\FileSystem::extractBase64Images((string) ($postData['description'] ?? ''));
+                }
                 $saveResult = $this->notifyOperationResult(
                     $this->models['m_pages']->updatePageData($postData, $languageCode ?: ee_get_default_content_lang_code()),
                     [

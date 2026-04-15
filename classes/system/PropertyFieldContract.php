@@ -201,9 +201,8 @@ final class PropertyFieldContract {
         $propertyName = self::normalizeDisplayText($propertyMeta['name'] ?? '');
         $required = self::toFlag($sourceItem['required'] ?? $existingItem['required'] ?? ($propertyMeta['is_required'] ?? 0));
         $repeatableProperty = self::toFlag($propertyMeta['is_multiple'] ?? 0);
-        $multiple = $repeatableProperty
-            ? 1
-            : self::resolveMultipleFlag($type, $sourceItem['multiple'] ?? $existingItem['multiple'] ?? 0);
+        $fieldMultiple = self::resolveMultipleFlag($type, $sourceItem['multiple'] ?? $existingItem['multiple'] ?? 0);
+        $multiple = $repeatableProperty ? 1 : $fieldMultiple;
         $labelFallback = self::normalizeDisplayText($sourceItem['label'] ?? $existingItem['label'] ?? $propertyName);
         $titleFallback = self::normalizeDisplayText($sourceItem['title'] ?? $existingItem['title'] ?? '');
 
@@ -214,7 +213,9 @@ final class PropertyFieldContract {
             'title' => $titleFallback,
             'required' => $required,
             'multiple' => $multiple,
+            'field_multiple' => $fieldMultiple,
             'repeatable_property' => $repeatableProperty,
+            'is_title' => self::toFlag($sourceItem['is_title'] ?? $existingItem['is_title'] ?? 0),
         ];
 
         if (self::isChoiceType($type)) {
@@ -240,7 +241,7 @@ final class PropertyFieldContract {
                 ? $storedItem['value']
                 : ($storedItem['default'] ?? ($defaultField['default'] ?? []));
             if ($repeatableProperty && $type !== 'checkbox') {
-                $runtime['value'] = self::normalizeScalarOrList($sourceValue, !empty($defaultField['multiple']));
+                $runtime['value'] = self::normalizeRepeatableChoiceValues($sourceValue, $defaultField);
                 return $runtime;
             }
             $runtime['value'] = self::normalizeChoiceValue(
@@ -255,11 +256,11 @@ final class PropertyFieldContract {
             ? $storedItem['value']
             : ($storedItem['default'] ?? ($defaultField['default'] ?? ''));
         if (in_array($type, ['file', 'image'], true)) {
-            $runtime['value'] = self::normalizeFileReferenceValue($sourceValue, !empty($defaultField['multiple']));
+            $runtime['value'] = self::normalizeFileReferenceValue($sourceValue, !empty($defaultField['multiple']), $repeatableProperty);
             return $runtime;
         }
 
-        $runtime['value'] = self::normalizeScalarOrList($sourceValue, !empty($defaultField['multiple']));
+        $runtime['value'] = self::normalizeScalarOrList($sourceValue, !empty($defaultField['multiple']), $repeatableProperty);
         return $runtime;
     }
 
@@ -278,7 +279,7 @@ final class PropertyFieldContract {
                 ? $submittedItem['value']
                 : ($submittedItem['default'] ?? ($defaultField['default'] ?? []));
             if ($repeatableProperty && $type !== 'checkbox') {
-                $normalized['value'] = self::normalizeScalarOrList($sourceValue, !empty($defaultField['multiple']));
+                $normalized['value'] = self::normalizeRepeatableChoiceValues($sourceValue, $defaultField);
                 return $normalized;
             }
             $normalized['value'] = self::normalizeChoiceValue(
@@ -293,11 +294,11 @@ final class PropertyFieldContract {
             ? $submittedItem['value']
             : ($submittedItem['default'] ?? ($defaultField['default'] ?? ''));
         if (in_array($type, ['file', 'image'], true)) {
-            $normalized['value'] = self::normalizeFileReferenceValue($sourceValue, !empty($defaultField['multiple']));
+            $normalized['value'] = self::normalizeFileReferenceValue($sourceValue, !empty($defaultField['multiple']), $repeatableProperty);
             return $normalized;
         }
 
-        $normalized['value'] = self::normalizeScalarOrList($sourceValue, !empty($defaultField['multiple']));
+        $normalized['value'] = self::normalizeScalarOrList($sourceValue, !empty($defaultField['multiple']), $repeatableProperty);
         return $normalized;
     }
 
@@ -475,7 +476,7 @@ final class PropertyFieldContract {
             if (!is_array($option)) {
                 continue;
             }
-            $key = trim((string) ($option['key'] ?? ''));
+            $key = trim((string) (($option['key'] ?? '') !== '' ? ($option['key'] ?? '') : ($option['value'] ?? '')));
             if ($key !== '') {
                 $allowedKeys[$key] = true;
             }
@@ -486,11 +487,79 @@ final class PropertyFieldContract {
             $selectedKeys = self::normalizeChoiceTokens($defaultField['default']);
         }
 
+        $selectedKeys = self::normalizeLegacyChoiceTokens($selectedKeys, (array) ($defaultField['options'] ?? []));
         $selectedKeys = array_values(array_filter($selectedKeys, static fn(string $key): bool => isset($allowedKeys[$key])));
         return self::finalizeChoiceSelection($selectedKeys, (array) ($defaultField['options'] ?? []), $type, (int) $multiple);
     }
 
-    private static function normalizeScalarOrList(mixed $value, bool $multiple): string|array {
+    private static function normalizeLegacyChoiceTokens(array $selectedKeys, array $options): array {
+        $normalized = [];
+        $allowedKeys = [];
+        $orderedOptions = [];
+
+        foreach ($options as $option) {
+            if (!is_array($option)) {
+                continue;
+            }
+            $key = trim((string) (($option['key'] ?? '') !== '' ? ($option['key'] ?? '') : ($option['value'] ?? '')));
+            if ($key === '') {
+                continue;
+            }
+            $allowedKeys[$key] = true;
+            $option['key'] = $key;
+            $orderedOptions[] = $option;
+        }
+
+        foreach ($selectedKeys as $selectedKey) {
+            $selectedKey = trim((string) $selectedKey);
+            if ($selectedKey === '') {
+                continue;
+            }
+            if (isset($allowedKeys[$selectedKey])) {
+                $normalized[] = $selectedKey;
+                continue;
+            }
+            if (ctype_digit($selectedKey)) {
+                $numericIndex = (int) $selectedKey;
+                $optionKeyVariant = 'option_' . $selectedKey;
+                if (isset($allowedKeys[$optionKeyVariant])) {
+                    $normalized[] = $optionKeyVariant;
+                    continue;
+                }
+                if ($numericIndex > 0 && isset($orderedOptions[$numericIndex - 1]['key'])) {
+                    $normalized[] = (string) $orderedOptions[$numericIndex - 1]['key'];
+                    continue;
+                }
+            }
+            if (preg_match('/^option_(\d+)$/', $selectedKey, $matches) === 1) {
+                $fallbackNumericKey = (string) ((int) $matches[1]);
+                if (isset($allowedKeys[$fallbackNumericKey])) {
+                    $normalized[] = $fallbackNumericKey;
+                }
+            }
+        }
+
+        return array_values(array_unique($normalized));
+    }
+
+    private static function normalizeRepeatableChoiceValues(mixed $sourceValue, array $defaultField): array {
+        if (!is_array($sourceValue)) {
+            $tokens = self::normalizeChoiceTokens($sourceValue);
+            $tokens = self::normalizeLegacyChoiceTokens($tokens, (array) ($defaultField['options'] ?? []));
+            return $tokens === [] ? [] : [reset($tokens)];
+        }
+
+        $normalized = [];
+        foreach ($sourceValue as $item) {
+            $tokens = self::normalizeChoiceTokens($item);
+            $tokens = self::normalizeLegacyChoiceTokens($tokens, (array) ($defaultField['options'] ?? []));
+            $normalized[] = $tokens === [] ? '' : (string) reset($tokens);
+        }
+
+        return array_values($normalized);
+    }
+
+    private static function normalizeScalarOrList(mixed $value, bool $multiple, bool $preservePositions = false): string|array {
         if ($multiple) {
             if ($value === null || $value === '') {
                 return [];
@@ -499,13 +568,13 @@ final class PropertyFieldContract {
                 return [self::normalizeScalar($value)];
             }
             if (self::containsNestedArray($value)) {
-                $normalizedTree = self::normalizeNestedScalarTree($value);
+                $normalizedTree = self::normalizeNestedScalarTree($value, $preservePositions);
                 return is_array($normalizedTree) ? $normalizedTree : [];
             }
             $normalized = [];
             foreach ($value as $item) {
                 $item = self::normalizeScalar($item);
-                if ($item !== '') {
+                if ($preservePositions || $item !== '') {
                     $normalized[] = $item;
                 }
             }
@@ -564,9 +633,9 @@ final class PropertyFieldContract {
         return array_values($tokens);
     }
 
-    private static function normalizeFileReferenceValue(mixed $value, bool $multiple): string|array {
+    private static function normalizeFileReferenceValue(mixed $value, bool $multiple, bool $preservePositions = false): string|array {
         if ($multiple && is_array($value) && self::containsNestedArray($value)) {
-            $normalizedTree = self::normalizeNestedFileReferenceTree($value);
+            $normalizedTree = self::normalizeNestedFileReferenceTree($value, $preservePositions);
             return is_array($normalizedTree) ? $normalizedTree : [];
         }
         $references = self::normalizeFileReferenceList($value);
@@ -586,15 +655,15 @@ final class PropertyFieldContract {
         return false;
     }
 
-    private static function normalizeNestedScalarTree(mixed $value): string|array {
+    private static function normalizeNestedScalarTree(mixed $value, bool $preservePositions = false): string|array {
         if (!is_array($value)) {
             return self::normalizeScalar($value);
         }
 
         $normalized = [];
         foreach ($value as $item) {
-            $normalizedItem = self::normalizeNestedScalarTree($item);
-            if ($normalizedItem === '' || $normalizedItem === []) {
+            $normalizedItem = self::normalizeNestedScalarTree($item, $preservePositions);
+            if (!$preservePositions && ($normalizedItem === '' || $normalizedItem === [])) {
                 continue;
             }
             $normalized[] = $normalizedItem;
@@ -602,7 +671,7 @@ final class PropertyFieldContract {
         return array_values($normalized);
     }
 
-    private static function normalizeNestedFileReferenceTree(mixed $value): string|array {
+    private static function normalizeNestedFileReferenceTree(mixed $value, bool $preservePositions = false): string|array {
         if (!is_array($value)) {
             $references = self::normalizeFileReferenceList($value);
             if ($references === []) {
@@ -613,8 +682,8 @@ final class PropertyFieldContract {
 
         $normalized = [];
         foreach ($value as $item) {
-            $normalizedItem = self::normalizeNestedFileReferenceTree($item);
-            if ($normalizedItem === '' || $normalizedItem === []) {
+            $normalizedItem = self::normalizeNestedFileReferenceTree($item, $preservePositions);
+            if (!$preservePositions && ($normalizedItem === '' || $normalizedItem === [])) {
                 continue;
             }
             $normalized[] = $normalizedItem;
@@ -721,7 +790,7 @@ final class PropertyFieldContract {
             if (!is_array($option)) {
                 continue;
             }
-            $key = trim((string) ($option['key'] ?? ''));
+            $key = trim((string) (($option['key'] ?? '') !== '' ? ($option['key'] ?? '') : ($option['value'] ?? '')));
             if ($key !== '') {
                 $allowedKeys[$key] = true;
             }

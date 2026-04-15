@@ -9,6 +9,8 @@
     "app-routing": "routing",
     "content": "content-model",
     "imports-json": "imports",
+    "catalog": "catalog-api",
+    "catalog-schema": "catalog-api",
     "search-filters": "cache",
     "scheduler": "cron-agents",
     "cron": "cron-agents",
@@ -139,7 +141,7 @@
         {
           "slug": "debug",
           "title": "Отладка и диагностика",
-          "summary": "show_debug, Logger, error.php и чеклисты типовых проблем.",
+          "summary": "Logger, error.php, CLI и чеклисты типовых проблем.",
           "description": "Инструменты диагностики, логи и последовательность локализации ошибок.",
           "file": "08_Debug.md",
           "icon": "fa-bug",
@@ -178,6 +180,15 @@
           "file": "99_API_Reference.md",
           "icon": "fa-code",
           "keywords": ["api", "reference", "view", "router", "hook", "users", "logger"]
+        },
+        {
+          "slug": "catalog-api",
+          "title": "Проектный API каталога",
+          "summary": "Curated schema, команда установки и payload для API создания курортов и объектов размещения.",
+          "description": "Практический пример project-level контракта для установки property schema и создания сущностей через /api/v1.",
+          "file": "13_CatalogApi.md",
+          "icon": "fa-hotel",
+          "keywords": ["catalog api", "schema", "properties", "hotel", "resort", "content api"]
         }
       ]
     }
