@@ -127,13 +127,23 @@ final class ProductLifecycleStructureService {
             $languageCode
         );
 
+        $existingRow = $propertyId > 0
+            ? (SafeMySQL::gi()->getRow(
+                'SELECT default_values FROM ?n WHERE property_id = ?i LIMIT 1',
+                Constants::PROPERTIES_TABLE,
+                $propertyId
+            ) ?: [])
+            : [];
+        $existingDefaults = json_decode((string) ($existingRow['default_values'] ?? ''), true);
+
         $result = $modelProperties->updatePropertyData([
             'property_id' => $propertyId > 0 ? $propertyId : 0,
             'type_id' => (int) $definition['type_id'],
             'name' => (string) $definition['name'],
             'status' => 'hidden',
             'sort' => (int) $definition['sort'],
-            'default_values' => $definition['default_values'],
+            // Не перетираем вручную настроенные опции lifecycle-свойств при повторной синхронизации.
+            'default_values' => is_array($existingDefaults) && $existingDefaults !== [] ? $existingDefaults : $definition['default_values'],
             'schema_version' => 1,
             'is_multiple' => !empty($definition['is_multiple']) ? 1 : 0,
             'is_required' => !empty($definition['is_required']) ? 1 : 0,
@@ -226,7 +236,7 @@ final class ProductLifecycleStructureService {
                     $languageCode
                 );
 
-                if ($existingValueId > 0 && !in_array($code, ['card_status', 'source'], true)) {
+                if ($existingValueId > 0 && $code !== 'source') {
                     continue;
                 }
 

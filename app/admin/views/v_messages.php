@@ -7,7 +7,7 @@
            class="btn btn-danger mx-1 float-end">
             <i class="fa-solid fa-trash-arrow-up"></i>&nbsp;<?= $lang['sys.delete_all'] ?>
         </a>
-        <a href="/admin/read_all_message" onclick="return confirm('<?= $lang['sys.mark_everything_as_read'] ?>');" data-bs-toggle="tooltip"
+        <a href="<?= htmlspecialchars(\classes\system\CsrfService::appendToUrl('/admin/read_all_message'), ENT_QUOTES, 'UTF-8') ?>" onclick="return confirm('<?= $lang['sys.mark_everything_as_read'] ?>');" data-bs-toggle="tooltip"
            data-bs-placement="top" title="<?= $lang['sys.mark_everything_as_read'] ?>" type="button"
            class="btn btn-info mx-1 float-end">
             <i class="fa-solid fa-check-double"></i>&nbsp;<?= $lang['sys.mark_everything_as_read'] ?>

@@ -11,6 +11,7 @@ use classes\helpers\ClassSearchEngine;
 use classes\helpers\FilterService;
 use classes\system\ErrorLogger;
 use classes\system\Constants;
+use classes\system\PropertyFieldContract;
 use classes\system\View;
 use classes\system\CacheManager;
 use classes\plugins\SafeMySQL;
@@ -29,6 +30,251 @@ if (!function_exists('ee_is_bulk_import_mode')) {
     }
 }
 
+if (!function_exists('ee_finish_http_response')) {
+    /**
+     * По возможности завершает HTTP-ответ до запуска тяжёлых shutdown-задач.
+     * Для CLI/cron ничего не делает, чтобы фоновые сценарии отрабатывали как обычно.
+     */
+    function ee_finish_http_response(): void {
+        static $finished = false;
+
+        if ($finished) {
+            return;
+        }
+
+        if (PHP_SAPI === 'cli' || PHP_SAPI === 'phpdbg') {
+            return;
+        }
+
+        $finished = true;
+
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            @session_write_close();
+        }
+
+        ignore_user_abort(true);
+
+        if (function_exists('fastcgi_finish_request')) {
+            @fastcgi_finish_request();
+            return;
+        }
+
+        while (ob_get_level() > 0) {
+            @ob_end_flush();
+        }
+
+        @flush();
+    }
+}
+
+if (!function_exists('ee_hook_before_snapshot')) {
+    /**
+     * Возвращает снапшот старых данных, если модель положила его в hook-payload.
+     */
+    function ee_hook_before_snapshot(array $payload): array {
+        $before = $payload['_hook_before'] ?? null;
+        return is_array($before) ? $before : [];
+    }
+}
+
+if (!function_exists('ee_hook_normalize_compare_value')) {
+    /**
+     * Нормализует значения для безопасного сравнения old/new без ложных срабатываний.
+     */
+    function ee_hook_normalize_compare_value(mixed $value): string {
+        if ($value === null) {
+            return '';
+        }
+        if (is_bool($value)) {
+            return $value ? '1' : '0';
+        }
+        if (is_scalar($value)) {
+            return trim((string) $value);
+        }
+
+        $encoded = json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        return is_string($encoded) ? $encoded : '';
+    }
+}
+
+if (!function_exists('ee_hook_field_changed')) {
+    function ee_hook_field_changed(array $payload, string $field): bool {
+        $before = ee_hook_before_snapshot($payload);
+        if ($before === []) {
+            return true;
+        }
+
+        $afterValue = array_key_exists($field, $payload)
+            ? $payload[$field]
+            : ($before[$field] ?? null);
+
+        return ee_hook_normalize_compare_value($before[$field] ?? null)
+            !== ee_hook_normalize_compare_value($afterValue);
+    }
+}
+
+if (!function_exists('ee_hook_any_field_changed')) {
+    /**
+     * true = либо insert/без снапшота, либо реально изменилось хотя бы одно из полей.
+     *
+     * @param array<int, string> $fields
+     */
+    function ee_hook_any_field_changed(array $payload, array $fields): bool {
+        $before = ee_hook_before_snapshot($payload);
+        if ($before === []) {
+            return true;
+        }
+
+        foreach ($fields as $field) {
+            if (ee_hook_field_changed($payload, (string) $field)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+}
+
+if (!function_exists('ee_property_hook_definition')) {
+    /**
+     * Возвращает описание свойства, нужное для решения: влияет ли оно на search/filters.
+     */
+    function ee_property_hook_definition(int $propertyId, string $languageCode = ENV_DEF_LANG): ?array {
+        static $cache = [];
+
+        $propertyId = (int) $propertyId;
+        $languageCode = strtoupper(trim($languageCode)) ?: strtoupper((string) ENV_DEF_LANG);
+        if ($propertyId <= 0) {
+            return null;
+        }
+
+        $cacheKey = $propertyId . '|' . $languageCode;
+        if (!array_key_exists($cacheKey, $cache)) {
+            $cache[$cacheKey] = SafeMySQL::gi()->getRow(
+                'SELECT p.property_id, p.language_code, p.entity_type, p.search_enabled_default, p.default_values,
+                        p.is_multiple, p.is_required, p.status, pt.fields AS type_fields
+                 FROM ?n AS p
+                 LEFT JOIN ?n AS pt
+                   ON pt.type_id = p.type_id
+                  AND pt.language_code = p.language_code
+                 WHERE p.property_id = ?i
+                   AND p.language_code = ?s
+                 LIMIT 1',
+                Constants::PROPERTIES_TABLE,
+                Constants::PROPERTY_TYPES_TABLE,
+                $propertyId,
+                $languageCode
+            ) ?: null;
+        }
+
+        return is_array($cache[$cacheKey]) ? $cache[$cacheKey] : null;
+    }
+}
+
+if (!function_exists('ee_property_hook_schema_fields')) {
+    /**
+     * Возвращает нормализованную схему полей свойства без привязки к конкретному значению.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    function ee_property_hook_schema_fields(array $propertyRow): array {
+        static $cache = [];
+
+        $propertyId = (int) ($propertyRow['property_id'] ?? 0);
+        $languageCode = strtoupper(trim((string) ($propertyRow['language_code'] ?? ENV_DEF_LANG))) ?: strtoupper((string) ENV_DEF_LANG);
+        $cacheKey = $propertyId . '|' . $languageCode;
+        if (!array_key_exists($cacheKey, $cache)) {
+            $cache[$cacheKey] = PropertyFieldContract::normalizeDefaultFieldsForStorage(
+                $propertyRow['default_values'] ?? [],
+                $propertyRow['type_fields'] ?? [],
+                $propertyRow,
+                $propertyRow['default_values'] ?? []
+            );
+        }
+
+        return is_array($cache[$cacheKey]) ? $cache[$cacheKey] : [];
+    }
+}
+
+if (!function_exists('ee_property_hook_affects_search')) {
+    /**
+     * true, если структура свойства вообще может попасть в поисковый индекс.
+     */
+    function ee_property_hook_affects_search(array $propertyRow): bool {
+        if ((int) ($propertyRow['search_enabled_default'] ?? 1) !== 1) {
+            return false;
+        }
+
+        static $searchableTypes = [
+            'text',
+            'number',
+            'date',
+            'time',
+            'datetime-local',
+            'email',
+            'phone',
+            'textarea',
+            'select',
+            'checkbox',
+            'radio',
+        ];
+
+        foreach (ee_property_hook_schema_fields($propertyRow) as $field) {
+            $fieldType = strtolower(trim((string) ($field['type'] ?? '')));
+            if (in_array($fieldType, $searchableTypes, true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+}
+
+if (!function_exists('ee_property_hook_affects_filters')) {
+    /**
+     * true, если структура свойства влияет на materialized-фильтры категорий.
+     */
+    function ee_property_hook_affects_filters(array $propertyRow): bool {
+        static $filterTypes = ['select', 'checkbox', 'radio', 'number', 'date', 'time', 'datetime-local'];
+
+        foreach (ee_property_hook_schema_fields($propertyRow) as $field) {
+            $fieldType = strtolower(trim((string) ($field['type'] ?? '')));
+            if (in_array($fieldType, $filterTypes, true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+}
+
+if (!function_exists('ee_page_hook_context')) {
+    /**
+     * Возвращает только тот контекст страницы, который нужен property-hooks.
+     */
+    function ee_page_hook_context(int $pageId): ?array {
+        static $cache = [];
+
+        $pageId = (int) $pageId;
+        if ($pageId <= 0) {
+            return null;
+        }
+
+        if (!array_key_exists($pageId, $cache)) {
+            $cache[$pageId] = SafeMySQL::gi()->getRow(
+                'SELECT category_id, language_code, status
+                 FROM ?n
+                 WHERE page_id = ?i
+                 LIMIT 1',
+                Constants::PAGES_TABLE,
+                $pageId
+            ) ?: null;
+        }
+
+        return is_array($cache[$pageId]) ? $cache[$pageId] : null;
+    }
+}
+
 /**
  * Вызывается перед получением стандартных представлений в контроллере
  * @param View $view Объект представления
@@ -44,7 +290,7 @@ ee_add_core_hook('A_beforeGetStandardViews', 'beforeGetStandardViewsHandler');
 ee_add_core_hook('afterUpdateCategoryData', 'afterUpdateCategoryDataHandler'); // Для синхронизации свойств при смене типа
 ee_add_core_hook('afterUpdateCategoryData', 'createSearchIndexCategory'); // Для поисковой индексации
 ee_add_core_hook('afterUpdateCategoryData', 'afterUpdateCategoryFiltersHandler'); // Для пересчета materialized-фильтров
-ee_add_core_hook('afterUpdateCategoryData', 'clearPublicHtmlCacheAfterContentMutation', 50);
+ee_add_core_hook('afterUpdateCategoryData', 'afterUpdateCategoryCacheHandler', 50);
 
 /**
  * Вызывается ПОСЛЕ удаления категории (предполагается из ModelCategories::deleteCategory)
@@ -65,7 +311,7 @@ ee_add_core_hook('afterDeleteCategory', 'clearPublicHtmlCacheAfterContentMutatio
 ee_add_core_hook('afterUpdatePageData', 'createSearchIndexPage');
 ee_add_core_hook('afterUpdatePageData', 'afterUpdatePageDataHandler'); // Для синхронизации свойств при смене категории страницы
 ee_add_core_hook('afterUpdatePageData', 'afterUpdatePageFiltersHandler'); // Для пересчета materialized-фильтров
-ee_add_core_hook('afterUpdatePageData', 'clearPublicHtmlCacheAfterContentMutation', 50);
+ee_add_core_hook('afterUpdatePageData', 'afterUpdatePageCacheHandler', 50);
 
 /**
  * Вызывается ПОСЛЕ удаления страницы (предполагается из ModelPages::deletePage)
@@ -151,6 +397,7 @@ function scheduleSearchEntityReindex(string $entityType, int $entityId, ?string 
         if (empty($queue)) {
             return;
         }
+        ee_finish_http_response();
         try {
             $searchEngine = new ClassSearchEngine();
             foreach ($queue as $task) {
@@ -212,6 +459,7 @@ function scheduleSearchBranchReindex(array|int $categoryIds, ?string $languageCo
             return;
         }
 
+        ee_finish_http_response();
         try {
             $searchEngine = new ClassSearchEngine();
             $objectModelCategories = SysClass::getModelObject('admin', 'm_categories');
@@ -363,6 +611,7 @@ function scheduleCategoryFiltersRefresh(array|int $categoryIds, ?string $languag
             return;
         }
 
+        ee_finish_http_response();
         try {
             $service = new FilterService();
             $grouped = [];
@@ -407,6 +656,7 @@ function schedulePublicHtmlCacheClear(string $reason = 'content_mutation', array
     }
 
     register_shutdown_function(static function () use (&$reasons): void {
+        ee_finish_http_response();
         try {
             CacheManager::clearHtmlCache();
         } catch (\Throwable $e) {
@@ -633,21 +883,42 @@ function postUpdatePropertiesValueHandler(int $valueId, array $propertyData, str
     if ($entityId <= 0 || !in_array($entityType, ['page', 'category'], true)) {
         return;
     }
-    $languageCode = $propertyData['language_code'] ?? ENV_DEF_LANG;
-    scheduleSearchEntityReindex($entityType, $entityId, $languageCode);
 
-    if ($entityType !== 'page') {
+    $propertyId = (int) ($propertyData['property_id'] ?? 0);
+    if ($propertyId <= 0) {
         return;
     }
 
-    $pageRow = SafeMySQL::gi()->getRow(
-        'SELECT category_id, language_code FROM ?n WHERE page_id = ?i LIMIT 1',
-        Constants::PAGES_TABLE,
-        $entityId
-    );
+    $languageCode = strtoupper(trim((string) ($propertyData['language_code'] ?? ENV_DEF_LANG))) ?: strtoupper((string) ENV_DEF_LANG);
+    $propertyRow = ee_property_hook_definition($propertyId, $languageCode);
+    if ($propertyRow === null || strtolower(trim((string) ($propertyRow['status'] ?? 'active'))) !== 'active') {
+        return;
+    }
+
+    $shouldReindexSearch = ee_property_hook_affects_search($propertyRow);
+    $shouldRefreshFilters = $entityType === 'page' && ee_property_hook_affects_filters($propertyRow);
+
+    if (!$shouldReindexSearch && !$shouldRefreshFilters) {
+        return;
+    }
+
+    if ($shouldReindexSearch) {
+        scheduleSearchEntityReindex($entityType, $entityId, $languageCode);
+    }
+
+    if (!$shouldRefreshFilters) {
+        return;
+    }
+
+    $pageRow = ee_page_hook_context($entityId);
+    if ($pageRow === null) {
+        return;
+    }
+
     $categoryId = (int) ($pageRow['category_id'] ?? 0);
+    $pageStatus = strtolower(trim((string) ($pageRow['status'] ?? '')));
     $languageCode = (string) ($pageRow['language_code'] ?? $languageCode);
-    if ($categoryId > 0) {
+    if ($categoryId > 0 && $pageStatus === 'active') {
         scheduleCategoryFiltersRefresh([$categoryId], $languageCode);
     }
 }
@@ -763,17 +1034,20 @@ function afterUpdatePageFiltersHandler(int $pageId, array $pageData, string $met
     }
 
     $languageCode = (string) ($pageData['language_code'] ?? ENV_DEF_LANG);
-    $categoryIds = [];
     $newCategoryId = (int) ($pageData['category_id'] ?? 0);
-    $oldCategoryId = (int) ($pageData['old_category_id'] ?? 0);
-    if ($newCategoryId > 0) {
-        $categoryIds[] = $newCategoryId;
+    $before = ee_hook_before_snapshot($pageData);
+    $oldCategoryId = (int) ($before['category_id'] ?? ($pageData['old_category_id'] ?? 0));
+    $oldLanguageCode = (string) ($before['language_code'] ?? $languageCode);
+
+    if ($method === 'update' && !ee_hook_any_field_changed($pageData, ['category_id', 'status', 'language_code'])) {
+        return;
     }
+
     if ($oldCategoryId > 0) {
-        $categoryIds[] = $oldCategoryId;
+        scheduleCategoryFiltersRefresh([$oldCategoryId], $oldLanguageCode);
     }
-    if ($categoryIds !== []) {
-        scheduleCategoryFiltersRefresh($categoryIds, $languageCode);
+    if ($newCategoryId > 0) {
+        scheduleCategoryFiltersRefresh([$newCategoryId], $languageCode);
     }
 }
 
@@ -786,16 +1060,24 @@ function afterUpdateCategoryFiltersHandler(int $categoryId, array $categoryData,
     }
 
     $languageCode = (string) ($categoryData['language_code'] ?? ENV_DEF_LANG);
-    $categoryIds = [$categoryId];
-    $oldParentId = (int) ($categoryData['old_parent_id'] ?? 0);
+    $before = ee_hook_before_snapshot($categoryData);
+    $oldLanguageCode = (string) ($before['language_code'] ?? $languageCode);
+    $oldParentId = (int) ($before['parent_id'] ?? ($categoryData['old_parent_id'] ?? 0));
     $newParentId = (int) ($categoryData['parent_id'] ?? 0);
-    if ($oldParentId > 0) {
-        $categoryIds[] = $oldParentId;
+
+    if ($method === 'update' && !ee_hook_any_field_changed($categoryData, ['parent_id', 'language_code'])) {
+        return;
     }
-    if ($newParentId > 0) {
-        $categoryIds[] = $newParentId;
+
+    $oldCategoryTargets = array_values(array_unique(array_filter([$categoryId, $oldParentId], static fn($id): bool => (int) $id > 0)));
+    $newCategoryTargets = array_values(array_unique(array_filter([$categoryId, $newParentId], static fn($id): bool => (int) $id > 0)));
+
+    if ($oldCategoryTargets !== []) {
+        scheduleCategoryFiltersRefresh($oldCategoryTargets, $oldLanguageCode);
     }
-    scheduleCategoryFiltersRefresh($categoryIds, $languageCode);
+    if ($newCategoryTargets !== []) {
+        scheduleCategoryFiltersRefresh($newCategoryTargets, $languageCode);
+    }
 }
 
 /**
@@ -805,13 +1087,83 @@ function createSearchIndexCategory(int $categoryId, array $categoryData, string 
     if ($categoryId <= 0) {
         return;
     }
+
     try {
-        scheduleSearchBranchReindex([$categoryId], $categoryData['language_code'] ?? ENV_DEF_LANG);
+        $languageCode = (string) ($categoryData['language_code'] ?? ENV_DEF_LANG);
+        $searchOwnFields = ['title', 'short_description', 'description', 'status', 'search_enabled', 'search_scope_mask'];
+        $branchFields = ['parent_id', 'slug', 'route_path', 'language_code'];
+        $needsBranchReindex = $method === 'insert' || ee_hook_any_field_changed($categoryData, $branchFields);
+        $needsOwnReindex = $method === 'insert' || ee_hook_any_field_changed($categoryData, $searchOwnFields);
+
+        if (!$needsBranchReindex && !$needsOwnReindex) {
+            return;
+        }
+
+        if ($method === 'update' && ee_hook_field_changed($categoryData, 'language_code')) {
+            $searchEngine = new ClassSearchEngine();
+            $searchEngine->removeIndexEntry('category', $categoryId);
+        }
+
+        if ($needsBranchReindex) {
+            scheduleSearchBranchReindex([$categoryId], $languageCode);
+            return;
+        }
+
+        scheduleSearchEntityReindex('category', $categoryId, $languageCode);
     } catch (\Throwable $e) {
         new ErrorLogger('Hook error (createSearchIndexCategory): ' . $e->getMessage(), __FUNCTION__, 'hook_error', [
             'category_id' => $categoryId, 'method' => $method, 'trace' => $e->getTraceAsString()
         ]);
     }
+}
+
+/**
+ * Очищает публичный HTML cache только при реальных публично-значимых изменениях страницы.
+ */
+function afterUpdatePageCacheHandler(int $pageId, array $pageData, string $method): void {
+    if ($pageId <= 0 || !in_array($method, ['insert', 'update'], true)) {
+        return;
+    }
+
+    if ($method === 'update' && !ee_hook_any_field_changed($pageData, [
+        'title',
+        'short_description',
+        'description',
+        'status',
+        'category_id',
+        'slug',
+        'route_path',
+        'language_code',
+    ])) {
+        return;
+    }
+
+    clearPublicHtmlCacheAfterContentMutation($pageId, $pageData, $method);
+}
+
+/**
+ * Очищает публичный HTML cache только при реальных публично-значимых изменениях категории.
+ */
+function afterUpdateCategoryCacheHandler(int $categoryId, array $categoryData, string $method): void {
+    if ($categoryId <= 0 || !in_array($method, ['insert', 'update'], true)) {
+        return;
+    }
+
+    if ($method === 'update' && !ee_hook_any_field_changed($categoryData, [
+        'title',
+        'short_description',
+        'description',
+        'status',
+        'parent_id',
+        'type_id',
+        'slug',
+        'route_path',
+        'language_code',
+    ])) {
+        return;
+    }
+
+    clearPublicHtmlCacheAfterContentMutation($categoryId, $categoryData, $method);
 }
 
 /**
@@ -866,8 +1218,30 @@ function createSearchIndexPage(int $pageId, array $pageData, string $method): vo
     if ($pageId <= 0) {
         return;
     }
+
     try {
-        scheduleSearchEntityReindex('page', $pageId, $pageData['language_code'] ?? ENV_DEF_LANG);
+        $languageCode = (string) ($pageData['language_code'] ?? ENV_DEF_LANG);
+        if ($method === 'update' && !ee_hook_any_field_changed($pageData, [
+            'title',
+            'short_description',
+            'description',
+            'status',
+            'category_id',
+            'slug',
+            'route_path',
+            'search_enabled',
+            'search_scope_mask',
+            'language_code',
+        ])) {
+            return;
+        }
+
+        if ($method === 'update' && ee_hook_field_changed($pageData, 'language_code')) {
+            $searchEngine = new ClassSearchEngine();
+            $searchEngine->removeIndexEntry('page', $pageId);
+        }
+
+        scheduleSearchEntityReindex('page', $pageId, $languageCode);
     } catch (\Throwable $e) {
         new ErrorLogger('Hook error (createSearchIndexPage): ' . $e->getMessage(), __FUNCTION__, 'hook_error', [
             'page_id' => $pageId, 'method' => $method, 'trace' => $e->getTraceAsString()

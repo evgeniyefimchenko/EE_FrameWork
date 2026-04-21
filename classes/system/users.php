@@ -876,6 +876,7 @@ class Users {
             'deleted' => $this->langValue('sys.account_deleted', $this->langValue('sys.no_access', 'Access denied.')),
             'password_setup_required' => $this->langValue('sys.password_setup_link_sent', $this->langValue('sys.verify_email', 'Check your email.')),
             'password_setup_mail_failed' => $this->langValue('sys.password_setup_mail_failed', $this->langValue('sys.email_sending_error', 'Email sending error.')),
+            'imported_user_registration_required' => $this->langValue('sys.imported_user_registration_required', 'Complete registration with the same email to activate the migrated account.'),
             'invalid_credentials', 'user_not_found' => $this->langValue('sys.invalid_login_or_password', 'Invalid login or password.'),
             'temporarily_locked' => $this->langValue('sys.account_temporarily_locked', 'Too many failed attempts. Try again later.'),
             default => $this->langValue('sys.error', 'Error'),

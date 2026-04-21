@@ -337,6 +337,7 @@ const AppCore = (function () {
 })();
 
 // Инициализация приложения
+window.AppCore = AppCore;
 AppCore.init();
 AppCore.summernoteParams = {
     height: 300,

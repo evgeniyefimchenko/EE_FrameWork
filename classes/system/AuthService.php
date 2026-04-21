@@ -84,6 +84,14 @@ class AuthService {
         $credential = $this->getPasswordCredential((int) $user['user_id']);
         $mustSetPassword = !empty($credential['must_set_password']) || trim((string) ($credential['password_hash'] ?? '')) === '';
         if ($mustSetPassword) {
+            $registrationState = $this->getPublicRegistrationStateByUserRow($user, $credential);
+            if (($registrationState['status'] ?? '') === 'imported_pending_claim') {
+                return [
+                    'status' => 'imported_user_registration_required',
+                    'user_id' => (int) $user['user_id'],
+                    'email' => $email,
+                ];
+            }
             $challenge = AuthChallengeService::createChallenge(
                 (int) $user['user_id'],
                 'password_setup',
@@ -109,6 +117,67 @@ class AuthService {
         $this->clearPasswordCredentialFailures($credential);
         AuthSessionService::establishSession((int) $user['user_id']);
         return ['status' => 'success', 'user_id' => (int) $user['user_id']];
+    }
+
+    public function getPublicRegistrationStateByEmail(string $email): array {
+        self::ensureInfrastructure();
+
+        $email = trim($email);
+        if ($email === '') {
+            return ['status' => 'invalid_email'];
+        }
+
+        $user = $this->getUserByEmail($email, true);
+        if (!$user) {
+            return ['status' => 'available'];
+        }
+
+        $credential = $this->getPasswordCredential((int) ($user['user_id'] ?? 0));
+        return $this->getPublicRegistrationStateByUserRow($user, $credential);
+    }
+
+    public function completeImportedUserRegistration(string $email, string $password, array $profile = []): array {
+        self::ensureInfrastructure();
+
+        $email = trim($email);
+        if ($email === '') {
+            return ['status' => 'invalid_email'];
+        }
+        if (LegalConsentService::getMissingRequiredKeys($profile) !== []) {
+            return ['status' => 'consent_required'];
+        }
+
+        $user = $this->getUserByEmail($email, true);
+        if (!$user) {
+            return ['status' => 'user_not_found'];
+        }
+
+        $credential = $this->getPasswordCredential((int) ($user['user_id'] ?? 0));
+        $state = $this->getPublicRegistrationStateByUserRow($user, $credential);
+        if (($state['status'] ?? '') !== 'imported_pending_claim') {
+            return ['status' => (string) ($state['status'] ?? 'email_taken'), 'user_id' => (int) ($user['user_id'] ?? 0)];
+        }
+
+        $userId = (int) ($user['user_id'] ?? 0);
+        if ($userId <= 0) {
+            return ['status' => 'user_not_found'];
+        }
+
+        $storagePayload = LegalConsentService::buildStoragePayload($profile, [], 'imported_user_claim');
+        SafeMySQL::gi()->query(
+            'UPDATE ?n SET active = 2, deleted = 0, subscribed = ?i, ?u, updated_at = NOW() WHERE user_id = ?i',
+            Constants::USERS_TABLE,
+            isset($profile['subscribed']) ? (int) (bool) $profile['subscribed'] : (int) ($user['subscribed'] ?? 0),
+            $storagePayload,
+            $userId
+        );
+
+        $this->setPasswordForUser($userId, $password);
+        $this->markUserRequiresPasswordSetup($userId, false, '');
+        AuthChallengeService::invalidateUserChallenges($userId, ['password_setup', 'activation', 'recovery']);
+        AuthSessionService::establishSession($userId);
+
+        return ['status' => 'imported_user_claimed', 'user_id' => $userId];
     }
 
     public function registerLocalUser(string $email, string $password, array $profile = []): array {
@@ -797,6 +866,36 @@ class AuthService {
         $rawOptions = SafeMySQL::gi()->getOne('SELECT options FROM ?n WHERE user_id = ?i', Constants::USERS_DATA_TABLE, $userId);
         $options = self::decodeJsonPayload($rawOptions);
         return self::mergeOptionsRecursive(self::buildDefaultUserOptions(), $options);
+    }
+
+    private function getPublicRegistrationStateByUserRow(array $user, array $credential = []): array {
+        $userId = (int) ($user['user_id'] ?? 0);
+        if ($userId <= 0) {
+            return ['status' => 'user_not_found'];
+        }
+
+        if ((int) ($user['deleted'] ?? 0) === 1) {
+            return ['status' => 'deleted', 'user_id' => $userId];
+        }
+
+        if ((int) ($user['active'] ?? 0) === 3) {
+            return ['status' => 'blocked', 'user_id' => $userId];
+        }
+
+        $options = $this->getUserOptions($userId);
+        $reason = trim((string) ($options['auth']['password_setup_reason'] ?? ''));
+        $mustSetPassword = !empty($credential['must_set_password']) || !empty($options['auth']['require_password_setup']);
+        $isImportedWordpressUser = !empty($options['migration']['wordpress']['source_id']) || $reason === 'wp_migration';
+
+        if ($isImportedWordpressUser && $mustSetPassword) {
+            return [
+                'status' => 'imported_pending_claim',
+                'user_id' => $userId,
+                'email' => (string) ($user['email'] ?? ''),
+            ];
+        }
+
+        return ['status' => 'email_taken', 'user_id' => $userId];
     }
 
     private function touchPasswordSetupPrompt(int $userId, string $reason): void {

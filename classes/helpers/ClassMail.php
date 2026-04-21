@@ -6,6 +6,7 @@ use PHPMailer\PHPMailer\PHPMailer;
 use classes\system\SysClass;
 use classes\system\Constants;
 use classes\system\Logger;
+use classes\system\Users;
 
 /**
  * Класс для работы с почтой.
@@ -147,6 +148,42 @@ class ClassMail {
     public static function sendMail(mixed $to, string $subject = '', string|false $template = false, array $fields = []): bool {
         $mailer = new self();
         return $mailer->send($to, $subject, $fields, $template);
+    }
+
+    /**
+     * Отправляет HTML-письмо без использования шаблона из базы.
+     */
+    public static function sendHtmlMail(mixed $to, string $subject, string $htmlBody): bool {
+        try {
+            $mailer = new self();
+            $email = $mailer->resolveEmail($to);
+            if (!SysClass::validEmail($email)) {
+                Logger::warning('mail_error', 'Invalid email address for raw html send', [
+                    'email' => $email,
+                    'subject' => $subject,
+                ], [
+                    'initiator' => __METHOD__,
+                    'details' => $email,
+                    'include_trace' => false,
+                ]);
+                return false;
+            }
+
+            $mailer->prepareEmail($email, trim($subject), $htmlBody);
+            $mailer->mail_class->send();
+            return true;
+        } catch (\Throwable $e) {
+            Logger::error('mail_error', 'Raw html mail send error', [
+                'message' => $e->getMessage(),
+                'to' => $to,
+                'subject' => $subject,
+            ], [
+                'initiator' => __METHOD__,
+                'details' => $e->getMessage(),
+                'include_trace' => false,
+            ]);
+            return false;
+        }
     }
 
     /**

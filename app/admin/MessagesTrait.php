@@ -62,6 +62,16 @@ trait MessagesTrait {
         }
         $this->loadModel('m_messages');
         $postData = SysClass::ee_cleanArray($_POST);
+        $sourceOptions = [
+            ['value' => 'system', 'label' => 'Система'],
+            ['value' => 'payment', 'label' => 'Оплата'],
+            ['value' => 'invoice', 'label' => 'Счета'],
+            ['value' => 'billing', 'label' => 'Биллинг'],
+            ['value' => 'object', 'label' => 'Объект'],
+            ['value' => 'owner_object', 'label' => 'Заявка владельца'],
+            ['value' => 'placement', 'label' => 'Размещение'],
+            ['value' => 'review', 'label' => 'Отзывы'],
+        ];
         $data_table = [
             'columns' => [
                 [
@@ -74,6 +84,16 @@ trait MessagesTrait {
                 ], [
                     'field' => 'author_id',
                     'title' => $this->lang['sys.author'],
+                    'sorted' => 'ASC',
+                    'filterable' => true
+                ], [
+                    'field' => 'title',
+                    'title' => (string) ($this->lang['sys.title'] ?? 'Заголовок'),
+                    'sorted' => 'ASC',
+                    'filterable' => true
+                ], [
+                    'field' => 'source_type',
+                    'title' => (string) ($this->lang['sys.type'] ?? 'Тип'),
                     'sorted' => 'ASC',
                     'filterable' => true
                 ], [
@@ -124,6 +144,20 @@ trait MessagesTrait {
                 'value' => '',
                 'label' => $this->lang['sys.message']
             ],
+            'title' => [
+                'type' => 'text',
+                'id' => "title",
+                'value' => '',
+                'label' => (string) ($this->lang['sys.title'] ?? 'Заголовок')
+            ],
+            'source_type' => [
+                'type' => 'select',
+                'id' => 'source_type',
+                'value' => [],
+                'label' => (string) ($this->lang['sys.type'] ?? 'Тип'),
+                'options' => $sourceOptions,
+                'multiple' => true
+            ],
             'created_at' => [
                 'type' => 'date',
                 'id' => "created_at",
@@ -148,19 +182,37 @@ trait MessagesTrait {
         }
         foreach ($messages_array['data'] as $item) {
             $actions = '';
+            $title = trim((string) ($item['title'] ?? ''));
+            $sourceType = trim((string) ($item['source_type'] ?? 'system'));
+            $sourceLabel = match ($sourceType) {
+                'payment', 'billing', 'invoice' => 'Оплата',
+                'object', 'owner_object', 'placement' => 'Объект',
+                'review' => 'Отзывы',
+                default => 'Система',
+            };
+            $openUrl = trim((string) ($item['url'] ?? ''));
             if ($this->logged_in == $user_id) {
                 $read_at = $item['read_at'] ? '<span class="p-3"><i class="fa-solid fa-check text-success" data-bs-toggle="tooltip" data-bs-placement="top"'
                         . 'title="' . $this->lang['sys.read'] . '"></i></span>' :
-                        '<a href="/admin/set_readed/id/' . $item['message_id'] . '"'
+                        '<a href="' . htmlspecialchars(\classes\system\CsrfService::appendToUrl('/admin/set_readed/id/' . $item['message_id']), ENT_QUOTES, 'UTF-8') . '"'
                         . 'class="btn btn-info me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.mark_as_read'] . '">'
                         . '<i class="fa-regular fa-eye"></i></a>';
-                $actions = $read_at . '<a href="/admin/dell_message/id/' . $item['message_id'] . '" onclick="return confirm(\'' . $this->lang['sys.delete'] . '?\');" ' 
+                $actions = $read_at;
+                if ($openUrl !== '') {
+                    $actions .= '<a href="' . htmlspecialchars($openUrl, ENT_QUOTES, 'UTF-8') . '" class="btn btn-secondary me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . htmlspecialchars((string) ($this->lang['sys.open'] ?? 'Открыть'), ENT_QUOTES, 'UTF-8') . '"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>';
+                }
+                $actions .= '<a href="' . htmlspecialchars(\classes\system\CsrfService::appendToUrl('/admin/dell_message/id/' . $item['message_id']), ENT_QUOTES, 'UTF-8') . '" onclick="return confirm(\'' . $this->lang['sys.delete'] . '?\');" ' 
                         . 'class="btn btn-danger me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.delete'] . '"><i class="fas fa-trash"></i></a>';
             } else { // Нельзя удалить или пометить прочитанными чужие сообщения
+                if ($openUrl !== '') {
+                    $actions = '<a href="' . htmlspecialchars($openUrl, ENT_QUOTES, 'UTF-8') . '" class="btn btn-secondary me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . htmlspecialchars((string) ($this->lang['sys.open'] ?? 'Открыть'), ENT_QUOTES, 'UTF-8') . '"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>';
+                }
             }
             $data_table['rows'][] = [
                 'message_id' => $item['message_id'],
-                'author_id' => $item['author_id'],
+                'author_id' => trim((string) ($item['author_name'] ?? '')) !== '' ? $item['author_name'] : $item['author_id'],
+                'title' => $title !== '' ? SysClass::truncateString($title, 40) : '—',
+                'source_type' => $sourceLabel,
                 'message_text' => SysClass::truncateString($item['message_text'], 20),
                 'status' => $item['status'],
                 'created_at' => date('d.m.Y h:i:s', strtotime($item['created_at'])),
@@ -168,10 +220,18 @@ trait MessagesTrait {
                 'actions' => $actions,
                 'nested_table' => [
                     'columns' => [
+                        ['field' => 'message_title', 'title' => (string) ($this->lang['sys.title'] ?? 'Заголовок'), 'width' => 20, 'align' => 'left'],
+                        ['field' => 'message_source', 'title' => (string) ($this->lang['sys.type'] ?? 'Тип'), 'width' => 15, 'align' => 'left'],
+                        ['field' => 'message_link', 'title' => (string) ($this->lang['sys.link'] ?? 'Ссылка'), 'width' => 20, 'align' => 'left'],
                         ['field' => 'message_full_text', 'title' => $this->lang['sys.content'], 'width' => 20, 'align' => 'left'],
                     ],
                     'rows' => [
-                        ['message_full_text' => $item['message_text']],
+                        [
+                            'message_title' => $title !== '' ? $title : '—',
+                            'message_source' => $sourceLabel,
+                            'message_link' => $openUrl !== '' ? '<a href="' . htmlspecialchars($openUrl, ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($openUrl, ENT_QUOTES, 'UTF-8') . '</a>' : '—',
+                            'message_full_text' => $item['message_text'],
+                        ],
                     ],
                 ]                
             ];
@@ -229,6 +289,12 @@ trait MessagesTrait {
             SysClass::handleRedirect(401);
             exit();
         }
+        if (!$this->requireCsrfRequest([
+            'initiator' => __METHOD__,
+            'redirect' => '/admin/messages',
+        ])) {
+            return;
+        }
         $keyId = array_search('id', (array) $params, true);
         if ($keyId !== false && isset($params[$keyId + 1])) {
             $message_id = filter_var($params[$keyId + 1], FILTER_VALIDATE_INT);
@@ -250,6 +316,12 @@ trait MessagesTrait {
             SysClass::handleRedirect(401);
             exit();
         }
+        if (!$this->requireCsrfRequest([
+            'initiator' => __METHOD__,
+            'redirect' => '/admin/messages',
+        ])) {
+            return;
+        }
         $this->loadModel('m_messages');
         $this->models['m_messages']->read_all($this->logged_in);
         SysClass::handleRedirect(200, '/admin/messages');
@@ -264,6 +336,12 @@ trait MessagesTrait {
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect(401);
             exit();
+        }
+        if (!$this->requireCsrfRequest([
+            'initiator' => __METHOD__,
+            'redirect' => '/admin/messages',
+        ])) {
+            return;
         }
         $keyId = array_search('id', (array) $params, true);
         if ($keyId !== false && isset($params[$keyId + 1])) {

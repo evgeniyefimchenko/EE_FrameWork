@@ -11,11 +11,12 @@ use classes\system\SysClass;
 class ModelMessages {
     
     public function get_user_messages($user_id, $order = 'created_at DESC', $where = NULL, $start = 0, $limit = 100) {
-        $orderString = $order ?: 'created_at DESC';
+        $order = is_string($order) ? $order : '';
+        $where = is_string($where) ? $where : '';
         $start = $start ?: 0;
-        $needsJoin = strpos($where, 'author_id') !== false || strpos($order, 'author_id') !== false;
         $order = SysClass::ee_addPrefixToFields($order, SysClass::ee_getFieldsTable(Constants::USERS_MESSAGE_TABLE), 'm.');
         $where = SysClass::ee_addPrefixToFields($where, SysClass::ee_getFieldsTable(Constants::USERS_MESSAGE_TABLE), 'm.');
+        $orderString = trim($order) !== '' ? $order : 'm.created_at DESC';
         $whereString = $where ? "$where AND " : "";
         if (is_array($user_id)) {
            $whereString .= "m.user_id IN ?a"; 

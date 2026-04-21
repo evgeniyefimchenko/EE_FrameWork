@@ -76,6 +76,40 @@
             }
         }
 
+        function ensureCropperModal() {
+            if ($('#eeCropperModal').length) {
+                return;
+            }
+            var modalHtml = '' +
+                '<div class="modal fade" id="eeCropperModal" tabindex="-1" aria-hidden="true">' +
+                '  <div class="modal-dialog modal-xl modal-dialog-centered">' +
+                '    <div class="modal-content">' +
+                '      <div class="modal-header">' +
+                '        <h5 class="modal-title">Редактирование изображения</h5>' +
+                '        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>' +
+                '      </div>' +
+                '      <div class="modal-body">' +
+                '        <div class="ee-cropper-stage text-center" style="max-height:70vh; overflow:hidden;">' +
+                '          <img id="eeCropperImage" alt="crop" style="max-width:100%; display:block; margin:0 auto;" />' +
+                '        </div>' +
+                '        <div class="d-flex flex-wrap gap-2 mt-3">' +
+                '          <button type="button" class="btn btn-sm btn-outline-secondary" data-cropper-action="rotate-90">↻ 90°</button>' +
+                '          <button type="button" class="btn btn-sm btn-outline-secondary" data-cropper-action="rotate--90">↺ 90°</button>' +
+                '          <button type="button" class="btn btn-sm btn-outline-secondary" data-cropper-action="flip-h">Отразить H</button>' +
+                '          <button type="button" class="btn btn-sm btn-outline-secondary" data-cropper-action="flip-v">Отразить V</button>' +
+                '          <button type="button" class="btn btn-sm btn-outline-secondary" data-cropper-action="reset">Сброс</button>' +
+                '        </div>' +
+                '      </div>' +
+                '      <div class="modal-footer">' +
+                '        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>' +
+                '        <button type="button" class="btn btn-primary" id="eeCropperApply">Применить</button>' +
+                '      </div>' +
+                '    </div>' +
+                '  </div>' +
+                '</div>';
+            $('body').append(modalHtml);
+        }
+
         // Настройки по умолчанию Не используются!
         var settings = $.extend({
             // Добавьте здесь настройки по умолчанию, если необходимо
@@ -86,6 +120,14 @@
             var inputName = $input.attr('name') || '';
             var propertyMatch = inputName.match(/\[([^[\]]*)\]/);
             var property_name = propertyMatch ? propertyMatch[1] : inputName;
+            var bracketMatches = inputName.match(/\[([^[\]]*)\]/g) || [];
+            var itemIndex = null;
+            if (bracketMatches.length > 1) {
+                var rawIndex = bracketMatches[1].replace(/[\[\]]/g, '');
+                if (rawIndex !== '' && !isNaN(rawIndex)) {
+                    itemIndex = parseInt(rawIndex, 10);
+                }
+            }
             var fileObjectList = [];
             var $uploaderCard = $input.closest('.ee-uploader-card');
             var $hostForm = $input.closest('form');
@@ -112,6 +154,156 @@
 
             function readDataFilePayload($fileItem) {
                 return parseJsonString($fileItem.find('input[type="hidden"][name="ee_dataFiles[]"]').val());
+            }
+
+            function openCropperForItem($fileItem) {
+                if (typeof Cropper === 'undefined') {
+                    return;
+                }
+                var $image = $fileItem.find('img').first();
+                if (!$image.length) {
+                    return;
+                }
+
+                ensureCropperModal();
+                var $modal = $('#eeCropperModal');
+                var $cropImage = $('#eeCropperImage');
+                var imageSrc = $image.attr('src');
+                $cropImage.attr('src', imageSrc);
+                $modal.data('returnFocus', document.activeElement);
+
+                var cropper = null;
+
+                function destroyCropper() {
+                    if (cropper) {
+                        cropper.destroy();
+                        cropper = null;
+                    }
+                }
+
+                function initCropper() {
+                    destroyCropper();
+                    cropper = new Cropper($cropImage[0], {
+                        viewMode: 1,
+                        autoCropArea: 1,
+                        autoCrop: true,
+                        responsive: true,
+                        checkOrientation: false,
+                        background: false,
+                        dragMode: 'move',
+                        movable: true,
+                        zoomable: true,
+                        toggleDragModeOnDblclick: false,
+                        ready: function () {
+                            if (!cropper) {
+                                return;
+                            }
+                            var canvas = cropper.getCanvasData();
+                            cropper.setCropBoxData({
+                                left: canvas.left,
+                                top: canvas.top,
+                                width: canvas.width,
+                                height: canvas.height
+                            });
+                        }
+                    });
+                    $modal.data('cropper', cropper);
+                }
+                $modal.data('fileItem', $fileItem);
+
+                $modal.off('shown.bs.modal').on('shown.bs.modal', function () {
+                    var img = $cropImage[0];
+                    if (img && !img.complete) {
+                        img.onload = function () {
+                            initCropper();
+                        };
+                        img.onerror = function () {
+                            initCropper();
+                        };
+                        return;
+                    }
+                    initCropper();
+                });
+
+                $modal.off('click', '[data-cropper-action]').on('click', '[data-cropper-action]', function () {
+                    var action = $(this).data('cropper-action');
+                    if (!cropper) {
+                        return;
+                    }
+                    if (action === 'rotate-90') {
+                        cropper.rotate(90);
+                    } else if (action === 'rotate--90') {
+                        cropper.rotate(-90);
+                    } else if (action === 'flip-h') {
+                        var scaleX = cropper.getData().scaleX || 1;
+                        cropper.scaleX(scaleX * -1);
+                    } else if (action === 'flip-v') {
+                        var scaleY = cropper.getData().scaleY || 1;
+                        cropper.scaleY(scaleY * -1);
+                    } else if (action === 'reset') {
+                        cropper.reset();
+                        var canvas = cropper.getCanvasData();
+                        cropper.setCropBoxData({
+                            left: canvas.left,
+                            top: canvas.top,
+                            width: canvas.width,
+                            height: canvas.height
+                        });
+                    }
+                });
+
+                $modal.off('click', '#eeCropperApply').on('click', '#eeCropperApply', function () {
+                    var data = cropper.getData(true);
+                    var payload = readDataFilePayload($fileItem);
+                    payload.update = true;
+                    payload.property_name = property_name;
+                    payload.transformations = payload.transformations || {};
+                    payload.transformations.rotation = data.rotate || 0;
+                    payload.transformations.flipH = (data.scaleX || 1) < 0;
+                    payload.transformations.flipV = (data.scaleY || 1) < 0;
+                    payload.transformations.crop = {
+                        x: data.x,
+                        y: data.y,
+                        width: data.width,
+                        height: data.height
+                    };
+                    writeDataFilePayload($fileItem, payload);
+                    markUploaderDirty();
+
+                    try {
+                        var canvas = cropper.getCroppedCanvas();
+                        if (canvas) {
+                            $image.attr('src', canvas.toDataURL('image/jpeg', 0.92));
+                        }
+                    } catch (e) {}
+
+                    var returnFocus = $modal.data('returnFocus');
+                    if (document.activeElement) {
+                        document.activeElement.blur();
+                    }
+                    if (returnFocus && typeof returnFocus.focus === 'function') {
+                        returnFocus.focus();
+                    }
+                    $modal.modal('hide');
+                });
+
+                $modal.off('hide.bs.modal').on('hide.bs.modal', function () {
+                    var returnFocus = $modal.data('returnFocus');
+                    if (document.activeElement) {
+                        document.activeElement.blur();
+                    }
+                    if (returnFocus && typeof returnFocus.focus === 'function') {
+                        returnFocus.focus();
+                    }
+                });
+
+                $modal.off('hidden.bs.modal').on('hidden.bs.modal', function () {
+                    destroyCropper();
+                    $modal.removeData('cropper');
+                    $modal.removeData('fileItem');
+                });
+
+                $modal.modal('show');
             }
 
             function setPendingDeleteState($fileItem, shouldDelete) {
@@ -165,6 +357,9 @@
                     property_name: property_name,
                     original_name: fileName
                 };
+                if (itemIndex !== null) {
+                    data.item_index = itemIndex;
+                }
                 // Создаем скрытое поле с данными файла
                 var dataFileInput = $('<input>', {
                     type: 'hidden',
@@ -221,14 +416,14 @@
              * Обновляет главный файл (первый в списке)
              */
             function updateMainFile() {
-                var $visibleItems = $preloadedFilesContainer.find('.fileItem:visible');
-                if (!$visibleItems.length) {
+                var $items = $preloadedFilesContainer.find('.fileItem');
+                if (!$items.length) {
                     $preloadedFilesContainer.hide();
                     return;
                 }
                 $preloadedFilesContainer.show();
                 $preloadedFilesContainer.find('.fileItem').removeClass('main-file');
-                $visibleItems.first().addClass('main-file');
+                $items.first().addClass('main-file');
             }
 
             // Инициализация SortableJS для сортировки загруженных файлов
@@ -314,13 +509,14 @@
                 if ($fileItem.hasClass('pending-delete')) {
                     return;
                 }
+                if ($fileItem.find('img').length) {
+                    openCropperForItem($fileItem);
+                    return;
+                }
                 var fileName = $fileItem.find('.fileName').text();
                 var modalId = '#addFileParamsModal_' + $input.attr('id');
-                // Заполняем поля в модальном окне значениями из выбранного файла
-                $(modalId).find('#file_name_' + $input.attr('id')).val(fileName); // Название файла
-                // Запишем данные о fileItem
+                $(modalId).find('#file_name_' + $input.attr('id')).val(fileName);
                 $(modalId).data('fileItem', $fileItem);
-                // Открываем модальное окно
                 $(modalId).modal('show');
             });
 
@@ -458,11 +654,49 @@
                     if ($fileItem.hasClass('pending-delete')) {
                         return;
                     }
+                    if ($fileItem.find('img').length) {
+                        openCropperForItem($fileItem);
+                        return;
+                    }
                     var fileName = $fileItem.find('.fileName').text();
                     var modalId = '#addFileParamsModal_' + $input.attr('id');
                     $(modalId).find('#file_name_' + $input.attr('id')).val(fileName);
                     $(modalId).data('fileItem', $fileItem);
                     $(modalId).modal('show');
+                });
+                $preloadedFilesData.on('click', '.rotateIcon', function (event) {
+                    event.stopPropagation();
+                    var $fileItem = $(this).closest('.fileItem');
+                    if ($fileItem.hasClass('pending-delete')) {
+                        return;
+                    }
+                    var $image = $fileItem.find('img');
+                    var currentRotation = $image.data('rotation') || 0;
+                    currentRotation = (currentRotation + 90) % 360;
+                    $image.data('rotation', currentRotation);
+                    updateImageTransform($image);
+                });
+                $preloadedFilesData.on('click', '.flipHIcon', function (event) {
+                    event.stopPropagation();
+                    var $fileItem = $(this).closest('.fileItem');
+                    if ($fileItem.hasClass('pending-delete')) {
+                        return;
+                    }
+                    var $image = $fileItem.find('img');
+                    var isFlippedH = $image.data('flippedH') || false;
+                    $image.data('flippedH', !isFlippedH);
+                    updateImageTransform($image);
+                });
+                $preloadedFilesData.on('click', '.flipVIcon', function (event) {
+                    event.stopPropagation();
+                    var $fileItem = $(this).closest('.fileItem');
+                    if ($fileItem.hasClass('pending-delete')) {
+                        return;
+                    }
+                    var $image = $fileItem.find('img');
+                    var isFlippedV = $image.data('flippedV') || false;
+                    $image.data('flippedV', !isFlippedV);
+                    updateImageTransform($image);
                 });
             }
         }); // Конец each

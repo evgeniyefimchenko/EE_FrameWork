@@ -893,8 +893,11 @@ final class PropertyFieldContract {
             }
         }
         $value = function_exists('mb_strtolower') ? mb_strtolower($value) : strtolower($value);
-        $value = preg_replace('/[^a-z0-9]+/u', '-', $value) ?? '';
-        $value = trim($value, '-');
+        // Preserve explicit machine keys like "pending_review" instead of rewriting them
+        // to "pending-review". This keeps stable identifiers intact for hooks, workflows
+        // and any project-level integration logic built on top of CMS choice fields.
+        $value = preg_replace('/[^a-z0-9_]+/u', '-', $value) ?? '';
+        $value = trim($value, '-_');
         return $value;
     }
 

@@ -1,0 +1,21 @@
+.repeatable-editor {
+    border-radius: 16px;
+}
+
+.repeatable-editor__items {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.repeatable-editor__item {
+    border-radius: 14px;
+}
+
+.repeatable-editor__section + .repeatable-editor__section {
+    margin-top: 1rem;
+}
+
+.repeatable-editor__field .form-text {
+    line-height: 1.35;
+}

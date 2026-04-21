@@ -393,7 +393,7 @@ class ModelCategories {
                 $method = 'update';
                 $categoryId = (int) $categoryData['category_id'];
                 $oldCategoryRow = $db->getRow(
-                    'SELECT type_id, parent_id, language_code, slug, route_path FROM ?n WHERE category_id = ?i LIMIT 1',
+                    'SELECT type_id, parent_id, language_code, slug, route_path, title, short_description, description, status, search_enabled, search_scope_mask FROM ?n WHERE category_id = ?i LIMIT 1',
                     Constants::CATEGORIES_TABLE,
                     $categoryId
                 ) ?: null;
@@ -441,6 +441,7 @@ class ModelCategories {
                 if (is_array($oldCategoryRow)) {
                     $categoryData['old_parent_id'] = $oldCategoryRow['parent_id'] ?? null;
                     $categoryData['language_code'] = $categoryData['language_code'] ?? ($oldCategoryRow['language_code'] ?? $languageCode);
+                    $categoryData['_hook_before'] = $oldCategoryRow;
                 }
             } else {
                 unset($categoryData['category_id']);

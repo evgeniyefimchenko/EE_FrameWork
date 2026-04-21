@@ -316,6 +316,26 @@ class ClassNotifications {
     }
 
     /**
+     * Удаляет уведомление по id.
+     */
+    public static function deleteNotificationById(int $userId, int $notificationId): int {
+        if ($userId <= 0 || $notificationId <= 0) {
+            return 0;
+        }
+
+        self::ensureInfrastructure();
+        self::migrateLegacyNotificationsForUser($userId);
+        SafeMySQL::gi()->query(
+            'DELETE FROM ?n WHERE user_id = ?i AND notification_id = ?i',
+            Constants::USERS_NOTIFICATIONS_TABLE,
+            $userId,
+            $notificationId
+        );
+
+        return (int) SafeMySQL::gi()->affectedRows();
+    }
+
+    /**
      * Отображает и очищает уведомления пользователя.
      */
     public static function showNotifications(int $userId): string {

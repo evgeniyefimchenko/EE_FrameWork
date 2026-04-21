@@ -277,7 +277,7 @@ class ModelPages {
                 }
                 $pageId = $pageData['page_id'];
                 $oldPageRow = SafeMySQL::gi()->getRow(
-                    'SELECT category_id, parent_page_id, language_code, slug, route_path FROM ?n WHERE page_id = ?i LIMIT 1',
+                    'SELECT category_id, parent_page_id, language_code, slug, route_path, title, short_description, description, status, search_enabled, search_scope_mask FROM ?n WHERE page_id = ?i LIMIT 1',
                     Constants::PAGES_TABLE,
                     $pageId
                 ) ?: null;
@@ -325,6 +325,7 @@ class ModelPages {
             if ($method === 'update' && is_array($oldPageRow)) {
                 $pageData['old_parent_page_id'] = $oldPageRow['parent_page_id'] ?? null;
                 $pageData['language_code'] = $pageData['language_code'] ?? ($oldPageRow['language_code'] ?? $language_code);
+                $pageData['_hook_before'] = $oldPageRow;
             }
 
             if (!$result || (int) $pageId <= 0) {
