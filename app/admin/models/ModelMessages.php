@@ -14,6 +14,8 @@ class ModelMessages {
         $order = is_string($order) ? $order : '';
         $where = is_string($where) ? $where : '';
         $start = $start ?: 0;
+        $order = str_replace('`', '', $order);
+        $where = str_replace('`', '', $where);
         $order = SysClass::ee_addPrefixToFields($order, SysClass::ee_getFieldsTable(Constants::USERS_MESSAGE_TABLE), 'm.');
         $where = SysClass::ee_addPrefixToFields($where, SysClass::ee_getFieldsTable(Constants::USERS_MESSAGE_TABLE), 'm.');
         $orderString = trim($order) !== '' ? $order : 'm.created_at DESC';

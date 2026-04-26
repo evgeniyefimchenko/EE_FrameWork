@@ -28,12 +28,20 @@ class ModelPages {
         return $fragment;
     }
 
+    private function normalizeSqlIdentifierQuoting(string $fragment): string {
+        $fragment = preg_replace('/`([a-zA-Z_][a-zA-Z0-9_]*)`\s*\.\s*`([a-zA-Z_][a-zA-Z0-9_]*)`/u', '$1.$2', $fragment) ?? $fragment;
+        $fragment = preg_replace('/\b([a-zA-Z_][a-zA-Z0-9_]*)\s*\.\s*`([a-zA-Z_][a-zA-Z0-9_]*)`/u', '$1.$2', $fragment) ?? $fragment;
+        $fragment = preg_replace('/`([a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*)`/u', '$1', $fragment) ?? $fragment;
+        return preg_replace('/`([a-zA-Z_][a-zA-Z0-9_]*)`/u', '$1', $fragment) ?? $fragment;
+    }
+
     private function normalizePageQueryFragment(string $fragment): string {
         $fragment = trim($fragment);
         if ($fragment === '') {
             return '';
         }
 
+        $fragment = $this->normalizeSqlIdentifierQuoting($fragment);
         $pageFields = SysClass::ee_getFieldsTable(Constants::PAGES_TABLE);
         foreach ($pageFields as $field) {
             $fragment = preg_replace('/\be\.' . preg_quote($field, '/') . '\b/u', $field, $fragment);
@@ -65,8 +73,8 @@ class ModelPages {
         }
         if ($needsJoin) {
             // Р•СЃР»Рё type_id РїСЂРёСЃСѓС‚СЃС‚РІСѓРµС‚ РІ $where РёР»Рё $order, РїСЂРёРјРµРЅСЏРµРј JOIN
-            $order = str_replace('type_id', 't.type_id', $order);
-            $where = str_replace('type_id', 't.type_id', $where);
+            $order = preg_replace('/(?<!\.)\btype_id\b/u', 't.type_id', $order) ?? $order;
+            $where = preg_replace('/(?<!\.)\btype_id\b/u', 't.type_id', $where) ?? $where;
             $sql_pages = "
             SELECT e.page_id
             FROM ?n AS e

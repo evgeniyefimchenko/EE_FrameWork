@@ -116,7 +116,18 @@ class Users {
         } else { // Модераторы 
             $fields = SafeMySQL::gi()->filterArray($fields, array('name', 'email', 'phone', 'active', 'user_role', 'subscribed', 'comment', 'pwd', 'element_id', 'element_name', 'privacy_policy_accepted', 'personal_data_consent_accepted'));
         }
-        $fields = SysClass::ee_removeEmptyValuesToArray(array_map('trim', $fields));
+        $normalizedFields = [];
+        foreach ($fields as $fieldKey => $fieldValue) {
+            if (is_string($fieldValue)) {
+                $normalizedFields[$fieldKey] = trim($fieldValue);
+            } else {
+                $normalizedFields[$fieldKey] = $fieldValue;
+            }
+        }
+        $fields = SysClass::ee_removeEmptyValuesToArray($normalizedFields);
+        if (array_key_exists('phone', $normalizedFields) && $normalizedFields['phone'] === '') {
+            $fields['phone'] = null;
+        }
         if (!$fields)
             return 0;
         $oldEmail = $this->getUserEmail($userId);

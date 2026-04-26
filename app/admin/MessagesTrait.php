@@ -201,7 +201,7 @@ trait MessagesTrait {
                 if ($openUrl !== '') {
                     $actions .= '<a href="' . htmlspecialchars($openUrl, ENT_QUOTES, 'UTF-8') . '" class="btn btn-secondary me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . htmlspecialchars((string) ($this->lang['sys.open'] ?? 'Открыть'), ENT_QUOTES, 'UTF-8') . '"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>';
                 }
-                $actions .= '<a href="' . htmlspecialchars(\classes\system\CsrfService::appendToUrl('/admin/dell_message/id/' . $item['message_id']), ENT_QUOTES, 'UTF-8') . '" onclick="return confirm(\'' . $this->lang['sys.delete'] . '?\');" ' 
+                $actions .= '<a href="' . htmlspecialchars(\classes\system\CsrfService::appendToUrl('/admin/dell_message/id/' . $item['message_id']), ENT_QUOTES, 'UTF-8') . '" onclick="return confirm(\'' . $this->lang['sys.delete'] . '?\');" '
                         . 'class="btn btn-danger me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.delete'] . '"><i class="fas fa-trash"></i></a>';
             } else { // Нельзя удалить или пометить прочитанными чужие сообщения
                 if ($openUrl !== '') {
@@ -253,6 +253,12 @@ trait MessagesTrait {
         if (!SysClass::getAccessUser($this->logged_in, $this->access) || array_filter((array) $params)) {
             SysClass::handleRedirect(401);
             exit;
+        }
+        if (!$this->requireCsrfRequest([
+            'initiator' => __METHOD__,
+            'redirect' => '/admin/messages',
+        ])) {
+            return;
         }
         $this->loadModel('m_messages');
         $this->models['m_messages']->read_all($this->logged_in);

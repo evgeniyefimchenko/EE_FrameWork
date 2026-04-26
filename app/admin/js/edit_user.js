@@ -65,7 +65,7 @@ $(document).ready(function () {
         }
         notify = actions.showNotification('Please wait, data is being saved.', 'primary');
         AppCore.sendAjaxRequest(
-            '/admin/ajax_user_edit' + add,
+            form.data('action-url') || ('/admin/ajax_user_edit' + add),
             data,
             'POST',
             'json',
@@ -105,7 +105,7 @@ $(document).ready(function () {
         $('#revoke-api-key-btn').prop('disabled', true);
 
         AppCore.sendAjaxRequest(
-            '/admin/user_api_key_generate/id/' + userId,
+            button.data('action-url') || ('/admin/user_api_key_generate/id/' + userId),
             {},
             'POST',
             'json',
@@ -143,7 +143,7 @@ $(document).ready(function () {
         $('#generate-api-key-btn').prop('disabled', true);
 
         AppCore.sendAjaxRequest(
-            '/admin/user_api_key_revoke/id/' + userId,
+            button.data('action-url') || ('/admin/user_api_key_revoke/id/' + userId),
             {},
             'POST',
             'json',

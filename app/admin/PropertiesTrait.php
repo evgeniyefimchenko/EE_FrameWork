@@ -1324,6 +1324,12 @@ trait PropertiesTrait {
             SysClass::handleRedirect();
             exit();
         }
+        if (!$this->requireCsrfRequest([
+            'initiator' => __METHOD__,
+            'redirect' => '/admin/properties',
+        ])) {
+            return;
+        }
         if (in_array('id', $params)) {
             $keyId = array_search('id', $params);
             if ($keyId !== false && isset($params[$keyId + 1])) {

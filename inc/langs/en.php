@@ -1047,7 +1047,6 @@ $lang['sys.multiple'] = 'Multiple';
 $lang['sys.any'] = 'Any';
 $lang['sys.property_type_edit'] = 'Edit property type';
 $lang['sys.property_edit'] = 'Edit property';
-$lang['sys.entity_edit'] = 'Edit entity';
 $lang['sys.email_snippets'] = 'Email snippets';
 $lang['sys.edit_email_snippet'] = 'Edit email snippet';
 $lang['sys.email_snippet_created'] = 'Snippet created';

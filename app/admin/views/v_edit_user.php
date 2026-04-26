@@ -4,7 +4,7 @@
 $isProtectedSystemUser = in_array((int) ($user_context['user_role'] ?? 0), [\classes\system\Constants::ADMIN, \classes\system\Constants::SYSTEM], true);
 ?>
 <main>
-    <form id="edit_users">
+    <form id="edit_users" data-action-url="<?= htmlspecialchars(\classes\system\CsrfService::appendToUrl('/admin/ajax_user_edit' . (!$user_context['new_user'] ? '/id/' . (int) $user_context['user_id'] : '')), ENT_QUOTES, 'UTF-8') ?>">
         <input type="hidden" name="fake" value="1" />
         <input type="hidden" name="new" value="<?= $user_context['new_user'] ? 1 : 0 ?>" />
         <div class="container-fluid px-4">
@@ -213,6 +213,7 @@ $isProtectedSystemUser = in_array((int) ($user_context['user_role'] ?? 0), [\cla
                                                     class="btn btn-outline-primary w-100"
                                                     id="generate-api-key-btn"
                                                     data-user-id="<?= (int) ($user_context['user_id'] ?? 0) ?>"
+                                                    data-action-url="<?= htmlspecialchars(\classes\system\CsrfService::appendToUrl('/admin/user_api_key_generate/id/' . (int) ($user_context['user_id'] ?? 0)), ENT_QUOTES, 'UTF-8') ?>"
                                                     data-generate-label="<?= htmlspecialchars((string) ($lang['sys.api_key_generate'] ?? 'Сгенерировать ключ')) ?>"
                                                     data-regenerate-label="<?= htmlspecialchars((string) ($lang['sys.api_key_regenerate'] ?? 'Перегенерировать ключ')) ?>"
                                                     data-pending-label="<?= htmlspecialchars((string) ($lang['sys.api_key_pending'] ?? 'Генерация...')) ?>"
@@ -227,6 +228,7 @@ $isProtectedSystemUser = in_array((int) ($user_context['user_role'] ?? 0), [\cla
                                                     class="btn btn-outline-danger w-100"
                                                     id="revoke-api-key-btn"
                                                     data-user-id="<?= (int) ($user_context['user_id'] ?? 0) ?>"
+                                                    data-action-url="<?= htmlspecialchars(\classes\system\CsrfService::appendToUrl('/admin/user_api_key_revoke/id/' . (int) ($user_context['user_id'] ?? 0)), ENT_QUOTES, 'UTF-8') ?>"
                                                     data-confirm-text="<?= htmlspecialchars((string) ($lang['sys.api_key_revoke_confirm'] ?? 'Отозвать активный API-ключ?')) ?>"
                                                     data-pending-label="<?= htmlspecialchars((string) ($lang['sys.api_key_pending_revoke'] ?? 'Отзыв...')) ?>"
                                                     data-success-text="<?= htmlspecialchars((string) ($lang['sys.api_key_revoke_success'] ?? 'API-ключ отозван')) ?>"

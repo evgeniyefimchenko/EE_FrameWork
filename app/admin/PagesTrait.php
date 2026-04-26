@@ -200,7 +200,7 @@ trait PagesTrait {
         $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/edit_pages.js" type="text/javascript" /></script>';
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
-        $this->parameters_layout["title"] = ENV_SITE_NAME . ' - ' . ((string) ($this->lang['sys.entity_edit'] ?? 'Edit entity'));
+        $this->parameters_layout["title"] = ENV_SITE_NAME . ' - ' . ((string) ($this->lang['sys.page'] ?? 'Page'));
         $this->showLayout($this->parameters_layout);
     }
 
@@ -221,6 +221,12 @@ trait PagesTrait {
         if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
             SysClass::handleRedirect();
             exit();
+        }
+        if (!$this->requireCsrfRequest([
+            'initiator' => __METHOD__,
+            'redirect' => '/admin/pages',
+        ])) {
+            return;
         }
         /* model */
         $this->loadModel('m_pages');
@@ -458,12 +464,12 @@ trait PagesTrait {
                 . 'class="btn btn-primary me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.edit'] . '"><i class="fas fa-edit"></i></a>'
                 . (
                     !empty($item['search_enabled'])
-                    ? '<a href="/admin/page_search_disable/id/' . $item['page_id'] . '?language_code=' . rawurlencode((string) ($item['language_code'] ?? $languageCode)) . '" onclick="return confirm(\'' . htmlspecialchars((string) ($this->lang['sys.search_page_disable_confirm'] ?? 'Отключить участие страницы в поиске?'), ENT_QUOTES) . '\');" '
+                    ? '<a href="' . htmlspecialchars($this->withCsrfUrl('/admin/page_search_disable/id/' . $item['page_id'] . '?language_code=' . rawurlencode((string) ($item['language_code'] ?? $languageCode))), ENT_QUOTES, 'UTF-8') . '" onclick="return confirm(\'' . htmlspecialchars((string) ($this->lang['sys.search_page_disable_confirm'] ?? 'Отключить участие страницы в поиске?'), ENT_QUOTES) . '\');" '
                     . 'class="btn btn-warning me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . htmlspecialchars((string) ($this->lang['sys.search_page_disable'] ?? 'Отключить поиск страницы'), ENT_QUOTES, 'UTF-8') . '"><i class="fas fa-magnifying-glass-minus"></i></a>'
-                    : '<a href="/admin/page_search_enable/id/' . $item['page_id'] . '?language_code=' . rawurlencode((string) ($item['language_code'] ?? $languageCode)) . '" onclick="return confirm(\'' . htmlspecialchars((string) ($this->lang['sys.search_page_enable_confirm'] ?? 'Включить участие страницы в поиске?'), ENT_QUOTES) . '\');" '
+                    : '<a href="' . htmlspecialchars($this->withCsrfUrl('/admin/page_search_enable/id/' . $item['page_id'] . '?language_code=' . rawurlencode((string) ($item['language_code'] ?? $languageCode))), ENT_QUOTES, 'UTF-8') . '" onclick="return confirm(\'' . htmlspecialchars((string) ($this->lang['sys.search_page_enable_confirm'] ?? 'Включить участие страницы в поиске?'), ENT_QUOTES) . '\');" '
                     . 'class="btn btn-success me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . htmlspecialchars((string) ($this->lang['sys.search_page_enable'] ?? 'Включить поиск страницы'), ENT_QUOTES, 'UTF-8') . '"><i class="fas fa-magnifying-glass"></i></a>'
                 )
-                . '<a href="/admin/pageDell/id/' . $item['page_id'] . '" onclick="return confirm(\'' . $this->lang['sys.delete'] . '?\');" '
+                . '<a href="' . htmlspecialchars($this->withCsrfUrl('/admin/pageDell/id/' . $item['page_id']), ENT_QUOTES, 'UTF-8') . '" onclick="return confirm(\'' . $this->lang['sys.delete'] . '?\');" '
                 . 'class="btn btn-danger me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.delete'] . '"><i class="fas fa-trash"></i></a>'
             ];
         }
@@ -618,6 +624,15 @@ trait PagesTrait {
             exit();
         }
 
+        $languageCode = ee_get_default_content_lang_code((string) ($_GET['language_code'] ?? \classes\system\Session::get('admin_pages_lang')));
+        \classes\system\Session::set('admin_pages_lang', $languageCode);
+        if (!$this->requireCsrfRequest([
+            'initiator' => __METHOD__,
+            'redirect' => ENV_URL_SITE . '/admin/pages?language_code=' . rawurlencode($languageCode),
+        ])) {
+            return;
+        }
+
         $pageId = 0;
         if (in_array('id', $params, true)) {
             $keyId = array_search('id', $params, true);
@@ -627,8 +642,6 @@ trait PagesTrait {
         }
 
         $this->loadModel('m_pages');
-        $languageCode = ee_get_default_content_lang_code((string) ($_GET['language_code'] ?? \classes\system\Session::get('admin_pages_lang')));
-        \classes\system\Session::set('admin_pages_lang', $languageCode);
 
         if ($pageId > 0) {
             $this->notifyOperationResult(

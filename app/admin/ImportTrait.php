@@ -321,6 +321,12 @@ trait ImportTrait {
             SysClass::handleRedirect(200, '/show_login_form?return=admin/imports');
             return;
         }
+        if (!$this->requireCsrfRequest([
+            'initiator' => __METHOD__,
+            'redirect' => '/admin/imports',
+        ])) {
+            return;
+        }
 
         $jobId = $this->extractImportJobIdFromParams($params);
         if ($jobId <= 0) {

@@ -287,6 +287,12 @@ trait UrlManagementTrait {
         ])) {
             return;
         }
+        if (!$this->requireCsrfRequest([
+            'initiator' => __METHOD__,
+            'redirect' => '/admin/redirects',
+        ])) {
+            return;
+        }
 
         $this->loadModel('m_url_management');
         $redirectId = $this->extractUrlManagementIdFromParams($params);

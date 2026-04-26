@@ -2,6 +2,7 @@
 
 use classes\system\ControllerBase;
 use classes\system\ApiKeyService;
+use classes\system\CsrfService;
 use classes\system\SysClass;
 use classes\system\Constants;
 use classes\system\AuthService;
@@ -679,6 +680,10 @@ use MessagesTrait,
         ])) {
             exit();
         }
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST' || !CsrfService::isValidForCurrentRequest()) {
+            echo json_encode(['error' => $this->lang['sys.security_action_expired'] ?? 'Проверка безопасности не пройдена. Обновите страницу и повторите попытку.']);
+            exit();
+        }
         $postData = SysClass::ee_cleanArray($_POST);
         $keyId = array_search('id', $params);
         if ($keyId !== false && isset($params[$keyId + 1])) {
@@ -771,6 +776,10 @@ use MessagesTrait,
         ])) {
             return;
         }
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST' || !CsrfService::isValidForCurrentRequest()) {
+            echo json_encode(['error' => 'security_action_expired', 'message' => $this->lang['sys.security_action_expired'] ?? 'Security check failed. Refresh the page and try again.'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            exit();
+        }
 
         $targetUserId = 0;
         if (in_array('id', $params, true)) {
@@ -820,6 +829,10 @@ use MessagesTrait,
             'initiator' => __METHOD__,
         ])) {
             return;
+        }
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST' || !CsrfService::isValidForCurrentRequest()) {
+            echo json_encode(['error' => 'security_action_expired', 'message' => $this->lang['sys.security_action_expired'] ?? 'Security check failed. Refresh the page and try again.'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            exit();
         }
 
         $targetUserId = 0;
@@ -1243,6 +1256,12 @@ use MessagesTrait,
             SysClass::handleRedirect();
             exit();
         }
+        if (!$this->requireCsrfRequest([
+            'initiator' => __METHOD__,
+            'redirect' => '/admin/users',
+        ])) {
+            return;
+        }
         if (in_array('id', $params)) {
             $keyId = array_search('id', $params);
             if ($keyId !== false && isset($params[$keyId + 1])) {
@@ -1281,7 +1300,14 @@ use MessagesTrait,
             echo json_encode(array('error' => 'access denided'));
             exit();
         }
-        ClassMessages::set_message_user(1, $this->logged_in, SysClass::ee_cleanString($_REQUEST['message']));
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST' || !CsrfService::isValidForCurrentRequest()) {
+            echo json_encode([
+                'error' => $this->lang['sys.security_action_expired']
+                    ?? 'Проверка безопасности не пройдена. Обновите страницу и повторите попытку.',
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            exit();
+        }
+        ClassMessages::set_message_user(1, $this->logged_in, SysClass::ee_cleanString((string)($_POST['message'] ?? '')));
         echo json_encode(array('error' => 'no'));
         exit();
     }
@@ -1302,6 +1328,12 @@ use MessagesTrait,
         ];
         $this->loadModel('m_user_edit');
         $postData = SysClass::ee_cleanArray($_POST);
+        if (!empty($postData) && !$this->requireCsrfRequest([
+            'initiator' => __METHOD__,
+            'redirect' => '/admin/users_roles',
+        ])) {
+            return;
+        }
         if (in_array('id', $params)) {
             $keyId = array_search('id', $params);
             if ($keyId !== false && isset($params[$keyId + 1])) {

@@ -330,15 +330,18 @@ class Plugins {
     private static function generateTableBody($dataTable, $idTable) {
         $langCode = (string) (Session::get('lang') ?: ENV_DEF_LANG);
         $globalLang = Lang::init($langCode);
+        $columns = is_array($dataTable['columns'] ?? null) ? $dataTable['columns'] : [];
+        $rows = is_array($dataTable['rows'] ?? null) ? $dataTable['rows'] : [];
+        $totalRows = (int) ($dataTable['total_rows'] ?? count($rows));
         $html = '<tbody>';
-        if ($dataTable['total_rows'] == 0 || count($dataTable['rows']) == 0) { // Если записей нет
-            $html .= '<tr><td colspan="' . count($dataTable['columns']) . '" class="text-center text-muted">' . htmlspecialchars((string) ($globalLang['sys.no_data'] ?? 'Нет данных'), ENT_QUOTES, 'UTF-8') . '</td></tr>';
+        if ($totalRows == 0 || count($rows) == 0) { // Если записей нет
+            $html .= '<tr><td colspan="' . count($columns) . '" class="text-center text-muted">' . htmlspecialchars((string) ($globalLang['sys.no_data'] ?? 'Нет данных'), ENT_QUOTES, 'UTF-8') . '</td></tr>';
         } else {
             $count_row = 1;
-            foreach ($dataTable['rows'] as $row) {
+            foreach ($rows as $row) {
                 $html .= '<tr>';
                 $firstColumn = true;  // Флаг для отслеживания первой колонки
-                foreach ($dataTable['columns'] as $column) {
+                foreach ($columns as $column) {
                     $value = $row[$column['field']] ?? '';
                     $textAlignStyle = isset($column['align']) ? ' style="text-align:' . $column['align'] . ';"' : '';
                     $renderRaw = self::shouldRenderTableCellRaw((array) $column);
@@ -357,7 +360,7 @@ class Plugins {
                 $html .= '</tr>';
                 if (isset($row['nested_table'])) {
                     $nested_table = $row['nested_table'];
-                    $colspan = count($dataTable['columns']);
+                    $colspan = count($columns);
                     $html .= '<tr class="tr_nested_table" id="' . $idTable . '_nested_table_' . $count_row . '"><td colspan="' . $colspan . '">';
                     $html .= '<table class="nested_table">';
                     // Заголовок вложенной таблицы
@@ -1755,6 +1758,7 @@ class Plugins {
 
         if ($type === 'select') {
             $name = 'property_data[' . $valueName . '_value][' . $itemIndex . ']' . ($fieldMultiple ? '[]' : '');
+            $html .= '<input type="hidden" name="' . htmlspecialchars($name, ENT_QUOTES) . '" value="__ee_empty_choice__">';
             $html .= '<select class="form-select repeatable-editor__input" name="' . htmlspecialchars($name, ENT_QUOTES) . '"' . ($fieldMultiple ? ' multiple' : '') . $required . $disabledAttr . $slotInputAttr . '>';
             $html .= '<option value=""></option>';
             foreach ($options as $option) {
@@ -1771,6 +1775,9 @@ class Plugins {
 
         $inputType = $type === 'radio' ? 'radio' : 'checkbox';
         $name = 'property_data[' . $valueName . '_value][' . $itemIndex . ']' . ($inputType === 'checkbox' ? '[]' : '');
+        if ($inputType === 'checkbox') {
+            $html .= '<input type="hidden" name="' . htmlspecialchars($name, ENT_QUOTES) . '" value="__ee_empty_choice__">';
+        }
         foreach ($options as $option) {
             $key = (string) ($option['key'] ?? '');
             if ($key === '' || !empty($option['disabled'])) {
@@ -2051,6 +2058,7 @@ class Plugins {
 
         if ($type === 'select') {
             $name = 'property_data[' . $valueName . '_value][]';
+            $html .= '<input type="hidden" name="' . htmlspecialchars($name, ENT_QUOTES) . '" value="__ee_empty_choice__">';
             $html .= '<select class="form-select" data-bs-toggle="tooltip" data-bs-placement="top" title="' . htmlspecialchars($type, ENT_QUOTES) . '" name="' . $name . '"' . ($value['multiple'] ? ' multiple' : '') . $required . '>';
             foreach ($options as $option) {
                 $key = (string) ($option['key'] ?? '');
@@ -2065,6 +2073,9 @@ class Plugins {
 
         $inputType = $type === 'radio' ? 'radio' : 'checkbox';
         $inputName = 'property_data[' . $valueName . '_value]' . ($type === 'checkbox' ? '[]' : '');
+        if ($type === 'checkbox') {
+            $html .= '<input type="hidden" name="' . htmlspecialchars($inputName, ENT_QUOTES) . '" value="__ee_empty_choice__">';
+        }
         foreach ($options as $option) {
             $key = (string) ($option['key'] ?? '');
             if ($key === '' || !empty($option['disabled'])) {

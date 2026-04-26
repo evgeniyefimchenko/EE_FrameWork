@@ -1,7 +1,11 @@
 <?php if (!defined('ENV_SITE')) exit(header('Location: /', true, 301)); ?>
+<?php
+$roleId = (int)($users_role_data['role_id'] ?? 0);
+$roleActionUrl = \classes\system\CsrfService::appendToUrl('/admin/users_role_edit/id' . ($roleId > 0 ? '/' . $roleId : ''));
+?>
 <!-- Редактирование роли пользователей -->
 <main>
-    <form  id="edit_users_role" action="/admin/users_role_edit/id" method="POST">
+    <form  id="edit_users_role" action="<?= htmlspecialchars($roleActionUrl, ENT_QUOTES, 'UTF-8') ?>" method="POST">
         <input type="hidden" name="fake" value="1" />
         <input type="hidden" name="role_id" value="<?=$users_role_data['role_id']?>" />
         <div class="container-fluid px-4">

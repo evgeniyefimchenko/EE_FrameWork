@@ -1024,7 +1024,6 @@ $lang['sys.multiple'] = 'Множественное';
 $lang['sys.any'] = 'Любой';
 $lang['sys.property_type_edit'] = 'Редактирование типа свойств';
 $lang['sys.property_edit'] = 'Редактирование свойства';
-$lang['sys.entity_edit'] = 'Редактирование сущности';
 $lang['sys.email_snippets'] = 'Почтовые сниппеты';
 $lang['sys.edit_email_snippet'] = 'Редактирование почтового сниппета';
 $lang['sys.email_snippet_created'] = 'Сниппет создан';
