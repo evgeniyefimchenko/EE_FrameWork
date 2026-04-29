@@ -102,9 +102,7 @@ $alternateHreflang = is_array($alternate_hreflang ?? null) ? $alternate_hreflang
             </div>
         </div>
         <!-- End Preloader -->
-        <!-- Основной контент страниц -->
-        <?= $layout_content ?? '' ?>
-        <!-- start of non-relocatable JS scripts -->
+        <!-- start of early JS dependencies -->
         <?php if (!ENV_JQUERY_CDN) { ?>
             <script src="<?= ENV_URL_SITE ?>/assets/js/plugins/jquery.min.js" type="text/javascript"></script>
         <?php } else { ?>
@@ -115,11 +113,15 @@ $alternateHreflang = is_array($alternate_hreflang ?? null) ? $alternate_hreflang
         <?php } else { ?>
             <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" type="text/javascript"></script>
         <?php } ?>
+        <!-- end of early JS dependencies -->
+        <!-- Основной контент страниц -->
+        <?= $layout_content ?? '' ?>
+        <!-- start of non-relocatable JS scripts -->
         <!-- core -->
         <script src="<?= htmlspecialchars($langBundleUrl, ENT_QUOTES, 'UTF-8') ?>" type="text/javascript"></script>
         <script src="<?= ENV_URL_SITE ?>/assets/js/core.js" type="text/javascript"></script>
         <!-- General scripts -->
-        <script src="<?= ENV_URL_SITE . '/' . ENV_APP_DIRECTORY ?>/index/js/index.js" type="text/javascript" /></script>
+        <script src="<?= ENV_URL_SITE . '/' . ENV_APP_DIRECTORY ?>/index/js/index.js" type="text/javascript"></script>
         <!-- end of non-relocatable JS scripts -->
         <!-- Добавленные скрипты из контроллера -->
         <?= $add_script ?>

@@ -11,6 +11,7 @@ use classes\system\Plugins;
 use classes\plugins\SafeMySQL;
 use classes\helpers\ClassNotifications;
 use classes\system\Hook;
+use classes\system\OperationResult;
 use classes\system\CronAgentService;
 use classes\system\BackupService;
 use classes\system\ImportMediaQueueService;
@@ -1512,9 +1513,30 @@ use MessagesTrait,
         } else {
             SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/deleted_users');
         }
+        $deletedUserContext = Hook::filter('admin.deleted_user_context', [
+            'can_purge' => ((int) ($this->users->data['user_role'] ?? 0) === Constants::ADMIN)
+                && ((int) ($get_deleted_user_data['deleted'] ?? 0) === 1),
+            'purge_warning' => '',
+            'extra_info_rows' => [],
+            'extra_sidebar_html' => '',
+        ], $get_deleted_user_data, $this);
+        if (!is_array($deletedUserContext)) {
+            $deletedUserContext = [
+                'can_purge' => ((int) ($this->users->data['user_role'] ?? 0) === Constants::ADMIN)
+                    && ((int) ($get_deleted_user_data['deleted'] ?? 0) === 1),
+                'purge_warning' => '',
+                'extra_info_rows' => [],
+                'extra_sidebar_html' => '',
+            ];
+        }
         /* view */
         $this->getStandardViews();
         $this->view->set('deleted_user_data', $get_deleted_user_data);
+        $this->view->set('deleted_user_can_purge', !empty($deletedUserContext['can_purge']));
+        $this->view->set('deleted_user_purge_warning', (string) ($deletedUserContext['purge_warning'] ?? ''));
+        $this->view->set('deleted_user_extra_info_rows', (array) ($deletedUserContext['extra_info_rows'] ?? []));
+        $this->view->set('deleted_user_extra_sidebar_html', (string) ($deletedUserContext['extra_sidebar_html'] ?? ''));
+        $this->view->set('deleted_user_purge_url', \classes\system\CsrfService::appendToUrl('/admin/purge_deleted_user/id/' . (int) ($get_deleted_user_data['user_id'] ?? 0)));
         $this->view->set('body_view', $this->view->read('v_edit_deleted_users'));
         $this->html = $this->view->read('v_dashboard');
         /* layouts */
@@ -1523,6 +1545,63 @@ use MessagesTrait,
         $this->parameters_layout["title"] = $this->lang['sys.deleted_user'] ?? 'Deleted user';
         $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/edit_deleted_user.js" type="text/javascript" /></script>';
         $this->showLayout($this->parameters_layout);
+    }
+
+    public function purge_deleted_user($params = []) {
+        $this->access = [Constants::ADMIN];
+        if (!SysClass::getAccessUser($this->logged_in, $this->access)) {
+            SysClass::handleRedirect();
+            exit();
+        }
+        if (!$this->requireCsrfRequest([
+            'initiator' => __METHOD__,
+            'redirect' => '/admin/deleted_users',
+        ])) {
+            return;
+        }
+
+        if (!in_array('id', $params, true)) {
+            ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.error'], 'status' => 'danger']);
+            SysClass::handleRedirect(200, '/admin/deleted_users');
+            return;
+        }
+
+        $keyId = array_search('id', $params, true);
+        $user_id = ($keyId !== false && isset($params[$keyId + 1])) ? (int) filter_var($params[$keyId + 1], FILTER_VALIDATE_INT) : 0;
+        if ($user_id <= 0) {
+            ClassNotifications::addNotificationUser($this->logged_in, ['text' => $this->lang['sys.error'], 'status' => 'danger']);
+            SysClass::handleRedirect(200, '/admin/deleted_users');
+            return;
+        }
+
+        $this->loadModel('m_user_edit');
+        $userData = $this->users->getUserData($user_id);
+        $beforePurgeResult = Hook::until('admin.before_purge_deleted_user', null, is_array($userData) ? $userData : ['user_id' => $user_id], $this);
+        if ($beforePurgeResult instanceof OperationResult && $beforePurgeResult->isFailure()) {
+            $this->notifyOperationResult(
+                $beforePurgeResult,
+                [
+                    'default_error_message' => 'Не удалось удалить пользователя из архива.',
+                    'failure_code' => 'user_purge_blocked',
+                ]
+            );
+            SysClass::handleRedirect(200, '/admin/deleted_user_edit/id/' . $user_id);
+            return;
+        }
+        $result = $this->models['m_user_edit']->purge_deleted_user($user_id);
+        if ($result->isSuccess()) {
+            Hook::run('admin.after_purge_deleted_user', $user_id, is_array($userData) ? $userData : ['user_id' => $user_id], $this);
+        }
+        $this->notifyOperationResult(
+            $result,
+            [
+                'default_error_message' => 'Не удалось удалить пользователя из архива.',
+                'success_message' => 'Пользователь полностью удалён из архива.',
+                'failure_code' => 'user_purge_failed',
+            ]
+        );
+
+        SysClass::handleRedirect(200, $result->isSuccess() ? '/admin/deleted_users' : '/admin/deleted_user_edit/id/' . $user_id);
     }
 
     public function restore_user($params = []) {

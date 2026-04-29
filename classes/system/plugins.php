@@ -1676,6 +1676,7 @@ class Plugins {
         int $visibleSlots = 0
     ): string {
         $displayLabel = trim((string) ($fieldMeta['label'] ?? $fieldMeta['title'] ?? ''));
+        $fieldTitle = trim((string) ($fieldMeta['title'] ?? ''));
         $type = strtolower(trim((string) ($fieldMeta['type'] ?? 'text'))) ?: 'text';
         $valueName = (string) ($fieldMeta['value_name'] ?? '');
         $required = !empty($fieldMeta['required']) ? ' required' : '';
@@ -1688,12 +1689,22 @@ class Plugins {
         $slotAttr = $slotIndex > 0 ? ' data-repeatable-slot="' . $slotIndex . '"' : '';
         $slotInputAttr = $slotIndex > 0 ? ' data-repeatable-slot-input="' . $slotIndex . '"' : '';
         $titleMarkerAttr = !empty($fieldMeta['is_title']) ? ' data-repeatable-title-input="1"' : '';
+        $preferTitleLabel = in_array($type, ['select', 'checkbox', 'radio'], true)
+            && $fieldTitle !== ''
+            && $fieldTitle !== $displayLabel;
+        $primaryLabel = $preferTitleLabel ? $fieldTitle : $displayLabel;
 
         $hiddenClass = (!$slotVisible && $slotIndex > 0) ? ' d-none' : '';
-        $html = '<div class="' . htmlspecialchars($colClass, ENT_QUOTES, 'UTF-8') . ' repeatable-editor__field' . $hiddenClass . '"' . $slotAttr . '>';
-        $html .= '<label class="form-label fw-semibold">' . htmlspecialchars($displayLabel, ENT_QUOTES, 'UTF-8') . '</label>';
-        if (!empty($fieldMeta['title']) && trim((string) $fieldMeta['title']) !== '' && trim((string) $fieldMeta['title']) !== $displayLabel) {
-            $html .= '<div class="form-text mt-n1 mb-2">' . htmlspecialchars((string) $fieldMeta['title'], ENT_QUOTES, 'UTF-8') . '</div>';
+        $fieldClasses = 'repeatable-editor__field' . $hiddenClass;
+        if ($preferTitleLabel) {
+            $fieldClasses .= ' repeatable-editor__field--titled-choice';
+        }
+        $html = '<div class="' . htmlspecialchars($colClass, ENT_QUOTES, 'UTF-8') . ' ' . $fieldClasses . '"' . $slotAttr . '>';
+        if ($primaryLabel !== '') {
+            $html .= '<label class="form-label fw-semibold repeatable-editor__field-label">' . htmlspecialchars($primaryLabel, ENT_QUOTES, 'UTF-8') . '</label>';
+        }
+        if (!$preferTitleLabel && $fieldTitle !== '' && $fieldTitle !== $displayLabel) {
+            $html .= '<div class="form-text mt-n1 mb-2 repeatable-editor__field-hint">' . htmlspecialchars($fieldTitle, ENT_QUOTES, 'UTF-8') . '</div>';
         }
 
         switch ($type) {
@@ -1784,9 +1795,10 @@ class Plugins {
                 continue;
             }
             $checked = isset($selectedKeys[$key]) ? ' checked' : '';
+            $inputId = 'repeatable_choice_' . md5($valueName . '|' . $itemIndex . '|' . $inputType . '|' . $key);
             $html .= '<div class="form-check mb-2">';
-            $html .= '<input class="form-check-input" type="' . $inputType . '" name="' . htmlspecialchars($name, ENT_QUOTES) . '" value="' . htmlspecialchars($key, ENT_QUOTES) . '"' . $checked . $disabledAttr . $required . $slotInputAttr . '>';
-            $html .= '<label class="form-check-label">' . htmlspecialchars((string) ($option['label'] ?? $key), ENT_QUOTES) . '</label>';
+            $html .= '<input id="' . htmlspecialchars($inputId, ENT_QUOTES, 'UTF-8') . '" class="form-check-input" type="' . $inputType . '" name="' . htmlspecialchars($name, ENT_QUOTES) . '" value="' . htmlspecialchars($key, ENT_QUOTES) . '"' . $checked . $disabledAttr . $required . $slotInputAttr . '>';
+            $html .= '<label class="form-check-label" for="' . htmlspecialchars($inputId, ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars((string) ($option['label'] ?? $key), ENT_QUOTES) . '</label>';
             $html .= '</div>';
         }
         return $html;
@@ -2083,9 +2095,10 @@ class Plugins {
             }
             $checked = isset($selectedKeys[$key]) ? ' checked' : '';
             $itemRequired = $type === 'checkbox' ? '' : $required;
+            $inputId = 'property_choice_' . md5($valueName . '|' . $inputType . '|' . $key);
             $html .= '<div class="form-check mb-2">';
-            $html .= '<input class="form-check-input" type="' . $inputType . '" name="' . $inputName . '" value="' . htmlspecialchars($key, ENT_QUOTES) . '"' . $checked . $itemRequired . '>';
-            $html .= '<label class="form-check-label">' . htmlspecialchars((string) ($option['label'] ?? $key), ENT_QUOTES) . '</label>';
+            $html .= '<input id="' . htmlspecialchars($inputId, ENT_QUOTES, 'UTF-8') . '" class="form-check-input" type="' . $inputType . '" name="' . $inputName . '" value="' . htmlspecialchars($key, ENT_QUOTES) . '"' . $checked . $itemRequired . '>';
+            $html .= '<label class="form-check-label" for="' . htmlspecialchars($inputId, ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars((string) ($option['label'] ?? $key), ENT_QUOTES) . '</label>';
             $html .= '</div>';
         }
         return $html;

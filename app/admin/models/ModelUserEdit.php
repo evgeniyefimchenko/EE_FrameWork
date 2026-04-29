@@ -224,4 +224,73 @@ class ModelUserEdit {
             ? OperationResult::success(['user_id' => $user_id], '', 'restored')
             : OperationResult::failure('Ошибка восстановления пользователя', 'user_restore_error', ['user_id' => $user_id]);
     }
+
+    public function purge_deleted_user(int $user_id): OperationResult {
+        if ($user_id <= 0) {
+            return OperationResult::validation('Не указан пользователь для удаления', ['user_id' => $user_id]);
+        }
+
+        $userRow = SafeMySQL::gi()->getRow(
+            'SELECT user_id, email, user_role, deleted FROM ?n WHERE user_id = ?i LIMIT 1',
+            Constants::USERS_TABLE,
+            $user_id
+        );
+        if (!$userRow) {
+            return OperationResult::failure('Пользователь не найден', 'user_not_found', ['user_id' => $user_id]);
+        }
+
+        $userRole = (int) ($userRow['user_role'] ?? 0);
+        if (in_array($userRole, [Constants::ADMIN, Constants::SYSTEM], true)) {
+            return OperationResult::failure('Системных пользователей нельзя удалять полностью', 'system_user_purge_blocked', ['user_id' => $user_id]);
+        }
+
+        if ((int) ($userRow['deleted'] ?? 0) !== 1) {
+            return OperationResult::failure('Полное удаление доступно только для пользователей из архива', 'user_not_archived', ['user_id' => $user_id]);
+        }
+
+        $userEmail = trim((string) ($userRow['email'] ?? ''));
+
+        SafeMySQL::gi()->query('START TRANSACTION');
+        try {
+            SafeMySQL::gi()->query('DELETE FROM ?n WHERE user_id = ?i', Constants::USERS_AUTH_SESSIONS_TABLE, $user_id);
+            SafeMySQL::gi()->query('DELETE FROM ?n WHERE user_id = ?i', Constants::USERS_AUTH_CREDENTIALS_TABLE, $user_id);
+            SafeMySQL::gi()->query('DELETE FROM ?n WHERE user_id = ?i', Constants::USERS_AUTH_IDENTITIES_TABLE, $user_id);
+            SafeMySQL::gi()->query('DELETE FROM ?n WHERE user_id = ?i', Constants::USERS_AUTH_CHALLENGES_TABLE, $user_id);
+            SafeMySQL::gi()->query('DELETE FROM ?n WHERE user_id = ?i', Constants::USERS_API_KEYS_TABLE, $user_id);
+            SafeMySQL::gi()->query('DELETE FROM ?n WHERE user_id = ?i', Constants::USERS_ACTIVATION_TABLE, $user_id);
+            if ($userEmail !== '') {
+                SafeMySQL::gi()->query('DELETE FROM ?n WHERE email = ?s', Constants::USERS_ACTIVATION_TABLE, $userEmail);
+            }
+            SafeMySQL::gi()->query('UPDATE ?n SET user_id = 0 WHERE user_id = ?i', Constants::FILES_TABLE, $user_id);
+            SafeMySQL::gi()->query('DELETE FROM ?n WHERE user_id = ?i', Constants::USERS_TABLE, $user_id);
+
+            if ((int) SafeMySQL::gi()->affectedRows() <= 0) {
+                SafeMySQL::gi()->query('ROLLBACK');
+                return OperationResult::failure('Не удалось удалить пользователя из архива', 'user_purge_delete_failed', ['user_id' => $user_id]);
+            }
+
+            SafeMySQL::gi()->query('COMMIT');
+        } catch (\Throwable $e) {
+            SafeMySQL::gi()->query('ROLLBACK');
+            Logger::error('users_info', 'Ошибка полного удаления пользователя', [
+                'user_id' => $user_id,
+                'exception' => $e,
+            ], [
+                'initiator' => __FUNCTION__,
+                'include_trace' => true,
+            ]);
+            return OperationResult::failure('Ошибка полного удаления пользователя', 'user_purge_exception', ['user_id' => $user_id]);
+        }
+
+        Logger::audit('users_info', 'Пользователь полностью удалён из архива', [
+            'user_id' => $user_id,
+            'email' => $userEmail,
+        ], [
+            'initiator' => __FUNCTION__,
+            'details' => 'Пользователь полностью удалён из архива',
+            'include_trace' => false,
+        ]);
+
+        return OperationResult::success(['user_id' => $user_id], '', 'purged');
+    }
 }

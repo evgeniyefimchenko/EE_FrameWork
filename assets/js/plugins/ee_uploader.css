@@ -99,6 +99,7 @@
     bottom: 10px;
     display: flex;
     gap: 5px;
+    z-index: 2;
 }
 .no-select {
     user-select: none;
@@ -144,10 +145,14 @@
     background: cornflowerblue;
     color: white;
     border-radius: 5px;
-    z-index: 9999;
+    z-index: 2;
     position: relative;
-    padding: 0 2px;
+    padding: 3px 6px;
     text-align: center;
+    font-size: 12px;
+    line-height: 1.25;
+    word-break: break-word;
+    white-space: normal;
 }
 .preloadedFilesData {
     padding-top: 5px;
@@ -167,6 +172,10 @@
     display: flex;
 }
 
+#eeCropperModal {
+    z-index: 12000;
+}
+
 #eeCropperModal .modal-dialog {
     max-width: min(96vw, 1400px);
     width: 96vw;
@@ -174,6 +183,8 @@
 
 #eeCropperModal .modal-content {
     min-height: 70vh;
+    position: relative;
+    isolation: isolate;
 }
 
 #eeCropperModal .modal-body {
@@ -191,6 +202,7 @@
     position: relative;
     background: #f2f2f2;
     overflow: hidden;
+    z-index: 1;
 }
 
 #eeCropperModal #eeCropperImage {
