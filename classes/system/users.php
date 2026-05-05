@@ -887,7 +887,7 @@ class Users {
             'deleted' => $this->langValue('sys.account_deleted', $this->langValue('sys.no_access', 'Access denied.')),
             'password_setup_required' => $this->langValue('sys.password_setup_link_sent', $this->langValue('sys.verify_email', 'Check your email.')),
             'password_setup_mail_failed' => $this->langValue('sys.password_setup_mail_failed', $this->langValue('sys.email_sending_error', 'Email sending error.')),
-            'imported_user_registration_required' => $this->langValue('sys.imported_user_registration_required', 'Complete registration with the same email to activate the migrated account.'),
+            'password_recovery_required' => $this->langValue('sys.password_recovery_required', 'Recover your password to continue.'),
             'invalid_credentials', 'user_not_found' => $this->langValue('sys.invalid_login_or_password', 'Invalid login or password.'),
             'temporarily_locked' => $this->langValue('sys.account_temporarily_locked', 'Too many failed attempts. Try again later.'),
             default => $this->langValue('sys.error', 'Error'),
@@ -1191,6 +1191,7 @@ class Users {
         parent_page_id INT UNSIGNED NULL,
         category_id INT UNSIGNED NOT NULL,
         status ENUM('active', 'hidden', 'disabled') NOT NULL DEFAULT 'active',
+        sort_order INT NOT NULL DEFAULT 1000 COMMENT 'Порядок ручного вывода страниц внутри CMS-разделов',
         title VARCHAR(255) NOT NULL,
         slug VARCHAR(255) DEFAULT NULL,
         route_path VARCHAR(512) DEFAULT NULL,
@@ -1204,6 +1205,7 @@ class Users {
         KEY idx_pages_category (category_id),
         KEY idx_pages_parent (parent_page_id),
         KEY idx_pages_category_lang (category_id, language_code),
+        KEY idx_pages_category_lang_sort (category_id, language_code, status, sort_order),
         KEY idx_pages_lang_title (language_code, title),
         KEY idx_pages_lang_status (language_code, status),
         KEY idx_pages_lang_slug (language_code, slug),
@@ -1215,6 +1217,11 @@ class Users {
         CONSTRAINT fk_pages_parent FOREIGN KEY (parent_page_id) REFERENCES ?n(page_id) ON DELETE RESTRICT ON UPDATE RESTRICT
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Таблица для хранения страниц';";
         SafeMySQL::gi()->query($sql, Constants::PAGES_TABLE, Constants::CATEGORIES_TABLE, Constants::PAGES_TABLE);
+        SafeMySQL::gi()->query(
+            'ALTER TABLE ?n ADD COLUMN IF NOT EXISTS sort_order INT NOT NULL DEFAULT 1000 COMMENT ?s AFTER status',
+            Constants::PAGES_TABLE,
+            'Порядок ручного вывода страниц внутри CMS-разделов'
+        );
         SafeMySQL::gi()->query(
             'ALTER TABLE ?n ADD INDEX IF NOT EXISTS idx_pages_lang_title (language_code, title)',
             Constants::PAGES_TABLE
@@ -1233,6 +1240,10 @@ class Users {
         );
         SafeMySQL::gi()->query(
             'ALTER TABLE ?n ADD INDEX IF NOT EXISTS idx_pages_search_scope (language_code, search_enabled, search_scope_mask)',
+            Constants::PAGES_TABLE
+        );
+        SafeMySQL::gi()->query(
+            'ALTER TABLE ?n ADD INDEX IF NOT EXISTS idx_pages_category_lang_sort (category_id, language_code, status, sort_order)',
             Constants::PAGES_TABLE
         );
         $this->logSqlInfo('create_pages_table', 'Таблица страниц создана');

@@ -1,6 +1,8 @@
 /* Страница админ-панели подключается в layouts Подключается на всех страницах админ-панели */
 var text_message, color;
 var isAdminArea = window.location.pathname.indexOf('/admin') === 0;
+var isManagerArea = window.location.pathname.indexOf('/manager') === 0;
+var notificationsEndpoint = isAdminArea ? '/admin/ajax_admin' : (isManagerArea ? '/manager/ajax_notifications' : '');
 
 actions = {
     showNotification: function (text_message, color, from, align) {
@@ -19,8 +21,11 @@ actions = {
         });
     },
     loadOptionsUser: function () {
+        if (!notificationsEndpoint) {
+            return;
+        }
         AppCore.sendAjaxRequest(
-                '/admin/ajax_admin',
+                notificationsEndpoint,
                 {'get': 1},
                 'POST',
                 'json',
@@ -29,39 +34,11 @@ actions = {
                         console.log('error', data);
                         actions.showNotification(AppCore.getLangVar('sys.data_read_error') + ' ' + data.error, 'danger');
                     } else {
-                        if (data.notifications && typeof data.notifications[0] !== 'undefined') {
-                            var d = new Date().getTime();
-                            for (let key in data.notifications) {
-                                const notification = data.notifications[key];
-                                const shouldAutoRemove = ['info', 'success', 'danger'].includes(notification.status)
-                                    || (notification.status === 'warning' && notification.source_type === 'security');
-
-                                if (shouldAutoRemove) {
-                                    actions.showNotification(notification.text, notification.status);
-                                    AppCore.sendAjaxRequest(
-                                            '/admin/killNotificationById',
-                                            {'id': notification.id},
-                                            'POST'
-                                            );
-                                } else if (notification.status === 'primary') {
-                                    if ((parseInt(notification.showtime) - parseInt(d)) <= 0) {
-                                        actions.showNotification(notification.text, notification.status);
-                                        AppCore.sendAjaxRequest(
-                                                '/admin/setNotificationTime',
-                                                {'showtime': d + 300000, 'id': notification.id},
-                                                'POST'
-                                                );
-                                    }
-                                } else {
-                                    // Показывать все остальные сообщения постоянно до удаления в контроллере
-                                    actions.showNotification(notification.text, notification.status);
-                                    AppCore.sendAjaxRequest(
-                                            '/admin/setNotificationTime',
-                                            {'showtime': d, 'id': notification.id},
-                                            'POST'
-                                            );
-                                }
-                            }
+                        if (Array.isArray(data.notifications) && data.notifications.length) {
+                            data.notifications.forEach(function (notification) {
+                                var status = notification.status || 'info';
+                                actions.showNotification(notification.text || '', status);
+                            });
                         }
                     }
                 },
@@ -101,7 +78,7 @@ actions = {
 };
 
 // Загрузка и активация пользовательских настроек
-if (isAdminArea) {
+if (isAdminArea || isManagerArea) {
     actions.loadOptionsUser();
 }
 

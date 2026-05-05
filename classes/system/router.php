@@ -331,6 +331,9 @@ class Router {
     }
 
     public static function clearRouteCache(): void {
+        if (class_exists(EntityPublicUrlService::class)) {
+            EntityPublicUrlService::clearRuntimeCache();
+        }
         self::clearRouteCacheFiles();
         if (self::getRouteCacheBackend() === 'redis' && class_exists('\Redis')) {
             self::clearRouteCacheRedis();

@@ -126,6 +126,26 @@ class SysClass {
     }
 
     /**
+     * Нормализует текст перед сохранением: в БД храним реальные UTF-8 символы,
+     * а HTML escaping делаем только на выводе.
+     */
+    public static function ee_normalizeTextForStorage(mixed $value): string {
+        if (is_bool($value)) {
+            return $value ? '1' : '0';
+        }
+        if (is_array($value) || is_object($value) || $value === null) {
+            return '';
+        }
+
+        $text = trim((string) $value);
+        if ($text === '') {
+            return '';
+        }
+
+        return trim(html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+    }
+
+    /**
      * Прячет часть строки за символами, оставляя указанные количество символов в начале и в конце строки видимыми
      * @param string $str Строка, в которой хотим заменить часть букв на символы
      * @param int $first Количество символов, открытых в начале строки

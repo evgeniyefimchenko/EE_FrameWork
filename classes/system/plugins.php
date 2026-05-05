@@ -2329,13 +2329,13 @@ class Plugins {
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="' . $globalLang['sys.edit'] . '"></button>
                     </div>
                     <div class="modal-body">
-                        <form id="fileParamsForm-' . $params['id'] . '">
+                        <div id="fileParamsForm-' . $params['id'] . '">
                             <div class="mb-3">
                                 <label for="file_name_' . $params['id'] . '" class="form-label">' . $globalLang['sys.file_name'] . '</label>
                                 <input type="text" class="form-control" id="file_name_' . $params['id'] . '" name="original_name" value="">
                             </div>
                             <button type="button" class="btn btn-primary" id="submit_' . $params['id'] . '">' . $globalLang['sys.save'] . '</button>
-                        </form>
+                        </div>
                     </div>
                 </div>
             </div>

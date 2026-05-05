@@ -559,7 +559,7 @@ use MessagesTrait,
     }
 
     private function buildAjaxAdminPayload(array $options): array {
-        $notifications = ClassNotifications::getNotificationsUser((int) $this->logged_in, 10);
+        $notifications = ClassNotifications::consumeNotificationsUser((int) $this->logged_in, 10);
         $messages = ClassMessages::get_unread_messages_user((int) $this->logged_in);
         $payload = array_merge($options, [
             'options' => $options,

@@ -202,6 +202,7 @@ class ModelPages {
      */
     public function updatePageData($pageData = [], $language_code = ENV_DEF_LANG): OperationResult {
         try {
+            $forceRegenerateSlug = !empty($pageData['regenerate_slug']) || !empty($pageData['_regenerate_slug']);
             $urlPolicyId = (int) ($pageData['url_policy_id'] ?? 0);
             $hasSearchControls = array_key_exists('search_enabled', $pageData)
                 || array_key_exists('search_scope_mask', $pageData)
@@ -237,6 +238,11 @@ class ModelPages {
             }
             $pageData = array_map('trim', $pageData);
             $pageData = SysClass::ee_convertArrayValuesToNumbers($pageData);
+            foreach (['title', 'short_description'] as $textField) {
+                if (array_key_exists($textField, $pageData)) {
+                    $pageData[$textField] = SysClass::ee_normalizeTextForStorage($pageData[$textField]);
+                }
+            }
             if (empty($pageData['category_id']) || empty($pageData['title'])) {
                 Logger::warning('page_validation', 'Отсутствует category_id или title', ['pageData' => $pageData], ['initiator' => __FUNCTION__]);
                 return OperationResult::validation('Отсутствует category_id или title', ['pageData' => $pageData]);
@@ -296,7 +302,7 @@ class ModelPages {
                 $pageId = 0;
             }
 
-            if (is_array($oldPageRow) && empty($pageData['slug'])) {
+            if (is_array($oldPageRow) && empty($pageData['slug']) && !$forceRegenerateSlug) {
                 $pageData['slug'] = (string) ($oldPageRow['slug'] ?? '');
                 $pageData['preserve_existing_slug'] = (string) ($pageData['slug'] ?? '') !== '';
             }

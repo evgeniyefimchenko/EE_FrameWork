@@ -158,7 +158,7 @@ abstract class ControllerBase {
     }
 
     private function guardRequiredLegalConsents(array $userData): void {
-        if (get_class($this) !== 'ControllerAdmin' || empty($this->logged_in)) {
+        if (empty($this->logged_in)) {
             return;
         }
         $impersonationState = AuthSessionService::getImpersonationState();
@@ -170,11 +170,19 @@ abstract class ControllerBase {
         }
 
         $currentPath = trim((string) parse_url((string) ($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_PATH), '/');
-        if ($currentPath === 'required_consents' || $currentPath === 'logout' || $currentPath === 'exit_login') {
+        $allowedPaths = [
+            'required_consents',
+            'privacy_policy',
+            'consent_personal_data',
+            'logout',
+            'exit_login',
+        ];
+        if (in_array($currentPath, $allowedPaths, true)) {
             return;
         }
 
-        $redirect = '/required_consents?return=' . rawurlencode($currentPath !== '' ? $currentPath : 'admin');
+        $returnPath = $currentPath !== '' ? '/' . $currentPath : '/';
+        $redirect = '/required_consents?return=' . rawurlencode($returnPath);
         if (SysClass::isAjaxRequestFromSameSite()) {
             http_response_code(428);
             echo json_encode([

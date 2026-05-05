@@ -346,6 +346,11 @@ class ModelCategories {
                 return is_string($value) ? trim($value) : $value;
             }, $categoryData);
             $categoryData = SysClass::ee_convertArrayValuesToNumbers($categoryData); // Конвертируем числовые строки
+            foreach (['title', 'short_description'] as $textField) {
+                if (array_key_exists($textField, $categoryData)) {
+                    $categoryData[$textField] = SysClass::ee_normalizeTextForStorage($categoryData[$textField]);
+                }
+            }
             $categoryData['parent_id'] = isset($categoryData['parent_id']) && (int) $categoryData['parent_id'] !== 0 ? (int) $categoryData['parent_id'] : NULL;
             $categoryData['language_code'] = $languageCode;
             if (empty($categoryData['type_id']) || !is_numeric($categoryData['type_id'])) {

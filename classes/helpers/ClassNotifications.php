@@ -65,6 +65,59 @@ class ClassNotifications {
         return array_map(static fn(array $row): array => self::normalizeNotificationRow($row), $rows);
     }
 
+    /**
+     * Возвращает уведомления для одноразового показа и сразу очищает все
+     * актуальные toast-уведомления пользователя. Непрочитанные сообщения при
+     * этом остаются в users_message и продолжают отображаться в колокольчике.
+     */
+    public static function consumeNotificationsUser(int $userId, int $displayLimit = 10): array {
+        if ($userId <= 0) {
+            return [];
+        }
+
+        self::ensureInfrastructure();
+        self::migrateLegacyNotificationsForUser($userId);
+        self::purgeLegacyNotifications($userId);
+
+        $nowMs = (int) floor(microtime(true) * 1000);
+        $rows = SafeMySQL::gi()->getAll(
+            'SELECT
+                notification_id AS id,
+                user_id,
+                source_type,
+                source_id,
+                text,
+                status,
+                showtime,
+                url,
+                icon,
+                color,
+                payload_json,
+                created_at,
+                updated_at
+             FROM ?n
+             WHERE user_id = ?i
+               AND (showtime = 0 OR showtime <= ?i)
+             ORDER BY notification_id DESC
+             LIMIT ?i',
+            Constants::USERS_NOTIFICATIONS_TABLE,
+            $userId,
+            $nowMs,
+            max(1, $displayLimit)
+        );
+
+        SafeMySQL::gi()->query(
+            'DELETE FROM ?n
+             WHERE user_id = ?i
+               AND (showtime = 0 OR showtime <= ?i)',
+            Constants::USERS_NOTIFICATIONS_TABLE,
+            $userId,
+            $nowMs
+        );
+
+        return array_map(static fn(array $row): array => self::normalizeNotificationRow($row), (array) $rows);
+    }
+
     public static function purgeLegacyNotifications(int $userId = 0): int {
         self::ensureInfrastructure();
 

@@ -125,7 +125,7 @@ class ControllerIndex Extends ControllerBase {
         $this->getStandardViews();
         $this->addPublicThemeAssets();
         $this->loadModel('m_public_catalog');
-        $this->view->set('homePayload', $this->models['m_public_catalog']->getHomePayload(ee_get_current_lang_code()));
+        $this->view->set('homePayload', []);
         $this->view->set('top_panel', $this->view->read('v_top_panel', false));
         $this->html = $this->view->read('v_index');
         /* layouts */

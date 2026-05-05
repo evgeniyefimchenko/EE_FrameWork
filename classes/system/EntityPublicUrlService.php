@@ -24,6 +24,17 @@ final class EntityPublicUrlService {
     private static array $resolvedPageRoutePathCache = [];
     private static array $resolvedRouteCache = [];
 
+    public static function clearRuntimeCache(): void {
+        self::$categoryRowCache = [];
+        self::$pageRowCache = [];
+        self::$categoryPathSegmentsCache = [];
+        self::$resolvedCategorySlugCache = [];
+        self::$resolvedPageSlugCache = [];
+        self::$resolvedCategoryRoutePathCache = [];
+        self::$resolvedPageRoutePathCache = [];
+        self::$resolvedRouteCache = [];
+    }
+
     public static function buildEntityPath(string $entityType, int $entityId, ?string $languageCode = null): string {
         $entityType = self::normalizeEntityType($entityType);
         if ($entityType === '' || $entityId <= 0) {

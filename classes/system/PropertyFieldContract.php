@@ -692,13 +692,7 @@ final class PropertyFieldContract {
     }
 
     private static function normalizeScalar(mixed $value): string {
-        if (is_bool($value)) {
-            return $value ? '1' : '0';
-        }
-        if (is_array($value) || is_object($value) || $value === null) {
-            return '';
-        }
-        return trim((string) $value);
+        return SysClass::ee_normalizeTextForStorage($value);
     }
 
     private static function normalizeDisplayText(mixed $value): string {

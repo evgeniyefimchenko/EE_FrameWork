@@ -83,26 +83,27 @@ $topbarData = [
     ]
 ];
 
-// Обработка уведомлений для отображения в верхней панели
+// В колокольчике показываем только непрочитанные сообщения. Toast-оповещения
+// приходят отдельно через /admin/ajax_admin и удаляются после первого показа.
 $topbarNotifications = [];
-if (isset($notifications) && is_array($notifications)) {
-    $nowMs = (int) round(microtime(true) * 1000);
-    foreach ($notifications as $notification) {
-        $status = (string) ($notification['status'] ?? 'info');
-        $sourceType = trim((string) ($notification['source_type'] ?? 'system'));
-        $showtime = max(0, (int) ($notification['showtime'] ?? 0));
-        $isImportant = $sourceType === 'message' || in_array($status, ['warning', 'danger'], true);
-        if (!$isImportant) {
+if (isset($messages) && is_array($messages)) {
+    foreach ($messages as $message) {
+        $messageId = (int) ($message['message_id'] ?? 0);
+        $messageText = trim(strip_tags((string) ($message['title'] ?? '')));
+        if ($messageText === '') {
+            $messageText = trim(strip_tags((string) ($message['message_text'] ?? '')));
+        }
+        if ($messageText === '') {
             continue;
         }
-        if ($status === 'primary' && $showtime > $nowMs) {
-            continue;
-        }
+        $url = $messageId > 0
+            ? \classes\system\CsrfService::appendToUrl('/admin/set_readed/id/' . $messageId)
+            : '/admin/messages';
         $topbarNotifications[] = [
-            'text' => classes\system\SysClass::truncateString(strip_tags((string) ($notification['text'] ?? '')), 33),
-            'url' => (string) ($notification['url'] ?? '/admin/messages'),
-            'icon' => (string) ($notification['icon'] ?? 'fa-regular fa-circle-question'),
-            'color' => (string) ($notification['color'] ?? '#bcbebf')
+            'text' => classes\system\SysClass::truncateString($messageText, 33),
+            'url' => $url,
+            'icon' => 'fa-solid fa-envelope',
+            'color' => '#0d6efd'
         ];
     }
 }

@@ -4,6 +4,7 @@ $documentLangCode = ee_get_current_lang_code();
 $documentLang = ee_get_lang_html_attr($documentLangCode);
 $documentLocale = ee_get_lang_locale($documentLangCode);
 $langBundleUrl = ee_get_lang_bundle_url($documentLangCode);
+$dashboardJsVersion = (string) (@filemtime(ENV_SITE_PATH . 'app/admin/js/dashboard.js') ?: time());
 $currentCanonical = trim((string) ($canonical_href ?? ENV_URL_SITE));
 $currentCanonical = $currentCanonical !== '' ? $currentCanonical : ENV_URL_SITE;
 $alternateHreflang = is_array($alternate_hreflang ?? null) ? $alternate_hreflang : [];
@@ -109,7 +110,7 @@ $alternateHreflang = is_array($alternate_hreflang ?? null) ? $alternate_hreflang
         <!-- core -->
         <script src="<?= htmlspecialchars($langBundleUrl, ENT_QUOTES, 'UTF-8') ?>" type="text/javascript"></script>
         <script src="<?= ENV_URL_SITE ?>/assets/js/core.js" type="text/javascript"></script>
-        <script src="<?= ENV_URL_SITE ?>/app/admin/js/dashboard.js" type="text/javascript"></script>
+        <script src="<?= ENV_URL_SITE ?>/app/admin/js/dashboard.js?v=<?= htmlspecialchars($dashboardJsVersion, ENT_QUOTES, 'UTF-8') ?>" type="text/javascript"></script>
 
         <!-- end of non-relocatable JS scripts -->
         <!-- Добавленные скрипты из контроллера -->

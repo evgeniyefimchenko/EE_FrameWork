@@ -1854,13 +1854,12 @@ class FileSystem {
      */
     public static function extractBase64Images(string $text): string {
         if (empty(ENV_CREATE_WEBP)) return $text;
-        $decodedText = html_entity_decode($text);
-        $pattern = '/<img[^>]*src="data:image\/(png|jpeg|gif);base64,([^"]*)"[^>]*>/i';        
+        $decodedText = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $pattern = '~<img\b([^>]*?)\ssrc\s*=\s*([\'"])data:image/(png|jpe?g|gif|webp);base64,([^\'"]+)\2([^>]*)>~iu';
         $result = preg_replace_callback($pattern, function ($matches) {
             $message = 'Ошибка при декодировании!';
-            $imageData = $matches[2];
-            $imageFormat = $matches[1];
-            $decodedData = base64_decode($imageData);
+            $imageData = preg_replace('/\s+/', '', (string) ($matches[4] ?? ''));
+            $decodedData = base64_decode($imageData, true);
             if ($decodedData === false) {
                 ClassNotifications::addNotificationUser(SysClass::getCurrentUserId(), ['text' => $message, 'status' => 'danger']);
                 return $matches[0];
@@ -1872,15 +1871,14 @@ class FileSystem {
             $filePath = $targetDirectory . ENV_DIRSEP . $fileName;
             if (self::saveBase64ImageAsWebp($decodedData, $filePath)) {
                 $fileUrl = $storage['public_directory_url'] . '/' . $fileName;
-                return '<img src="' . $fileUrl . '">';
+                $attributes = trim((string) ($matches[1] ?? '') . ' ' . (string) ($matches[5] ?? ''));
+                return '<img src="' . htmlspecialchars($fileUrl, ENT_QUOTES, 'UTF-8') . '"' . ($attributes !== '' ? ' ' . $attributes : '') . '>';
             } else {
                 ClassNotifications::addNotificationUser(SysClass::getCurrentUserId(), ['text' => $message, 'status' => 'danger']);
                 return $matches[0];
             }
         }, $decodedText);
-        // Кодируем HTML entities обратно
-        $encodedResult = htmlentities($result, ENT_QUOTES, 'UTF-8');
-        return $encodedResult;
+        return is_string($result) ? $result : $text;
     }
 
     /**
