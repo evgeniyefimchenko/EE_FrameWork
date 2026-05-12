@@ -33,9 +33,6 @@ class AutoloadManager {
         // Для возможности использования trait в классе ControllerAdmin
         self::addNamespace('app\admin', ENV_SITE_PATH . ENV_APP_DIRECTORY . ENV_DIRSEP . 'admin' . ENV_DIRSEP, true,
                 [ENV_SITE_PATH . ENV_APP_DIRECTORY . ENV_DIRSEP . 'admin' . ENV_DIRSEP . 'views']);
-        // Для возможности использования trait в классе ControllerIndex
-        self::addNamespace('app\index', ENV_SITE_PATH . ENV_APP_DIRECTORY . ENV_DIRSEP . 'index' . ENV_DIRSEP, true,
-                [ENV_SITE_PATH . ENV_APP_DIRECTORY . ENV_DIRSEP . 'index' . ENV_DIRSEP . 'views']);
     }
 
     /**

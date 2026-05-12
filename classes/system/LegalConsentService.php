@@ -7,7 +7,9 @@ use classes\plugins\SafeMySQL;
 class LegalConsentService {
 
     private const PROVIDER_SESSION_PREFIX = 'legal_provider_consent_';
+    private const DISTRIBUTION_ACCEPTED_FIELD = 'personal_data_distribution_consent_accepted';
     private static bool $infrastructureReady = false;
+    private static bool $distributionInfrastructureReady = false;
 
     public static function ensureInfrastructure(bool $force = false): void {
         if (self::$infrastructureReady && !$force) {
@@ -37,8 +39,33 @@ class LegalConsentService {
         SafeMySQL::gi()->query('ALTER TABLE ?n ADD COLUMN IF NOT EXISTS personal_data_consent_accept_ip VARCHAR(45) DEFAULT NULL AFTER personal_data_consent_accepted_at', $table);
         SafeMySQL::gi()->query('ALTER TABLE ?n ADD COLUMN IF NOT EXISTS personal_data_consent_accept_user_agent VARCHAR(255) DEFAULT NULL AFTER personal_data_consent_accept_ip', $table);
         SafeMySQL::gi()->query('ALTER TABLE ?n ADD COLUMN IF NOT EXISTS personal_data_consent_version VARCHAR(50) DEFAULT NULL AFTER personal_data_consent_accept_user_agent', $table);
+        self::ensureDistributionInfrastructure(true);
 
         self::$infrastructureReady = true;
+    }
+
+    public static function ensureDistributionInfrastructure(bool $force = false): void {
+        if (self::$distributionInfrastructureReady && !$force) {
+            return;
+        }
+        if (!self::tableExists(Constants::USERS_TABLE)) {
+            self::$distributionInfrastructureReady = false;
+            return;
+        }
+
+        if (!$force && self::usersTableHasDistributionConsentColumns()) {
+            self::$distributionInfrastructureReady = true;
+            return;
+        }
+
+        $table = Constants::USERS_TABLE;
+        SafeMySQL::gi()->query('ALTER TABLE ?n ADD COLUMN IF NOT EXISTS personal_data_distribution_consent_accepted TINYINT(1) NOT NULL DEFAULT 0 AFTER personal_data_consent_version', $table);
+        SafeMySQL::gi()->query('ALTER TABLE ?n ADD COLUMN IF NOT EXISTS personal_data_distribution_consent_accepted_at DATETIME NULL AFTER personal_data_distribution_consent_accepted', $table);
+        SafeMySQL::gi()->query('ALTER TABLE ?n ADD COLUMN IF NOT EXISTS personal_data_distribution_consent_accept_ip VARCHAR(45) DEFAULT NULL AFTER personal_data_distribution_consent_accepted_at', $table);
+        SafeMySQL::gi()->query('ALTER TABLE ?n ADD COLUMN IF NOT EXISTS personal_data_distribution_consent_accept_user_agent VARCHAR(255) DEFAULT NULL AFTER personal_data_distribution_consent_accept_ip', $table);
+        SafeMySQL::gi()->query('ALTER TABLE ?n ADD COLUMN IF NOT EXISTS personal_data_distribution_consent_version VARCHAR(50) DEFAULT NULL AFTER personal_data_distribution_consent_accept_user_agent', $table);
+
+        self::$distributionInfrastructureReady = true;
     }
 
     public static function getSubmittedFlags(array $input): array {
@@ -60,6 +87,11 @@ class LegalConsentService {
             'personal_data_consent_accept_ip' => null,
             'personal_data_consent_accept_user_agent' => null,
             'personal_data_consent_version' => null,
+            'personal_data_distribution_consent_accepted' => 0,
+            'personal_data_distribution_consent_accepted_at' => null,
+            'personal_data_distribution_consent_accept_ip' => null,
+            'personal_data_distribution_consent_accept_user_agent' => null,
+            'personal_data_distribution_consent_version' => null,
         ];
     }
 
@@ -67,6 +99,7 @@ class LegalConsentService {
         $state = array_merge(self::getDefaultState(), SafeMySQL::gi()->filterArray($row, array_keys(self::getDefaultState())));
         $state['privacy_policy_accepted'] = !empty($state['privacy_policy_accepted']) ? 1 : 0;
         $state['personal_data_consent_accepted'] = !empty($state['personal_data_consent_accepted']) ? 1 : 0;
+        $state['personal_data_distribution_consent_accepted'] = !empty($state['personal_data_distribution_consent_accepted']) ? 1 : 0;
         return $state;
     }
 
@@ -83,7 +116,7 @@ class LegalConsentService {
         $now = date('Y-m-d H:i:s');
         $payload = [];
 
-        foreach (self::getConsentMap() as $acceptedField => $meta) {
+        foreach (self::getRequiredConsentMap() as $acceptedField => $meta) {
             $accepted = !empty($flags[$acceptedField]) ? 1 : 0;
             $payload[$acceptedField] = $accepted;
             if ($accepted === 1) {
@@ -101,6 +134,57 @@ class LegalConsentService {
         }
 
         return $payload;
+    }
+
+    public static function getDistributionConsentSubmittedFlag(array $input): int {
+        return !empty($input[self::DISTRIBUTION_ACCEPTED_FIELD]) ? 1 : 0;
+    }
+
+    public static function hasPersonalDataDistributionConsent(array $userData): bool {
+        $state = self::normalizeState($userData);
+        return $state[self::DISTRIBUTION_ACCEPTED_FIELD] === 1;
+    }
+
+    public static function hasPersonalDataDistributionConsentByUserId(int $userId): bool {
+        self::ensureDistributionInfrastructure();
+        if ($userId <= 0) {
+            return false;
+        }
+        $row = SafeMySQL::gi()->getRow(
+            'SELECT personal_data_distribution_consent_accepted
+             FROM ?n
+             WHERE user_id = ?i
+             LIMIT 1',
+            Constants::USERS_TABLE,
+            $userId
+        );
+        return !empty($row['personal_data_distribution_consent_accepted']);
+    }
+
+    public static function updateUserDistributionConsent(int $userId, array $input, string $source = 'web'): bool {
+        self::ensureDistributionInfrastructure();
+        if ($userId <= 0 || self::getDistributionConsentSubmittedFlag($input) !== 1) {
+            return false;
+        }
+
+        $existingState = self::getConsentStateByUserId($userId);
+        $payload = self::buildDistributionConsentStoragePayload($existingState);
+        SafeMySQL::gi()->query(
+            'UPDATE ?n SET ?u, updated_at = NOW() WHERE user_id = ?i',
+            Constants::USERS_TABLE,
+            $payload,
+            $userId
+        );
+        Logger::audit('users_info', 'Обновлено согласие на распространение персональных данных пользователя', [
+            'user_id' => $userId,
+            'source' => $source,
+            'personal_data_distribution_consent_accepted' => $payload['personal_data_distribution_consent_accepted'],
+        ], [
+            'initiator' => 'legal_consents',
+            'details' => 'Personal data distribution consent updated',
+            'include_trace' => false,
+        ]);
+        return true;
     }
 
     public static function getMissingRequiredKeys(array $input): array {
@@ -206,6 +290,7 @@ class LegalConsentService {
         return match ($acceptedField) {
             'privacy_policy_accepted' => defined('ENV_LEGAL_PRIVACY_POLICY_VERSION') ? (string) ENV_LEGAL_PRIVACY_POLICY_VERSION : date('Y-m-d'),
             'personal_data_consent_accepted' => defined('ENV_LEGAL_PERSONAL_DATA_CONSENT_VERSION') ? (string) ENV_LEGAL_PERSONAL_DATA_CONSENT_VERSION : date('Y-m-d'),
+            'personal_data_distribution_consent_accepted' => defined('ENV_LEGAL_PERSONAL_DATA_DISTRIBUTION_CONSENT_VERSION') ? (string) ENV_LEGAL_PERSONAL_DATA_DISTRIBUTION_CONSENT_VERSION : date('Y-m-d'),
             default => date('Y-m-d'),
         };
     }
@@ -240,6 +325,24 @@ class LegalConsentService {
         return $count === count($requiredColumns);
     }
 
+    private static function usersTableHasDistributionConsentColumns(): bool {
+        $requiredColumns = [
+            'personal_data_distribution_consent_accepted',
+            'personal_data_distribution_consent_accepted_at',
+            'personal_data_distribution_consent_accept_ip',
+            'personal_data_distribution_consent_accept_user_agent',
+            'personal_data_distribution_consent_version',
+        ];
+
+        $count = (int) SafeMySQL::gi()->getOne(
+            'SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?s AND COLUMN_NAME IN (?a)',
+            Constants::USERS_TABLE,
+            $requiredColumns
+        );
+
+        return $count === count($requiredColumns);
+    }
+
     private static function getCurrentUserAgent(): ?string {
         $userAgent = trim((string) ($_SERVER['HTTP_USER_AGENT'] ?? ''));
         if ($userAgent === '') {
@@ -248,7 +351,7 @@ class LegalConsentService {
         return mb_substr($userAgent, 0, 255);
     }
 
-    private static function getConsentMap(): array {
+    private static function getRequiredConsentMap(): array {
         return [
             'privacy_policy_accepted' => [
                 'accepted_at' => 'privacy_policy_accepted_at',
@@ -262,6 +365,31 @@ class LegalConsentService {
                 'user_agent' => 'personal_data_consent_accept_user_agent',
                 'version' => 'personal_data_consent_version',
             ],
+        ];
+    }
+
+    private static function buildDistributionConsentStoragePayload(array $existingState = []): array {
+        $existingState = self::normalizeState($existingState);
+        $ip = SysClass::getClientIp();
+        $userAgent = self::getCurrentUserAgent();
+        $now = date('Y-m-d H:i:s');
+
+        if ($existingState[self::DISTRIBUTION_ACCEPTED_FIELD] === 1) {
+            return [
+                'personal_data_distribution_consent_accepted' => 1,
+                'personal_data_distribution_consent_accepted_at' => $existingState['personal_data_distribution_consent_accepted_at'] ?: $now,
+                'personal_data_distribution_consent_accept_ip' => $existingState['personal_data_distribution_consent_accept_ip'] ?: $ip,
+                'personal_data_distribution_consent_accept_user_agent' => $existingState['personal_data_distribution_consent_accept_user_agent'] ?: $userAgent,
+                'personal_data_distribution_consent_version' => $existingState['personal_data_distribution_consent_version'] ?: self::getDocumentVersion(self::DISTRIBUTION_ACCEPTED_FIELD),
+            ];
+        }
+
+        return [
+            'personal_data_distribution_consent_accepted' => 1,
+            'personal_data_distribution_consent_accepted_at' => $now,
+            'personal_data_distribution_consent_accept_ip' => $ip,
+            'personal_data_distribution_consent_accept_user_agent' => $userAgent,
+            'personal_data_distribution_consent_version' => self::getDocumentVersion(self::DISTRIBUTION_ACCEPTED_FIELD),
         ];
     }
 

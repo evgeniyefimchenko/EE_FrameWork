@@ -2,7 +2,6 @@
 
 use classes\plugins\SafeMySQL;
 use classes\system\Constants;
-use classes\system\SysClass;
 use classes\system\Hook;
 use classes\system\Logger;
 use classes\system\OperationResult;
@@ -11,6 +10,14 @@ use classes\system\OperationResult;
  * Модель работы с типами категорий
  */
 class ModelCategoriesTypes {
+
+    private const CATEGORY_TYPE_WRITE_FIELDS = [
+        'type_id',
+        'parent_type_id',
+        'name',
+        'description',
+        'language_code',
+    ];
 
     private array $directSetsCache = [];
     private array $effectiveSetsCache = [];
@@ -265,7 +272,7 @@ class ModelCategoriesTypes {
      * @return int|bool ID нового или обновленного типа или false в случае ошибки
      */
     public function updateCategoriesTypeData(array $typeData = [], string $languageCode = ENV_DEF_LANG): OperationResult {
-        $typeData = SafeMySQL::gi()->filterArray($typeData, SysClass::ee_getFieldsTable(Constants::CATEGORIES_TYPES_TABLE));
+        $typeData = SafeMySQL::gi()->filterArray($typeData, self::CATEGORY_TYPE_WRITE_FIELDS);
         $typeData = array_map(static function ($value) {
             return is_string($value) ? trim($value) : $value;
         }, $typeData);

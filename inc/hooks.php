@@ -1125,6 +1125,16 @@ function afterUpdatePageCacheHandler(int $pageId, array $pageData, string $metho
         return;
     }
 
+    if ($method === 'insert' || ee_hook_any_field_changed($pageData, [
+        'category_id',
+        'slug',
+        'route_path',
+        'language_code',
+        'status',
+    ])) {
+        \classes\system\Router::clearRouteCache();
+    }
+
     if ($method === 'update' && !ee_hook_any_field_changed($pageData, [
         'title',
         'short_description',

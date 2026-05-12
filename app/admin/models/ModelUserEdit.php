@@ -12,6 +12,12 @@ use classes\system\OperationResult;
  */
 class ModelUserEdit {
 
+    private const USER_ROLE_WRITE_FIELDS = [
+        'role_id',
+        'role_key',
+        'name',
+    ];
+
     /**
      * Возвращает все свободные роли пользователей
      * кроме переданной и роли система
@@ -104,7 +110,7 @@ class ModelUserEdit {
      * - При ошибке SQL логирует её через Logger.
      */
     public function update_users_role_data(array $usersRoleData = []): OperationResult {
-        $usersRoleData = SafeMySQL::gi()->filterArray($usersRoleData, SysClass::ee_getFieldsTable(Constants::USERS_ROLES_TABLE));
+        $usersRoleData = SafeMySQL::gi()->filterArray($usersRoleData, self::USER_ROLE_WRITE_FIELDS);
         $usersRoleData = array_map(static fn($value) => is_string($value) ? trim($value) : $value, $usersRoleData);
         $usersRoleData = SysClass::ee_convertArrayValuesToNumbers($usersRoleData);
         if (empty($usersRoleData['name'])) {

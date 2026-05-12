@@ -9,6 +9,22 @@ use classes\system\SysClass;
  * Модель сообщений пользователя
  */
 class ModelMessages {
+
+    private const MESSAGE_QUERY_FIELDS = [
+        'message_id',
+        'user_id',
+        'author_id',
+        'chat_id',
+        'message_text',
+        'title',
+        'created_at',
+        'read_at',
+        'status',
+        'url',
+        'source_type',
+        'source_id',
+        'payload_json',
+    ];
     
     public function get_user_messages($user_id, $order = 'created_at DESC', $where = NULL, $start = 0, $limit = 100) {
         $order = is_string($order) ? $order : '';
@@ -16,8 +32,8 @@ class ModelMessages {
         $start = $start ?: 0;
         $order = str_replace('`', '', $order);
         $where = str_replace('`', '', $where);
-        $order = SysClass::ee_addPrefixToFields($order, SysClass::ee_getFieldsTable(Constants::USERS_MESSAGE_TABLE), 'm.');
-        $where = SysClass::ee_addPrefixToFields($where, SysClass::ee_getFieldsTable(Constants::USERS_MESSAGE_TABLE), 'm.');
+        $order = SysClass::ee_addPrefixToFields($order, self::MESSAGE_QUERY_FIELDS, 'm.');
+        $where = SysClass::ee_addPrefixToFields($where, self::MESSAGE_QUERY_FIELDS, 'm.');
         $orderString = trim($order) !== '' ? $order : 'm.created_at DESC';
         $whereString = $where ? "$where AND " : "";
         if (is_array($user_id)) {

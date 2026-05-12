@@ -13,6 +13,49 @@ use classes\system\PropertyFieldContract;
  */
 class ModelProperties {
 
+    private const PROPERTY_WRITE_FIELDS = [
+        'property_id',
+        'type_id',
+        'name',
+        'status',
+        'sort',
+        'default_values',
+        'schema_version',
+        'is_multiple',
+        'is_required',
+        'search_enabled_default',
+        'description',
+        'entity_type',
+        'language_code',
+    ];
+
+    private const PROPERTY_TYPE_WRITE_FIELDS = [
+        'type_id',
+        'name',
+        'status',
+        'fields',
+        'schema_version',
+        'description',
+        'language_code',
+    ];
+
+    private const PROPERTY_SET_WRITE_FIELDS = [
+        'set_id',
+        'name',
+        'description',
+        'language_code',
+    ];
+
+    private const PROPERTY_VALUE_WRITE_FIELDS = [
+        'value_id',
+        'entity_id',
+        'set_id',
+        'property_id',
+        'entity_type',
+        'property_values',
+        'language_code',
+    ];
+
     /**
      * РџРѕР»СѓС‡Р°РµС‚ РІСЃРµ СЃРІРѕР№СЃС‚РІР° РЅР° РѕСЃРЅРѕРІРµ СЃС‚Р°С‚СѓСЃР° Рё СЏР·С‹РєРѕРІРѕРіРѕ РєРѕРґР°     
      * @param string $status РЎС‚Р°С‚СѓСЃ С‚РёРїР° СЃРІРѕР№СЃС‚РІР° Constants::ALL_STATUS
@@ -129,7 +172,7 @@ class ModelProperties {
         $normalizedSearchEnabledDefault = $hasSearchDefaultControl
             ? (!empty($propertyData['search_enabled_default']) && !in_array((string) $propertyData['search_enabled_default'], ['0', 'false', 'off'], true) ? 1 : 0)
             : null;
-        $propertyData = SafeMySQL::gi()->filterArray($propertyData, SysClass::ee_getFieldsTable(Constants::PROPERTIES_TABLE));
+        $propertyData = SafeMySQL::gi()->filterArray($propertyData, self::PROPERTY_WRITE_FIELDS);
         if ($hasSearchDefaultControl) {
             $propertyData['search_enabled_default'] = $normalizedSearchEnabledDefault;
         }
@@ -336,7 +379,7 @@ class ModelProperties {
      * @return int|bool ID РѕР±РЅРѕРІР»РµРЅРЅРѕРіРѕ С‚РёРїР° СЃРІРѕР№СЃС‚РІР° РёР»Рё false РІ СЃР»СѓС‡Р°Рµ РЅРµСѓРґР°С‡Рё
      */
     public function updatePropertyTypeData(array $propertyTypeData = [], string $languageCode = ENV_DEF_LANG): OperationResult {
-        $propertyTypeData = SafeMySQL::gi()->filterArray($propertyTypeData, SysClass::ee_getFieldsTable(Constants::PROPERTY_TYPES_TABLE));
+        $propertyTypeData = SafeMySQL::gi()->filterArray($propertyTypeData, self::PROPERTY_TYPE_WRITE_FIELDS);
         $propertyTypeData = array_map('trim', $propertyTypeData);
         $propertyTypeData['language_code'] = $languageCode;  // РґРѕР±Р°РІР»РµРЅРѕ
         if (empty($propertyTypeData['name'])) {
@@ -509,7 +552,7 @@ class ModelProperties {
      */
     public function updatePropertySetData(array $propertySetData = [], string $languageCode = ENV_DEF_LANG): OperationResult {        
         // Р¤РёР»СЊС‚СЂСѓРµРј РґР°РЅРЅС‹Рµ РїРѕ РїРѕР»СЏРј С‚Р°Р±Р»РёС†С‹ РЅР°Р±РѕСЂР° СЃРІРѕР№СЃС‚РІ
-        $propertySetData = SafeMySQL::gi()->filterArray($propertySetData, SysClass::ee_getFieldsTable(Constants::PROPERTY_SETS_TABLE));
+        $propertySetData = SafeMySQL::gi()->filterArray($propertySetData, self::PROPERTY_SET_WRITE_FIELDS);
         $propertySetData = array_map('trim', $propertySetData);
         // РџСЂРѕРІРµСЂРєР° РѕР±СЏР·Р°С‚РµР»СЊРЅРѕРіРѕ РїРѕР»СЏ 'name'
         if (empty($propertySetData['name'])) {
@@ -735,7 +778,7 @@ class ModelProperties {
         static $existingValueCache = [];
 
         $propertyData['property_values'] = !empty($propertyData['fields']) ? $propertyData['fields'] : (!empty($propertyData['property_values']) ? $propertyData['property_values'] : false);
-        $propertyData = SafeMySQL::gi()->filterArray($propertyData, SysClass::ee_getFieldsTable(Constants::PROPERTY_VALUES_TABLE));
+        $propertyData = SafeMySQL::gi()->filterArray($propertyData, self::PROPERTY_VALUE_WRITE_FIELDS);
         $propertyData = SysClass::ee_trimArrayValues($propertyData);
         $propertyData['language_code'] = $languageCode;
         if (empty($propertyData['entity_id']) || empty($propertyData['property_id']) || empty($propertyData['entity_type']) || empty($propertyData['property_values']) || empty($propertyData['set_id'])) {

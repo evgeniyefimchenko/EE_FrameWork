@@ -174,6 +174,7 @@ abstract class ControllerBase {
             'required_consents',
             'privacy_policy',
             'consent_personal_data',
+            'consent_personal_data_distribution',
             'logout',
             'exit_login',
         ];

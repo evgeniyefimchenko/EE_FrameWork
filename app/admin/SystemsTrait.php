@@ -645,27 +645,6 @@ trait SystemsTrait {
         @mkdir(ENV_SITE_PATH . 'logs', 0775, true);
         @mkdir(ENV_SITE_PATH . 'logs' . ENV_DIRSEP . 'errors', 0775, true);
         @mkdir(ENV_SITE_PATH . 'uploads' . ENV_DIRSEP . 'files', 0775, true);
-        // Перезапись файла Constants.php содержимым ConstantsClean.php
-        $constantsCleanPath = SysClass::getConstantsCleanFilePath();
-        $constantsPath = SysClass::getConstantsRuntimeFilePath();
-        if (file_exists($constantsCleanPath)) {
-            $constantsCleanContent = file_get_contents($constantsCleanPath);
-            if (file_put_contents($constantsPath, $constantsCleanContent) === false) {
-                $this->notifyOperationResult(
-                    \classes\system\OperationResult::failure('Не удалось перезаписать Constants.php.', 'constants_rewrite_failed'),
-                    ['skip_success_notification' => true]
-                );
-                SysClass::handleRedirect(200, '/admin');
-                return;
-            }
-        } else {
-            $this->notifyOperationResult(
-                \classes\system\OperationResult::failure('ConstantsClean.php не найден.', 'constants_clean_missing'),
-                ['skip_success_notification' => true]
-            );
-            SysClass::handleRedirect(200, '/admin');
-            return;
-        }
         $this->notifyOperationResult(
             $this->models['m_systems']->killDB($this->logged_in),
             [

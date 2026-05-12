@@ -11,6 +11,20 @@ class FileSystem {
     private const FILE_FIELD_EXTENSIONS = ['zip', 'rar', '7z', 'gz', 'gzip', 'bz2', 'pdf', 'doc', 'docx', 'xlsx', 'odt', 'ods', 'odp', 'rtf', 'epub', 'woff', 'woff2', 'ttf', 'otf', 'sqlite', 'csv', 'txt', 'sql', 'xml', 'json'];
     private const IMAGE_MIME_PREFIXES = ['image/'];
     private const FILE_DISALLOWED_MIME_PREFIXES = ['image/'];
+    private const FILE_WRITE_FIELDS = [
+        'file_id',
+        'name',
+        'original_name',
+        'file_path',
+        'file_url',
+        'mime_type',
+        'size',
+        'image_size',
+        'user_id',
+        'file_hash',
+        'uploaded_at',
+        'updated_at',
+    ];
 
     private static $allowedExtensions = [
         // Изображения
@@ -1360,7 +1374,7 @@ class FileSystem {
         if (!empty($fileData['file_id'])) { // Если передан file_id предполагаем наличие дубля md5_file
             return $fileData['file_id'];
         }
-        $fileData = SafeMySQL::gi()->filterArray($fileData, SysClass::ee_getFieldsTable(Constants::FILES_TABLE));
+        $fileData = SafeMySQL::gi()->filterArray($fileData, self::FILE_WRITE_FIELDS);
         $fileData = array_map(function ($value) {
             return is_string($value) ? trim($value) : $value;
         }, $fileData);
@@ -1578,7 +1592,7 @@ class FileSystem {
      * @return int|null
      */
     public static function updateFileData(int $fileId, array $fileData): ?int {
-        $fileData = SafeMySQL::gi()->filterArray($fileData, SysClass::ee_getFieldsTable(Constants::FILES_TABLE));
+        $fileData = SafeMySQL::gi()->filterArray($fileData, self::FILE_WRITE_FIELDS);
         $fileData = array_map(function ($value) {
             return is_string($value) ? trim($value) : $value;
         }, $fileData);

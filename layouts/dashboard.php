@@ -4,6 +4,7 @@ $documentLangCode = ee_get_current_lang_code();
 $documentLang = ee_get_lang_html_attr($documentLangCode);
 $documentLocale = ee_get_lang_locale($documentLangCode);
 $langBundleUrl = ee_get_lang_bundle_url($documentLangCode);
+$adminCssVersion = (string) (@filemtime(ENV_SITE_PATH . 'app/admin/css/index.css') ?: time());
 $dashboardJsVersion = (string) (@filemtime(ENV_SITE_PATH . 'app/admin/js/dashboard.js') ?: time());
 $currentCanonical = trim((string) ($canonical_href ?? ENV_URL_SITE));
 $currentCanonical = $currentCanonical !== '' ? $currentCanonical : ENV_URL_SITE;
@@ -69,7 +70,7 @@ $alternateHreflang = is_array($alternate_hreflang ?? null) ? $alternate_hreflang
             <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" />
         <?php } ?>
         <!-- General Styles -->
-        <link rel="stylesheet" href="<?= ENV_URL_SITE . '/' . ENV_APP_DIRECTORY ?>/admin/css/index.css" type="text/css" />				
+        <link rel="stylesheet" href="<?= ENV_URL_SITE . '/' . ENV_APP_DIRECTORY ?>/admin/css/index.css?v=<?= htmlspecialchars($adminCssVersion, ENT_QUOTES, 'UTF-8') ?>" type="text/css" />
         <!-- canonical -->
         <link rel="canonical" href="<?= htmlspecialchars($currentCanonical, ENT_QUOTES, 'UTF-8') ?>" />
         <?php foreach ($alternateHreflang as $alternateLink): ?>

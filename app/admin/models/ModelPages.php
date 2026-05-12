@@ -14,6 +14,40 @@ use classes\system\OperationResult;
  */
 class ModelPages {
 
+    private const PAGE_QUERY_FIELDS = [
+        'page_id',
+        'parent_page_id',
+        'category_id',
+        'status',
+        'sort_order',
+        'title',
+        'slug',
+        'route_path',
+        'short_description',
+        'description',
+        'search_enabled',
+        'search_scope_mask',
+        'created_at',
+        'updated_at',
+        'language_code',
+    ];
+
+    private const PAGE_WRITE_FIELDS = [
+        'page_id',
+        'parent_page_id',
+        'category_id',
+        'status',
+        'sort_order',
+        'title',
+        'slug',
+        'route_path',
+        'short_description',
+        'description',
+        'search_enabled',
+        'search_scope_mask',
+        'language_code',
+    ];
+
     private function addPrefixToPageFields(string $fragment, array $pageFields, string $prefix): string {
         $fragment = trim($fragment);
         if ($fragment === '') {
@@ -42,7 +76,7 @@ class ModelPages {
         }
 
         $fragment = $this->normalizeSqlIdentifierQuoting($fragment);
-        $pageFields = SysClass::ee_getFieldsTable(Constants::PAGES_TABLE);
+        $pageFields = self::PAGE_QUERY_FIELDS;
         foreach ($pageFields as $field) {
             $fragment = preg_replace('/\be\.' . preg_quote($field, '/') . '\b/u', $field, $fragment);
         }
@@ -231,7 +265,7 @@ class ModelPages {
                     }
                 }
             }
-            $pageData = SafeMySQL::gi()->filterArray($pageData, SysClass::ee_getFieldsTable(Constants::PAGES_TABLE));
+            $pageData = SafeMySQL::gi()->filterArray($pageData, self::PAGE_WRITE_FIELDS);
             if ($hasSearchControls) {
                 $pageData['search_enabled'] = $normalizedSearchEnabled;
                 $pageData['search_scope_mask'] = $normalizedSearchScopeMask;

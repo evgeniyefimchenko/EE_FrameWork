@@ -2,6 +2,7 @@
 
 namespace app\admin;
 
+use classes\plugins\SafeMySQL;
 use classes\system\SysClass;
 use classes\system\Plugins;
 use classes\system\Session;
@@ -49,6 +50,58 @@ trait MessagesTrait {
         $this->parameters_layout["title"] = ENV_SITE_NAME . ' - ' . $messagesTitle;
         $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION . ' - ' . $messagesTitle;
         $this->showLayout($this->parameters_layout);
+    }
+
+    private function resolveAdminMessageOpenUrl(array $message): string {
+        $url = trim((string) ($message['url'] ?? ''));
+        $sourceType = strtolower(trim((string) ($message['source_type'] ?? 'system')));
+        $sourceId = (int) ($message['source_id'] ?? 0);
+
+        if ($sourceId > 0 && $this->isAdminPageBackedMessage($sourceType, $url)) {
+            $pageUrl = $this->buildAdminMessagePageUrl($sourceId);
+            if ($pageUrl !== '') {
+                return $pageUrl;
+            }
+        }
+
+        if ($this->isManagerSectionUrl($url)) {
+            return '/admin/pages';
+        }
+
+        return $url;
+    }
+
+    private function isAdminPageBackedMessage(string $sourceType, string $url): bool {
+        if (in_array($sourceType, ['object', 'owner_object', 'placement', 'review', 'invoice', 'payment', 'billing'], true)) {
+            return true;
+        }
+
+        return $this->isManagerSectionUrl($url) || str_starts_with($url, '/manager/page_edit/');
+    }
+
+    private function isManagerSectionUrl(string $url): bool {
+        $path = trim((string) parse_url($url, PHP_URL_PATH));
+        return in_array($path, ['/manager/objects', '/manager/reviews', '/manager/invoices'], true);
+    }
+
+    private function buildAdminMessagePageUrl(int $pageId): string {
+        static $pageUrlById = [];
+        if ($pageId <= 0) {
+            return '';
+        }
+
+        if (!array_key_exists($pageId, $pageUrlById)) {
+            $row = SafeMySQL::gi()->getRow(
+                'SELECT page_id, language_code FROM ?n WHERE page_id = ?i LIMIT 1',
+                Constants::PAGES_TABLE,
+                $pageId
+            ) ?: null;
+            $pageUrlById[$pageId] = is_array($row)
+                ? '/admin/page_edit/id/' . $pageId . '?language_code=' . rawurlencode((string) ($row['language_code'] ?? ENV_DEF_LANG))
+                : '';
+        }
+
+        return $pageUrlById[$pageId];
     }
 
     /**
@@ -190,7 +243,7 @@ trait MessagesTrait {
                 'review' => 'Отзывы',
                 default => 'Система',
             };
-            $openUrl = trim((string) ($item['url'] ?? ''));
+            $openUrl = $this->resolveAdminMessageOpenUrl($item);
             if ($this->logged_in == $user_id) {
                 $read_at = $item['read_at'] ? '<span class="p-3"><i class="fa-solid fa-check text-success" data-bs-toggle="tooltip" data-bs-placement="top"'
                         . 'title="' . $this->lang['sys.read'] . '"></i></span>' :
@@ -213,7 +266,7 @@ trait MessagesTrait {
                 'author_id' => trim((string) ($item['author_name'] ?? '')) !== '' ? $item['author_name'] : $item['author_id'],
                 'title' => $title !== '' ? SysClass::truncateString($title, 40) : '—',
                 'source_type' => $sourceLabel,
-                'message_text' => SysClass::truncateString($item['message_text'], 20),
+                'message_text' => trim((string) ($item['message_text'] ?? '')),
                 'status' => $item['status'],
                 'created_at' => date('d.m.Y h:i:s', strtotime($item['created_at'])),
                 'read_at' => $item['read_at'] ? date('d.m.Y h:i:s', strtotime($item['read_at'])) : '',
@@ -222,8 +275,8 @@ trait MessagesTrait {
                     'columns' => [
                         ['field' => 'message_title', 'title' => (string) ($this->lang['sys.title'] ?? 'Заголовок'), 'width' => 20, 'align' => 'left'],
                         ['field' => 'message_source', 'title' => (string) ($this->lang['sys.type'] ?? 'Тип'), 'width' => 15, 'align' => 'left'],
-                        ['field' => 'message_link', 'title' => (string) ($this->lang['sys.link'] ?? 'Ссылка'), 'width' => 20, 'align' => 'left'],
-                        ['field' => 'message_full_text', 'title' => $this->lang['sys.content'], 'width' => 20, 'align' => 'left'],
+                        ['field' => 'message_link', 'title' => (string) ($this->lang['sys.link'] ?? 'Ссылка'), 'width' => 25, 'align' => 'left', 'html' => true],
+                        ['field' => 'message_full_text', 'title' => $this->lang['sys.content'], 'width' => 40, 'align' => 'left'],
                     ],
                     'rows' => [
                         [

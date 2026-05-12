@@ -14,6 +14,21 @@ use classes\system\OperationResult;
  */
 class ModelCategories {
 
+    private const CATEGORY_WRITE_FIELDS = [
+        'category_id',
+        'type_id',
+        'title',
+        'slug',
+        'route_path',
+        'description',
+        'short_description',
+        'parent_id',
+        'status',
+        'search_enabled',
+        'search_scope_mask',
+        'language_code',
+    ];
+
     /**
      * Получает все категории из базы данных
      * Функция возвращает массив категорий, индексированный по идентификаторам категорий
@@ -335,8 +350,7 @@ class ModelCategories {
                     }
                 }
             }
-            $allowedFields = SysClass::ee_getFieldsTable(Constants::CATEGORIES_TABLE);
-            $categoryData = $db->filterArray($categoryData, $allowedFields);
+            $categoryData = $db->filterArray($categoryData, self::CATEGORY_WRITE_FIELDS);
             if ($hasSearchControls) {
                 $categoryData['search_enabled'] = $normalizedSearchEnabled;
                 $categoryData['search_scope_mask'] = $normalizedSearchScopeMask;

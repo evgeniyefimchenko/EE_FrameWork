@@ -1944,6 +1944,27 @@ body {
   height: 56px;
   z-index: 1039;
 }
+
+body.filter-detail-modal-open .modal-backdrop {
+  z-index: 11120;
+}
+
+body.filter-detail-modal-open #filterDetailModal {
+  z-index: 11130;
+}
+
+#filterDetailModal .modal-dialog {
+  margin-top: 72px;
+}
+
+#filterDetailModal .modal-content {
+  max-height: calc(100vh - 88px);
+}
+
+#filterDetailModal .modal-body {
+  overflow-y: auto;
+}
+
 .sb-topnav .navbar-brand {
   width: 225px;
   margin: 0;
@@ -2077,8 +2098,15 @@ body {
 }
 
 .nested_table {
-    width: 100%;
-    margin-left: 5%;    
+    margin-left: 5%;
+    table-layout: fixed;
+    width: 95%;
+}
+
+.nested_table th,
+.nested_table td {
+    overflow-wrap: anywhere;
+    vertical-align: top;
 }
 
 .tr_nested_table {

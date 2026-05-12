@@ -12,6 +12,32 @@ $(document).ready(function () {
     const modalTitle = $('#filterDetailModalLabel span');
     const modalBody = $('#filterDetailModal .modal-body');
 
+    function escapeHtml(value) {
+        return String(value === null || value === undefined ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function normalizeLabel(value) {
+        return String(value === null || value === undefined ? '' : value).replace(/\s+/g, ' ').trim().toLowerCase();
+    }
+
+    function shouldRenderFieldLabel(fieldLabel, propertyName) {
+        const normalizedFieldLabel = normalizeLabel(fieldLabel);
+        return normalizedFieldLabel !== '' && normalizedFieldLabel !== normalizeLabel(propertyName);
+    }
+
+    $('#filterDetailModal')
+        .on('show.bs.modal', function () {
+            $('body').addClass('filter-detail-modal-open');
+        })
+        .on('hidden.bs.modal', function () {
+            $('body').removeClass('filter-detail-modal-open');
+        });
+
     function log(message, status = 'info') {
         let color = '#ffffff';
         if (status === 'error') color = '#ff8a80';
@@ -105,21 +131,24 @@ $(document).ready(function () {
                             const fields = Array.isArray(payload.fields)
                                 ? payload.fields
                                 : [payload];
-                            html += `<dt>${filter.property_name}</dt>`;
+                            const propertyName = filter.property_name || '';
+                            html += `<dt>${escapeHtml(propertyName)}</dt>`;
                             let fieldsHtml = '';
                             fields.forEach(field => {
-                                const fieldLabel = field.label || filter.property_name;
+                                const fieldLabel = field.label || propertyName;
+                                const renderFieldLabel = shouldRenderFieldLabel(fieldLabel, propertyName);
+                                const fieldTitle = renderFieldLabel ? `<strong>${escapeHtml(fieldLabel)}</strong>: ` : '';
                                 if (field.filter_type === 'range') {
-                                    fieldsHtml += `<div><strong>${fieldLabel}</strong>: ${t('sys.range_from', 'range from')} ${field.min_value} ${t('sys.range_to', 'to')} ${field.max_value}, ${t('sys.found_count', 'found')} ${field.count || 0} ${t('sys.items_short', 'items')}</div>`;
+                                    fieldsHtml += `<div>${fieldTitle}${t('sys.range_from', 'range from')} ${escapeHtml(field.min_value)} ${t('sys.range_to', 'to')} ${escapeHtml(field.max_value)}, ${t('sys.found_count', 'found')} ${parseInt(field.count || 0, 10)} ${t('sys.items_short', 'items')}</div>`;
                                     return;
                                 }
                                 if (field.filter_type === 'options' && Array.isArray(field.options) && field.options.length > 0) {
                                     let optionsHtml = '<ul>';
                                     field.options.forEach(opt => {
-                                        optionsHtml += `<li>${opt.label} (ID: ${opt.id}) - ${opt.count} ${t('sys.items_short', 'items')}</li>`;
+                                        optionsHtml += `<li>${escapeHtml(opt.label)} (ID: ${escapeHtml(opt.id)}) - ${parseInt(opt.count || 0, 10)} ${t('sys.items_short', 'items')}</li>`;
                                     });
                                     optionsHtml += '</ul>';
-                                    fieldsHtml += `<div><strong>${fieldLabel}</strong>${optionsHtml}</div>`;
+                                    fieldsHtml += `<div>${renderFieldLabel ? `<strong>${escapeHtml(fieldLabel)}</strong>` : ''}${optionsHtml}</div>`;
                                 }
                             });
                             if (fieldsHtml) {

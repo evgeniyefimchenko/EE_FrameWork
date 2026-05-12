@@ -2,7 +2,6 @@
 
 use classes\plugins\SafeMySQL;
 use classes\system\Constants;
-use classes\system\SysClass;
 use classes\system\Logger;
 use classes\system\OperationResult;
 
@@ -11,6 +10,23 @@ use classes\system\OperationResult;
  * Модель для работы с почтовыми шаблонами и сниппетами
  */
 class ModelEmailTemplates {
+
+    private const EMAIL_TEMPLATE_WRITE_FIELDS = [
+        'template_id',
+        'name',
+        'subject',
+        'body',
+        'description',
+        'language_code',
+    ];
+
+    private const EMAIL_SNIPPET_WRITE_FIELDS = [
+        'snippet_id',
+        'name',
+        'content',
+        'description',
+        'language_code',
+    ];
 
     private function getLanguageFallbacks(string $languageCode = ENV_DEF_LANG): array {
         $candidates = [
@@ -181,7 +197,7 @@ class ModelEmailTemplates {
      * @return OperationResult Результат сохранения шаблона
      */
     public function updateEmailTemplateData(array $templateData, string $languageCode = ENV_DEF_LANG): OperationResult {
-        $templateData = SafeMySQL::gi()->filterArray($templateData, SysClass::ee_getFieldsTable(Constants::EMAIL_TEMPLATES_TABLE));
+        $templateData = SafeMySQL::gi()->filterArray($templateData, self::EMAIL_TEMPLATE_WRITE_FIELDS);
         $templateData = array_map(fn($value) => is_string($value) ? trim($value) : $value, $templateData);
         $templateData['language_code'] = $languageCode;
         if (empty($templateData['name'])) {
@@ -208,7 +224,7 @@ class ModelEmailTemplates {
      * @return OperationResult Результат сохранения сниппета
      */
     public function updateEmailSnippetData(array $snippetData, string $languageCode = ENV_DEF_LANG): OperationResult {
-        $snippetData = SafeMySQL::gi()->filterArray($snippetData, SysClass::ee_getFieldsTable(Constants::EMAIL_SNIPPETS_TABLE));
+        $snippetData = SafeMySQL::gi()->filterArray($snippetData, self::EMAIL_SNIPPET_WRITE_FIELDS);
         $snippetData = array_map(fn($value) => is_string($value) ? trim($value) : $value, $snippetData);
         $snippetData['language_code'] = $languageCode;
         if (empty($snippetData['name'])) {

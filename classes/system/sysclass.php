@@ -1845,104 +1845,31 @@ class SysClass {
     }
 
     /**
-     * Получает поля указанной таблицы из базы данных
-     * Если поля уже были получены ранее и сохранены в константе, возвращает их
-     * В противном случае получает поля из базы данных, обновляет файл Constants.php и возвращает поля
-     * @param string $tableName Имя таблицы, поля которой нужно получить
-     * @return array Массив имен полей таблицы
-     * @throws ReflectionException Если класс Constants не найден
-     * @throws RuntimeException Если не удалось обновить файл Constants.php
+     * Получает поля указанной таблицы из БД без изменения файлов ядра.
+     * Оставлено как совместимый runtime fallback для старого кода.
      */
-    public static function ee_getFieldsTable(string $tableName) {
-        try {
-            $reflection = new \ReflectionClass('classes\system\Constants');
-        } catch (\ReflectionException $e) {
-            $message = "Класс Constants не найден: " . $e->getMessage();
-            Logger::error('sysclass', 'throw new \\ReflectionException', ['message' => $message], [
-                'initiator' => 'ee_getFieldsTable',
-                'details' => $message,
-            ]);
-            throw new \ReflectionException($message);
+    public static function ee_getFieldsTable(string $tableName): array {
+        static $fieldsCache = [];
+
+        $tableName = trim($tableName);
+        if ($tableName === '') {
+            return [];
         }
-        $constantTableName = str_replace(ENV_DB_PREF, '', $tableName) . '_table';
-        $fieldsKey = strtoupper($constantTableName) . '_FIELDS';
-        $fields = $reflection->hasConstant($fieldsKey)
-            ? $reflection->getConstant($fieldsKey)
-            : [];
-        if (!empty($fields) && is_array($fields)) {
-            return $fields;
+        if (isset($fieldsCache[$tableName])) {
+            return $fieldsCache[$tableName];
         }
-        $fields = SafeMySQL::gi()->getAll("DESCRIBE ?n", $tableName);
-        $fieldNames = array_column($fields, 'Field');
-        $constantsFile = self::getConstantsRuntimeFilePath();
-        if (!is_writable($constantsFile)) {
-            $message = "Файл Constants.php недоступен для записи.";
-            Logger::error('sysclass', 'throw new \\ReflectionException', ['message' => $message], [
-                'initiator' => 'ee_getFieldsTable',
-                'details' => $message,
-            ]);
-            throw new \RuntimeException($message);
+
+        $rows = SafeMySQL::gi()->getAll('DESCRIBE ?n', $tableName);
+        $fieldNames = [];
+        foreach ($rows as $row) {
+            $fieldName = (string) ($row['Field'] ?? '');
+            if ($fieldName !== '') {
+                $fieldNames[] = $fieldName;
+            }
         }
-        $fileContent = file_get_contents($constantsFile);
-        if ($fileContent === false) {
-            $message = "Не удалось прочитать файл Constants.php.";
-            Logger::error('sysclass', 'throw new \\ReflectionException', ['message' => $message], [
-                'initiator' => 'ee_getFieldsTable',
-                'details' => $message,
-            ]);
-            throw new \RuntimeException($message);
-        }
-        $newContent = str_replace($fieldsKey . ' = []', $fieldsKey . ' = [' . implode(',', array_map(function ($value) {
-                            return "'" . addslashes($value) . "'";
-                        }, $fieldNames)) . ']', $fileContent);
-        if (file_put_contents($constantsFile, $newContent) === false) {
-            $message = "Не удалось обновить файл Constants.php.";
-            Logger::error('sysclass', 'throw new \\ReflectionException', ['message' => $message], [
-                'initiator' => 'ee_getFieldsTable',
-                'details' => $message,
-            ]);
-            throw new \RuntimeException($message);
-        }
+
+        $fieldsCache[$tableName] = $fieldNames;
         return $fieldNames;
-    }
-
-    /**
-     * Возвращает путь к рабочему runtime-файлу констант.
-     * Поддерживает оба варианта имени файла для Linux case-sensitive окружений.
-     */
-    public static function getConstantsRuntimeFilePath(): string {
-        $candidates = [
-            ENV_SITE_PATH . 'classes' . ENV_DIRSEP . 'system' . ENV_DIRSEP . 'Constants.php',
-            ENV_SITE_PATH . 'classes' . ENV_DIRSEP . 'system' . ENV_DIRSEP . 'constants.php',
-        ];
-
-        foreach ($candidates as $candidate) {
-            if (is_file($candidate)) {
-                return $candidate;
-            }
-        }
-
-        return $candidates[0];
-    }
-
-    /**
-     * Возвращает путь к чистому шаблону констант.
-     * Поддерживает оба варианта имени файла для Linux case-sensitive окружений.
-     */
-    public static function getConstantsCleanFilePath(): string {
-        $candidates = [
-            ENV_SITE_PATH . 'classes' . ENV_DIRSEP . 'system' . ENV_DIRSEP . 'ConstantsClean.php',
-            ENV_SITE_PATH . 'classes' . ENV_DIRSEP . 'system' . ENV_DIRSEP . 'Constants_clean.php',
-            ENV_SITE_PATH . 'classes' . ENV_DIRSEP . 'system' . ENV_DIRSEP . 'constants_clean.php',
-        ];
-
-        foreach ($candidates as $candidate) {
-            if (is_file($candidate)) {
-                return $candidate;
-            }
-        }
-
-        return $candidates[0];
     }
 
     /**

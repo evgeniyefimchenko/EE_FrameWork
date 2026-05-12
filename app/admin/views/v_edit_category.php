@@ -31,8 +31,9 @@ $categorySearchScopeMask = isset($categoryData['search_scope_mask']) ? (int) $ca
             $contentLanguageCodes = is_array($contentLanguageCodes ?? null) ? $contentLanguageCodes : [];
             $currentLanguageCode = strtoupper((string) ($currentLanguageCode ?? ee_get_default_content_lang_code()));
             $translationUi = is_array($translationUi ?? null) ? $translationUi : [];
+            $showContentLanguageSwitcher = count(array_unique(array_map('strtoupper', $contentLanguageCodes))) > 1;
             ?>
-            <?php if (!empty($translationUi) || !empty($contentLanguageCodes)): ?>
+            <?php if ($showContentLanguageSwitcher): ?>
                 <div class="card shadow-sm border-0 mb-3">
                     <div class="card-body py-3">
                         <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
