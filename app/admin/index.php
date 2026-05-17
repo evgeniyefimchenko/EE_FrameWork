@@ -1668,15 +1668,17 @@ use MessagesTrait,
      * Подключает стили и скрипты CodeMirror (v5.65.10)
      */
     private function addCodeMirror() {
-        // Подключение стилей CodeMirror
-        $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.10/codemirror.css">';
-        $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.10/theme/monokai.css">';
-        // Подключение скриптов CodeMirror
-        $this->parameters_layout["add_script"] .= '<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.10/codemirror.js"></script>';
-        $this->parameters_layout["add_script"] .= '<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.10/mode/xml/xml.js"></script>';
-        $this->parameters_layout["add_script"] .= '<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.10/mode/javascript/javascript.js"></script>';
-        $this->parameters_layout["add_script"] .= '<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.10/mode/css/css.js"></script>';
-        $this->parameters_layout["add_script"] .= '<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.10/mode/htmlmixed/htmlmixed.js"></script>';
+        $useCdn = defined('ENV_CODEMIRROR_CDN') ? (bool) ENV_CODEMIRROR_CDN : true;
+        $codeMirrorBase = $useCdn
+            ? 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.10'
+            : \classes\system\VendorAssetService::localBaseUrl('codemirror');
+        $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="' . $codeMirrorBase . '/codemirror.css">';
+        $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="' . $codeMirrorBase . '/theme/monokai.css">';
+        $this->parameters_layout["add_script"] .= '<script type="text/javascript" src="' . $codeMirrorBase . '/codemirror.js"></script>';
+        $this->parameters_layout["add_script"] .= '<script type="text/javascript" src="' . $codeMirrorBase . '/mode/xml/xml.js"></script>';
+        $this->parameters_layout["add_script"] .= '<script type="text/javascript" src="' . $codeMirrorBase . '/mode/javascript/javascript.js"></script>';
+        $this->parameters_layout["add_script"] .= '<script type="text/javascript" src="' . $codeMirrorBase . '/mode/css/css.js"></script>';
+        $this->parameters_layout["add_script"] .= '<script type="text/javascript" src="' . $codeMirrorBase . '/mode/htmlmixed/htmlmixed.js"></script>';
     }
 
     /**
