@@ -411,7 +411,7 @@ foreach ($previewProperties as $property) {
     const tableBody = document.getElementById('property-editor-table-body');
     const summaryNode = document.getElementById('property-editor-summary');
     const supportedFieldTypes = <?= json_encode(array_values($supportedFieldTypes), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?> || [];
-    const fallbackFieldTypes = ['text', 'textarea', 'number', 'email', 'phone', 'date', 'date-range', 'time', 'select', 'checkbox', 'radio', 'image', 'file'];
+    const fallbackFieldTypes = ['text', 'textarea', 'number', 'email', 'phone', 'date', 'date-range', 'repeatable-group', 'time', 'select', 'checkbox', 'radio', 'image', 'file'];
     const fieldTypes = Array.isArray(supportedFieldTypes) && supportedFieldTypes.length > 0 ? supportedFieldTypes : fallbackFieldTypes;
     const i18n = <?= json_encode($uiText, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?> || {};
     const fieldTypeLabels = {
@@ -422,6 +422,7 @@ foreach ($previewProperties as $property) {
         phone: <?= json_encode((string) ($lang['sys.field_type_phone'] ?? 'Phone'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
         date: <?= json_encode((string) ($lang['sys.field_type_date'] ?? 'Date'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
         'date-range': <?= json_encode((string) ($lang['sys.field_type_date_range'] ?? 'Date range'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
+        'repeatable-group': <?= json_encode((string) ($lang['sys.field_type_repeatable_group'] ?? 'Repeatable group'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
         time: <?= json_encode((string) ($lang['sys.field_type_time'] ?? 'Time'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
         select: <?= json_encode((string) ($lang['sys.field_type_select'] ?? 'Select'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,
         checkbox: <?= json_encode((string) ($lang['sys.field_type_checkbox'] ?? 'Checkboxes'), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>,

@@ -75,7 +75,8 @@ class Constants {
             "textarea" => "Textarea",
             "image" => "Image",
             "checkbox" => "Checkbox",
-            "radio" => "Radio Button"
+            "radio" => "Radio Button",
+            "repeatable-group" => "Repeatable group"
             ],
             PUBLIC_CONSTANTS = [ // Константы доступные публично для шаблонов писем и т.д.
                 'ENV_SITE_NAME' => ENV_SITE_NAME,

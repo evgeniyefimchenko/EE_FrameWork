@@ -19,3 +19,33 @@
 .repeatable-editor__field .form-text {
     line-height: 1.35;
 }
+
+.repeatable-group,
+.repeatable-group-definition {
+    border: 1px solid #dee2e6;
+    border-radius: 10px;
+    padding: .75rem;
+    background: #f8fafc;
+}
+
+.repeatable-group__row,
+.repeatable-group-definition__field,
+.repeatable-group-definition__option {
+    background: #fff;
+}
+
+.repeatable-group__row .form-label,
+.repeatable-group-definition__field .form-label {
+    margin-bottom: .25rem;
+}
+
+.repeatable-group .btn,
+.repeatable-group-definition .btn {
+    white-space: nowrap;
+}
+
+.repeatable-group-definition__options {
+    border-top: 1px dashed #ced4da;
+    margin-top: .25rem;
+    padding-top: .5rem;
+}

@@ -50,6 +50,7 @@ class ClassSearchEngine {
         'number',
         'date',
         'date-range',
+        'repeatable-group',
         'time',
         'datetime-local',
         'email',

@@ -210,6 +210,7 @@ if (!function_exists('ee_property_hook_affects_search')) {
             'number',
             'date',
             'date-range',
+            'repeatable-group',
             'time',
             'datetime-local',
             'email',

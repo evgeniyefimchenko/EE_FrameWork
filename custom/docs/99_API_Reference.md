@@ -455,6 +455,25 @@ Redirect и штатный error flow.
 
 В repeatable-свойствах этот объект повторяется массивом по индексам элементов. `date-range` участвует в поисковом индексе, но не является generic materialized filter type: фильтрация по пересечению дат должна описываться отдельной прикладной логикой.
 
+Для `repeatable-group` field schema содержит дочерний массив `fields`, а значение хранит строки группы:
+
+```json
+{
+  "uid": "prices",
+  "type": "repeatable-group",
+  "value": [
+    {
+      "values": {
+        "period": { "from": "01.06", "to": "15.06" },
+        "price": "2500"
+      }
+    }
+  ]
+}
+```
+
+Внутри repeatable/composite-свойства `repeatable-group.value` становится двумерным массивом: внешний уровень — индекс основного элемента, внутренний — строки группы. Этот тип searchable, но не является `ee_filters` field type; nested-фильтрация по датам/ценам описывается отдельно от generic filters.
+
 Security-ожидания для `/api/v1`:
 
 - активный admin API key;

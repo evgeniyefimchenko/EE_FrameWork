@@ -80,6 +80,7 @@
 - `number`
 - `date`
 - `date-range`
+- `repeatable-group`
 - `time`
 - `datetime-local`
 - `hidden`
@@ -191,6 +192,78 @@
 
 `date-range` участвует в поисковом индексе как структурное значение `from/to`. В materialized filters он не включается автоматически: фильтр по датам пребывания должен сравнивать пересечение интервалов и реализуется отдельной доменной логикой, а не обычным range-фильтром.
 
+## Повторяемые группы
+
+`repeatable-group` описывает вложенный набор строк внутри одного field. Он используется тогда, когда несколько значений должны жить синхронно в одной строке, например `period + price`.
+
+В `property_types.fields` указывается только верхний field:
+
+```json
+{
+  "code": "room_offer",
+  "name": "Room offer",
+  "fields": [
+    { "uid": "name", "type": "text" },
+    { "uid": "prices", "type": "repeatable-group" }
+  ]
+}
+```
+
+В `properties.default_values` для `repeatable-group` обязательно задаётся дочерняя схема `fields`:
+
+```json
+{
+  "uid": "prices",
+  "type": "repeatable-group",
+  "label": "Prices",
+  "title": "Date periods and prices",
+  "default": [],
+  "fields": [
+    {
+      "uid": "period",
+      "type": "date-range",
+      "label": "Period",
+      "default": { "from": "", "to": "" },
+      "required": 0,
+      "multiple": 0
+    },
+    {
+      "uid": "price",
+      "type": "number",
+      "label": "Price",
+      "default": "",
+      "required": 0,
+      "multiple": 0
+    }
+  ],
+  "required": 0,
+  "multiple": 1
+}
+```
+
+Если дочернее поле группы имеет тип `select`, `checkbox` или `radio`, его `options/default` описываются внутри этого дочернего поля. Вложенные `repeatable-group`, `file` и `image` в группе не поддерживаются.
+
+Живые значения группы передаются строками:
+
+```json
+{
+  "uid": "prices",
+  "type": "repeatable-group",
+  "value": [
+    {
+      "values": {
+        "period": { "from": "01.06", "to": "15.06" },
+        "price": "2500"
+      }
+    }
+  ]
+}
+```
+
+В repeatable/composite-свойстве внешний массив соответствует основному элементу, а внутренний массив — строкам группы этого элемента.
+
+`repeatable-group` индексируется поиском через вложенные значения, но не участвует в generic `ee_filters`. Если нужен фильтр по вложенным периодам или цене, его нужно описывать как отдельный nested-filter контракт, а не как обычный materialized filter.
+
 ## Поля выбора
 
 Для `select`, `checkbox` и `radio` структура должна описывать не только label, но и набор вариантов.
@@ -230,6 +303,7 @@
 - несовпадение длины `fields` и `default_values`;
 - неподдерживаемые типы полей;
 - внутренне противоречивые choice-структуры.
+- вложенные `repeatable-group`, `file` или `image` внутри `repeatable-group`.
 
 Именно такие ошибки должны блокировать просмотр или подтверждение импорта.
 

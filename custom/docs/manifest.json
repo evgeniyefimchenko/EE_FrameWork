@@ -88,7 +88,7 @@
           "description": "Практическая схема хранения структуры и живых значений в контентной модели EE_FrameWork.",
           "file": "09_ContentModel.md",
           "icon": "fa-network-wired",
-          "keywords": ["content model", "entities", "properties", "categories", "pages", "property values", "date-range"]
+          "keywords": ["content model", "entities", "properties", "categories", "pages", "property values", "date-range", "repeatable-group"]
         },
         {
           "slug": "views",
@@ -167,7 +167,7 @@
           "description": "Практический контракт JSON-импорта структуры свойств в EE_FrameWork.",
           "file": "10_Imports.md",
           "icon": "fa-file-import",
-          "keywords": ["imports", "json", "property types", "property sets", "properties", "date-range"]
+          "keywords": ["imports", "json", "property types", "property sets", "properties", "date-range", "repeatable-group"]
         },
         {
           "slug": "backup",
@@ -201,7 +201,7 @@
           "description": "Контракт /api/v1, schema endpoints, payload и security-модель admin API key.",
           "file": "13_CatalogApi.md",
           "icon": "fa-code-branch",
-          "keywords": ["content api", "api v1", "schema", "properties", "pages", "categories", "api key", "date-range"]
+          "keywords": ["content api", "api v1", "schema", "properties", "pages", "categories", "api key", "date-range", "repeatable-group"]
         }
       ]
     }

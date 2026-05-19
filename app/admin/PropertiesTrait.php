@@ -1220,6 +1220,8 @@ trait PropertiesTrait {
                 if ($additional_key) {
                     if (($additional_key === 'multiple' || $additional_key === 'required') && $value === 'on') {
                         $prepared_data[$index][$additional_key] = 1;
+                    } elseif ($type === 'repeatable-group' && $additional_key === 'fields' && is_array($value)) {
+                        $prepared_data[$index]['fields'] = $this->prepareRepeatableGroupFieldsProperty($value);
                     } elseif ($type === 'date-range' && $additional_key === 'default' && is_array($value)) {
                         if (array_key_exists('from', $value) || array_key_exists('to', $value)) {
                             $prepared_data[$index]['default'] = [
@@ -1265,6 +1267,74 @@ trait PropertiesTrait {
             $propertyMeta,
             $existingDefaults
         );
+    }
+
+    private function prepareRepeatableGroupFieldsProperty(array $fields): array {
+        $prepared = [];
+        foreach (array_values($fields) as $index => $field) {
+            if (!is_array($field)) {
+                continue;
+            }
+            $type = strtolower(trim((string) ($field['type'] ?? '')));
+            if ($type === '') {
+                continue;
+            }
+            $item = [
+                'uid' => SysClass::ee_cleanArray(html_entity_decode((string) ($field['uid'] ?? ('group_field_' . $index)))),
+                'type' => $type,
+                'label' => SysClass::ee_cleanArray(html_entity_decode((string) ($field['label'] ?? ''))),
+                'title' => SysClass::ee_cleanArray(html_entity_decode((string) ($field['title'] ?? ''))),
+                'default' => '',
+                'required' => !empty($field['required']) ? 1 : 0,
+                'multiple' => !empty($field['multiple']) ? 1 : 0,
+            ];
+
+            if ($type === 'date-range' && is_array($field['default'] ?? null)) {
+                $item['default'] = [
+                    'from' => SysClass::ee_cleanArray(html_entity_decode((string) ($field['default']['from'] ?? ''))),
+                    'to' => SysClass::ee_cleanArray(html_entity_decode((string) ($field['default']['to'] ?? ''))),
+                ];
+            } elseif (in_array($type, ['select', 'checkbox', 'radio'], true) && is_array($field['options'] ?? null)) {
+                $options = [];
+                $selected = [];
+                foreach (array_values($field['options']) as $optionIndex => $option) {
+                    if (!is_array($option)) {
+                        continue;
+                    }
+                    $label = SysClass::ee_cleanArray(html_entity_decode((string) ($option['label'] ?? '')));
+                    if (trim((string) $label) === '') {
+                        continue;
+                    }
+                    $key = SysClass::ee_cleanArray(html_entity_decode((string) ($option['key'] ?? '')));
+                    if (trim((string) $key) === '') {
+                        $key = 'option_' . ($optionIndex + 1);
+                    }
+                    $options[] = [
+                        'key' => (string) $key,
+                        'label' => (string) $label,
+                        'sort' => ($optionIndex + 1) * 10,
+                        'disabled' => !empty($option['disabled']) ? 1 : 0,
+                    ];
+                    if (!empty($option['selected'])) {
+                        $selected[] = (string) $key;
+                    }
+                }
+                $item['options'] = $options;
+                $item['default'] = $type === 'radio' && $selected !== [] ? [(string) reset($selected)] : $selected;
+            } elseif (is_array($field['default'] ?? null)) {
+                $defaultValues = [];
+                foreach ($field['default'] as $defaultValue) {
+                    $defaultValues[] = SysClass::ee_cleanArray(html_entity_decode((string) $defaultValue));
+                }
+                $item['default'] = $defaultValues;
+            } else {
+                $item['default'] = SysClass::ee_cleanArray(html_entity_decode((string) ($field['default'] ?? '')));
+            }
+
+            $prepared[] = $item;
+        }
+
+        return $prepared;
     }
 
     private function normalizePropertyTypeFields(mixed $fields): array {

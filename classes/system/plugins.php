@@ -1755,6 +1755,15 @@ class Plugins {
                     'repeatable-editor__date-range row g-2'
                 );
                 break;
+            case 'repeatable-group':
+                $nameAttr = 'property_data[' . $valueName . '_value][' . $itemIndex . ']';
+                $html .= self::renderRepeatableGroupValueEditor(
+                    $fieldMeta,
+                    $nameAttr,
+                    $itemValue,
+                    $disabledAttr
+                );
+                break;
             default:
                 $inputType = match ($type) {
                     'phone' => 'tel',
@@ -2013,6 +2022,21 @@ class Plugins {
                     );
                 }
                 break;
+            case 'repeatable-group':
+                if ($isDefinitionArea) {
+                    $result .= self::renderRepeatableEditorAssets();
+                    $result .= self::renderRepeatableGroupDefinitionEditor($value, $valueName);
+                } else {
+                    $groupValue = $value['value'] ?? ($value['default'] ?? []);
+                    $result .= self::renderRepeatableGroupValueEditor(
+                        $value,
+                        'property_data[' . $valueName . '_' . $area . ']',
+                        $groupValue,
+                        ''
+                    );
+                }
+                $multipleChoice = false;
+                break;
             case 'select':
             case 'checkbox':
             case 'radio':
@@ -2071,6 +2095,273 @@ class Plugins {
         }
         $result .= '</div>';
         return $result;
+    }
+
+    private static function renderRepeatableGroupDefinitionEditor(array $value, string $valueName): string {
+        $fields = self::normalizeRepeatableGroupFieldsForRender($value['fields'] ?? []);
+        if ($fields === []) {
+            $fields = [[
+                'uid' => 'period',
+                'type' => 'date-range',
+                'label' => 'Период',
+                'title' => '',
+                'default' => ['from' => '', 'to' => ''],
+                'required' => 0,
+                'multiple' => 0,
+            ], [
+                'uid' => 'price',
+                'type' => 'number',
+                'label' => 'Цена',
+                'title' => '',
+                'default' => '',
+                'required' => 0,
+                'multiple' => 0,
+            ]];
+        }
+
+        $html = '<div class="repeatable-group-definition" data-repeatable-group-definition="' . htmlspecialchars($valueName, ENT_QUOTES, 'UTF-8') . '">';
+        $html .= '<div class="small text-muted mb-2">Вложенная группа хранит строки из нескольких полей. Такие поля не участвуют в обычных materialized filters.</div>';
+        $html .= '<div class="repeatable-group-definition__fields">';
+        foreach ($fields as $index => $field) {
+            $html .= self::renderRepeatableGroupDefinitionFieldRow($valueName, (string) $index, $field, false);
+        }
+        $html .= '</div>';
+        $html .= '<template data-repeatable-group-definition-template>';
+        $html .= self::renderRepeatableGroupDefinitionFieldRow($valueName, '__field__', [
+            'uid' => '',
+            'type' => 'text',
+            'label' => '',
+            'title' => '',
+            'default' => '',
+            'required' => 0,
+            'multiple' => 0,
+        ], true);
+        $html .= '</template>';
+        $html .= '<button type="button" class="btn btn-sm btn-outline-primary mt-2" data-repeatable-group-field-add>Добавить поле группы</button>';
+        $html .= '</div>';
+        return $html;
+    }
+
+    private static function renderRepeatableGroupDefinitionFieldRow(string $valueName, string $index, array $field, bool $template): string {
+        $uid = (string) ($field['uid'] ?? '');
+        $type = strtolower(trim((string) ($field['type'] ?? 'text'))) ?: 'text';
+        $allowedTypes = self::getRepeatableGroupChildTypeOptions();
+        if (!isset($allowedTypes[$type])) {
+            $type = 'text';
+        }
+        $baseName = 'property_data[' . $valueName . '_fields][' . $index . ']';
+        $disabled = $template ? ' disabled' : '';
+        $isChoice = in_array($type, ['select', 'checkbox', 'radio'], true);
+        $choiceDisabled = ($template || !$isChoice) ? ' disabled' : '';
+        $choiceOptions = self::normalizeChoiceOptionsForRender($field);
+        $choiceSelected = array_flip(self::normalizeChoiceSelectedKeys($field['default'] ?? []));
+        if ($choiceOptions === []) {
+            $choiceOptions[] = ['key' => '', 'label' => '', 'disabled' => 0, 'sort' => 10];
+        }
+        $html = '<div class="repeatable-group-definition__field row g-2 align-items-end mb-2" data-repeatable-group-definition-field="' . htmlspecialchars($index, ENT_QUOTES, 'UTF-8') . '">';
+        $html .= '<div class="col-md-2"><label class="form-label small text-muted">UID</label><input type="text" class="form-control form-control-sm" name="' . htmlspecialchars($baseName . '[uid]', ENT_QUOTES, 'UTF-8') . '" value="' . htmlspecialchars($uid, ENT_QUOTES, 'UTF-8') . '"' . $disabled . '></div>';
+        $html .= '<div class="col-md-2"><label class="form-label small text-muted">Тип</label><select class="form-select form-select-sm" name="' . htmlspecialchars($baseName . '[type]', ENT_QUOTES, 'UTF-8') . '" data-repeatable-group-field-type' . $disabled . '>';
+        foreach ($allowedTypes as $typeKey => $typeLabel) {
+            $html .= '<option value="' . htmlspecialchars($typeKey, ENT_QUOTES, 'UTF-8') . '"' . ($type === $typeKey ? ' selected' : '') . '>' . htmlspecialchars($typeLabel, ENT_QUOTES, 'UTF-8') . '</option>';
+        }
+        $html .= '</select></div>';
+        $html .= '<div class="col-md-3"><label class="form-label small text-muted">Название</label><input type="text" class="form-control form-control-sm" name="' . htmlspecialchars($baseName . '[label]', ENT_QUOTES, 'UTF-8') . '" value="' . htmlspecialchars((string) ($field['label'] ?? ''), ENT_QUOTES, 'UTF-8') . '"' . $disabled . '></div>';
+        $html .= '<div class="col-md-3"><label class="form-label small text-muted">Подсказка</label><input type="text" class="form-control form-control-sm" name="' . htmlspecialchars($baseName . '[title]', ENT_QUOTES, 'UTF-8') . '" value="' . htmlspecialchars((string) ($field['title'] ?? ''), ENT_QUOTES, 'UTF-8') . '"' . $disabled . '></div>';
+        $html .= '<div class="col-md-1"><label class="form-label small text-muted">Обяз.</label><div class="form-check"><input type="checkbox" class="form-check-input" name="' . htmlspecialchars($baseName . '[required]', ENT_QUOTES, 'UTF-8') . '" value="1"' . (!empty($field['required']) ? ' checked' : '') . $disabled . '></div></div>';
+        $html .= '<div class="col-md-1"><button type="button" class="btn btn-sm btn-outline-danger w-100" data-repeatable-group-field-remove' . $disabled . '>&times;</button></div>';
+        $html .= '<div class="col-12 repeatable-group-definition__options' . ($isChoice ? '' : ' d-none') . '" data-repeatable-group-choice-options>';
+        $html .= '<div class="small text-muted mb-1">Варианты для select/radio/checkbox</div>';
+        $html .= '<div class="repeatable-group-definition__option-rows">';
+        foreach ($choiceOptions as $optionIndex => $option) {
+            $key = (string) ($option['key'] ?? '');
+            $selected = $key !== '' && isset($choiceSelected[$key]);
+            $html .= self::renderRepeatableGroupChoiceOptionRow($baseName, (string) $optionIndex, $option, $selected, $choiceDisabled);
+        }
+        $html .= '</div>';
+        $html .= '<template data-repeatable-group-option-template>';
+        $html .= self::renderRepeatableGroupChoiceOptionRow($baseName, '__option__', ['key' => '', 'label' => ''], false, ' disabled');
+        $html .= '</template>';
+        $html .= '<button type="button" class="btn btn-sm btn-outline-secondary mt-1" data-repeatable-group-option-add' . $choiceDisabled . '>Добавить вариант</button>';
+        $html .= '</div>';
+        $html .= '</div>';
+        return $html;
+    }
+
+    private static function renderRepeatableGroupChoiceOptionRow(string $baseName, string $optionIndex, array $option, bool $selected, string $disabled): string {
+        $optionName = $baseName . '[options][' . $optionIndex . ']';
+        $html = '<div class="repeatable-group-definition__option row g-2 align-items-end mb-1" data-repeatable-group-option="' . htmlspecialchars($optionIndex, ENT_QUOTES, 'UTF-8') . '">';
+        $html .= '<div class="col-md-4"><input type="text" class="form-control form-control-sm" name="' . htmlspecialchars($optionName . '[label]', ENT_QUOTES, 'UTF-8') . '" placeholder="Название варианта" value="' . htmlspecialchars((string) ($option['label'] ?? ''), ENT_QUOTES, 'UTF-8') . '"' . $disabled . '></div>';
+        $html .= '<div class="col-md-3"><input type="text" class="form-control form-control-sm" name="' . htmlspecialchars($optionName . '[key]', ENT_QUOTES, 'UTF-8') . '" placeholder="Ключ" value="' . htmlspecialchars((string) ($option['key'] ?? ''), ENT_QUOTES, 'UTF-8') . '"' . $disabled . '></div>';
+        $html .= '<div class="col-md-2"><div class="form-check"><input type="checkbox" class="form-check-input" name="' . htmlspecialchars($optionName . '[selected]', ENT_QUOTES, 'UTF-8') . '" value="1"' . ($selected ? ' checked' : '') . $disabled . '> <label class="form-check-label small">По умолчанию</label></div></div>';
+        $html .= '<div class="col-md-2"><div class="form-check"><input type="checkbox" class="form-check-input" name="' . htmlspecialchars($optionName . '[disabled]', ENT_QUOTES, 'UTF-8') . '" value="1"' . (!empty($option['disabled']) ? ' checked' : '') . $disabled . '> <label class="form-check-label small">Откл.</label></div></div>';
+        $html .= '<div class="col-md-1"><button type="button" class="btn btn-sm btn-outline-danger w-100" data-repeatable-group-option-remove' . $disabled . '>&times;</button></div>';
+        $html .= '</div>';
+        return $html;
+    }
+
+    private static function getRepeatableGroupChildTypeOptions(): array {
+        $types = Constants::ALL_TYPE_PROPERTY_TYPES_FIELDS;
+        unset($types['repeatable-group'], $types['file'], $types['image']);
+        return $types;
+    }
+
+    private static function renderRepeatableGroupValueEditor(
+        array $fieldMeta,
+        string $nameBase,
+        mixed $value,
+        string $disabledAttr
+    ): string {
+        $fields = self::normalizeRepeatableGroupFieldsForRender($fieldMeta['fields'] ?? []);
+        if ($fields === []) {
+            return '<div class="text-muted small">Поля группы не настроены.</div>';
+        }
+        $rows = self::normalizeRepeatableGroupRowsForRender($value, $fields);
+        if ($rows === []) {
+            $rows[] = ['values' => []];
+        }
+
+        $html = '<div class="repeatable-group" data-repeatable-group="1">';
+        $html .= '<div class="repeatable-group__rows">';
+        foreach ($rows as $rowIndex => $row) {
+            $html .= self::renderRepeatableGroupValueRow($fields, $nameBase, (string) $rowIndex, $row, $disabledAttr, false);
+        }
+        $html .= '</div>';
+        $html .= '<template data-repeatable-group-template>';
+        $html .= self::renderRepeatableGroupValueRow($fields, $nameBase, '__row__', ['values' => []], ' disabled', true);
+        $html .= '</template>';
+        $html .= '<button type="button" class="btn btn-sm btn-outline-primary mt-2" data-repeatable-group-add' . $disabledAttr . '>Добавить строку</button>';
+        $html .= '</div>';
+        return $html;
+    }
+
+    private static function renderRepeatableGroupValueRow(
+        array $fields,
+        string $nameBase,
+        string $rowIndex,
+        array $row,
+        string $disabledAttr,
+        bool $template
+    ): string {
+        $values = is_array($row['values'] ?? null) ? $row['values'] : $row;
+        $html = '<div class="repeatable-group__row border rounded p-2 mb-2" data-repeatable-group-row="' . htmlspecialchars($rowIndex, ENT_QUOTES, 'UTF-8') . '">';
+        $html .= '<div class="row g-2 align-items-end">';
+        foreach ($fields as $fieldIndex => $field) {
+            if (!is_array($field)) {
+                continue;
+            }
+            $uid = (string) ($field['uid'] ?? ('group_field_' . $fieldIndex));
+            $childValue = $values[$uid] ?? '';
+            $childName = $nameBase . '[' . $rowIndex . '][values][' . $uid . ']';
+            $html .= '<div class="' . ($field['type'] === 'textarea' ? 'col-12' : 'col-md-4') . '">';
+            $label = trim((string) ($field['label'] ?? $uid));
+            if ($label !== '') {
+                $html .= '<label class="form-label small text-muted">' . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '</label>';
+            }
+            $html .= self::renderRepeatableGroupChildInput($field, $childName, $childValue, $disabledAttr);
+            $html .= '</div>';
+        }
+        $html .= '<div class="col-md-1"><button type="button" class="btn btn-sm btn-outline-danger w-100" data-repeatable-group-remove' . $disabledAttr . '>&times;</button></div>';
+        $html .= '</div></div>';
+        return $html;
+    }
+
+    private static function renderRepeatableGroupChildInput(array $field, string $nameBase, mixed $value, string $disabledAttr): string {
+        $type = strtolower(trim((string) ($field['type'] ?? 'text'))) ?: 'text';
+        $required = !empty($field['required']) ? ' required' : '';
+        switch ($type) {
+            case 'date-range':
+                return self::renderDateRangeInputGroup($nameBase, self::normalizeDateRangeItemForRender($value), $required, $disabledAttr, '', 'form-control form-control-sm', 'row g-2');
+            case 'textarea':
+                return '<textarea class="form-control form-control-sm" rows="3" name="' . htmlspecialchars($nameBase, ENT_QUOTES, 'UTF-8') . '"' . $required . $disabledAttr . '>' . htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8') . '</textarea>';
+            case 'select':
+            case 'checkbox':
+            case 'radio':
+                return self::renderRepeatableGroupChoiceInput($field, $nameBase, $value, $disabledAttr, $required);
+            default:
+                $inputType = match ($type) {
+                    'phone' => 'tel',
+                    'email' => 'email',
+                    'number' => 'number',
+                    'date' => 'text',
+                    'time' => 'time',
+                    'datetime-local' => 'datetime-local',
+                    'hidden', 'password' => 'text',
+                    default => 'text',
+                };
+                return '<input type="' . htmlspecialchars($inputType, ENT_QUOTES, 'UTF-8') . '" class="form-control form-control-sm" name="' . htmlspecialchars($nameBase, ENT_QUOTES, 'UTF-8') . '" value="' . htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8') . '"' . $required . $disabledAttr . '>';
+        }
+    }
+
+    private static function renderRepeatableGroupChoiceInput(array $field, string $nameBase, mixed $value, string $disabledAttr, string $required): string {
+        $type = strtolower(trim((string) ($field['type'] ?? 'select'))) ?: 'select';
+        $options = self::normalizeChoiceOptionsForRender($field);
+        $selected = array_flip(self::normalizeChoiceSelectedKeys($value));
+        if ($type === 'select') {
+            $multiple = !empty($field['field_multiple']);
+            $name = $nameBase . ($multiple ? '[]' : '');
+            $html = '<input type="hidden" name="' . htmlspecialchars($name, ENT_QUOTES, 'UTF-8') . '" value="__ee_empty_choice__"' . $disabledAttr . '>';
+            $html .= '<select class="form-select form-select-sm" name="' . htmlspecialchars($name, ENT_QUOTES, 'UTF-8') . '"' . ($multiple ? ' multiple' : '') . $required . $disabledAttr . '>';
+            $html .= '<option value=""></option>';
+            foreach ($options as $option) {
+                $key = (string) ($option['key'] ?? '');
+                if ($key === '' || !empty($option['disabled'])) {
+                    continue;
+                }
+                $html .= '<option value="' . htmlspecialchars($key, ENT_QUOTES, 'UTF-8') . '"' . (isset($selected[$key]) ? ' selected' : '') . '>' . htmlspecialchars((string) ($option['label'] ?? $key), ENT_QUOTES, 'UTF-8') . '</option>';
+            }
+            $html .= '</select>';
+            return $html;
+        }
+
+        $inputType = $type === 'radio' ? 'radio' : 'checkbox';
+        $name = $nameBase . ($inputType === 'checkbox' ? '[]' : '');
+        $html = $inputType === 'checkbox'
+            ? '<input type="hidden" name="' . htmlspecialchars($name, ENT_QUOTES, 'UTF-8') . '" value="__ee_empty_choice__"' . $disabledAttr . '>'
+            : '';
+        foreach ($options as $option) {
+            $key = (string) ($option['key'] ?? '');
+            if ($key === '' || !empty($option['disabled'])) {
+                continue;
+            }
+            $inputId = 'repeatable_group_choice_' . md5($nameBase . '|' . $inputType . '|' . $key);
+            $html .= '<div class="form-check">';
+            $html .= '<input id="' . htmlspecialchars($inputId, ENT_QUOTES, 'UTF-8') . '" class="form-check-input" type="' . $inputType . '" name="' . htmlspecialchars($name, ENT_QUOTES, 'UTF-8') . '" value="' . htmlspecialchars($key, ENT_QUOTES, 'UTF-8') . '"' . (isset($selected[$key]) ? ' checked' : '') . ($inputType === 'radio' ? $required : '') . $disabledAttr . '>';
+            $html .= '<label class="form-check-label" for="' . htmlspecialchars($inputId, ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars((string) ($option['label'] ?? $key), ENT_QUOTES, 'UTF-8') . '</label>';
+            $html .= '</div>';
+        }
+        return $html;
+    }
+
+    private static function normalizeRepeatableGroupFieldsForRender(mixed $fields): array {
+        $normalized = PropertyFieldContract::normalizeDefaultFieldsForStorage($fields, [], ['is_multiple' => 0], $fields);
+        return array_values(array_filter($normalized, static function ($field): bool {
+            $type = strtolower(trim((string) ($field['type'] ?? '')));
+            return $type !== '' && !in_array($type, ['repeatable-group', 'file', 'image'], true);
+        }));
+    }
+
+    private static function normalizeRepeatableGroupRowsForRender(mixed $value, array $fields): array {
+        if (!is_array($value)) {
+            return [];
+        }
+        $rows = [];
+        foreach ($value as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $values = is_array($row['values'] ?? null) ? $row['values'] : $row;
+            $hasValue = false;
+            foreach ($values as $item) {
+                if (self::fieldHasMeaningfulValue($item)) {
+                    $hasValue = true;
+                    break;
+                }
+            }
+            if ($hasValue) {
+                $rows[] = ['values' => $values];
+            }
+        }
+        return $rows;
     }
 
     private static function renderDateRangeInputGroup(

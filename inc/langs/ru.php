@@ -850,6 +850,7 @@ $lang['sys.field_type_phone'] = 'Телефон';
 $lang['sys.field_type_date'] = 'Дата';
 $lang['sys.field_type_date_range'] = 'Интервал дат';
 $lang['sys.field_type_time'] = 'Время';
+$lang['sys.field_type_repeatable_group'] = 'Повторяемая группа';
 $lang['sys.field_type_select'] = 'Список';
 $lang['sys.field_type_checkbox'] = 'Флажки';
 $lang['sys.field_type_radio'] = 'Переключатели';

@@ -22,6 +22,7 @@ final class PropertyFieldContract {
         'image',
         'checkbox',
         'radio',
+        'repeatable-group',
     ];
 
     public static function isChoiceType(string $type): bool {
@@ -219,6 +220,20 @@ final class PropertyFieldContract {
             'is_title' => self::toFlag($sourceItem['is_title'] ?? $existingItem['is_title'] ?? 0),
         ];
 
+        if ($type === 'repeatable-group') {
+            $normalized['multiple'] = 1;
+            $normalized['field_multiple'] = 1;
+            $normalized['fields'] = self::normalizeRepeatableGroupFields(
+                $sourceItem['fields'] ?? [],
+                is_array($existingItem['fields'] ?? null) ? $existingItem['fields'] : []
+            );
+            $sourceDefault = array_key_exists('default', $sourceItem)
+                ? $sourceItem['default']
+                : ($sourceItem['value'] ?? ($existingItem['default'] ?? []));
+            $normalized['default'] = self::normalizeRepeatableGroupRows($sourceDefault, $normalized['fields']);
+            return $normalized;
+        }
+
         if (self::isChoiceType($type)) {
             [$options, $selectedKeys] = self::normalizeChoiceDefinition($type, $sourceItem, $existingItem, $multiple);
             $normalized['options'] = $options;
@@ -260,6 +275,10 @@ final class PropertyFieldContract {
         $sourceValue = array_key_exists('value', $storedItem)
             ? $storedItem['value']
             : ($storedItem['default'] ?? ($defaultField['default'] ?? ''));
+        if ($type === 'repeatable-group') {
+            $runtime['value'] = self::normalizeRepeatableGroupValue($sourceValue, $defaultField, $repeatableProperty);
+            return $runtime;
+        }
         if ($type === 'date-range') {
             $runtime['value'] = self::normalizeDateRangeValue($sourceValue, !empty($defaultField['multiple']), $repeatableProperty);
             return $runtime;
@@ -302,6 +321,10 @@ final class PropertyFieldContract {
         $sourceValue = array_key_exists('value', $submittedItem)
             ? $submittedItem['value']
             : ($submittedItem['default'] ?? ($defaultField['default'] ?? ''));
+        if ($type === 'repeatable-group') {
+            $normalized['value'] = self::normalizeRepeatableGroupValue($sourceValue, $defaultField, $repeatableProperty);
+            return $normalized;
+        }
         if ($type === 'date-range') {
             $normalized['value'] = self::normalizeDateRangeValue($sourceValue, !empty($defaultField['multiple']), $repeatableProperty);
             return $normalized;
@@ -598,6 +621,198 @@ final class PropertyFieldContract {
             $value = reset($value);
         }
         return self::normalizeScalar($value);
+    }
+
+    private static function normalizeRepeatableGroupFields(mixed $fields, array $existingFields = []): array {
+        $decodedFields = self::decodeFieldList($fields);
+        if ($decodedFields === [] && $existingFields !== []) {
+            $decodedFields = self::decodeFieldList($existingFields);
+        }
+
+        if ($decodedFields === []) {
+            $decodedFields = [[
+                'uid' => 'group_field_0',
+                'type' => 'text',
+                'label' => 'Value',
+                'default' => '',
+            ]];
+        }
+
+        $existingByUid = self::indexByUid(self::decodeFieldList($existingFields));
+        $normalized = [];
+        $usedUids = [];
+        foreach (array_values($decodedFields) as $index => $field) {
+            if (!is_array($field)) {
+                continue;
+            }
+            $type = strtolower(trim((string) ($field['type'] ?? 'text'))) ?: 'text';
+            if (in_array($type, ['repeatable-group', 'file', 'image'], true) || !self::isSupportedFieldType($type)) {
+                continue;
+            }
+            $uid = trim((string) ($field['uid'] ?? ''));
+            if ($uid === '') {
+                $uid = 'group_field_' . $index;
+            }
+            $uid = self::normalizeGroupFieldUid($uid, $index, $usedUids);
+            $usedUids[$uid] = true;
+
+            $existing = $existingByUid[$uid] ?? [];
+            $normalized[] = self::normalizeDefaultFieldItem(
+                array_merge($field, ['uid' => $uid, 'type' => $type]),
+                ['uid' => $uid, 'type' => $type],
+                [
+                    'name' => $field['label'] ?? $field['title'] ?? '',
+                    'is_multiple' => 0,
+                    'is_required' => 0,
+                ],
+                $existing,
+                $index
+            );
+        }
+
+        return array_values($normalized);
+    }
+
+    private static function normalizeRepeatableGroupValue(mixed $value, array $defaultField, bool $parentRepeatable): array {
+        $fields = is_array($defaultField['fields'] ?? null) ? $defaultField['fields'] : [];
+        if ($fields === []) {
+            return [];
+        }
+
+        if ($parentRepeatable) {
+            if ($value === null || $value === '') {
+                return [];
+            }
+            if (!is_array($value)) {
+                return [];
+            }
+            $normalized = [];
+            foreach ($value as $itemRows) {
+                $normalized[] = self::normalizeRepeatableGroupRows($itemRows, $fields);
+            }
+            return array_values($normalized);
+        }
+
+        return self::normalizeRepeatableGroupRows($value, $fields);
+    }
+
+    private static function normalizeRepeatableGroupRows(mixed $rows, array $fields): array {
+        if ($rows === null || $rows === '' || $fields === []) {
+            return [];
+        }
+        if (!is_array($rows)) {
+            return [];
+        }
+
+        if (self::isRepeatableGroupRow($rows, $fields)) {
+            $rows = [$rows];
+        }
+
+        $normalizedRows = [];
+        foreach ($rows as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $sourceValues = is_array($row['values'] ?? null) ? $row['values'] : $row;
+            $values = [];
+            $hasValue = false;
+            foreach (array_values($fields) as $childIndex => $childField) {
+                if (!is_array($childField)) {
+                    continue;
+                }
+                $childUid = (string) ($childField['uid'] ?? ('group_field_' . $childIndex));
+                $childType = (string) ($childField['type'] ?? 'text');
+                $childSource = $sourceValues[$childUid] ?? ($sourceValues[$childIndex] ?? null);
+                $compact = self::compactValueField([
+                    'uid' => $childUid,
+                    'type' => $childType,
+                    'value' => $childSource,
+                ], $childField);
+                $values[$childUid] = $compact['value'] ?? null;
+                if (self::valueHasMeaningfulContent($values[$childUid])) {
+                    $hasValue = true;
+                }
+            }
+
+            if ($hasValue) {
+                $normalizedRows[] = ['values' => $values];
+            }
+        }
+
+        return array_values($normalizedRows);
+    }
+
+    private static function isRepeatableGroupRow(array $value, array $fields): bool {
+        if (is_array($value['values'] ?? null)) {
+            return true;
+        }
+        $hasNamedFieldKey = false;
+        foreach ($fields as $index => $field) {
+            if (!is_array($field)) {
+                continue;
+            }
+            $uid = (string) ($field['uid'] ?? ('group_field_' . $index));
+            if (array_key_exists($uid, $value)) {
+                $hasNamedFieldKey = true;
+                break;
+            }
+        }
+        if ($hasNamedFieldKey) {
+            return true;
+        }
+
+        if (!array_is_list($value) || count($value) > count($fields)) {
+            return false;
+        }
+
+        foreach ($value as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            if (is_array($item['values'] ?? null)) {
+                return false;
+            }
+            foreach ($fields as $index => $field) {
+                if (!is_array($field)) {
+                    continue;
+                }
+                $uid = (string) ($field['uid'] ?? ('group_field_' . $index));
+                if (array_key_exists($uid, $item)) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private static function normalizeGroupFieldUid(string $uid, int $index, array $usedUids): string {
+        $uid = self::slugifyKey($uid);
+        if ($uid === '') {
+            $uid = 'group-field-' . ($index + 1);
+        }
+        $base = $uid;
+        $suffix = 2;
+        while (isset($usedUids[$uid])) {
+            $uid = $base . '-' . $suffix;
+            $suffix++;
+        }
+        return $uid;
+    }
+
+    private static function valueHasMeaningfulContent(mixed $value): bool {
+        if (is_array($value)) {
+            foreach ($value as $item) {
+                if (self::valueHasMeaningfulContent($item)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        if (is_object($value) || $value === null) {
+            return false;
+        }
+        return trim((string) $value) !== '';
     }
 
     private static function normalizeDateRangeValue(mixed $value, bool $multiple, bool $preservePositions = false): array {
@@ -928,6 +1143,9 @@ final class PropertyFieldContract {
     }
 
     private static function resolveMultipleFlag(string $type, mixed $value): int {
+        if ($type === 'repeatable-group') {
+            return 1;
+        }
         if ($type === 'radio') {
             return 0;
         }
