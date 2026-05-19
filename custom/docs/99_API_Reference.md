@@ -237,8 +237,6 @@
 
 Выполняет встроенный handler cron-агента.
 
-## EntityTranslationService
-
 ## EntityPublicUrlService
 
 ### `EntityPublicUrlService::buildEntityUrl(string $entityType, int $entityId, ?string $languageCode = null, bool $absolute = true, ?bool $includeLanguageQuery = null): string`
@@ -257,7 +255,7 @@
 
 ### `ModelPublicCatalog::getPagePayload(int $pageId, string $languageCode = ENV_DEF_LANG): ?array`
 
-Собирает публичный payload карточки объекта:
+Собирает публичный payload страницы:
 
 - breadcrumbs
 - description
@@ -265,19 +263,21 @@
 - contacts
 - details
 - map
-- room/pricing block
-- related objects
+- domain-specific blocks
+- related pages
 
 ### `ModelPublicCatalog::getCategoryPayload(int $categoryId, string $languageCode = ENV_DEF_LANG): ?array`
 
-Собирает публичный payload страницы курорта:
+Собирает публичный payload категории:
 
 - overview text
 - left/right rich text blocks
 - gallery
 - map
-- child resorts
-- direct object cards
+- child categories
+- direct pages
+
+## EntityTranslationService
 
 ### `EntityTranslationService::ensureInfrastructure(bool $force = false): void`
 
@@ -398,19 +398,31 @@ Redirect и штатный error flow.
 
 Обновляет согласия пользователя и сохраняет metadata принятия.
 
-### `EntityPublicUrlService::buildEntityUrl(string $entityType, int $entityId, ?string $languageCode = null, bool $absolute = true, ?bool $includeLanguageQuery = null): string`
+## ApiKeyService
 
-Строит публичный URL категории или страницы по semantic contract на базе `slug`.
+### `ApiKeyService::ensureInfrastructure(bool $force = false): void`
 
-### `EntityPublicUrlService::resolvePath(string $routePath, ?string $preferredLanguageCode = null): ?array`
+Создаёт таблицу API-ключей пользователей.
 
-Резолвит semantic public URL в сущность `page/category` и её языковой контекст.
+### `ApiKeyService::generateForUser(int $userId, string $label = 'Default API key'): array`
 
-### `EntityPublicUrlService::buildHreflangLinks(string $entityType, int $entityId, array $availableLanguageCodes = []): array`
+Выдаёт новый raw API key, отзывает прежние active-ключи пользователя и сохраняет hash.
 
-Возвращает `canonical/hreflang`-совместимый набор ссылок для переводов сущности.
+### `ApiKeyService::resolveActiveKey(string $rawKey): ?array`
+
+Проверяет raw-ключ и возвращает metadata ключа вместе с пользователем.
+
+### `ApiKeyService::touchKeyUsage(int $apiKeyId, ?string $ip = null): void`
+
+Обновляет `last_used_at` и `last_used_ip`.
+
+### `ApiKeyService::extractRequestApiKey(): string`
+
+Читает ключ из `Authorization: Bearer ...`, `Authorization: ApiKey ...` или `X-API-Key`.
 
 ## ContentApiService
+
+`ContentApiService` используется административным `/api/v1` и должен вызываться только после проверки admin API key.
 
 ### `ContentApiService::getEntity(string $entityType, int $entityId, string $languageCode = ''): OperationResult`
 
@@ -431,6 +443,24 @@ Redirect и штатный error flow.
 - для `page` нужен `category_id`;
 - для `category` нужен `type_id`;
 - в ответе приходят `entity_fields`, `entity_defaults` и `properties`.
+
+Схема свойств возвращает field `uid`, `type`, default/value и метаданные ввода. Для `date-range` значение имеет структурный формат:
+
+```json
+{
+  "from": "01.06",
+  "to": "15.06"
+}
+```
+
+В repeatable-свойствах этот объект повторяется массивом по индексам элементов. `date-range` участвует в поисковом индексе, но не является generic materialized filter type: фильтрация по пересечению дат должна описываться отдельной прикладной логикой.
+
+Security-ожидания для `/api/v1`:
+
+- активный admin API key;
+- throttling read/write запросов;
+- structured audit log для read/create/update операций;
+- JSON-ошибка без raw exception dump.
 
 ## Константы, которые нужно помнить
 
@@ -456,6 +486,7 @@ Redirect и штатный error flow.
 - `ENV_LEGAL_OPERATOR_OGRN`
 - `ENV_LEGAL_PRIVACY_POLICY_VERSION`
 - `ENV_LEGAL_PERSONAL_DATA_CONSENT_VERSION`
+- `ENV_LEGAL_PERSONAL_DATA_DISTRIBUTION_CONSENT_VERSION`
 
 `ENV_ROUTING_CACHE` считается legacy-алиасом. Для новых проектов используйте только `ENV_ROUTING_CACHE_ENABLED`.
 

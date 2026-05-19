@@ -848,6 +848,7 @@ $lang['sys.field_type_number'] = 'Число';
 $lang['sys.field_type_email'] = 'Эл. почта';
 $lang['sys.field_type_phone'] = 'Телефон';
 $lang['sys.field_type_date'] = 'Дата';
+$lang['sys.field_type_date_range'] = 'Интервал дат';
 $lang['sys.field_type_time'] = 'Время';
 $lang['sys.field_type_select'] = 'Список';
 $lang['sys.field_type_checkbox'] = 'Флажки';

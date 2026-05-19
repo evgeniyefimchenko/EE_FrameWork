@@ -1220,6 +1220,25 @@ trait PropertiesTrait {
                 if ($additional_key) {
                     if (($additional_key === 'multiple' || $additional_key === 'required') && $value === 'on') {
                         $prepared_data[$index][$additional_key] = 1;
+                    } elseif ($type === 'date-range' && $additional_key === 'default' && is_array($value)) {
+                        if (array_key_exists('from', $value) || array_key_exists('to', $value)) {
+                            $prepared_data[$index]['default'] = [
+                                'from' => SysClass::ee_cleanArray(html_entity_decode((string) ($value['from'] ?? ''))),
+                                'to' => SysClass::ee_cleanArray(html_entity_decode((string) ($value['to'] ?? ''))),
+                            ];
+                        } else {
+                            $ranges = [];
+                            foreach ($value as $rangeValue) {
+                                if (!is_array($rangeValue)) {
+                                    continue;
+                                }
+                                $ranges[] = [
+                                    'from' => SysClass::ee_cleanArray(html_entity_decode((string) ($rangeValue['from'] ?? ''))),
+                                    'to' => SysClass::ee_cleanArray(html_entity_decode((string) ($rangeValue['to'] ?? ''))),
+                                ];
+                            }
+                            $prepared_data[$index]['default'] = $ranges;
+                        }
                     } elseif ($additional_key === 'default' && is_array($value)) {
                         array_walk($value, function ($val, $key) use (&$flattenedArr) {
                             $flattenedArr[] = html_entity_decode($val);

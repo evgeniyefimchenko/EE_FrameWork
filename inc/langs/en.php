@@ -871,6 +871,7 @@ $lang['sys.field_type_number'] = 'Number';
 $lang['sys.field_type_email'] = 'Email';
 $lang['sys.field_type_phone'] = 'Phone';
 $lang['sys.field_type_date'] = 'Date';
+$lang['sys.field_type_date_range'] = 'Date range';
 $lang['sys.field_type_time'] = 'Time';
 $lang['sys.field_type_select'] = 'Select';
 $lang['sys.field_type_checkbox'] = 'Checkboxes';

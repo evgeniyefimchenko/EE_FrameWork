@@ -209,6 +209,7 @@ if (!function_exists('ee_property_hook_affects_search')) {
             'text',
             'number',
             'date',
+            'date-range',
             'time',
             'datetime-local',
             'email',

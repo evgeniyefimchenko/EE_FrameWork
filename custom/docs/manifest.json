@@ -16,8 +16,12 @@
     "cron": "cron-agents",
     "backups": "backup",
     "deployment": "quick-start",
+    "security": "security",
+    "hardening": "security",
+    "production-hardening": "security",
     "safepostgresql": "models",
-    "api": "api-reference"
+    "api": "api-reference",
+    "content-api": "catalog-api"
   },
   "groups": [
     {
@@ -84,7 +88,7 @@
           "description": "Практическая схема хранения структуры и живых значений в контентной модели EE_FrameWork.",
           "file": "09_ContentModel.md",
           "icon": "fa-network-wired",
-          "keywords": ["content model", "entities", "properties", "categories", "pages", "property values"]
+          "keywords": ["content model", "entities", "properties", "categories", "pages", "property values", "date-range"]
         },
         {
           "slug": "views",
@@ -148,13 +152,22 @@
           "keywords": ["debug", "logger", "error", "troubleshooting", "logs"]
         },
         {
+          "slug": "security",
+          "title": "Security и production hardening",
+          "summary": "Front controller, закрытые директории, debug policy, rich text sanitizer и API key model.",
+          "description": "Production-чеклист безопасности EE_FrameWork и правила hardened-развёртывания.",
+          "file": "14_Security.md",
+          "icon": "fa-shield-halved",
+          "keywords": ["security", "hardening", "production", "headers", "debug", "api key", "sanitize"]
+        },
+        {
           "slug": "imports",
           "title": "Импорт типов, свойств и наборов",
           "summary": "JSON-формат для структурного импорта property types, properties и property sets.",
           "description": "Практический контракт JSON-импорта структуры свойств в EE_FrameWork.",
           "file": "10_Imports.md",
           "icon": "fa-file-import",
-          "keywords": ["imports", "json", "property types", "property sets", "properties"]
+          "keywords": ["imports", "json", "property types", "property sets", "properties", "date-range"]
         },
         {
           "slug": "backup",
@@ -183,12 +196,12 @@
         },
         {
           "slug": "catalog-api",
-          "title": "Проектный API каталога",
-          "summary": "Curated schema, команда установки и payload для API создания курортов и объектов размещения.",
-          "description": "Практический пример project-level контракта для установки property schema и создания сущностей через /api/v1.",
+          "title": "Content API v1",
+          "summary": "Admin JSON API для чтения, создания и обновления категорий и страниц.",
+          "description": "Контракт /api/v1, schema endpoints, payload и security-модель admin API key.",
           "file": "13_CatalogApi.md",
-          "icon": "fa-hotel",
-          "keywords": ["catalog api", "schema", "properties", "hotel", "resort", "content api"]
+          "icon": "fa-code-branch",
+          "keywords": ["content api", "api v1", "schema", "properties", "pages", "categories", "api key", "date-range"]
         }
       ]
     }

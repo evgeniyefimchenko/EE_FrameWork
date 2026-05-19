@@ -27,6 +27,8 @@ final class EntitySlugService {
         'privacy_policy',
         'consent-personal-data',
         'consent_personal_data',
+        'consent-personal-data-distribution',
+        'consent_personal_data_distribution',
         'required-consents',
         'required_consents',
         'auth-consent',

@@ -1738,6 +1738,9 @@ class WordpressImporter extends BaseImporter {
         } elseif ($source === 'wp_type:date') {
             $fields = ['date'];
             $candidates = ['Р”Р°С‚Р°', 'Date', 'РРЅС‚РµСЂРІР°Р» РґР°С‚'];
+        } elseif ($source === 'wp_type:date_range') {
+            $fields = ['date-range'];
+            $candidates = ['Интервал дат', 'Date range'];
         } elseif ($source === 'wp_type:boolean') {
             $fields = ['checkbox'];
             $candidates = ['Р¤Р»Р°Рі', 'Boolean', 'Checkbox'];

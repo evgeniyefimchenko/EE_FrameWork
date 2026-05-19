@@ -9,6 +9,7 @@ final class PropertyFieldContract {
         'text',
         'number',
         'date',
+        'date-range',
         'time',
         'datetime-local',
         'hidden',
@@ -228,6 +229,10 @@ final class PropertyFieldContract {
         $sourceDefault = array_key_exists('default', $sourceItem)
             ? $sourceItem['default']
             : ($sourceItem['value'] ?? ($existingItem['default'] ?? ''));
+        if ($type === 'date-range') {
+            $normalized['default'] = self::normalizeDateRangeValue($sourceDefault, (bool) $fieldMultiple);
+            return $normalized;
+        }
         $normalized['default'] = self::normalizeScalarOrList($sourceDefault, (bool) $multiple);
         return $normalized;
     }
@@ -255,6 +260,10 @@ final class PropertyFieldContract {
         $sourceValue = array_key_exists('value', $storedItem)
             ? $storedItem['value']
             : ($storedItem['default'] ?? ($defaultField['default'] ?? ''));
+        if ($type === 'date-range') {
+            $runtime['value'] = self::normalizeDateRangeValue($sourceValue, !empty($defaultField['multiple']), $repeatableProperty);
+            return $runtime;
+        }
         if (in_array($type, ['file', 'image'], true)) {
             $runtime['value'] = self::normalizeFileReferenceValue($sourceValue, !empty($defaultField['multiple']), $repeatableProperty);
             return $runtime;
@@ -293,6 +302,10 @@ final class PropertyFieldContract {
         $sourceValue = array_key_exists('value', $submittedItem)
             ? $submittedItem['value']
             : ($submittedItem['default'] ?? ($defaultField['default'] ?? ''));
+        if ($type === 'date-range') {
+            $normalized['value'] = self::normalizeDateRangeValue($sourceValue, !empty($defaultField['multiple']), $repeatableProperty);
+            return $normalized;
+        }
         if (in_array($type, ['file', 'image'], true)) {
             $normalized['value'] = self::normalizeFileReferenceValue($sourceValue, !empty($defaultField['multiple']), $repeatableProperty);
             return $normalized;
@@ -585,6 +598,80 @@ final class PropertyFieldContract {
             $value = reset($value);
         }
         return self::normalizeScalar($value);
+    }
+
+    private static function normalizeDateRangeValue(mixed $value, bool $multiple, bool $preservePositions = false): array {
+        if ($multiple) {
+            if ($value === null || $value === '') {
+                return [];
+            }
+            if (!is_array($value)) {
+                $range = self::normalizeDateRangeItem($value);
+                return self::dateRangeHasValue($range) || $preservePositions ? [$range] : [];
+            }
+            if (self::isDateRangeAssoc($value)) {
+                $range = self::normalizeDateRangeItem($value);
+                return self::dateRangeHasValue($range) || $preservePositions ? [$range] : [];
+            }
+
+            $normalized = [];
+            foreach ($value as $item) {
+                $range = self::normalizeDateRangeItem($item);
+                if ($preservePositions || self::dateRangeHasValue($range)) {
+                    $normalized[] = $range;
+                }
+            }
+            return array_values($normalized);
+        }
+
+        if (is_array($value) && !self::isDateRangeAssoc($value) && self::containsNestedArray($value)) {
+            foreach ($value as $item) {
+                $range = self::normalizeDateRangeItem($item);
+                if (self::dateRangeHasValue($range)) {
+                    return $range;
+                }
+            }
+            return ['from' => '', 'to' => ''];
+        }
+
+        return self::normalizeDateRangeItem($value);
+    }
+
+    private static function normalizeDateRangeItem(mixed $value): array {
+        if (is_array($value)) {
+            $from = $value['from'] ?? $value['date_from'] ?? $value['start'] ?? $value[0] ?? '';
+            $to = $value['to'] ?? $value['date_to'] ?? $value['end'] ?? $value[1] ?? '';
+            return [
+                'from' => self::normalizeScalar($from),
+                'to' => self::normalizeScalar($to),
+            ];
+        }
+
+        $scalar = self::normalizeScalar($value);
+        if ($scalar !== '' && preg_match('/^(.+?)\s*(?:-|–|—|\.\.)\s*(.+)$/u', $scalar, $matches) === 1) {
+            return [
+                'from' => self::normalizeScalar($matches[1]),
+                'to' => self::normalizeScalar($matches[2]),
+            ];
+        }
+
+        return [
+            'from' => $scalar,
+            'to' => '',
+        ];
+    }
+
+    private static function isDateRangeAssoc(array $value): bool {
+        return array_key_exists('from', $value)
+            || array_key_exists('to', $value)
+            || array_key_exists('date_from', $value)
+            || array_key_exists('date_to', $value)
+            || array_key_exists('start', $value)
+            || array_key_exists('end', $value);
+    }
+
+    private static function dateRangeHasValue(array $range): bool {
+        return trim((string) ($range['from'] ?? '')) !== '' || trim((string) ($range['to'] ?? '')) !== '';
     }
 
     public static function normalizeFileReferenceList(mixed $value): array {

@@ -1486,6 +1486,17 @@ class Plugins {
                 $html .= '<textarea class="form-control room-offer-editor__input"' . $required . $disabledAttr . $periodAttr . $nameMarkerAttr . ' rows="5" name="' . htmlspecialchars($nameAttr, ENT_QUOTES, 'UTF-8') . '">'
                     . htmlspecialchars((string) $roomValue, ENT_QUOTES, 'UTF-8') . '</textarea>';
                 break;
+            case 'date-range':
+                $html .= self::renderDateRangeInputGroup(
+                    $roomInputName,
+                    self::normalizeDateRangeItemForRender($roomValue),
+                    $required,
+                    $disabledAttr,
+                    $periodAttr,
+                    'form-control room-offer-editor__input',
+                    'room-offer-editor__date-range row g-2'
+                );
+                break;
             default:
                 $inputType = match ($type) {
                     'phone' => 'tel',
@@ -1732,6 +1743,18 @@ class Plugins {
                     'preloaded_files' => FileSystem::normalizeFileReferences($itemValue),
                 ]);
                 break;
+            case 'date-range':
+                $nameAttr = 'property_data[' . $valueName . '_value][' . $itemIndex . ']';
+                $html .= self::renderDateRangeInputGroup(
+                    $nameAttr,
+                    self::normalizeDateRangeItemForRender($itemValue),
+                    $required,
+                    $disabledAttr,
+                    $slotInputAttr,
+                    'form-control repeatable-editor__input',
+                    'repeatable-editor__date-range row g-2'
+                );
+                break;
             default:
                 $inputType = match ($type) {
                     'phone' => 'tel',
@@ -1971,6 +1994,25 @@ class Plugins {
                             . 'name="property_data[' . $valueName . '_' . $area . ']' . $nameSuffix . '" value="' . htmlentities(is_array($scalarValue) ? (string) reset($scalarValue) : (string) $scalarValue) . '" />';
                 }
                 break;
+            case 'date-range':
+                $dateRangeValue = $value['value'] ?? ($value['default'] ?? []);
+                $ranges = self::normalizeDateRangeForRender($dateRangeValue, $multiple);
+                if ($ranges === []) {
+                    $ranges[] = ['from' => '', 'to' => ''];
+                }
+                foreach ($ranges as $rangeIndex => $range) {
+                    $rangeName = 'property_data[' . $valueName . '_' . $area . ']' . ($multiple ? '[' . (int) $rangeIndex . ']' : '');
+                    $result .= self::renderDateRangeInputGroup(
+                        $rangeName,
+                        $range,
+                        $required,
+                        '',
+                        ' data-bs-toggle="tooltip" data-bs-placement="top" title="date-range"',
+                        'form-control',
+                        'ee-date-range-field row g-2 mb-2'
+                    );
+                }
+                break;
             case 'select':
             case 'checkbox':
             case 'radio':
@@ -2029,6 +2071,78 @@ class Plugins {
         }
         $result .= '</div>';
         return $result;
+    }
+
+    private static function renderDateRangeInputGroup(
+        string $nameBase,
+        array $range,
+        string $required = '',
+        string $disabledAttr = '',
+        string $extraInputAttrs = '',
+        string $inputClass = 'form-control',
+        string $wrapperClass = 'row g-2'
+    ): string {
+        $from = (string) ($range['from'] ?? '');
+        $to = (string) ($range['to'] ?? '');
+        $html = '<div class="' . htmlspecialchars($wrapperClass, ENT_QUOTES, 'UTF-8') . '">';
+        $html .= '<div class="col-sm-6">';
+        $html .= '<label class="form-label small text-muted mb-1">С</label>';
+        $html .= '<input type="text" class="' . htmlspecialchars($inputClass, ENT_QUOTES, 'UTF-8') . '"' . $required . $disabledAttr . $extraInputAttrs
+            . ' name="' . htmlspecialchars($nameBase . '[from]', ENT_QUOTES, 'UTF-8') . '" value="' . htmlspecialchars($from, ENT_QUOTES, 'UTF-8') . '" placeholder="дд.мм">';
+        $html .= '</div>';
+        $html .= '<div class="col-sm-6">';
+        $html .= '<label class="form-label small text-muted mb-1">По</label>';
+        $html .= '<input type="text" class="' . htmlspecialchars($inputClass, ENT_QUOTES, 'UTF-8') . '"' . $required . $disabledAttr . $extraInputAttrs
+            . ' name="' . htmlspecialchars($nameBase . '[to]', ENT_QUOTES, 'UTF-8') . '" value="' . htmlspecialchars($to, ENT_QUOTES, 'UTF-8') . '" placeholder="дд.мм">';
+        $html .= '</div>';
+        $html .= '</div>';
+        return $html;
+    }
+
+    private static function normalizeDateRangeForRender(mixed $value, bool $multiple): array {
+        if (!$multiple) {
+            return [self::normalizeDateRangeItemForRender($value)];
+        }
+        if ($value === null || $value === '') {
+            return [];
+        }
+        if (!is_array($value)) {
+            return [self::normalizeDateRangeItemForRender($value)];
+        }
+        if (self::isDateRangeAssocForRender($value)) {
+            return [self::normalizeDateRangeItemForRender($value)];
+        }
+
+        $ranges = [];
+        foreach ($value as $item) {
+            $range = self::normalizeDateRangeItemForRender($item);
+            if (trim((string) $range['from']) !== '' || trim((string) $range['to']) !== '') {
+                $ranges[] = $range;
+            }
+        }
+        return $ranges;
+    }
+
+    private static function normalizeDateRangeItemForRender(mixed $value): array {
+        if (is_array($value)) {
+            return [
+                'from' => (string) ($value['from'] ?? $value['date_from'] ?? $value['start'] ?? $value[0] ?? ''),
+                'to' => (string) ($value['to'] ?? $value['date_to'] ?? $value['end'] ?? $value[1] ?? ''),
+            ];
+        }
+        return [
+            'from' => trim((string) $value),
+            'to' => '',
+        ];
+    }
+
+    private static function isDateRangeAssocForRender(array $value): bool {
+        return array_key_exists('from', $value)
+            || array_key_exists('to', $value)
+            || array_key_exists('date_from', $value)
+            || array_key_exists('date_to', $value)
+            || array_key_exists('start', $value)
+            || array_key_exists('end', $value);
     }
 
     private static function normalizeTypeFieldDefinitions(mixed $fields): array {

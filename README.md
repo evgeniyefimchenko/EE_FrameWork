@@ -244,6 +244,24 @@ php -S 127.0.0.1:8080 -t .
 
 ---
 
+## Security И Production Hardening
+
+Production-развёртывание EE_FrameWork строится вокруг front controller:
+
+- публичная PHP-точка входа для HTTP - только `index.php`;
+- `error.php` используется как внутренний error endpoint;
+- PHP во внутренних директориях не должен исполняться напрямую через HTTP;
+- `ENV_DEBUG=false`, `display_errors=0`;
+- в webroot не должно быть `phpinfo()`, экспортов, SQL dump, тест-планов и operational notes;
+- `inc/`, `classes/`, `layouts/`, `config/`, `custom/`, `app/cron/`, `data/`, `exports/`, `testplan/`, `logs/` и `cache/` закрываются на уровне веб-сервера;
+- security headers задаются в Apache/Nginx;
+- admin API keys выдаются только доверенным интеграциям;
+- публичный rich text выводится только после allowlist sanitization.
+
+Подробный чеклист hardened-развёртывания лежит в [Security и production hardening](custom/docs/14_Security.md).
+
+---
+
 ## Документация
 
 Продуктовая документация лежит в `custom/docs/`.
@@ -256,7 +274,8 @@ php -S 127.0.0.1:8080 -t .
 - импорт;
 - cron-агенты;
 - backup;
-- debug/health.
+- debug/health;
+- security и production hardening.
 
 `README.md` должен оставаться короткой входной точкой для разработчика, а подробные сценарии поддержки и эксплуатации — жить в `custom/docs/`.
 
@@ -498,6 +517,8 @@ php app/cron/run.php
 - [Cron-агенты и scheduler](custom/docs/11_CronAgents.md)
 - [Кэширование](custom/docs/07_Cache.md)
 - [Отладка](custom/docs/08_Debug.md)
+- [Security и production hardening](custom/docs/14_Security.md)
+- [Content API v1](custom/docs/13_CatalogApi.md)
 - [API Reference](custom/docs/99_API_Reference.md)
 
 Если вы только знакомитесь с проектом, лучше идти именно в этом порядке.

@@ -26,12 +26,14 @@ EE_FrameWork — это PHP-фреймворк с явным front controller, M
 11. [Cron-агенты и scheduler](/docs/cron-agents)
 12. [Резервное копирование](/docs/backup)
 13. [Отладка](/docs/debug)
-14. [API Reference](/docs/api-reference)
-15. [Проектный API каталога](/docs/catalog-api)
+14. [Security и production hardening](/docs/security)
+15. [API Reference](/docs/api-reference)
+16. [Content API v1](/docs/catalog-api)
 
 ## Что важно понять про EE_FrameWork сразу
 
 - `index.php` — единая точка входа HTTP.
+- production web server должен исполнять PHP только через front controller.
 - `inc/configuration.php` хранит только настройки проекта.
 - `inc/bootstrap.php` собирает runtime ядра, вычисляет производные константы и подключает `custom/`.
 - `Router` определяет контроллер, action и аргументы из URL.
@@ -40,6 +42,7 @@ EE_FrameWork — это PHP-фреймворк с явным front controller, M
 - проектный код расширения должен идти в `custom/`, а не в `inc/hooks.php` и не в `inc/startup.php`.
 - auth-routing и contour-policy должны настраиваться через hooks в `custom/hooks.php`, а не project-specific правками ядра.
 - ошибки маршрутизации и недоступные документы должны уходить в `error.php` в корне проекта.
+- `ENV_DEBUG=false`, закрытые внутренние директории и allowlist sanitization публичного rich text обязательны для production.
 
 ## Базовая карта репозитория
 

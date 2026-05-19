@@ -32,7 +32,7 @@
     }
 
     function clearItem($card) {
-        $card.find('input[type="text"], input[type="number"], input[type="email"], input[type="tel"], input[type="password"], input[type="hidden"][name^="property_data["]').val('');
+        $card.find('input[type="text"], input[type="number"], input[type="email"], input[type="tel"], input[type="date"], input[type="time"], input[type="datetime-local"], input[type="password"], input[type="hidden"][name^="property_data["]').val('');
         $card.find('textarea').val('');
         $card.find('select').each(function () {
             this.selectedIndex = 0;
@@ -170,7 +170,7 @@
         getActiveItems($editor).each(function () {
             var $card = $(this);
             var $slot = $card.find('[data-repeatable-slot="' + visibleSlots + '"]');
-            $slot.find('input[type="text"], input[type="number"], textarea').val('');
+            $slot.find('input[type="text"], input[type="number"], input[type="email"], input[type="tel"], input[type="date"], input[type="time"], input[type="datetime-local"], textarea').val('');
             $slot.find('select').each(function () {
                 this.selectedIndex = 0;
             });

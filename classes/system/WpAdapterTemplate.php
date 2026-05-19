@@ -747,6 +747,7 @@ function ee_export_build_property_type_rows(): array {
         ['source_id' => 'wp_type:number', 'name' => 'Число', 'fields' => ['number'], 'status' => 'active', 'language_code' => 'RU'],
         ['source_id' => 'wp_type:boolean', 'name' => 'Да/Нет', 'fields' => ['checkbox'], 'status' => 'active', 'language_code' => 'RU'],
         ['source_id' => 'wp_type:date', 'name' => 'Дата', 'fields' => ['date'], 'status' => 'active', 'language_code' => 'RU'],
+        ['source_id' => 'wp_type:date_range', 'name' => 'Интервал дат', 'fields' => ['date-range'], 'status' => 'active', 'language_code' => 'RU'],
         ['source_id' => 'wp_type:image', 'name' => 'Изображение', 'fields' => ['image'], 'status' => 'active', 'language_code' => 'RU'],
         ['source_id' => 'wp_type:file', 'name' => 'Файл', 'fields' => ['file'], 'status' => 'active', 'language_code' => 'RU'],
     ];

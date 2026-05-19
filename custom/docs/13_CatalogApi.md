@@ -1,65 +1,76 @@
-# Проектный API каталога
+# Content API v1
 
-Этот раздел описывает пример project-level контракта для создания и обновления курортов, гостиниц и других объектов размещения через API.
+Этот раздел описывает generic admin API для чтения, создания и обновления контентных сущностей EE_FrameWork: `categories` и `pages`.
 
-## Что уже заведено в проекте
+API не привязан к предметной области проекта. Конкретные свойства, наборы и схемы определяются текущей БД и импортированной property model.
 
-- curated schema хранится в `custom/imports/*.json`;
-- schema можно поднять повторяемо через CLI;
-- content API умеет:
-  - читать сущности;
-  - создавать страницы и категории;
-  - отдавать schema/template для будущего `POST`.
+## Назначение
 
-## Команда установки schema
+`app/api/v1.php` нужен для доверенных административных интеграций:
 
-```bash
-php inc/cli.php project:install-catalog-schema --type-id=1 --json
+- получить сущность вместе со значениями свойств;
+- получить schema/template для будущего `POST`;
+- создать категорию или страницу;
+- обновить core-поля и свойства существующей сущности.
+
+Это не публичный пользовательский API. Для frontend, мобильного клиента или сторонних пользователей нужен отдельный контракт доступа.
+
+## Security model
+
+Каждый запрос к `pages` и `categories` проходит через admin API key.
+
+Ключ можно передать так:
+
+```text
+Authorization: Bearer {api_key}
+X-API-Key: {api_key}
 ```
 
-Что делает команда:
+Обязательные правила:
 
-- upsert-ит `property_types`;
-- upsert-ит `properties`;
-- upsert-ит `property_sets`;
-- синхронизирует состав наборов;
-- привязывает наборы `accommodation_set` и `resort_set` к указанному `category_type`.
+- API key хранится в БД как hash;
+- raw-ключ показывается только в момент выдачи;
+- пользователь ключа должен быть активен;
+- роль пользователя должна быть admin;
+- read/write запросы проходят общий throttling;
+- операции чтения, создания и обновления должны писать structured audit log;
+- расширения API не должны обходить `requireApiAdmin()`.
 
-В чистой установке `type_id` часто равен `1` (`Основной раздел`), но это значение не должно хардкодиться без проверки текущей БД проекта.
+## Endpoints
 
-## Рекомендуемый поток для интеграции
+```text
+GET    /api/v1/pages/id/{id}
+GET    /api/v1/pages/schema?category_id={category_id}
+POST   /api/v1/pages
+PUT    /api/v1/pages/id/{id}
+PATCH  /api/v1/pages/id/{id}
 
-Самый безопасный путь для внешней системы:
+GET    /api/v1/categories/id/{id}
+GET    /api/v1/categories/schema?type_id={type_id}
+POST   /api/v1/categories
+PUT    /api/v1/categories/id/{id}
+PATCH  /api/v1/categories/id/{id}
+```
 
-1. Запросить schema страницы:
+`language_code` можно передавать в query или payload. Если язык не передан, используется default content language.
+
+## Schema endpoint
+
+Перед созданием сущности безопаснее запросить schema.
+
+Для страницы:
 
 ```text
 GET /api/v1/pages/schema?category_id=1
 ```
 
-2. Взять из ответа `properties`.
-3. Менять только `value` внутри нужных `fields`.
-4. Отправить результат в:
+Для категории:
 
 ```text
-POST /api/v1/pages
+GET /api/v1/categories/schema?type_id=1
 ```
 
-Почему это важно:
-
-- schema уже содержит корректные `property_id`, `set_id`, `uid` и `options`;
-- для `select/radio/checkbox` не нужно угадывать допустимые значения;
-- для составных свойств лучше не собирать структуру вручную с нуля.
-
-## Schema endpoint
-
-### Страницы объектов размещения
-
-```text
-GET /api/v1/pages/schema?category_id={category_id}
-```
-
-Возвращает:
+Ответ содержит:
 
 - `entity_type`
 - `language_code`
@@ -68,93 +79,82 @@ GET /api/v1/pages/schema?category_id={category_id}
 - `entity_defaults`
 - `properties`
 
-Для страниц обязательные core-поля:
+Почему schema важна:
+
+- в ней уже есть актуальные `property_id`, `set_id`, `uid`;
+- choice-поля возвращают допустимые варианты;
+- repeatable и composite fields не нужно собирать наугад;
+- integration client не зависит от имён свойств там, где лучше использовать ID.
+
+## Core-поля
+
+Для `page` обязательны:
 
 - `category_id`
 - `title`
 
-### Категории курортов
+Частые optional-поля:
 
-```text
-GET /api/v1/categories/schema?type_id={type_id}
-```
+- `parent_page_id`
+- `status`
+- `slug`
+- `route_path`
+- `short_description`
+- `description`
 
-Для категорий обязательные core-поля:
+Для `category` обязательны:
 
 - `type_id`
 - `title`
 
-## Основные свойства страниц
+Частые optional-поля:
 
-Публичная карточка объекта уже читает эти имена свойств:
+- `parent_id`
+- `status`
+- `slug`
+- `route_path`
+- `short_description`
+- `description`
 
-- `Тип объекта`
-- `Характер функционирования объекта`
-- `Предоставляемые услуги`
-- `Питание`
-- `Трансфер`
-- `Дети`
-- `Фотографии объекта`
-- `Номера и цены`
-- `Комментарий к ценам`
-- `Телефоны`
-- `Удаленность от моря`
-- `Электронная почта`
-- `Сайт`
-- `Адрес`
-- `Карта`
+## Payload
 
-## Основные свойства категорий
+Core-поля можно передавать на верхнем уровне или внутри `page`/`category`.
 
-- `Левый блок текста`
-- `Правый блок текста`
-- `Фотографии курорта`
-- `Карта курорта`
-- падежные формы названия курорта
-- тематические текстовые блоки по типам размещения
-
-## Практика по payload
-
-В `POST /api/v1/pages` можно передавать:
-
-- core-поля страницы напрямую;
-- или внутри `page`;
-- свойства в массиве `properties`.
+Свойства передаются в массиве `properties`.
 
 Свойство можно адресовать:
 
 - по `property_id`;
-- или по `name`.
+- или по `name`, если интеграция осознанно зависит от имени.
 
-### Минимальный пример
+Минимальный пример `POST /api/v1/pages`:
 
 ```json
 {
   "page": {
     "category_id": 1,
-    "title": "Гостевой дом Альфа",
+    "title": "Example page",
     "status": "active",
-    "short_description": "Тихий семейный отдых у моря",
-    "description": "<p>Описание объекта размещения.</p>"
+    "short_description": "Short public summary",
+    "description": "<p>Public description.</p>"
   },
   "properties": [
     {
-      "name": "Тип объекта",
+      "property_id": 10,
+      "set_id": 3,
       "fields": [
         {
           "uid": "default_0",
-          "type": "select",
-          "value": "100"
-        }
-      ]
-    },
-    {
-      "name": "Удаленность от моря",
-      "fields": [
+          "type": "text",
+          "value": "Example value"
+        },
         {
-          "uid": "default_0",
-          "type": "number",
-          "value": 450
+          "uid": "default_1",
+          "type": "date-range",
+          "value": {
+            "from": "01.06",
+            "to": "15.06"
+          }
         }
       ]
     }
@@ -162,46 +162,58 @@ GET /api/v1/categories/schema?type_id={type_id}
 }
 ```
 
-## Повторяемые свойства
-
-### `Телефоны`
-
-У свойства два поля: телефон и комментарий.
-Если телефонов несколько, безопаснее передавать массивы одинаковой длины:
+Пример `POST /api/v1/categories`:
 
 ```json
 {
-  "name": "Телефоны",
-  "fields": [
-    {
-      "uid": "default_0",
-      "type": "phone",
-      "value": ["+7 900 000-00-01", "+7 900 000-00-02"]
-    },
-    {
-      "uid": "default_1",
-      "type": "text",
-      "value": ["WhatsApp", "Бронирование"]
-    }
+  "category": {
+    "type_id": 1,
+    "title": "Example category",
+    "status": "active"
+  },
+  "properties": []
+}
+```
+
+## Repeatable и composite fields
+
+Для повторяемых свойств берите schema и меняйте только `value` у нужных `uid`.
+
+Если поле хранит несколько значений, порядок элементов массива должен быть согласован между всеми fields одного composite-свойства. Один индекс массива соответствует одному повторяемому элементу.
+
+Для `date-range` значение одного поля передаётся как объект `{ "from": "...", "to": "..." }`. В repeatable-свойстве это массив таких объектов:
+
+```json
+{
+  "uid": "period",
+  "type": "date-range",
+  "value": [
+    { "from": "01.06", "to": "15.06" },
+    { "from": "16.06", "to": "30.06" }
   ]
 }
 ```
 
-### `Номера и цены`
-
-Это комплексное repeatable-свойство. Индекс в массиве = один номер.
-
-Практическое правило:
-
-- сначала забирайте schema;
-- потом меняйте `value` у нужных `uid`;
-- для каждого room-элемента используйте одинаковый индекс во всех полях.
-
-Именно так проще всего не ошибиться в длинной структуре с периодами и ценами.
+`date-range` индексируется поиском как структурное значение `from/to`. Generic API не превращает его в публичный фильтр по датам: если интеграции нужен поиск по пересечению интервалов, это отдельный прикладной контракт поверх property layer.
 
 ## Что не делать
 
-- не придумывайте свои `uid`;
-- не отправляйте label вместо option value;
-- не собирайте choice-списки вручную, если schema уже доступна;
-- не полагайтесь на set name для записи. Для сохранения важны `property_id`/`name`, `set_id` и `fields`.
+- не придумывать свои `uid`;
+- не отправлять label вместо option value;
+- не собирать choice-списки вручную, если schema уже доступна;
+- не полагаться на set name для сохранения;
+- не использовать admin API key как публичную авторизацию;
+- не выводить HTML, полученный через API, без public rich text sanitizer.
+
+## Audit и troubleshooting
+
+Для production-интеграций полезно логировать на стороне клиента:
+
+- endpoint;
+- HTTP method;
+- request id из ответа или логов;
+- entity type;
+- entity id;
+- user/integration label API key.
+
+На стороне EE_FrameWork операции API должны оставлять structured audit log. Ошибки API возвращаются JSON-ответом и не должны раскрывать raw exception dump.

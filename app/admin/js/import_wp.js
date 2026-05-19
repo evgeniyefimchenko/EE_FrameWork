@@ -730,7 +730,7 @@
         var selected = String(selectedType || 'text').toLowerCase();
         var keys = Object.keys(compositeFieldTypesMap || {});
         if (!keys.length) {
-            keys = ['text', 'number', 'date', 'time', 'datetime-local', 'hidden', 'password', 'file', 'email', 'phone', 'select', 'textarea', 'image', 'checkbox', 'radio'];
+            keys = ['text', 'number', 'date', 'date-range', 'time', 'datetime-local', 'hidden', 'password', 'file', 'email', 'phone', 'select', 'textarea', 'image', 'checkbox', 'radio'];
         }
         for (var i = 0; i < keys.length; i++) {
             var code = String(keys[i] || '').trim();

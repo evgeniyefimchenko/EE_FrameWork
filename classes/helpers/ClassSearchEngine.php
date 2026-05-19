@@ -49,6 +49,7 @@ class ClassSearchEngine {
         'text',
         'number',
         'date',
+        'date-range',
         'time',
         'datetime-local',
         'email',

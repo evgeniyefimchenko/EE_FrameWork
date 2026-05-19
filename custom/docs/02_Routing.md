@@ -134,6 +134,8 @@ Router в EE_FrameWork разбирает URL и превращает его в 
 
 Во втором случае сервер может начать блокировать легальные публичные URL вроде `/docs/settings-page`, даже если это не внутренний каталог проекта.
 
+В production PHP должен исполняться только через front controller `index.php`. Прямые запросы к `inc/`, `classes/`, `layouts/`, `config/`, `custom/`, `app/cron/`, `data/`, `exports/`, `testplan/`, `logs/` и `cache/` должны завершаться `403` или `404` до попадания в PHP.
+
 ## Route cache
 
 Router умеет кэшировать разрешение маршрута.

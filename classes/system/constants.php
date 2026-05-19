@@ -63,6 +63,7 @@ class Constants {
             "text" => "Text",
             "number" => "Number",
             "date" => "Date",
+            "date-range" => "Date range",
             "time" => "Time",
             "datetime-local" => "DateTime",
             "hidden" => "Hidden",
