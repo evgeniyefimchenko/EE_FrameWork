@@ -1871,10 +1871,10 @@ class FileSystem {
         $decodedText = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
         $pattern = '~<img\b([^>]*?)\ssrc\s*=\s*([\'"])data:image/(png|jpe?g|gif|webp);base64,([^\'"]+)\2([^>]*)>~iu';
         $result = preg_replace_callback($pattern, function ($matches) {
-            $message = 'Ошибка при декодировании!';
-            $imageData = preg_replace('/\s+/', '', (string) ($matches[4] ?? ''));
-            $decodedData = base64_decode($imageData, true);
-            if ($decodedData === false) {
+            $message = 'Не удалось обработать встроенное изображение. Загрузите JPG, PNG, GIF или WebP без повреждения файла.';
+            $decodedData = self::decodeInlineImageData((string) ($matches[4] ?? ''));
+            if ($decodedData === null) {
+                self::notifyFileIssue($message, '', Logger::LEVEL_WARNING, 'danger', __FUNCTION__);
                 ClassNotifications::addNotificationUser(SysClass::getCurrentUserId(), ['text' => $message, 'status' => 'danger']);
                 return $matches[0];
             }
@@ -1888,11 +1888,58 @@ class FileSystem {
                 $attributes = trim((string) ($matches[1] ?? '') . ' ' . (string) ($matches[5] ?? ''));
                 return '<img src="' . htmlspecialchars($fileUrl, ENT_QUOTES, 'UTF-8') . '"' . ($attributes !== '' ? ' ' . $attributes : '') . '>';
             } else {
+                self::notifyFileIssue($message, $filePath, Logger::LEVEL_ERROR, 'danger', __FUNCTION__);
                 ClassNotifications::addNotificationUser(SysClass::getCurrentUserId(), ['text' => $message, 'status' => 'danger']);
                 return $matches[0];
             }
         }, $decodedText);
         return is_string($result) ? $result : $text;
+    }
+
+    private static function decodeInlineImageData(string $imageData): ?string {
+        $rawData = trim(html_entity_decode($imageData, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        if ($rawData === '') {
+            return null;
+        }
+
+        $withoutWhitespace = preg_replace('/\s+/', '', $rawData);
+        $withoutWhitespace = is_string($withoutWhitespace) ? $withoutWhitespace : $rawData;
+        $candidates = [$withoutWhitespace];
+
+        if (str_contains($rawData, ' ')) {
+            $plusRestored = preg_replace('/[\r\n\t]+/', '', str_replace(' ', '+', $rawData));
+            if (is_string($plusRestored)) {
+                $candidates[] = $plusRestored;
+            }
+        }
+
+        $urlSafeRestored = strtr($withoutWhitespace, '-_', '+/');
+        if ($urlSafeRestored !== $withoutWhitespace) {
+            $candidates[] = $urlSafeRestored;
+        }
+
+        foreach (array_unique($candidates) as $candidate) {
+            $candidate = self::normalizeBase64Padding($candidate);
+            $decodedData = base64_decode($candidate, true);
+            if ($decodedData === false) {
+                continue;
+            }
+            if (function_exists('getimagesizefromstring') && @getimagesizefromstring($decodedData) === false) {
+                continue;
+            }
+            return $decodedData;
+        }
+
+        return null;
+    }
+
+    private static function normalizeBase64Padding(string $data): string {
+        $remainder = strlen($data) % 4;
+        if ($remainder === 0) {
+            return $data;
+        }
+
+        return $data . str_repeat('=', 4 - $remainder);
     }
 
     /**
@@ -1903,15 +1950,26 @@ class FileSystem {
      */
     private static function saveBase64ImageAsWebp(string $data, string $filePath): bool {
         try {
-            $image = imagecreatefromstring($data);
-            if ($image === false) {
-                return false;
+            $image = @imagecreatefromstring($data);
+            if ($image !== false) {
+                $result = @imagewebp($image, $filePath, 80);
+                imagedestroy($image);
+                return $result;
             }
-            // Сохраняем как WebP с качеством 80
-            $result = imagewebp($image, $filePath, 80);
-            imagedestroy($image);
-            return $result;
-        } catch (\Exception $e) {
+
+            if (class_exists('\Imagick')) {
+                $imagick = new \Imagick();
+                $imagick->readImageBlob($data);
+                $imagick->setImageFormat('webp');
+                $imagick->setImageCompressionQuality(80);
+                $result = $imagick->writeImage($filePath);
+                $imagick->clear();
+                $imagick->destroy();
+                return $result;
+            }
+
+            return false;
+        } catch (\Throwable $e) {
             $message = 'Ошибка при сохранении изображения: ' . $e->getMessage();
             self::notifyFileIssue($message, $filePath, Logger::LEVEL_ERROR, 'danger', __FUNCTION__);
             return false;
