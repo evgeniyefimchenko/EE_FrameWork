@@ -140,7 +140,7 @@ Layout собирает итоговую страницу:
 
 ### configuration.php vs bootstrap.php
 
-- `inc/configuration.php` — статический слой настроек.
+- `inc/configuration.php` — созданный установщиком статический слой настроек конкретного сайта.
 - `inc/bootstrap.php` — ранняя runtime-подготовка: вычисляемые URL/paths, define-констант, shutdown/fatal hooks, canonical redirect policy, подключение `startup.php`.
 
 Если в проекте появляется новая функция, helper или runtime-policy, ей не место в `configuration.php`.

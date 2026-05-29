@@ -28,6 +28,12 @@ if ($debug && isset($_GET['phpinfo'])) {
     die;
 }
 
+$requestPath = (string) parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH);
+if ($requestPath === '/install' || str_starts_with($requestPath, '/install/')) {
+    require_once __DIR__ . '/inc/installer/index.php';
+    exit;
+}
+
 require_once('inc/bootstrap.php');
 ee_bootstrap_runtime();
 

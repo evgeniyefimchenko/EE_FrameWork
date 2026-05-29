@@ -1,11 +1,13 @@
 {
   "title": "Документация EE_FrameWork",
   "description": "Руководство по ядру, архитектуре, расширению, отладке и эксплуатации EE_FrameWork для PHP-разработчика.",
-  "intro": "Документация ориентирована на разработчика, который уверенно пишет на PHP, но только начинает работать с архитектурой EE_FrameWork. Материал построен от первого запуска к устройству ядра, затем к расширению и эксплуатации.",
+  "intro": "Документация ориентирована на разработчика, который уверенно пишет на PHP, но только начинает работать с архитектурой EE_FrameWork. Материал построен от установки проекта к устройству ядра, затем к расширению и эксплуатации.",
   "default_slug": "readme",
   "aliases": {
     "introduction": "readme",
     "installation": "quick-start",
+    "installer": "installer",
+    "setup-wizard": "installer",
     "app-routing": "routing",
     "content": "content-model",
     "imports-json": "imports",
@@ -46,6 +48,15 @@
           "file": "00_QuickStart.md",
           "icon": "fa-bolt",
           "keywords": ["quick start", "install", "bootstrap", "controller"]
+        },
+        {
+          "slug": "installer",
+          "title": "Установщик проекта",
+          "summary": "Web/CLI мастер установки с progress bar, подсказками, БД, конфигом и cron.",
+          "description": "Как установить EE_FrameWork без ручной правки configuration.php.",
+          "file": "15_Installer.md",
+          "icon": "fa-wand-magic-sparkles",
+          "keywords": ["installer", "setup", "configuration", "database", "progress", "cron"]
         }
       ]
     },

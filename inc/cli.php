@@ -50,6 +50,16 @@ if (!function_exists('ee_cli_registry')) {
                 'file' => $base . 'ops/health_check.php',
                 'description' => 'Print system health report as JSON.',
             ],
+            'install:run' => [
+                'file' => $base . 'install/run.php',
+                'description' => 'Run project installer without preloading runtime.',
+                'bootstrap' => false,
+            ],
+            'install:status' => [
+                'file' => $base . 'install/status.php',
+                'description' => 'Print installer lock/progress/status as JSON.',
+                'bootstrap' => false,
+            ],
             'diagnostics:auth' => [
                 'file' => $base . 'diagnostics/auth.php',
                 'description' => 'Run auth diagnostics.',
@@ -96,6 +106,10 @@ if (!function_exists('ee_cli_print_help')) {
         echo "  php inc/cli.php ops:health-check\n";
         echo "  php inc/cli.php diagnostics:auth --json\n";
         echo "  php inc/cli.php diagnostics:search-engine --query=hotel --json\n";
+        echo "\n";
+        echo "Installer examples:\n";
+        echo "  php inc/cli.php install:status\n";
+        echo "  php inc/cli.php install:run --site-host=example.com --site-author=\"Owner\" --site-email=mail@example.com --admin-email=mail@example.com --db-name=example --db-user=example --db-pass=secret --proto-language=EN --content-langs=RU,EN\n";
         return 0;
     }
 }
@@ -186,7 +200,9 @@ if ($eeCliCommand === 'help' || $eeCliCommand === 'list') {
 
 $eeCliTokens = array_slice($eeCliArgv, 2);
 [$eeCliArgs, $eeCliOptions] = ee_cli_parse_tokens($eeCliTokens);
-$eeCliBootstrapOutput = ee_cli_bootstrap_runtime(false);
+$eeCliCommandMeta = $eeCliRegistry[$eeCliCommand] ?? [];
+$eeCliShouldBootstrap = (($eeCliCommandMeta['bootstrap'] ?? true) !== false);
+$eeCliBootstrapOutput = $eeCliShouldBootstrap ? ee_cli_bootstrap_runtime(false) : '';
 $eeCliCommandFile = $eeCliRegistry[$eeCliCommand]['file'] ?? null;
 
 if (!is_string($eeCliCommandFile) || !is_file($eeCliCommandFile)) {

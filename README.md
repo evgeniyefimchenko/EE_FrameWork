@@ -130,7 +130,7 @@ EE_FrameWork особенно хорошо подходит для:
 - PHP `8.0+`
 - MySQL/MariaDB
 - PHP-расширения:
-  - `pdo` и драйвер вашей СУБД
+  - `mysqli`
   - `mbstring`
   - `json`
   - `session`
@@ -147,7 +147,7 @@ EE_FrameWork особенно хорошо подходит для:
 - `logs/`
 - `uploads/`
 
-Ядро само подготавливает обязательные runtime-директории при install/bootstrap-проверке:
+Установщик подготавливает обязательные runtime-директории:
 
 - `cache/`
 - `logs/`
@@ -167,12 +167,46 @@ EE_FrameWork особенно хорошо подходит для:
 Важно:
 
 - после клона разработчик не должен править ядро;
-- штатно редактируется только `inc/configuration.php`;
-- если runtime-папка отсутствует или недоступна для записи, install-check завершится явной ошибкой.
+- `inc/configuration.php` создаётся установщиком и не хранится в публичном репозитории;
+- для репозитория используется `inc/configuration.sample.php`;
+- если runtime-папка отсутствует или недоступна для записи, установка завершится явной ошибкой.
+
+### Установка платформы
+
+Первичная установка выполняется через web-мастер:
+
+```text
+/install/
+```
+
+Или через CLI:
+
+```bash
+php inc/cli.php install:run \
+  --site-host=example.com \
+  --site-author="Site owner" \
+  --site-email=mail@example.com \
+  --admin-email=mail@example.com \
+  --db-name=project_db \
+  --db-user=project_user \
+  --db-pass=secret
+```
+
+Установщик:
+
+- создаёт `inc/configuration.php` из `inc/configuration.sample.php`;
+- проверяет подключение к базе данных;
+- при необходимости создаёт БД и пользователя;
+- разворачивает таблицы и стартовые данные;
+- создаёт bootstrap-пользователей;
+- проверяет состояние системы;
+- блокирует повторный запуск через web-интерфейс.
+
+Настройки `ENV_PROTO_LANGUAGE`, `ENV_CONTENT_LANGS`, `ENV_BOOTSTRAP533_CDN` и `ENV_FONT_AWESOME_CDN` задаются в установщике как часть конфигурации проекта.
 
 ### Минимальный запуск
 
-Для первого smoke-теста достаточно:
+Для первого локального smoke-теста достаточно:
 
 ```bash
 php -S 127.0.0.1:8080 -t .
@@ -180,12 +214,12 @@ php -S 127.0.0.1:8080 -t .
 
 После этого можно проверить:
 
-- `http://127.0.0.1:8080/index.php`
+- `http://127.0.0.1:8080/install/`
 - `php inc/cli.php help`
 
 Важно:
 
-- встроенный сервер удобен для первого запуска и bootstrap-проверки;
+- встроенный сервер удобен для запуска установщика;
 - для полноценных красивых URL нужен Apache/Nginx с rewrite-правилами.
 
 ### Что происходит при входе в систему
@@ -193,12 +227,13 @@ php -S 127.0.0.1:8080 -t .
 На верхнем уровне запрос проходит так:
 
 1. `index.php` проверяет окружение;
-2. подключается `inc/bootstrap.php`;
-3. `inc/bootstrap.php` загружает чистый config из `inc/configuration.php`, вычисляет runtime-константы и подключает `inc/startup.php`;
-4. вызывается runtime bootstrap;
-5. поднимаются core-сервисы и `custom/`;
-6. `Router` определяет контроллер и action;
-7. управление передаётся контроллеру.
+2. запрос `/install/` передаётся установщику до обычного runtime bootstrap;
+3. для установленного проекта подключается `inc/bootstrap.php`;
+4. `inc/bootstrap.php` загружает config из `inc/configuration.php`, вычисляет runtime-константы и подключает `inc/startup.php`;
+5. вызывается runtime bootstrap;
+6. поднимаются core-сервисы и `custom/`;
+7. `Router` определяет контроллер и action;
+8. управление передаётся контроллеру.
 
 Важно:
 
@@ -209,20 +244,16 @@ php -S 127.0.0.1:8080 -t .
 
 ## Схема БД И Развёртывание
 
-Единый install/deploy-источник схемы БД — это `classes/system/Users.php`, метод `createTables()`.
+Схема БД разворачивается только явным запуском установщика.
 
 Что это значит на практике:
 
-- install создаёт базовый набор таблиц через `Users::createTables()`;
-- subsystem-инфраструктура поднимается из install-контура с явным `force=true`;
-- runtime-сервисы больше не должны делать `CREATE TABLE`/`ALTER TABLE` во время обычных web/CLI-запросов.
+- web-мастер `/install/` и CLI-команда `install:run` выполняют один и тот же сценарий установки;
+- таблицы и стартовые данные создаются только во время установки;
+- обычные web/CLI-запросы не создают таблицы автоматически;
+- если проект не установлен, runtime сообщает об ошибке установки вместо автоматического развёртывания схемы.
 
-Роль файлов констант такая:
-
-- `classes/system/Constants.php` — рабочий файл констант ядра;
-- `classes/system/Constants_clean.php` — чистая копия для синхронизации и контроля изменений.
-
-Они не являются двумя разными механизмами схемы БД. Источник развёртывания один: install/deploy-контур ядра.
+Источник развёртывания один: установщик проекта.
 
 ---
 
@@ -242,6 +273,8 @@ php -S 127.0.0.1:8080 -t .
 - `uploads/`
 - экспортные ZIP-пакеты
 - боевой `inc/configuration.php`
+
+В репозиторий должен попадать `inc/configuration.sample.php`: это шаблон, из которого установщик создаёт рабочий конфиг конкретного сайта.
 
 `.gitignore` уже настроен под этот сценарий.
 
@@ -335,7 +368,9 @@ class ControllerHello extends ControllerBase {
 
 ```text
 /index.php                 HTTP entrypoint
-/inc/                      bootstrap, configuration, core hooks, language files
+/inc/                      bootstrap, шаблон конфигурации, core hooks, language files
+/inc/installer/            web/service-layer установщика
+/inc/cli_commands/         CLI-команды установки, diagnostics, ops и cron
 /classes/system/           ядро платформы
 /classes/helpers/          helper- и service-классы
 /app/                      модули, контроллеры, views, js/css, модели
@@ -346,7 +381,7 @@ class ControllerHello extends ControllerBase {
 /assets/                   фронтовые и редакторские ассеты
 /uploads/                  пользовательские файлы
 /app/cron/                 только scheduler-wrapper'ы для реальных cron-задач
-/inc/cli.php               единый CLI entrypoint для cron, diagnostics и ops
+/inc/cli.php               единый CLI entrypoint для install, cron, diagnostics и ops
 /error.php                 штатная обработка ошибок
 ```
 
@@ -465,9 +500,17 @@ php inc/cli.php help
 
 Через него запускаются:
 
+- установка проекта;
 - scheduler-команды;
 - diagnostics-команды;
 - operational health-check сценарии.
+
+Основные команды установки:
+
+```bash
+php inc/cli.php install:status
+php inc/cli.php install:run --help
+```
 
 Каталог `app/cron/` оставлен только для реальных scheduler-wrapper файлов, которые можно ставить в cron напрямую.
 
@@ -484,7 +527,7 @@ php app/cron/run.php
 - агентами управляет админка `/admin/cron_agents`;
 - scheduler сам учитывает блокировки, лимиты нагрузки и stale recovery.
 
-Обязательные системные агенты для работы платформы создаются автоматически при развёртывании и первом bootstrap.
+Обязательные системные агенты для работы платформы создаются установщиком при развёртывании.
 
 ---
 
@@ -509,6 +552,7 @@ php app/cron/run.php
 
 - [README / карта документации](custom/docs/README.md)
 - [Быстрый старт](custom/docs/00_QuickStart.md)
+- [Установщик проекта](custom/docs/15_Installer.md)
 - [Архитектура](custom/docs/01_Architecture.md)
 - [Маршрутизация](custom/docs/02_Routing.md)
 - [Модели](custom/docs/03_Models.md)

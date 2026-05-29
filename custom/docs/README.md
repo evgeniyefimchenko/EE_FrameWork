@@ -14,27 +14,29 @@ EE_FrameWork — это PHP-фреймворк с явным front controller, M
 Если вы открыли проект впервые, идите по порядку:
 
 1. [Быстрый старт](/docs/quick-start)
-2. [Архитектура](/docs/architecture)
-3. [Маршрутизация](/docs/routing)
-4. [Модели](/docs/models)
-5. [Контентная модель](/docs/content-model)
-6. [Views и Layouts](/docs/views)
-7. [Hooks и custom-слой](/docs/hooks)
-8. [Импорт структуры](/docs/imports)
-9. [Auth и доступ](/docs/auth)
-10. [Кэширование](/docs/cache)
-11. [Cron-агенты и scheduler](/docs/cron-agents)
-12. [Резервное копирование](/docs/backup)
-13. [Отладка](/docs/debug)
-14. [Security и production hardening](/docs/security)
-15. [API Reference](/docs/api-reference)
-16. [Content API v1](/docs/catalog-api)
+2. [Установщик проекта](/docs/installer)
+3. [Архитектура](/docs/architecture)
+4. [Маршрутизация](/docs/routing)
+5. [Модели](/docs/models)
+6. [Контентная модель](/docs/content-model)
+7. [Views и Layouts](/docs/views)
+8. [Hooks и custom-слой](/docs/hooks)
+9. [Импорт структуры](/docs/imports)
+10. [Auth и доступ](/docs/auth)
+11. [Кэширование](/docs/cache)
+12. [Cron-агенты и scheduler](/docs/cron-agents)
+13. [Резервное копирование](/docs/backup)
+14. [Отладка](/docs/debug)
+15. [Security и production hardening](/docs/security)
+16. [API Reference](/docs/api-reference)
+17. [Content API v1](/docs/catalog-api)
 
 ## Что важно понять про EE_FrameWork сразу
 
 - `index.php` — единая точка входа HTTP.
 - production web server должен исполнять PHP только через front controller.
-- `inc/configuration.php` хранит только настройки проекта.
+- `inc/configuration.php` создаётся установщиком и хранит только настройки конкретного сайта.
+- `inc/configuration.sample.php` — шаблон конфигурации для репозитория.
 - `inc/bootstrap.php` собирает runtime ядра, вычисляет производные константы и подключает `custom/`.
 - `Router` определяет контроллер, action и аргументы из URL.
 - контроллеры живут в `app/<module>/index.php` или `app/<module>/<controller>.php`.
@@ -48,7 +50,7 @@ EE_FrameWork — это PHP-фреймворк с явным front controller, M
 
 ```text
 /index.php                 HTTP entrypoint
-/inc/                      bootstrap, configuration, core hooks
+/inc/                      bootstrap, configuration sample, installer, core hooks
 /classes/system/           ядро: Router, View, Users, CacheManager, Logger, Hook
 /classes/helpers/          helper- и service-классы
 /app/                      контроллеры, views, js/css, models по модулям

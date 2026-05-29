@@ -467,6 +467,7 @@ class SysClass {
             401 => '401 Unauthorized',
             403 => '403 Forbidden',
             500 => '500 Internal Server Error',
+            503 => '503 Service Unavailable',
             default => '404 Not Found'
         };
         if (ENV_TEST) {
@@ -989,7 +990,10 @@ class SysClass {
      * @throws Exception Возможное исключение, если соединение с базой данных не установлено или настройки проекта не произведены
      */
     public static function checkInstall(): bool {
-        $cacheFilePath = ENV_CACHE_PATH . 'checkInstall.txt';
+        $legacyCacheFilePath = ENV_CACHE_PATH . 'checkInstall.txt';
+        if (is_file($legacyCacheFilePath)) {
+            @unlink($legacyCacheFilePath);
+        }
 
         $runtimeDirectories = self::ensureRuntimeDirectories();
         $runtimeErrors = [];
@@ -1008,54 +1012,83 @@ class SysClass {
         }
 
         if ($runtimeErrors !== []) {
-            self::pre(implode(PHP_EOL, $runtimeErrors));
+            self::failInstallCheck(implode(PHP_EOL, $runtimeErrors));
         }
 
-        if (file_exists($cacheFilePath)) {
-            $databaseConnected = false;
-            try {
-                $databaseConnected = self::checkDatabaseConnection();
-            } catch (Throwable) {
-                $databaseConnected = false;
-            }
-
-            if ($databaseConnected) {
-                try {
-                    $usersTableExists = SafeMySQL::gi()->query('SHOW TABLES LIKE ?s', Constants::USERS_TABLE)->num_rows > 0;
-                    if ($usersTableExists) {
-                        return true;
-                    }
-                } catch (Throwable) {
-                    // If the install cache exists but schema is missing or broken, drop through and rebuild.
-                }
-            }
-
-            @unlink($cacheFilePath);
-        }
-
-        if (!ENV_DB_USER || !ENV_DB_PASS) {
-            self::pre('Выполните необходимые настройки в файле configuration.php для базы данных!');
+        if (!ENV_DB_USER || !ENV_DB_NAME) {
+            self::failInstallCheck('Выполните необходимые настройки в файле configuration.php для базы данных!');
         }
         if (!ENV_SITE_EMAIL || !ENV_ADMIN_EMAIL || !SysClass::validEmail([ENV_SITE_EMAIL, ENV_ADMIN_EMAIL])) {
-            self::pre('Выполните необходимые настройки в файле configuration.php для электронной почты!');
+            self::failInstallCheck('Выполните необходимые настройки в файле configuration.php для электронной почты!');
         }
         if (!ENV_DATE_SITE_CREATE) {
-            self::pre('Выполните необходимые настройки в файле configuration.php для даты создания сайта!');
+            self::failInstallCheck('Выполните необходимые настройки в файле configuration.php для даты создания сайта!');
         }
         if (!self::checkDatabaseConnection()) {
-            self::pre('Нет соединения с БД. Выполните необходимые настройки в файле configuration.php.');
+            self::failInstallCheck('Нет соединения с БД. Выполните необходимые настройки в файле configuration.php.');
         }
         if (SafeMySQL::gi()->query('SHOW TABLES LIKE ?s', Constants::USERS_TABLE)->num_rows === 0) {
-            new Users(true);
+            self::failInstallCheck('Схема БД не установлена. Запустите установщик /install/.');
         }
 
-        if (!self::createDirectoriesForFile($cacheFilePath) || file_put_contents($cacheFilePath, 'Install check passed') === false) {
-            Logger::error('errors', 'Не удалось создать файл кэша', ['path' => $cacheFilePath], [
+        return true;
+    }
+
+    public static function installProjectSchema(): bool {
+        if (!defined('EE_INSTALL_RUN') || EE_INSTALL_RUN !== true) {
+            throw new \RuntimeException('Project schema installation is available only from the explicit installer.');
+        }
+
+        $runtimeDirectories = self::ensureRuntimeDirectories();
+        foreach ($runtimeDirectories as $directoryKey => $directoryState) {
+            if (!($directoryState['exists'] ?? false) || !($directoryState['writable'] ?? false)) {
+                throw new \RuntimeException('Runtime directory is not writable: ' . $directoryKey);
+            }
+        }
+
+        if (!ENV_DB_USER || !ENV_DB_NAME) {
+            throw new \RuntimeException('Database configuration is incomplete.');
+        }
+        if (!ENV_SITE_EMAIL || !ENV_ADMIN_EMAIL || !SysClass::validEmail([ENV_SITE_EMAIL, ENV_ADMIN_EMAIL])) {
+            throw new \RuntimeException('Site/admin email configuration is incomplete.');
+        }
+        if (!ENV_DATE_SITE_CREATE) {
+            throw new \RuntimeException('Site creation date is not configured.');
+        }
+        if (!self::checkDatabaseConnection()) {
+            throw new \RuntimeException('Database connection failed.');
+        }
+
+        new Users(true);
+
+        if (SafeMySQL::gi()->query('SHOW TABLES LIKE ?s', Constants::USERS_TABLE)->num_rows === 0) {
+            throw new \RuntimeException('Users table was not created by installer.');
+        }
+
+        return true;
+    }
+
+    private static function failInstallCheck(string $message): void {
+        if (class_exists(Logger::class)) {
+            Logger::error('install_error', $message, [], [
                 'initiator' => 'checkInstall',
-                'details' => $cacheFilePath,
+                'details' => $message,
+                'include_trace' => false,
             ]);
         }
-        return true;
+
+        if (PHP_SAPI === 'cli' || defined('EE_CLI_RUN')) {
+            throw new \RuntimeException($message);
+        }
+
+        if (class_exists(Session::class)) {
+            Session::set('code', '503 Service Unavailable');
+        }
+        if (!headers_sent()) {
+            header('HTTP/1.1 503 Service Unavailable');
+        }
+        include_once(ENV_SITE_PATH . 'error.php');
+        exit;
     }
 
     /**

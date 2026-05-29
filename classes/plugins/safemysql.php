@@ -97,25 +97,37 @@ class SafeMySQL extends \classes\helpers\Singleton {
             }
             mysqli_set_charset($this->conn, $opt['charset']) or $this->error(mysqli_error($this->conn));
         } catch (\mysqli_sql_exception $e) {
-            if (!headers_sent()) {
-                http_response_code(503);
-            }
-
-            if (function_exists('error_log')) {
-                error_log('[SafeMySQL] ' . $e->getMessage());
-            }
-
-            $siteRoot = defined('ENV_SITE_PATH') ? rtrim((string) ENV_SITE_PATH, DIRECTORY_SEPARATOR) : dirname(__DIR__, 2);
-            $errorPage = $siteRoot . DIRECTORY_SEPARATOR . 'error.php';
-
-            if (is_file($errorPage) && defined('ENV_SITE')) {
-                require $errorPage;
-                exit;
-            }
-
-            exit('Database connection error');
+            $this->handleConnectionException($e);
         }
         unset($opt);
+    }
+
+    private function handleConnectionException(\mysqli_sql_exception $exception): void {
+        if (function_exists('error_log')) {
+            error_log('[SafeMySQL] ' . $exception->getMessage());
+        }
+
+        if (PHP_SAPI === 'cli' || defined('EE_CLI_RUN')) {
+            throw new \RuntimeException('Database connection error: ' . $exception->getMessage(), (int) $exception->getCode(), $exception);
+        }
+
+        if (!headers_sent()) {
+            http_response_code(503);
+        }
+
+        if (class_exists(\classes\system\Session::class)) {
+            \classes\system\Session::set('code', '503 Service Unavailable');
+        }
+
+        $siteRoot = defined('ENV_SITE_PATH') ? rtrim((string) ENV_SITE_PATH, DIRECTORY_SEPARATOR) : dirname(__DIR__, 2);
+        $errorPage = $siteRoot . DIRECTORY_SEPARATOR . 'error.php';
+
+        if (is_file($errorPage) && defined('ENV_SITE')) {
+            require $errorPage;
+            exit;
+        }
+
+        exit('Service temporarily unavailable');
     }
 
     /**

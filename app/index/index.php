@@ -34,9 +34,9 @@ class ControllerIndex Extends ControllerBase {
      */
     private function addPublicThemeAssets(): void {
         $themeBase = ENV_URL_SITE . '/assets/vendor/tourm';
-        $this->parameters_layout["meta_author"] = ENV_SITE_NAME;
-        $this->parameters_layout["meta_reply_to"] = '';
-        $this->parameters_layout["meta_copyright"] = ENV_SITE_NAME;
+        $this->parameters_layout["meta_author"] = ENV_SITE_AUTHOR;
+        $this->parameters_layout["meta_reply_to"] = ENV_SITE_EMAIL;
+        $this->parameters_layout["meta_copyright"] = ENV_SITE_AUTHOR;
         $this->parameters_layout["add_style"] .= '<link rel="preconnect" href="https://fonts.googleapis.com">';
         $this->parameters_layout["add_style"] .= '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>';
         $this->parameters_layout["add_style"] .= '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Manrope:wght@200..800&family=Montez&display=swap" rel="stylesheet">';
