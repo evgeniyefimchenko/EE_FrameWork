@@ -12,43 +12,43 @@ $personalDataConsentUrl = trim((string) ($linkContent['personal_data_consent_url
 ?>
 <?= $top_panel ?? '' ?>
 
-<main class="allbriz-public-main">
-    <section class="allbriz-auth-page">
+<main class="ee-public-main">
+    <section class="ee-auth-page">
         <div class="container">
-            <div class="allbriz-auth-layout">
-                <div class="allbriz-auth-copy">
-                    <span class="allbriz-auth-kicker"><?= htmlspecialchars((string) ($authContent['kicker'] ?? ($lang['sys.sign_up_text'] ?? 'Регистрация')), ENT_QUOTES, 'UTF-8') ?></span>
+            <div class="ee-auth-layout">
+                <div class="ee-auth-copy">
+                    <span class="ee-auth-kicker"><?= htmlspecialchars((string) ($authContent['kicker'] ?? ($lang['sys.sign_up_text'] ?? 'Регистрация')), ENT_QUOTES, 'UTF-8') ?></span>
                     <h1><?= htmlspecialchars((string) ($authContent['title'] ?? 'Создание аккаунта владельца'), ENT_QUOTES, 'UTF-8') ?></h1>
-                    <p class="allbriz-auth-lead"><?= htmlspecialchars((string) ($authContent['lead'] ?? 'Публичная регистрация предназначена только для обычных пользователей и владельцев объектов. Доступы менеджеров, модераторов и администраторов через эту форму не создаются.'), ENT_QUOTES, 'UTF-8') ?></p>
-                    <div class="allbriz-auth-points">
-                        <div class="allbriz-auth-point">
+                    <p class="ee-auth-lead"><?= htmlspecialchars((string) ($authContent['lead'] ?? 'Публичная регистрация предназначена только для обычных пользователей и владельцев объектов. Доступы менеджеров, модераторов и администраторов через эту форму не создаются.'), ENT_QUOTES, 'UTF-8') ?></p>
+                    <div class="ee-auth-points">
+                        <div class="ee-auth-point">
                             <strong><?= htmlspecialchars((string) ($authContent['point_1_title'] ?? 'Понятная регистрация'), ENT_QUOTES, 'UTF-8') ?></strong>
                             <span><?= htmlspecialchars((string) ($authContent['point_1_text'] ?? 'Укажите рабочую почту, придумайте пароль и подтвердите обязательные документы платформы.'), ENT_QUOTES, 'UTF-8') ?></span>
                         </div>
-                        <div class="allbriz-auth-point">
+                        <div class="ee-auth-point">
                             <strong><?= htmlspecialchars((string) ($authContent['point_2_title'] ?? 'Защита от спама'), ENT_QUOTES, 'UTF-8') ?></strong>
                             <span><?= htmlspecialchars((string) ($authContent['point_2_text'] ?? 'Форма проверяет время заполнения, скрытые поля для ботов и отдельный серверный challenge.'), ENT_QUOTES, 'UTF-8') ?></span>
                         </div>
-                        <div class="allbriz-auth-point">
+                        <div class="ee-auth-point">
                             <strong><?= htmlspecialchars((string) ($authContent['point_3_title'] ?? 'Дальше можно размещать объект'), ENT_QUOTES, 'UTF-8') ?></strong>
                             <span><?= htmlspecialchars((string) ($authContent['point_3_text'] ?? 'После регистрации и входа вы попадёте в пользовательский контур и сможете работать со своими карточками.'), ENT_QUOTES, 'UTF-8') ?></span>
                         </div>
                     </div>
                 </div>
 
-                <div class="allbriz-auth-card" data-auth-surface>
-                    <div class="allbriz-auth-switch">
+                <div class="ee-auth-card" data-auth-surface>
+                    <div class="ee-auth-switch">
                         <a href="<?= htmlspecialchars($loginUrl, ENT_QUOTES, 'UTF-8') ?>">Войти</a>
                         <a class="is-active" href="<?= htmlspecialchars($registrationUrl, ENT_QUOTES, 'UTF-8') ?>">Зарегистрироваться</a>
                     </div>
 
-                    <div class="allbriz-auth-feedback auth-feedback" role="alert" aria-live="polite"></div>
+                    <div class="ee-auth-feedback auth-feedback" role="alert" aria-live="polite"></div>
 
                     <h2><?= htmlspecialchars((string) ($authContent['form_title'] ?? 'Регистрация пользователя'), ENT_QUOTES, 'UTF-8') ?></h2>
-                    <p class="allbriz-auth-card-subtitle"><?= htmlspecialchars((string) ($authContent['form_subtitle'] ?? 'Создайте один аккаунт для работы с вашими объектами на платформе.'), ENT_QUOTES, 'UTF-8') ?></p>
+                    <p class="ee-auth-card-subtitle"><?= htmlspecialchars((string) ($authContent['form_subtitle'] ?? 'Создайте один аккаунт для работы с вашими объектами на платформе.'), ENT_QUOTES, 'UTF-8') ?></p>
 
                     <form id="reg_form" method="post" accept-charset="UTF-8" novalidate>
-                        <div class="allbriz-auth-honeypot" aria-hidden="true">
+                        <div class="ee-auth-honeypot" aria-hidden="true">
                             <label for="reg_company_name">Компания</label>
                             <input id="reg_company_name" class="form-control" type="text" name="company_name" value="" tabindex="-1" autocomplete="off">
                         </div>
@@ -67,9 +67,9 @@ $personalDataConsentUrl = trim((string) ($linkContent['personal_data_consent_url
                         </div>
                         <div class="form-group">
                             <label class="form-label" for="reg_captcha_answer"><?= htmlspecialchars((string) ($authContent['captcha_label'] ?? 'Проверка на человека'), ENT_QUOTES, 'UTF-8') ?></label>
-                            <div class="allbriz-auth-captcha-box">
-                                <div class="allbriz-auth-captcha-question" data-registration-captcha-question><?= htmlspecialchars((string) ($registration_captcha_question ?? ''), ENT_QUOTES, 'UTF-8') ?></div>
-                                <a class="allbriz-auth-captcha-refresh" href="<?= htmlspecialchars($registrationUrl, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars((string) ($authContent['captcha_refresh_label'] ?? 'Новый вопрос'), ENT_QUOTES, 'UTF-8') ?></a>
+                            <div class="ee-auth-captcha-box">
+                                <div class="ee-auth-captcha-question" data-registration-captcha-question><?= htmlspecialchars((string) ($registration_captcha_question ?? ''), ENT_QUOTES, 'UTF-8') ?></div>
+                                <a class="ee-auth-captcha-refresh" href="<?= htmlspecialchars($registrationUrl, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars((string) ($authContent['captcha_refresh_label'] ?? 'Новый вопрос'), ENT_QUOTES, 'UTF-8') ?></a>
                             </div>
                             <input id="reg_captcha_answer" class="form-control" type="text" name="captcha_answer" autocomplete="off" placeholder="<?= htmlspecialchars((string) ($authContent['captcha_placeholder'] ?? 'Введите ответ'), ENT_QUOTES, 'UTF-8') ?>" required>
                         </div>
@@ -96,7 +96,7 @@ $personalDataConsentUrl = trim((string) ($linkContent['personal_data_consent_url
                         </div>
                     <?php } ?>
 
-                    <div class="allbriz-auth-links">
+                    <div class="ee-auth-links">
                         <a href="<?= htmlspecialchars($loginUrl, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars((string) $lang['sys.log_in'], ENT_QUOTES, 'UTF-8') ?></a>
                         <a href="<?= htmlspecialchars($ownersUrl, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars((string) ($authContent['owners_link_label'] ?? 'Подробнее для владельцев'), ENT_QUOTES, 'UTF-8') ?></a>
                     </div>

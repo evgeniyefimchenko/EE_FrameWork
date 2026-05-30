@@ -8,41 +8,41 @@ $registrationUrl = trim((string) ($linkContent['registration_url'] ?? '/registra
 ?>
 <?= $top_panel ?? '' ?>
 
-<main class="allbriz-public-main">
-    <section class="allbriz-auth-page">
+<main class="ee-public-main">
+    <section class="ee-auth-page">
         <div class="container">
-            <div class="allbriz-auth-layout">
-                <div class="allbriz-auth-copy">
-                    <span class="allbriz-auth-kicker"><?= htmlspecialchars((string) ($authContent['kicker'] ?? ($lang['sys.authorization'] ?? 'Авторизация')), ENT_QUOTES, 'UTF-8') ?></span>
+            <div class="ee-auth-layout">
+                <div class="ee-auth-copy">
+                    <span class="ee-auth-kicker"><?= htmlspecialchars((string) ($authContent['kicker'] ?? ($lang['sys.authorization'] ?? 'Авторизация')), ENT_QUOTES, 'UTF-8') ?></span>
                     <h1><?= htmlspecialchars((string) ($authContent['title'] ?? 'Вход в личный кабинет'), ENT_QUOTES, 'UTF-8') ?></h1>
-                    <p class="allbriz-auth-lead"><?= htmlspecialchars((string) ($authContent['lead'] ?? 'Один аккаунт подходит для обычного пользователя и владельца объекта. После входа система сама отправит вас в нужный контур.'), ENT_QUOTES, 'UTF-8') ?></p>
-                    <div class="allbriz-auth-points">
-                        <div class="allbriz-auth-point">
+                    <p class="ee-auth-lead"><?= htmlspecialchars((string) ($authContent['lead'] ?? 'Один аккаунт подходит для обычного пользователя и владельца объекта. После входа система сама отправит вас в нужный контур.'), ENT_QUOTES, 'UTF-8') ?></p>
+                    <div class="ee-auth-points">
+                        <div class="ee-auth-point">
                             <strong><?= htmlspecialchars((string) ($authContent['point_1_title'] ?? 'Личный кабинет пользователя'), ENT_QUOTES, 'UTF-8') ?></strong>
                             <span><?= htmlspecialchars((string) ($authContent['point_1_text'] ?? 'Управление своими объектами, комментариями, счетами и настройками профиля.'), ENT_QUOTES, 'UTF-8') ?></span>
                         </div>
-                        <div class="allbriz-auth-point">
+                        <div class="ee-auth-point">
                             <strong><?= htmlspecialchars((string) ($authContent['point_2_title'] ?? 'Прозрачная модель доступа'), ENT_QUOTES, 'UTF-8') ?></strong>
                             <span><?= htmlspecialchars((string) ($authContent['point_2_text'] ?? 'Публично регистрируются только обычные пользователи. Менеджеры и администраторы создаются только внутри платформы.'), ENT_QUOTES, 'UTF-8') ?></span>
                         </div>
-                        <div class="allbriz-auth-point">
+                        <div class="ee-auth-point">
                             <strong><?= htmlspecialchars((string) ($authContent['point_3_title'] ?? 'Защищённый вход'), ENT_QUOTES, 'UTF-8') ?></strong>
                             <span><?= htmlspecialchars((string) ($authContent['point_3_text'] ?? 'Используются обязательные соглашения платформы и серверные проверки авторизации.'), ENT_QUOTES, 'UTF-8') ?></span>
                         </div>
                     </div>
                 </div>
 
-                <div class="allbriz-auth-card" data-auth-surface>
-                    <div class="allbriz-auth-switch">
+                <div class="ee-auth-card" data-auth-surface>
+                    <div class="ee-auth-switch">
                         <a class="is-active" href="<?= htmlspecialchars($loginUrl, ENT_QUOTES, 'UTF-8') ?>">Войти</a>
                         <a href="<?= htmlspecialchars($registrationUrl, ENT_QUOTES, 'UTF-8') ?>">Зарегистрироваться</a>
                     </div>
 
-                    <div class="allbriz-auth-feedback auth-feedback" role="alert" aria-live="polite"></div>
+                    <div class="ee-auth-feedback auth-feedback" role="alert" aria-live="polite"></div>
 
                     <div data-auth-page-panel="login">
                         <h2><?= htmlspecialchars((string) ($authContent['form_title'] ?? 'Добро пожаловать'), ENT_QUOTES, 'UTF-8') ?></h2>
-                        <p class="allbriz-auth-card-subtitle"><?= htmlspecialchars((string) ($authContent['form_subtitle'] ?? 'Введите почту и пароль, чтобы продолжить работу с платформой.'), ENT_QUOTES, 'UTF-8') ?></p>
+                        <p class="ee-auth-card-subtitle"><?= htmlspecialchars((string) ($authContent['form_subtitle'] ?? 'Введите почту и пароль, чтобы продолжить работу с платформой.'), ENT_QUOTES, 'UTF-8') ?></p>
 
                         <form id="log_form" method="post" accept-charset="UTF-8" novalidate>
                             <div class="form-group">
@@ -62,7 +62,7 @@ $registrationUrl = trim((string) ($linkContent['registration_url'] ?? '/registra
                             </div>
                         <?php } ?>
 
-                        <div class="allbriz-auth-links">
+                        <div class="ee-auth-links">
                             <a href="#" data-auth-page-panel-toggle="recovery"><?= htmlspecialchars((string) $lang['sys.restore_password'], ENT_QUOTES, 'UTF-8') ?></a>
                             <a href="<?= htmlspecialchars($registrationUrl, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars((string) $lang['sys.sign_up'], ENT_QUOTES, 'UTF-8') ?></a>
                         </div>
@@ -70,7 +70,7 @@ $registrationUrl = trim((string) ($linkContent['registration_url'] ?? '/registra
 
                     <div data-auth-page-panel="recovery" style="display:none;" aria-hidden="true">
                         <h2><?= htmlspecialchars((string) ($authContent['recovery_title'] ?? 'Восстановление доступа'), ENT_QUOTES, 'UTF-8') ?></h2>
-                        <p class="allbriz-auth-card-subtitle"><?= htmlspecialchars((string) ($authContent['recovery_subtitle'] ?? 'Отправим ссылку для восстановления на почту, которая указана в аккаунте.'), ENT_QUOTES, 'UTF-8') ?></p>
+                        <p class="ee-auth-card-subtitle"><?= htmlspecialchars((string) ($authContent['recovery_subtitle'] ?? 'Отправим ссылку для восстановления на почту, которая указана в аккаунте.'), ENT_QUOTES, 'UTF-8') ?></p>
 
                         <form id="recovery_form" method="post" accept-charset="UTF-8" novalidate>
                             <div class="form-group">
@@ -80,7 +80,7 @@ $registrationUrl = trim((string) ($linkContent['registration_url'] ?? '/registra
                             <button class="btn btn-default btn-recovery" type="submit"><?= htmlspecialchars((string) $lang['sys.restore_password'], ENT_QUOTES, 'UTF-8') ?></button>
                         </form>
 
-                        <div class="allbriz-auth-links">
+                        <div class="ee-auth-links">
                             <a href="#" data-auth-page-panel-toggle="login"><?= htmlspecialchars((string) $lang['sys.log_in'], ENT_QUOTES, 'UTF-8') ?></a>
                             <a href="<?= htmlspecialchars($registrationUrl, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars((string) $lang['sys.sign_up'], ENT_QUOTES, 'UTF-8') ?></a>
                         </div>

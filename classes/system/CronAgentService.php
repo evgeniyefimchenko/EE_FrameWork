@@ -482,11 +482,13 @@ class CronAgentService {
                 );
 
                 $summary['executed']++;
-                $summary['consumed_weight'] += $agentWeight;
                 if (!empty($execution['success'])) {
                     $summary['success']++;
                 } else {
                     $summary['failed']++;
+                }
+                if (!self::isNoopExecution($execution)) {
+                    $summary['consumed_weight'] += $agentWeight;
                 }
                 $summary['runs'][] = $execution;
 
@@ -507,11 +509,13 @@ class CronAgentService {
         $summary['tick_duration_ms'] = (int) round((microtime(true) - $tickStartedAt) * 1000);
         self::storeSchedulerHeartbeat();
 
-        Logger::info('cron_agents', 'Выполнен минутный проход scheduler-а cron-агентов', $summary, [
-            'initiator' => __METHOD__,
-            'details' => 'Cron scheduler tick completed',
-            'include_trace' => false,
-        ]);
+        if ($triggerSource !== 'scheduler' || self::shouldLogSchedulerTick($summary)) {
+            Logger::info('cron_agents', 'Выполнен минутный проход scheduler-а cron-агентов', $summary, [
+                'initiator' => __METHOD__,
+                'details' => 'Cron scheduler tick completed',
+                'include_trace' => false,
+            ]);
+        }
 
         return OperationResult::success($summary, 'Проход scheduler-а cron-агентов выполнен.', 'tick_completed');
     }
@@ -722,18 +726,20 @@ class CronAgentService {
                 $runId
             );
 
-            Logger::info('cron_agents', 'Cron-агент выполнен успешно', [
-                'agent_id' => $agentId,
-                'code' => $agent['code'] ?? '',
-                'handler' => $handler,
-                'run_id' => $runId,
-                'duration_ms' => $durationMs,
-                'status' => $status,
-            ], [
-                'initiator' => __METHOD__,
-                'details' => $message !== '' ? $message : 'Cron agent succeeded',
-                'include_trace' => false,
-            ]);
+            if ($triggerSource !== 'scheduler' || self::shouldLogSuccessfulAgentRun($status, $output, $data)) {
+                Logger::info('cron_agents', 'Cron-агент выполнен успешно', [
+                    'agent_id' => $agentId,
+                    'code' => $agent['code'] ?? '',
+                    'handler' => $handler,
+                    'run_id' => $runId,
+                    'duration_ms' => $durationMs,
+                    'status' => $status,
+                ], [
+                    'initiator' => __METHOD__,
+                    'details' => $message !== '' ? $message : 'Cron agent succeeded',
+                    'include_trace' => false,
+                ]);
+            }
 
             return [
                 'success' => true,
@@ -810,6 +816,66 @@ class CronAgentService {
             'output' => $output,
             'data' => $data,
         ];
+    }
+
+    private static function shouldLogSchedulerTick(array $summary): bool {
+        foreach (['failed', 'skipped_invalid', 'skipped_locked', 'recovered_stale'] as $counterKey) {
+            if ((int) ($summary[$counterKey] ?? 0) > 0) {
+                return true;
+            }
+        }
+
+        if (!empty($summary['stopped_by_guard'])) {
+            return true;
+        }
+
+        $pruned = is_array($summary['pruned_run_history'] ?? null) ? $summary['pruned_run_history'] : [];
+        if ((int) ($pruned['deleted'] ?? 0) > 0) {
+            return true;
+        }
+
+        foreach ((array) ($summary['runs'] ?? []) as $run) {
+            if (is_array($run) && !self::isNoopExecution($run)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static function isNoopExecution(array $execution): bool {
+        return !empty($execution['success'])
+            && strtolower((string) ($execution['status'] ?? '')) === 'noop'
+            && trim((string) ($execution['output'] ?? '')) === ''
+            && !self::hasUsefulNoopData(is_array($execution['data'] ?? null) ? $execution['data'] : []);
+    }
+
+    private static function shouldLogSuccessfulAgentRun(string $status, string $output, array $data): bool {
+        return strtolower($status) !== 'noop'
+            || trim($output) !== ''
+            || self::hasUsefulNoopData($data);
+    }
+
+    private static function hasUsefulNoopData(array $data): bool {
+        foreach ([
+            'processed',
+            'success',
+            'failed',
+            'partial',
+            'terminal_failed',
+            'cleaned_obsolete',
+            'downloaded_files',
+            'reused_files',
+            'updated_targets',
+            'recovered_stale',
+            'cleared_html_cache',
+        ] as $key) {
+            if (!empty($data[$key])) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static function checkCapacity(array $agent): array {

@@ -7,14 +7,14 @@ $recentArticles = array_values(array_filter(is_array($category['recent_articles'
 $pagination = is_array($category['pagination'] ?? null) ? $category['pagination'] : [];
 $heroImage = trim((string) ($category['hero_image'] ?? ''));
 if ($heroImage === '') {
-    $heroImage = ENV_URL_SITE . '/assets/vendor/tourm/img/bg/breadcumb-bg.jpg';
+    $heroImage = ENV_URL_SITE . '/assets/images/system/no-image.svg';
 }
 ?>
 
 <?= $top_panel ?? '' ?>
 
-<main class="allbriz-public-main">
-    <section class="breadcumb-wrapper allbriz-breadcrumb-hero" data-bg-src="<?= htmlspecialchars($heroImage, ENT_QUOTES, 'UTF-8') ?>">
+<main class="ee-public-main">
+    <section class="breadcumb-wrapper ee-breadcrumb-hero" data-bg-src="<?= htmlspecialchars($heroImage, ENT_QUOTES, 'UTF-8') ?>">
         <div class="container">
             <div class="breadcumb-content">
                 <h1 class="breadcumb-title"><?= htmlspecialchars((string) ($category['title'] ?? ''), ENT_QUOTES, 'UTF-8') ?></h1>
@@ -39,9 +39,9 @@ if ($heroImage === '') {
             <div class="row">
                 <div class="col-xxl-8 col-lg-7">
                     <?php if (!empty($category['overview_html'])): ?>
-                        <div class="allbriz-page-card mb-4">
+                        <div class="ee-page-card mb-4">
                             <div class="page-content d-block">
-                                <div class="allbriz-richtext"><?= (string) $category['overview_html'] ?></div>
+                                <div class="ee-richtext"><?= (string) $category['overview_html'] ?></div>
                             </div>
                         </div>
                     <?php endif; ?>
@@ -82,7 +82,7 @@ if ($heroImage === '') {
                     <?php endif; ?>
 
                     <?php if ((int) ($pagination['total_pages'] ?? 1) > 1): ?>
-                        <nav class="allbriz-blog-pagination mt-4" aria-label="Навигация по статьям">
+                        <nav class="ee-blog-pagination mt-4" aria-label="Навигация по статьям">
                             <ul class="pagination justify-content-center flex-wrap gap-2">
                                 <li class="page-item <?= empty($pagination['prev_href']) ? 'disabled' : '' ?>">
                                     <?php if (!empty($pagination['prev_href'])): ?>

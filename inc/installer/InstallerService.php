@@ -434,10 +434,10 @@ class EEInstallerService {
 
     private function collectHealthReport(): array {
         $modelFile = $this->path('app/admin/models/ModelSystems.php');
-        if (!class_exists('ModelSystems') && is_file($modelFile)) {
+        if (!class_exists('ModelSystems', false) && is_file($modelFile)) {
             require_once $modelFile;
         }
-        if (!class_exists('ModelSystems')) {
+        if (!class_exists('ModelSystems', false)) {
             return [
                 'install' => [
                     'database_connected' => true,
@@ -572,9 +572,9 @@ class EEInstallerService {
                 'ENV_LEGAL_OPERATOR_OGRN', 'ENV_LEGAL_PRIVACY_POLICY_VERSION',
                 'ENV_LEGAL_PERSONAL_DATA_CONSENT_VERSION', 'ENV_LEGAL_PERSONAL_DATA_DISTRIBUTION_CONSENT_VERSION',
                 'ENV_INSTALL_ADMIN_PASSWORD', 'ENV_INSTALL_MODERATOR_PASSWORD', 'ENV_SMTP',
-                'ENV_ONE_IP_ONE_USER', 'ENV_AUTH_USER', 'ENV_AUTH_TRANSPORT', 'ENV_AUTH_COOKIE_SAMESITE',
+                'ENV_ONE_IP_ONE_USER', 'ENV_AUTH_TRANSPORT', 'ENV_AUTH_COOKIE_SAMESITE',
                 'ENV_AUTH_COOKIE_SECURE', 'ENV_AUTH_TRUST_PROXY_HEADERS', 'ENV_AUTH_TRUSTED_PROXIES',
-                'ENV_AUTH_IP_RESTRICTED_ROLES', 'ENV_AUTH_GOOGLE_CLIENT_ID',
+                'ENV_AUTH_IP_RESTRICTED_ROLES', 'ENV_AUTH_MAX_ACTIVE_SESSIONS_PER_USER', 'ENV_AUTH_GOOGLE_CLIENT_ID',
                 'ENV_AUTH_GOOGLE_CLIENT_SECRET', 'ENV_AUTH_GOOGLE_REDIRECT_URI', 'ENV_SMTP_PORT',
                 'ENV_SMTP_SERVER', 'ENV_SMTP_LOGIN', 'ENV_SMTP_PASSWORD',
             ],

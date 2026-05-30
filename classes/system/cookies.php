@@ -115,10 +115,16 @@ class Cookies {
     }
 
     private static function buildCookieOptions(int $expires): array {
-        $sameSite = defined('ENV_AUTH_COOKIE_SAMESITE') ? (string) ENV_AUTH_COOKIE_SAMESITE : 'Lax';
+        $sameSite = defined('ENV_AUTH_COOKIE_SAMESITE') ? ucfirst(strtolower((string) ENV_AUTH_COOKIE_SAMESITE)) : 'Lax';
+        if (!in_array($sameSite, ['Lax', 'Strict', 'None'], true)) {
+            $sameSite = 'Lax';
+        }
         $secure = defined('ENV_AUTH_COOKIE_SECURE')
             ? (bool) ENV_AUTH_COOKIE_SECURE
             : (!empty($_SERVER['HTTPS']) && strtolower((string) $_SERVER['HTTPS']) !== 'off');
+        if ($sameSite === 'None') {
+            $secure = true;
+        }
 
         return [
             'expires' => $expires,

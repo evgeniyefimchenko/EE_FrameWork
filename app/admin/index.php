@@ -1009,13 +1009,18 @@ use MessagesTrait,
         }
 
         foreach ($users_array['data'] as $item) {
+            $targetUserRole = (int) ($item['user_role'] ?? 0);
+            $isProtectedUser = !AuthSessionService::canImpersonateTargetRole($targetUserRole);
             $impersonateButton = '';
-            if ((int) ($this->users->data['user_role'] ?? 0) === Constants::ADMIN && (int) ($item['user_id'] ?? 0) !== (int) $this->logged_in) {
+            if (
+                !$isProtectedUser
+                && (int) ($this->users->data['user_role'] ?? 0) === Constants::ADMIN
+                && (int) ($item['user_id'] ?? 0) !== (int) $this->logged_in
+            ) {
                 $impersonateButton = '<a href="' . htmlspecialchars($this->withCsrfUrl('/admin/login_as_user/id/' . $item['user_id']), ENT_QUOTES, 'UTF-8') . '" class="btn btn-outline-secondary me-2" '
                     . 'onclick="return confirm(\'' . ($this->lang['sys.login_as_user_confirm'] ?? 'Войти под этим пользователем?') . '\');" '
                     . 'data-bs-toggle="tooltip" data-bs-placement="top" title="' . ($this->lang['sys.login_as_user'] ?? 'Войти как пользователь') . '"><i class="fas fa-user-secret"></i></a>';
             }
-            $isProtectedUser = in_array((int) ($item['user_role'] ?? 0), [Constants::ADMIN, Constants::SYSTEM], true);
             if (!$isProtectedUser) {
                 $html_actions = $impersonateButton
                         . '<a href="/admin/user_edit/id/' . $item['user_id'] . '" class="btn btn-primary me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="' . $this->lang['sys.edit'] . '"><i class="fas fa-edit"></i></a>'

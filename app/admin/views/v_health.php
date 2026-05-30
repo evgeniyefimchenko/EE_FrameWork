@@ -4,6 +4,7 @@ $report = is_array($health_report ?? null) ? $health_report : [];
 $install = is_array($report['install'] ?? null) ? $report['install'] : [];
 $paths = is_array($report['paths'] ?? null) ? $report['paths'] : [];
 $cache = is_array($report['cache'] ?? null) ? $report['cache'] : [];
+$auth = is_array($report['auth'] ?? null) ? $report['auth'] : [];
 $mail = is_array($report['mail'] ?? null) ? $report['mail'] : [];
 $cron = is_array($report['cron'] ?? null) ? $report['cron'] : [];
 $lifecycle = is_array($report['lifecycle'] ?? null) ? $report['lifecycle'] : [];
@@ -104,6 +105,7 @@ $renderHealthAlertText = static function (array $alert, string $kind, array $lan
                         <div class="h5 mb-1"><?= !empty($install['database_connected']) ? ($lang['sys.active'] ?? 'Активно') : ($lang['sys.error'] ?? 'Ошибка') ?></div>
                         <div class="small text-muted"><?= htmlspecialchars((string)($lang['sys.core_tables'] ?? 'Ключевые таблицы')) ?>: <strong><?= !empty($install['core_tables_ok']) ? ($lang['sys.yes'] ?? 'Да') : ($lang['sys.no'] ?? 'Нет') ?></strong></div>
                         <div class="small text-muted"><?= htmlspecialchars((string)($lang['sys.auth_infrastructure'] ?? 'Auth-инфраструктура')) ?>: <strong><?= !empty($install['auth_tables_ok']) ? ($lang['sys.yes'] ?? 'Да') : ($lang['sys.no'] ?? 'Нет') ?></strong></div>
+                        <div class="small text-muted"><?= htmlspecialchars((string)($lang['sys.transport'] ?? 'Транспорт')) ?>: <strong><?= htmlspecialchars((string)($auth['transport'] ?? 'cookie')) ?></strong></div>
                         <div class="small text-muted"><?= htmlspecialchars((string)($lang['sys.cron_infrastructure'] ?? 'Cron-инфраструктура')) ?>: <strong><?= !empty($install['cron_tables_ok']) ? ($lang['sys.yes'] ?? 'Да') : ($lang['sys.no'] ?? 'Нет') ?></strong></div>
                     </div>
                 </div>
@@ -223,7 +225,14 @@ $renderHealthAlertText = static function (array $alert, string $kind, array $lan
                                     </tr>
                                     <tr>
                                         <th><?= htmlspecialchars((string)($lang['sys.auth_infrastructure'] ?? 'Auth-инфраструктура')) ?></th>
-                                        <td><?= !empty($install['auth_tables_ok']) ? ($lang['sys.yes'] ?? 'Да') : ($lang['sys.no'] ?? 'Нет') ?></td>
+                                        <td>
+                                            <?= !empty($install['auth_tables_ok']) ? ($lang['sys.yes'] ?? 'Да') : ($lang['sys.no'] ?? 'Нет') ?>
+                                            <div class="small text-muted">
+                                                <?= htmlspecialchars((string)($lang['sys.transport'] ?? 'Транспорт')) ?>:
+                                                <?= htmlspecialchars((string)($auth['transport'] ?? 'cookie')) ?>,
+                                                TTL: <?= (int)($auth['session_ttl_sec'] ?? 0) ?>s
+                                            </div>
+                                        </td>
                                     </tr>
                                     <tr>
                                         <th><?= htmlspecialchars((string)($lang['sys.cron_infrastructure'] ?? 'Cron-инфраструктура')) ?></th>

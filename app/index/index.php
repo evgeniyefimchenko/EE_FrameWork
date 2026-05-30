@@ -24,30 +24,15 @@ class ControllerIndex Extends ControllerBase {
     private function getStandardViews() {
         Hook::run('C_beforeGetStandardViews', $this->view);
         $this->view->set('logged_in', $this->logged_in);
-        $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/index.js" type="text/javascript" /></script>';
+        $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/index.js" type="text/javascript"></script>';
         $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="' . $this->getPathController() . '/css/index.css"/>';
         Hook::run('C_afterGetStandardViews', $this->view);
     }
 
-    /**
-     * Подключение публичной темы allbriz поверх штатного публичного layout.
-     */
-    private function addPublicThemeAssets(): void {
-        $themeBase = ENV_URL_SITE . '/assets/vendor/tourm';
+    private function setPublicMeta(): void {
         $this->parameters_layout["meta_author"] = ENV_SITE_AUTHOR;
         $this->parameters_layout["meta_reply_to"] = ENV_SITE_EMAIL;
         $this->parameters_layout["meta_copyright"] = ENV_SITE_AUTHOR;
-        $this->parameters_layout["add_style"] .= '<link rel="preconnect" href="https://fonts.googleapis.com">';
-        $this->parameters_layout["add_style"] .= '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>';
-        $this->parameters_layout["add_style"] .= '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Manrope:wght@200..800&family=Montez&display=swap" rel="stylesheet">';
-        $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="' . $themeBase . '/css/swiper-bundle.min.css"/>';
-        $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="' . $themeBase . '/css/magnific-popup.min.css"/>';
-        $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="' . $themeBase . '/css/style.css"/>';
-        $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="' . $this->getPathController() . '/css/theme-tourm.css"/>';
-        $this->parameters_layout["add_script"] .= '<script src="' . $themeBase . '/js/swiper-bundle.min.js" type="text/javascript"></script>';
-        $this->parameters_layout["add_script"] .= '<script src="' . $themeBase . '/js/jquery.magnific-popup.min.js" type="text/javascript"></script>';
-        $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/theme-tourm.js" type="text/javascript"></script>';
-        $this->view->set('footer_public', $this->view->read('v_public_footer', false));
     }
 
     private function getFrontAuthorizedLandingUrl(int $userRole): string {
@@ -76,7 +61,7 @@ class ControllerIndex Extends ControllerBase {
 
     private function renderPublicCatalogPayload(array $payload): void {
         $this->getStandardViews();
-        $this->addPublicThemeAssets();
+        $this->setPublicMeta();
         $this->parameters_layout["add_style"] .= '<link rel="stylesheet" type="text/css" href="' . $this->getPathController() . '/css/public_catalog.css"/>';
         $this->view->set('top_panel', $this->view->read('v_top_panel', false));
         $this->view->set('publicCatalog', $payload);
@@ -123,21 +108,21 @@ class ControllerIndex Extends ControllerBase {
         $this->access = [Constants::ALL];
         /* view */
         $this->getStandardViews();
-        $this->addPublicThemeAssets();
+        $this->setPublicMeta();
         $this->loadModel('m_public_catalog');
         $this->view->set('homePayload', []);
         $this->view->set('top_panel', $this->view->read('v_top_panel', false));
         $this->html = $this->view->read('v_index');
         /* layouts */
         $this->parameters_layout["title"] = ENV_SITE_NAME . ' - ' . ($this->lang['sys.home'] ?? 'Home');
-        $this->parameters_layout["description"] = 'Демонстрационный каталог курортов, объектов размещения, статических страниц и блоговых материалов на новой платформе allbriz.';
+        $this->parameters_layout["description"] = ENV_SITE_DESCRIPTION;
         $this->parameters_layout["keywords"] = SysClass::getKeywordsFromText($this->html);
         $this->parameters_layout["layout_content"] = $this->html;
         $this->showLayout($this->parameters_layout);
     }
 
     /**
-     * Публичная документация в локальном allbriz-контуре отключена.
+     * Публичная документация отключена на уровне frontend-контроллера.
      */
     public function docs($params = NULL) {
         unset($params);
@@ -165,7 +150,7 @@ class ControllerIndex Extends ControllerBase {
         }
         /* view */
         $this->getStandardViews();
-        $this->addPublicThemeAssets();
+        $this->setPublicMeta();
         $this->view->set('top_panel', $this->view->read('v_top_panel', false));
         $this->html = $this->view->read('v_about');
         /* layouts */
@@ -190,7 +175,7 @@ class ControllerIndex Extends ControllerBase {
         }
         /* view */
         $this->getStandardViews();
-        $this->addPublicThemeAssets();
+        $this->setPublicMeta();
         $this->view->set('top_panel', $this->view->read('v_top_panel', false));
         $this->html = $this->view->read('v_contact');
         /* layouts */

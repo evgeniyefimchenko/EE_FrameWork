@@ -90,19 +90,20 @@ PHP
     ];
 };
 
-$runModeProbe = static function (int $authMode, int $oneIp) use ($db): array {
-    $probeEmail = 'mode_probe_' . $authMode . '_' . $oneIp . '_' . str_replace('.', '', uniqid('', true)) . '@example.test';
+$runModeProbe = static function (string $authTransport, int $oneIp) use ($db): array {
+    $authTransport = in_array($authTransport, ['cookie', 'php_session'], true) ? $authTransport : 'cookie';
+    $probeEmail = 'mode_probe_' . $authTransport . '_' . $oneIp . '_' . str_replace('.', '', uniqid('', true)) . '@example.test';
     $probePass = 'ModePass!123';
     $probeFile = tempnam(sys_get_temp_dir(), 'auth_probe_');
 
     $probeCode = str_replace(
-        ['__CONFIG__', '__STARTUP__', '__CONTROLLER__', '__SITE_PATH__', '__AUTH_MODE__', '__ONE_IP__', '__EMAIL__', '__PASS__'],
+        ['__CONFIG__', '__STARTUP__', '__CONTROLLER__', '__SITE_PATH__', '__AUTH_TRANSPORT__', '__ONE_IP__', '__EMAIL__', '__PASS__'],
         [
             var_export(PROJECT_ROOT_DIR . '/inc/configuration.php', true),
             var_export(PROJECT_ROOT_DIR . '/inc/startup.php', true),
             var_export(PROJECT_ROOT_DIR . '/app/index/index.php', true),
             var_export(rtrim(PROJECT_ROOT_DIR, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR, true),
-            (string) $authMode,
+            var_export($authTransport, true),
             (string) $oneIp,
             var_export($probeEmail, true),
             var_export($probePass, true),
@@ -121,7 +122,7 @@ $configSource = str_replace(
     $configSource
 );
 $configSource = str_replace("'ENV_ONE_IP_ONE_USER' => 0,", "'ENV_ONE_IP_ONE_USER' => __ONE_IP__,", $configSource);
-$configSource = str_replace("'ENV_AUTH_USER' => 2,", "'ENV_AUTH_USER' => __AUTH_MODE__,", $configSource);
+$configSource = str_replace("'ENV_AUTH_TRANSPORT' => 'cookie',", "'ENV_AUTH_TRANSPORT' => __AUTH_TRANSPORT__,", $configSource);
 $tmpConfig = tempnam(sys_get_temp_dir(), 'cfg_override_');
 file_put_contents($tmpConfig, $configSource);
 require $tmpConfig;
@@ -154,14 +155,18 @@ try {
 
     $users = new \classes\system\Users(0);
     $loginResult = $users->confirmUser(__EMAIL__, __PASS__);
-    $dbSession = (string) $db->getOne(
-        'SELECT session FROM ?n WHERE user_id = ?i',
-        \classes\system\Constants::USERS_TABLE,
-        $userId
-    );
+    $authTransport = __AUTH_TRANSPORT__;
 
     $sessionStore = \classes\system\Session::get('user_session');
     $cookieStore = \classes\system\Cookies::get('user_session');
+    $rawToken = $authTransport === 'php_session' ? (string) $sessionStore : (string) $cookieStore;
+    $serverSession = $rawToken !== ''
+        ? $db->getRow(
+            'SELECT user_id, transport, expires_at, revoked_at FROM ?n WHERE token_hash = ?s LIMIT 1',
+            \classes\system\Constants::USERS_AUTH_SESSIONS_TABLE,
+            hash('sha256', $rawToken)
+        )
+        : null;
 
     $loggedInProp = new \ReflectionProperty(\classes\system\ControllerBase::class, 'logged_in');
     $loggedInProp->setAccessible(true);
@@ -174,18 +179,18 @@ try {
     $visibleOtherIp = $loggedInProp->getValue($controllerOtherIp);
 
     echo json_encode([
-        'auth_mode' => __AUTH_MODE__,
+        'auth_transport' => $authTransport,
         'one_ip' => __ONE_IP__,
         'login_error' => $loginResult,
         'user_id' => $userId,
-        'db_session' => $dbSession,
+        'server_session' => $serverSession,
         'session_store' => $sessionStore,
         'cookie_store' => $cookieStore,
         'visible_same_ip' => $visibleSameIp,
         'visible_other_ip' => $visibleOtherIp,
-        'storage_ok' => __AUTH_MODE__ === 0
-            ? ($sessionStore === $dbSession && empty($cookieStore))
-            : ($cookieStore === $dbSession),
+        'storage_ok' => $authTransport === 'php_session'
+            ? ($rawToken !== '' && is_array($serverSession) && (int) ($serverSession['user_id'] ?? 0) === $userId && empty($cookieStore))
+            : ($rawToken !== '' && is_array($serverSession) && (int) ($serverSession['user_id'] ?? 0) === $userId),
         'cross_ip_allowed' => __ONE_IP__ === 1 ? ((int) $visibleOtherIp === $userId) : ((int) $visibleOtherIp === $userId),
         'one_ip_enforced' => __ONE_IP__ === 1 ? empty($visibleOtherIp) : false,
     ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
@@ -208,7 +213,7 @@ PHP
 
     $decoded = json_decode((string) $output, true);
     return [
-        'auth_mode' => $authMode,
+        'auth_transport' => $authTransport,
         'one_ip' => $oneIp,
         'raw_output' => trim((string) $output),
         'parsed' => is_array($decoded) ? $decoded : null,
@@ -220,14 +225,15 @@ $report = [
     'timestamp' => date('c'),
     'bootstrap_output' => $bootstrapOutput,
     'config' => [
-        'ENV_AUTH_USER' => ENV_AUTH_USER,
+        'ENV_AUTH_TRANSPORT' => defined('ENV_AUTH_TRANSPORT') ? ENV_AUTH_TRANSPORT : 'cookie',
+        'ENV_AUTH_USER_LEGACY_DEFINED' => defined('ENV_AUTH_USER'),
         'ENV_ONE_IP_ONE_USER' => ENV_ONE_IP_ONE_USER,
         'ENV_TIME_AUTH_SESSION' => ENV_TIME_AUTH_SESSION,
         'ENV_CONFIRM_EMAIL' => ENV_CONFIRM_EMAIL,
         'ENV_SMTP' => ENV_SMTP,
     ],
     'functional' => [],
-    'auth_mode_probes' => [],
+    'auth_transport_probes' => [],
     'static_analysis' => [],
 ];
 
@@ -311,14 +317,20 @@ Session::destroy();
 Cookies::clear('user_session');
 [$deleteLoginResult, $deleteLoginWarnings] = $captureWarnings(static fn() => $adminUsers->confirmUser($deleteEmail, $deletePass));
 $deleteRow = $db->getRow(
-    'SELECT user_id, email, active, deleted, session FROM ?n WHERE user_id = ?i',
+    'SELECT user_id, email, active, deleted FROM ?n WHERE user_id = ?i',
     Constants::USERS_TABLE,
+    $deleteId
+);
+$deleteActiveSessions = (int) $db->getOne(
+    'SELECT COUNT(*) FROM ?n WHERE user_id = ?i AND revoked_at IS NULL AND expires_at > NOW()',
+    Constants::USERS_AUTH_SESSIONS_TABLE,
     $deleteId
 );
 $report['functional']['deleted_user_login'] = [
     'login_error' => $deleteLoginResult,
     'warnings' => $deleteLoginWarnings,
     'row_after_login' => $deleteRow,
+    'active_sessions_after_login' => $deleteActiveSessions,
     'cookie_session' => Cookies::get('user_session'),
     'session_session' => Session::get('user_session'),
 ];
@@ -433,7 +445,7 @@ $cleanupUser($activationId);
 
 // Static capability inspection.
 $adminIndexSource = file_get_contents(PROJECT_ROOT_DIR . '/app/admin/index.php');
-$usersSource = file_get_contents(PROJECT_ROOT_DIR . '/classes/system/Users.php');
+$usersSource = (string) @file_get_contents(PROJECT_ROOT_DIR . '/classes/system/users.php');
 $report['static_analysis'] = [
     'restore_deleted_user_route_exists' => str_contains($adminIndexSource, 'function restore_user('),
     'restore_deleted_user_model_exists' => str_contains($adminIndexSource, 'restore_deleted'),
@@ -441,15 +453,16 @@ $report['static_analysis'] = [
 ];
 
 // Auth mode probes.
-$report['auth_mode_probes'][] = $runModeProbe(0, 0);
-$report['auth_mode_probes'][] = $runModeProbe(0, 1);
-$report['auth_mode_probes'][] = $runModeProbe(2, 0);
-$report['auth_mode_probes'][] = $runModeProbe(2, 1);
+$report['auth_transport_probes'][] = $runModeProbe('php_session', 0);
+$report['auth_transport_probes'][] = $runModeProbe('php_session', 1);
+$report['auth_transport_probes'][] = $runModeProbe('cookie', 0);
+$report['auth_transport_probes'][] = $runModeProbe('cookie', 1);
 
 $findings = [];
 
 if (
     ($report['functional']['deleted_user_login']['login_error'] ?? '') === ''
+    || !empty($report['functional']['deleted_user_login']['active_sessions_after_login'])
     || !empty($report['functional']['deleted_user_login']['cookie_session'])
     || !empty($report['functional']['deleted_user_login']['session_session'])
 ) {
@@ -538,7 +551,8 @@ if ($jsonOutput) {
 
 echo "===== Auth Diagnostics =====" . PHP_EOL;
 echo "Timestamp: {$report['timestamp']}" . PHP_EOL;
-echo "Current mode: ENV_AUTH_USER=" . ENV_AUTH_USER . ', ENV_ONE_IP_ONE_USER=' . ENV_ONE_IP_ONE_USER . PHP_EOL;
+echo "Current transport: ENV_AUTH_TRANSPORT=" . (defined('ENV_AUTH_TRANSPORT') ? ENV_AUTH_TRANSPORT : 'cookie')
+    . ', ENV_ONE_IP_ONE_USER=' . ENV_ONE_IP_ONE_USER . PHP_EOL;
 echo PHP_EOL;
 
 echo "[Functional]" . PHP_EOL;
@@ -548,8 +562,8 @@ foreach ($report['functional'] as $name => $data) {
 echo PHP_EOL;
 
 echo "[Auth Mode Probes]" . PHP_EOL;
-foreach ($report['auth_mode_probes'] as $probe) {
-    echo ' - mode=' . $probe['auth_mode'] . ' one_ip=' . $probe['one_ip'] . ' ok=' . ($probe['ok'] ? 'yes' : 'no') . PHP_EOL;
+foreach ($report['auth_transport_probes'] as $probe) {
+    echo ' - transport=' . $probe['auth_transport'] . ' one_ip=' . $probe['one_ip'] . ' ok=' . ($probe['ok'] ? 'yes' : 'no') . PHP_EOL;
 }
 echo PHP_EOL;
 

@@ -53,6 +53,10 @@ if (in_array($forwardedProto, ['http', 'https'], true)) {
 }
 
 $h = static fn(mixed $value): string => htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
+$tip = static function (string $text) use ($h): string {
+    $escaped = $h($text);
+    return '<span class="help-tip" tabindex="0" title="' . $escaped . '" data-tooltip="' . $escaped . '">?</span>';
+};
 $csrfToken = (string) ($_SESSION['ee_install_csrf'] ?? '');
 
 ?><!doctype html>
@@ -125,6 +129,67 @@ $csrfToken = (string) ($_SESSION['ee_install_csrf'] ?? '');
             display: block;
             font-weight: 650;
             margin-bottom: 5px;
+        }
+        .label-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .help-tip {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 17px;
+            height: 17px;
+            border: 1px solid #9aa8b6;
+            border-radius: 50%;
+            color: #3c4a5c;
+            background: #f7f9fb;
+            font-size: 11px;
+            font-weight: 800;
+            line-height: 1;
+            cursor: help;
+            user-select: none;
+        }
+        .help-tip::before,
+        .help-tip::after {
+            position: absolute;
+            left: 50%;
+            z-index: 20;
+            opacity: 0;
+            pointer-events: none;
+            transform: translate(-50%, 4px);
+            transition: opacity .12s ease, transform .12s ease;
+        }
+        .help-tip::before {
+            content: attr(data-tooltip);
+            bottom: calc(100% + 8px);
+            width: max-content;
+            max-width: min(320px, calc(100vw - 48px));
+            padding: 7px 9px;
+            border-radius: 5px;
+            background: #1f2937;
+            color: #fff;
+            box-shadow: 0 8px 22px rgba(15, 23, 42, .22);
+            font-size: 12px;
+            font-weight: 500;
+            line-height: 1.35;
+            text-align: left;
+            white-space: normal;
+        }
+        .help-tip::after {
+            content: "";
+            bottom: calc(100% + 3px);
+            border: 5px solid transparent;
+            border-top-color: #1f2937;
+        }
+        .help-tip:hover::before,
+        .help-tip:hover::after,
+        .help-tip:focus::before,
+        .help-tip:focus::after {
+            opacity: 1;
+            transform: translate(-50%, 0);
         }
         input, select {
             width: 100%;
@@ -314,43 +379,43 @@ $csrfToken = (string) ($_SESSION['ee_install_csrf'] ?? '');
                 <input type="hidden" name="_csrf" value="<?= $h($csrfToken) ?>">
                 <div class="grid">
                     <div>
-                        <label for="site_host">Домен</label>
+                        <label class="label-row" for="site_host">Домен <?= $tip('Записывается в ENV_CANONICAL_HOST. Используется для канонического URL сайта, ссылок, редиректов и cookie-домена.') ?></label>
                         <input id="site_host" name="site_host" value="<?= $h($requestHost) ?>" required>
                         <span class="hint">Без протокола, например example.com.</span>
                     </div>
                     <div>
-                        <label for="canonical_scheme">Протокол</label>
+                        <label class="label-row" for="canonical_scheme">Протокол <?= $tip('Записывается в ENV_CANONICAL_SCHEME. Определяет базовый http/https URL, канонические ссылки и secure-режим auth cookie.') ?></label>
                         <select id="canonical_scheme" name="canonical_scheme">
                             <option value="https"<?= $scheme === 'https' ? ' selected' : '' ?>>https</option>
                             <option value="http"<?= $scheme === 'http' ? ' selected' : '' ?>>http</option>
                         </select>
                     </div>
                     <div>
-                        <label for="site_name">Название сайта</label>
+                        <label class="label-row" for="site_name">Название сайта <?= $tip('Записывается в ENV_SITE_NAME. Показывается в layout, meta title, админке и системных уведомлениях.') ?></label>
                         <input id="site_name" name="site_name" value="<?= $h($requestHost) ?>" required>
                     </div>
                     <div>
-                        <label for="site_description">Описание</label>
+                        <label class="label-row" for="site_description">Описание <?= $tip('Записывается в ENV_SITE_DESCRIPTION. Используется как краткое описание проекта в meta-тегах и базовых шаблонах.') ?></label>
                         <input id="site_description" name="site_description" value="<?= $h($requestHost) ?>">
                     </div>
                     <div>
-                        <label for="site_author">Владелец и автор</label>
+                        <label class="label-row" for="site_author">Владелец и автор <?= $tip('Записывается в ENV_SITE_AUTHOR и юридические настройки по умолчанию. Используется в meta author, документах и служебной информации сайта.') ?></label>
                         <input id="site_author" name="site_author" required>
                     </div>
                     <div>
-                        <label for="site_email">Почта сайта</label>
+                        <label class="label-row" for="site_email">Почта сайта <?= $tip('Записывается в ENV_SITE_EMAIL. Используется как публичный контакт и адрес отправителя там, где проекту нужен общий email сайта.') ?></label>
                         <input id="site_email" name="site_email" type="email" required>
                     </div>
                     <div>
-                        <label for="admin_email">Почта администратора</label>
+                        <label class="label-row" for="admin_email">Почта администратора <?= $tip('Записывается в ENV_ADMIN_EMAIL. Используется для bootstrap-администратора, системных уведомлений и технических сообщений.') ?></label>
                         <input id="admin_email" name="admin_email" type="email" required>
                     </div>
                     <div>
-                        <label for="support_email">Почта поддержки/модератора</label>
+                        <label class="label-row" for="support_email">Почта поддержки/модератора <?= $tip('Записывается в ENV_SUPPORT_EMAIL. Используется для bootstrap-модератора и пользовательских обращений; если пусто, берётся почта администратора.') ?></label>
                         <input id="support_email" name="support_email" type="email">
                     </div>
                     <div>
-                        <label for="proto_language">ENV_PROTO_LANGUAGE</label>
+                        <label class="label-row" for="proto_language">ENV_PROTO_LANGUAGE <?= $tip('Базовый язык прототипа и fallback для системных данных. Влияет на исходные языковые значения, если контент ещё не локализован.') ?></label>
                         <select id="proto_language" name="proto_language">
                             <option value="EN" selected>EN</option>
                             <option value="RU">RU</option>
@@ -358,22 +423,22 @@ $csrfToken = (string) ($_SESSION['ee_install_csrf'] ?? '');
                         <span class="hint">Базовый язык прототипа и fallback для интерфейсных данных.</span>
                     </div>
                     <div>
-                        <label for="content_langs">ENV_CONTENT_LANGS</label>
+                        <label class="label-row" for="content_langs">ENV_CONTENT_LANGS <?= $tip('Список языков контента проекта. Используется контентной моделью, мультиязычными полями, админкой и публичными страницами.') ?></label>
                         <input id="content_langs" name="content_langs" value="RU" required>
                         <span class="hint">Список языков контента через запятую: RU,EN.</span>
                     </div>
                     <div class="full">
-                        <label>Подключение ассетов публичного проекта</label>
+                        <label class="label-row">Подключение ассетов публичного проекта <?= $tip('Эти флаги управляют только публичным проектом после установки. Сам установщик не использует CDN и остаётся автономным.') ?></label>
                         <div class="switch-grid">
                             <input type="hidden" name="bootstrap533_cdn" value="0">
                             <label class="switch">
                                 <input type="checkbox" name="bootstrap533_cdn" value="1" checked>
-                                <span>ENV_BOOTSTRAP533_CDN<small>Разрешить Bootstrap 5.3.3 через CDN для публичного проекта.</small></span>
+                                <span>ENV_BOOTSTRAP533_CDN <?= $tip('Разрешает шаблонам проекта подключать Bootstrap 5.3.3 через CDN, если layout это поддерживает.') ?><small>Разрешить Bootstrap 5.3.3 через CDN для публичного проекта.</small></span>
                             </label>
                             <input type="hidden" name="font_awesome_cdn" value="0">
                             <label class="switch">
                                 <input type="checkbox" name="font_awesome_cdn" value="1" checked>
-                                <span>ENV_FONT_AWESOME_CDN<small>Разрешить Font Awesome через CDN для публичного проекта.</small></span>
+                                <span>ENV_FONT_AWESOME_CDN <?= $tip('Разрешает шаблонам проекта подключать Font Awesome через CDN для иконок интерфейса.') ?><small>Разрешить Font Awesome через CDN для публичного проекта.</small></span>
                             </label>
                         </div>
                         <span class="hint">Сам установщик не подключает внешние библиотеки и работает на собственном CSS/JS.</span>
@@ -384,23 +449,23 @@ $csrfToken = (string) ($_SESSION['ee_install_csrf'] ?? '');
                     <h2>База данных</h2>
                     <div class="grid">
                         <div>
-                            <label for="db_host">Хост БД</label>
+                            <label class="label-row" for="db_host">Хост БД <?= $tip('Записывается в ENV_DB_HOST. Обычно localhost, если MySQL/MariaDB работает на этом же сервере.') ?></label>
                             <input id="db_host" name="db_host" value="localhost" required>
                         </div>
                         <div>
-                            <label for="db_name">Имя БД</label>
+                            <label class="label-row" for="db_name">Имя БД <?= $tip('Записывается в ENV_DB_NAME. В этой базе установщик создаст таблицы платформы и стартовые данные.') ?></label>
                             <input id="db_name" name="db_name" required>
                         </div>
                         <div>
-                            <label for="db_user">Пользователь БД</label>
+                            <label class="label-row" for="db_user">Пользователь БД <?= $tip('Записывается в ENV_DB_USER. От имени этого пользователя приложение будет читать и менять данные после установки.') ?></label>
                             <input id="db_user" name="db_user" required>
                         </div>
                         <div>
-                            <label for="db_pass">Пароль БД</label>
+                            <label class="label-row" for="db_pass">Пароль БД <?= $tip('Записывается в ENV_DB_PASS. Нужен приложению для подключения к базе; не выводится публично и не должен попадать в Git.') ?></label>
                             <input id="db_pass" name="db_pass" type="password" autocomplete="new-password">
                         </div>
                         <div>
-                            <label for="db_prefix">Префикс таблиц</label>
+                            <label class="label-row" for="db_prefix">Префикс таблиц <?= $tip('Записывается в ENV_DB_PREF. Добавляется к именам таблиц, чтобы несколько установок могли жить в одной БД без конфликтов.') ?></label>
                             <input id="db_prefix" name="db_prefix" value="ee_" required>
                         </div>
                     </div>
@@ -408,22 +473,22 @@ $csrfToken = (string) ($_SESSION['ee_install_csrf'] ?? '');
 
                 <section style="margin-top: 18px;">
                     <details>
-                        <summary>Создать БД/пользователя через административный доступ</summary>
+                        <summary class="label-row">Создать БД/пользователя через административный доступ <?= $tip('Опциональный режим: установщик временно использует admin-доступ MySQL/MariaDB, чтобы создать базу, пользователя и выдать права.') ?></summary>
                         <div class="grid" style="margin-top: 14px;">
                             <div class="full">
-                                <label><input type="checkbox" name="create_database" value="1"> Создать БД, если её нет</label>
-                                <label><input type="checkbox" name="create_user" value="1"> Создать пользователя и выдать права</label>
+                                <label class="label-row"><input type="checkbox" name="create_database" value="1"> Создать БД, если её нет <?= $tip('Если база с указанным именем отсутствует, установщик создаст её перед развёртыванием таблиц.') ?></label>
+                                <label class="label-row"><input type="checkbox" name="create_user" value="1"> Создать пользователя и выдать права <?= $tip('Если пользователь отсутствует, установщик создаст его и выдаст права на выбранную базу.') ?></label>
                             </div>
                             <div>
-                                <label for="db_admin_user">DB admin user</label>
+                                <label class="label-row" for="db_admin_user">DB admin user <?= $tip('Административный пользователь MySQL/MariaDB. Используется только во время установки и не записывается в configuration.php.') ?></label>
                                 <input id="db_admin_user" name="db_admin_user" autocomplete="off">
                             </div>
                             <div>
-                                <label for="db_admin_pass">DB admin password</label>
+                                <label class="label-row" for="db_admin_pass">DB admin password <?= $tip('Пароль административного пользователя БД. Используется только для создания БД/пользователя и не сохраняется в конфиг проекта.') ?></label>
                                 <input id="db_admin_pass" name="db_admin_pass" type="password" autocomplete="new-password">
                             </div>
                             <div>
-                                <label for="db_user_host">Host для DB user</label>
+                                <label class="label-row" for="db_user_host">Host для DB user <?= $tip('Host-часть MySQL-пользователя, например localhost или %. Определяет, откуда разрешено подключаться приложению.') ?></label>
                                 <input id="db_user_host" name="db_user_host" value="localhost">
                             </div>
                         </div>
@@ -432,15 +497,15 @@ $csrfToken = (string) ($_SESSION['ee_install_csrf'] ?? '');
 
                 <section style="margin-top: 18px;">
                     <details>
-                        <summary>Пароли bootstrap-пользователей</summary>
+                        <summary class="label-row">Пароли bootstrap-пользователей <?= $tip('Стартовые учётные записи создаются при установке, чтобы сразу войти в админку и продолжить настройку проекта.') ?></summary>
                         <div class="grid" style="margin-top: 14px;">
                             <div>
-                                <label for="admin_password">Пароль администратора</label>
+                                <label class="label-row" for="admin_password">Пароль администратора <?= $tip('Используется для стартового администратора. Если оставить пустым, установщик сгенерирует пароль и покажет его один раз.') ?></label>
                                 <input id="admin_password" name="admin_password" type="password" autocomplete="new-password">
                                 <span class="hint">Если оставить пустым, установщик сгенерирует пароль и покажет его один раз.</span>
                             </div>
                             <div>
-                                <label for="moderator_password">Пароль модератора</label>
+                                <label class="label-row" for="moderator_password">Пароль модератора <?= $tip('Используется для стартового модератора. Если оставить пустым, пароль будет сгенерирован и показан один раз после установки.') ?></label>
                                 <input id="moderator_password" name="moderator_password" type="password" autocomplete="new-password">
                             </div>
                         </div>
@@ -449,7 +514,7 @@ $csrfToken = (string) ($_SESSION['ee_install_csrf'] ?? '');
 
                 <?php if (!empty($status['config_exists'])) { ?>
                     <section style="margin-top: 18px;">
-                        <label><input type="checkbox" name="overwrite_config" value="1"> Перезаписать существующий inc/configuration.php с backup</label>
+                        <label class="label-row"><input type="checkbox" name="overwrite_config" value="1"> Перезаписать существующий inc/configuration.php с backup <?= $tip('Нужно только при повторной CLI/web-подготовке окружения. Перед заменой установщик создаёт backup текущего configuration.php.') ?></label>
                     </section>
                 <?php } ?>
 

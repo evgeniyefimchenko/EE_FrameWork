@@ -143,7 +143,11 @@ ee_add_custom_hook('auth.route_guard', [\custom\ProjectAuthPolicy::class, 'guard
 - `cookie`
 - `php_session`
 
-Оба транспорта должны вести себя одинаково по server-side semantics, а различаться только способом переноса токена.
+Оба транспорта ведут себя одинаково по server-side semantics, а различаются только способом переноса токена.
+
+Источником истины является таблица `user_auth_sessions`: в ней хранится `token_hash`, `transport`, `expires_at` и `revoked_at`. Сырой токен передаётся только через выбранный transport и не должен храниться в пользовательской строке.
+
+Для новых проектов используется только `ENV_AUTH_TRANSPORT`. Старый переключатель `ENV_AUTH_USER` считается legacy-настройкой и не должен попадать в новые конфиги. Поле `users.session` также не является auth-источником и оставляется только как след старых установок до миграции БД.
 
 ## Что важно про soft delete и restore
 

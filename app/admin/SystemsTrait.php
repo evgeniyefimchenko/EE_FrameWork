@@ -239,6 +239,7 @@ trait SystemsTrait {
      * Вернёт таблицу логирования проекта
      */
     public function get_project_logs_table() {
+        $tableId = 'project_logs_table_';
         if (!$this->requireAccess([Constants::ADMIN], [
             'ajax' => !empty($_POST),
             'return' => 'admin/system_logs',
@@ -248,6 +249,8 @@ trait SystemsTrait {
         }
         /* model */
         $this->loadModel('m_systems');
+        $projectLogFilterOptions = $this->models['m_systems']->getProjectLogFilterOptions();
+        $allLabel = (string) ($this->lang['sys.all'] ?? 'Все');
         $data_table['columns'] = [
             [
                 'field' => 'date_time',
@@ -295,27 +298,37 @@ trait SystemsTrait {
         $filters = [
             'date_time' => [
                 'type' => 'date',
-                'id' => "date_time",
+                'id' => $tableId . '_filter_date_time',
                 'value' => '',
                 'label' => $this->lang['sys.date_create']
             ],
             'level' => [
-                'type' => 'text',
-                'id' => "level",
+                'type' => 'select',
+                'id' => $tableId . '_filter_level',
                 'value' => '',
-                'label' => $this->lang['sys.level'] ?? 'Уровень'
+                'label' => $this->lang['sys.level'] ?? 'Уровень',
+                'options' => $this->buildProjectLogSelectOptions(
+                    $projectLogFilterOptions['levels'] ?? [],
+                    $allLabel
+                ),
+                'ignore_values' => ['']
             ],
             'initiator' => [
                 'type' => 'text',
-                'id' => "initiator",
+                'id' => $tableId . '_filter_initiator',
                 'value' => '',
                 'label' => $this->lang['sys.initiator'] ?? 'Инициатор'
             ],
             'type_log' => [
-                'type' => 'text',
-                'id' => "type_log",
+                'type' => 'select',
+                'id' => $tableId . '_filter_type_log',
                 'value' => '',
-                'label' => $this->lang['sys.log_channel'] ?? 'Канал'
+                'label' => $this->lang['sys.log_channel'] ?? 'Канал',
+                'options' => $this->buildProjectLogSelectOptions(
+                    $projectLogFilterOptions['type_logs'] ?? [],
+                    $allLabel
+                ),
+                'ignore_values' => ['']
             ]
         ];
         $postData = SysClass::ee_cleanArray($_POST);
@@ -363,11 +376,36 @@ trait SystemsTrait {
         }
         $data_table['total_rows'] = $php_logs_array['total_count'];
         if ($postData) {
-            echo Plugins::ee_show_table('project_logs_table_', $data_table, 'get_project_logs_table', $filters, (int) $postData["page"], $postData["rows_per_page"], $selected_sorting);
+            echo Plugins::ee_show_table($tableId, $data_table, 'get_project_logs_table', $filters, (int) $postData["page"], $postData["rows_per_page"], $selected_sorting);
             die;
         } else {
-            return Plugins::ee_show_table('project_logs_table_', $data_table, 'get_project_logs_table', $filters);
+            return Plugins::ee_show_table($tableId, $data_table, 'get_project_logs_table', $filters);
         }
+    }
+
+    /**
+     * Собирает варианты для select-фильтров таблицы проектных логов.
+     */
+    private function buildProjectLogSelectOptions(array $values, string $emptyLabel): array {
+        $options = [
+            [
+                'value' => '',
+                'label' => $emptyLabel,
+            ],
+        ];
+
+        foreach ($values as $value) {
+            $value = trim((string) $value);
+            if ($value === '') {
+                continue;
+            }
+            $options[] = [
+                'value' => $value,
+                'label' => $value,
+            ];
+        }
+
+        return $options;
     }
 
     /**
@@ -620,9 +658,8 @@ trait SystemsTrait {
     }
 
     /**
-     * Очистить все таблицы без удаления проекта
-     * Таблицы нужно дополнять на своё усмотрение
-     * Оставит единственного пользователя admin с паролем admin
+     * Пересоздать системные таблицы ядра без удаления пользовательских таблиц в той же БД.
+     * Bootstrap-пользователи создаются с паролями из inc/configuration.php.
      */
     public function killEmAll($params = []) {
         if (!$this->requireAccess([Constants::ADMIN], [

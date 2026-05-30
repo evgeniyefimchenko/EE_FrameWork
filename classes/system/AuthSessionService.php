@@ -10,6 +10,7 @@ class AuthSessionService {
     private const IMPERSONATION_ORIGIN_TOKEN_KEY = 'impersonation_origin_token';
     private const IMPERSONATION_ORIGIN_USER_ID_KEY = 'impersonation_origin_user_id';
     private const IMPERSONATION_ORIGIN_TRANSPORT_KEY = 'impersonation_origin_transport';
+    private const SUPPORTED_TRANSPORTS = ['cookie', 'php_session'];
 
     public static function getOnlineUsersSnapshot(int $minutes = 15): array {
         AuthService::ensureInfrastructure();
@@ -206,14 +207,12 @@ class AuthSessionService {
         if (!is_array($targetUser) || (int) ($targetUser['deleted'] ?? 0) === 1 || (int) ($targetUser['active'] ?? 0) !== 2) {
             throw new \RuntimeException('Target user is not available for impersonation');
         }
+        if (!self::canImpersonateTargetRole((int) ($targetUser['user_role'] ?? 0))) {
+            throw new \RuntimeException('Protected users are not available for impersonation');
+        }
 
         self::clearImpersonationState();
         self::revokeSessionByToken($originToken);
-        SafeMySQL::gi()->query(
-            'UPDATE ?n SET session = NULL WHERE session = ?s',
-            Constants::USERS_TABLE,
-            $originToken
-        );
         self::clearTransportState();
         self::establishSession($targetUserId, (string) ($originSession['transport'] ?? null));
 
@@ -223,6 +222,10 @@ class AuthSessionService {
             'target_user_role' => (int) ($targetUser['user_role'] ?? 0),
             'status' => 'started',
         ];
+    }
+
+    public static function canImpersonateTargetRole(int $role): bool {
+        return !in_array($role, [Constants::ADMIN, Constants::SYSTEM], true);
     }
 
     public static function stopImpersonation(): bool {
@@ -250,11 +253,6 @@ class AuthSessionService {
         $currentToken = (string) (self::readCurrentToken() ?? '');
         if ($currentToken !== '' && $currentToken !== $originToken) {
             self::revokeSessionByToken($currentToken);
-            SafeMySQL::gi()->query(
-                'UPDATE ?n SET session = NULL WHERE session = ?s',
-                Constants::USERS_TABLE,
-                $currentToken
-            );
         }
 
         self::clearTransportState();
@@ -304,11 +302,6 @@ class AuthSessionService {
         $rawToken = self::readCurrentToken();
         if ($rawToken) {
             self::revokeSessionByToken($rawToken);
-            SafeMySQL::gi()->query(
-                'UPDATE ?n SET session = NULL WHERE session = ?s',
-                Constants::USERS_TABLE,
-                $rawToken
-            );
         }
 
         self::clearImpersonationState();
@@ -327,11 +320,6 @@ class AuthSessionService {
             Constants::USERS_AUTH_SESSIONS_TABLE,
             $userId
         );
-        SafeMySQL::gi()->query(
-            'UPDATE ?n SET session = NULL WHERE user_id = ?i',
-            Constants::USERS_TABLE,
-            $userId
-        );
     }
 
     public static function clearTransportState(): void {
@@ -341,7 +329,7 @@ class AuthSessionService {
 
     public static function getConfiguredTransport(): string {
         $transport = defined('ENV_AUTH_TRANSPORT') ? strtolower(trim((string) ENV_AUTH_TRANSPORT)) : '';
-        if (in_array($transport, ['cookie', 'php_session'], true)) {
+        if (in_array($transport, self::SUPPORTED_TRANSPORTS, true)) {
             return $transport;
         }
 
@@ -350,6 +338,14 @@ class AuthSessionService {
         }
 
         return 'cookie';
+    }
+
+    public static function getSupportedTransports(): array {
+        return self::SUPPORTED_TRANSPORTS;
+    }
+
+    public static function hasLegacyAuthUserConfig(): bool {
+        return defined('ENV_AUTH_USER');
     }
 
     public static function shouldEnforceIpPolicy(int $userRole, array $options = []): bool {

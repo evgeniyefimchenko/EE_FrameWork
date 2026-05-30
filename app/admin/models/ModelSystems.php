@@ -2,6 +2,7 @@
 
 use classes\plugins\SafeMySQL;
 use classes\system\AuthService;
+use classes\system\AuthSessionService;
 use classes\system\BackupService;
 use classes\system\CacheManager;
 use classes\system\Constants;
@@ -27,27 +28,32 @@ class ModelSystems {
     private const HEALTH_DISK_CRITICAL_BYTES = 2147483648; // 2 GiB
 
     /**
-     * Очищает все таблицы в базе данных
-     * Этот метод получает список всех таблиц в текущей базе данных,
-     * и выполняет операцию DROP на каждой таблице для её очистки
-     * Операции выполняются в рамках одной транзакции, чтобы гарантировать,
-     * что все таблицы будут успешно очищены, или ни одна из таблиц не будет удалена в случае ошибки
+     * Очищает системные таблицы ядра без удаления пользовательских таблиц в той же базе.
      * @param int $user_id Кто вызвал
      * @throws Exception Если произошла ошибка во время очистки таблиц
-     * @return bool Возвращает true, если операция выполнена успешно, и false в случае ошибки
+     * @return OperationResult Результат пересоздания системных таблиц
      */
     public function killDB(int $user_id): OperationResult {
-        $tables = SafeMySQL::gi()->getCol("SHOW TABLES");
-        if ($tables) {
+        $bootstrapPasswordError = $this->validateBootstrapPasswordsForReset();
+        if ($bootstrapPasswordError !== '') {
+            return OperationResult::failure($bootstrapPasswordError, 'bootstrap_password_missing');
+        }
+
+        $coreTables = $this->getExistingCoreTableNames();
+        $allTables = $this->getExistingTableNames();
+        $preservedTables = array_values(array_diff($allTables, $coreTables));
+
+        if ($coreTables) {
             SafeMySQL::gi()->query("START TRANSACTION");
             try {
-                SafeMySQL::gi()->query("SET FOREIGN_KEY_CHECKS=0");  // отключаем проверку внешних ключей
-                foreach ($tables as $table) {
+                SafeMySQL::gi()->query("SET FOREIGN_KEY_CHECKS=0");
+                foreach ($coreTables as $table) {
                     SafeMySQL::gi()->query("DROP TABLE ?n", $table);
                 }
-                SafeMySQL::gi()->query("SET FOREIGN_KEY_CHECKS=1");  // включаем проверку внешних ключей обратно
+                SafeMySQL::gi()->query("SET FOREIGN_KEY_CHECKS=1");
                 SafeMySQL::gi()->query("COMMIT");
             } catch (Exception $e) {
+                SafeMySQL::gi()->query("SET FOREIGN_KEY_CHECKS=1");
                 SafeMySQL::gi()->query("ROLLBACK");
                 Logger::error('system_tools', 'Ошибка очистки базы данных', [
                     'user_id' => $user_id,
@@ -59,20 +65,112 @@ class ModelSystems {
                 return OperationResult::failure('Ошибка очистки базы данных: ' . $e->getMessage(), 'kill_db_failed');
             }
         } else {
-            return OperationResult::failure('Таблицы в базе данных не найдены.', 'kill_db_empty');
+            return OperationResult::failure('Системные таблицы ядра в базе данных не найдены.', 'kill_db_empty');
         }
-        // Пересоздание БД и регистрация первичных пользователей
-        AuthService::resetInfrastructureState();
+
+        $this->resetInfrastructureState();
         new Users(true);
+        $this->writeResetInstallLock($user_id, count((array) $coreTables), count((array) $preservedTables));
         Logger::audit('system_tools', 'База данных очищена и пересоздана', [
             'user_id' => $user_id,
-            'tables_dropped' => count((array) $tables),
+            'tables_dropped' => count((array) $coreTables),
+            'tables_preserved' => count((array) $preservedTables),
         ], [
             'initiator' => __METHOD__,
-            'details' => 'DB recreated',
+            'details' => 'Core DB tables recreated',
             'include_trace' => false,
         ]);
-        return OperationResult::success(['tables_dropped' => count((array) $tables)], 'База данных пересоздана.', 'db_recreated');
+        return OperationResult::success([
+            'tables_dropped' => count((array) $coreTables),
+            'tables_preserved' => count((array) $preservedTables),
+        ], 'Системные таблицы пересозданы. Пользовательские таблицы сохранены.', 'db_recreated');
+    }
+
+    private function getExistingCoreTableNames(): array {
+        $existingTables = array_flip($this->getExistingTableNames());
+        $coreTables = [];
+        foreach ($this->getCoreTableNames() as $tableName) {
+            if (isset($existingTables[$tableName])) {
+                $coreTables[] = $tableName;
+            }
+        }
+
+        return array_values(array_unique($coreTables));
+    }
+
+    private function getExistingTableNames(): array {
+        $tables = SafeMySQL::gi()->getCol(
+            "SELECT TABLE_NAME
+             FROM information_schema.TABLES
+             WHERE TABLE_SCHEMA = DATABASE()
+               AND TABLE_TYPE = 'BASE TABLE'"
+        );
+
+        return array_values(array_filter(array_map('strval', (array) $tables)));
+    }
+
+    private function getCoreTableNames(): array {
+        $reflection = new ReflectionClass(Constants::class);
+        $tables = [];
+        foreach ($reflection->getConstants() as $constantName => $constantValue) {
+            if (!is_string($constantValue)) {
+                continue;
+            }
+            if ($constantName !== 'GLOBAL_OPTIONS' && !str_ends_with($constantName, '_TABLE')) {
+                continue;
+            }
+            if (!str_starts_with($constantValue, (string) ENV_DB_PREF)) {
+                continue;
+            }
+            $tables[] = $constantValue;
+        }
+
+        return array_values(array_unique($tables));
+    }
+
+    private function validateBootstrapPasswordsForReset(): string {
+        $adminPassword = defined('ENV_INSTALL_ADMIN_PASSWORD') ? trim((string) ENV_INSTALL_ADMIN_PASSWORD) : '';
+        if (strlen($adminPassword) < 8) {
+            return 'Перед пересозданием системных таблиц укажите ENV_INSTALL_ADMIN_PASSWORD в inc/configuration.php.';
+        }
+
+        $adminEmail = defined('ENV_ADMIN_EMAIL') ? mb_strtolower(trim((string) ENV_ADMIN_EMAIL)) : '';
+        $supportEmail = defined('ENV_SUPPORT_EMAIL') ? mb_strtolower(trim((string) ENV_SUPPORT_EMAIL)) : '';
+        if ($supportEmail !== '' && $supportEmail !== $adminEmail) {
+            $moderatorPassword = defined('ENV_INSTALL_MODERATOR_PASSWORD') ? trim((string) ENV_INSTALL_MODERATOR_PASSWORD) : '';
+            if (strlen($moderatorPassword) < 8) {
+                return 'Перед пересозданием системных таблиц укажите ENV_INSTALL_MODERATOR_PASSWORD в inc/configuration.php.';
+            }
+        }
+
+        return '';
+    }
+
+    private function resetInfrastructureState(): void {
+        AuthService::resetInfrastructureState();
+        CronAgentService::resetInfrastructureState();
+        ImportMediaQueueService::resetInfrastructureState();
+        BackupService::resetInfrastructureState();
+    }
+
+    private function writeResetInstallLock(int $userId, int $droppedTables, int $preservedTables): void {
+        $installDir = ENV_SITE_PATH . 'cache' . ENV_DIRSEP . 'install';
+        if (!is_dir($installDir) && !@mkdir($installDir, 0775, true) && !is_dir($installDir)) {
+            return;
+        }
+
+        $payload = [
+            'installed_at' => gmdate('c'),
+            'reset_by_user_id' => $userId,
+            'reset_source' => 'admin.killEmAll',
+            'site_host' => defined('ENV_CANONICAL_HOST') ? ENV_CANONICAL_HOST : ENV_SITE_NAME,
+            'site_name' => ENV_SITE_NAME,
+            'configuration' => ENV_SITE_PATH . 'inc' . ENV_DIRSEP . 'configuration.php',
+            'tables_dropped' => $droppedTables,
+            'tables_preserved' => $preservedTables,
+        ];
+        @file_put_contents($installDir . ENV_DIRSEP . 'install.lock', json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT), LOCK_EX);
+        @chmod($installDir . ENV_DIRSEP . 'install.lock', 0660);
     }
 
     public function getHealthReport(): array {
@@ -131,6 +229,7 @@ class ModelSystems {
         $backupSummary = $this->getBackupSummary();
         $storageSummary = $this->getStorageHealthSummary();
         $mailSummary = $this->getMailHealthSummary();
+        $authSummary = $this->getAuthHealthSummary();
 
         $report = [
             'generated_at' => date('c'),
@@ -151,6 +250,7 @@ class ModelSystems {
                 'route_backend' => defined('ENV_ROUTING_CACHE_BACKEND') ? (string) ENV_ROUTING_CACHE_BACKEND : 'file',
                 'redis_probe_exists' => is_file(ENV_CACHE_PATH . 'redis_connection_check.cache'),
             ],
+            'auth' => $authSummary,
             'mail' => $mailSummary,
             'cron' => $cronSummary,
             'lifecycle' => $lifecycleSummary,
@@ -516,6 +616,65 @@ class ModelSystems {
     }
 
     /**
+     * Вернёт значения, уже встречающиеся в project logs, для select-фильтров.
+     * @return array{levels:string[],type_logs:string[]}
+     */
+    public function getProjectLogFilterOptions(): array {
+        $levels = [];
+        $typeLogs = [];
+
+        foreach ($this->getProjectLogFiles() as $logFile) {
+            $fileType = trim((string) ($logFile['type_log'] ?? ''));
+            if ($fileType !== '') {
+                $typeLogs[$fileType] = true;
+            }
+
+            $this->streamProjectLogFile(
+                (string) $logFile['path'],
+                (string) $logFile['type_log'],
+                (string) $logFile['date_log'],
+                static function (array $log) use (&$levels, &$typeLogs): void {
+                    $level = trim((string) ($log['level'] ?? ''));
+                    if ($level !== '') {
+                        $levels[$level] = true;
+                    }
+
+                    $channel = trim((string) (($log['channel'] ?? '') ?: ($log['type_log'] ?? '')));
+                    if ($channel !== '') {
+                        $typeLogs[$channel] = true;
+                    }
+                }
+            );
+        }
+
+        $levelValues = array_keys($levels);
+        $levelOrder = [
+            'DEBUG' => 10,
+            'INFO' => 20,
+            'NOTICE' => 30,
+            'AUDIT' => 40,
+            'WARNING' => 50,
+            'ERROR' => 60,
+            'CRITICAL' => 70,
+            'ALERT' => 80,
+            'EMERGENCY' => 90,
+        ];
+        usort($levelValues, static function (string $left, string $right) use ($levelOrder): int {
+            $leftWeight = $levelOrder[strtoupper($left)] ?? 1000;
+            $rightWeight = $levelOrder[strtoupper($right)] ?? 1000;
+            return ($leftWeight <=> $rightWeight) ?: strcasecmp($left, $right);
+        });
+
+        $typeLogValues = array_keys($typeLogs);
+        natcasesort($typeLogValues);
+
+        return [
+            'levels' => array_values($levelValues),
+            'type_logs' => array_values($typeLogValues),
+        ];
+    }
+
+    /**
      * Очистит текущий и архивные PHP/Fatal log-файлы.
      */
     public function clearFlatLogFiles(string $type = 'php_logs'): bool {
@@ -567,24 +726,53 @@ class ModelSystems {
      * @return bool Возвращает true, если лог соответствует всем условиям фильтрации, иначе false
      */
     private function filterLog($log, $where) {
-        if ($where === false) {
+        if ($where === false || trim((string) $where) === '') {
             return true;
         }
         $conditions = explode(' AND ', $where);
         foreach ($conditions as $condition) {
-            if (strpos($condition, 'LIKE') !== false) {
-                // Условие LIKE
-                list($field, $value) = explode(' LIKE ', $condition);
-                $value = str_replace(['\'', '%'], '', $value);
-                $field = trim((string) $field, " `");
-                $fieldValue = (string) ($log[$field] ?? '');
-                if (strpos($fieldValue, $value) === false) {
+            $condition = trim((string) $condition);
+            if ($condition === '') {
+                continue;
+            }
+
+            if (preg_match('/^`?([a-zA-Z_][a-zA-Z0-9_]*)`?\s+LIKE\s+(.+?)(?:\s+ESCAPE\s+.+)?$/i', $condition, $matches) === 1) {
+                $field = $matches[1];
+                $value = $this->decodeSqlFilterLiteral($matches[2]);
+                if (str_starts_with($value, '%')) {
+                    $value = substr($value, 1);
+                }
+                if (str_ends_with($value, '%')) {
+                    $value = substr($value, 0, -1);
+                }
+                if (!$this->logFieldContains($log, $field, $value)) {
                     return false;
                 }
-            } elseif (strpos($condition, '>=') !== false || strpos($condition, '<=') !== false) {
+                continue;
+            }
+
+            if (preg_match('/^`?([a-zA-Z_][a-zA-Z0-9_]*)`?\s+IN\s*\((.*)\)$/i', $condition, $matches) === 1) {
+                $field = $matches[1];
+                $values = array_map([$this, 'decodeSqlFilterLiteral'], str_getcsv((string) $matches[2], ',', "'", '\\'));
+                if (!$this->logFieldEqualsAny($log, $field, $values)) {
+                    return false;
+                }
+                continue;
+            }
+
+            if (preg_match('/^`?([a-zA-Z_][a-zA-Z0-9_]*)`?\s*=\s*(.+)$/', $condition, $matches) === 1) {
+                $field = $matches[1];
+                $value = $this->decodeSqlFilterLiteral($matches[2]);
+                if (!$this->logFieldEqualsAny($log, $field, [$value])) {
+                    return false;
+                }
+                continue;
+            }
+
+            if (strpos($condition, '>=') !== false || strpos($condition, '<=') !== false) {
                 // Условия сравнения даты и времени
                 list($field, $value) = preg_split('/(>=|<=)/', $condition);
-                $value = str_replace('\'', '', trim($value));
+                $value = $this->decodeSqlFilterLiteral($value);
                 $operator = (strpos($condition, '>=') !== false) ? '>=' : '<=';
                 $field = trim((string) $field, " `");
                 $fieldValue = (string) ($log[$field] ?? '');
@@ -595,6 +783,69 @@ class ModelSystems {
             // Добавьте здесь другие условия фильтрации, если необходимо
         }
         return true;
+    }
+
+    /**
+     * Проверяет текстовое совпадение по полю лога.
+     */
+    private function logFieldContains(array $log, string $field, string $needle): bool {
+        foreach ($this->getComparableLogFieldValues($log, $field) as $fieldValue) {
+            if ($needle === '' || strpos($fieldValue, $needle) !== false) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Проверяет точное совпадение по полю лога.
+     */
+    private function logFieldEqualsAny(array $log, string $field, array $expectedValues): bool {
+        $expectedValues = array_values(array_filter(array_map(static function ($value): string {
+            return (string) $value;
+        }, $expectedValues), static function (string $value): bool {
+            return $value !== '';
+        }));
+
+        if ($expectedValues === []) {
+            return true;
+        }
+
+        foreach ($this->getComparableLogFieldValues($log, $field) as $fieldValue) {
+            if (in_array($fieldValue, $expectedValues, true)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Возвращает значения поля с учётом отображаемых aliases таблицы.
+     */
+    private function getComparableLogFieldValues(array $log, string $field): array {
+        $values = [(string) ($log[$field] ?? '')];
+        if ($field === 'type_log') {
+            $values[] = (string) ($log['channel'] ?? '');
+        }
+        return array_values(array_unique($values));
+    }
+
+    /**
+     * Декодирует SQL-literal, созданный table-plugin фильтрами.
+     */
+    private function decodeSqlFilterLiteral(string $value): string {
+        $value = trim($value);
+        if (preg_match('/^(.+?)\s+ESCAPE\s+.+$/i', $value, $matches) === 1) {
+            $value = trim((string) $matches[1]);
+        }
+        if (strlen($value) >= 2 && $value[0] === "'" && substr($value, -1) === "'") {
+            $value = substr($value, 1, -1);
+        }
+        return str_replace(
+            ['\\0', '\\n', '\\r', "\\'", '\\"', '\\Z', '\\%', '\\_', '\\\\'],
+            ["\0", "\n", "\r", "'", '"', "\x1a", '%', '_', '\\'],
+            $value
+        );
     }
 
     /**
@@ -1090,11 +1341,41 @@ class ModelSystems {
         ];
     }
 
+    private function getAuthHealthSummary(): array {
+        $rawTransport = defined('ENV_AUTH_TRANSPORT') ? strtolower(trim((string) ENV_AUTH_TRANSPORT)) : '';
+        $supportedTransports = AuthSessionService::getSupportedTransports();
+        $configuredTransport = AuthSessionService::getConfiguredTransport();
+        $legacyAuthUserDefined = AuthSessionService::hasLegacyAuthUserConfig();
+        $transportSource = in_array($rawTransport, $supportedTransports, true)
+            ? 'ENV_AUTH_TRANSPORT'
+            : ($legacyAuthUserDefined ? 'ENV_AUTH_USER_LEGACY' : 'default');
+
+        return [
+            'transport' => $configuredTransport,
+            'transport_source' => $transportSource,
+            'configured_transport' => $rawTransport,
+            'supported_transports' => $supportedTransports,
+            'session_ttl_sec' => (int) (defined('ENV_TIME_AUTH_SESSION') ? ENV_TIME_AUTH_SESSION : 0),
+            'cookie_samesite' => defined('ENV_AUTH_COOKIE_SAMESITE') ? (string) ENV_AUTH_COOKIE_SAMESITE : 'Lax',
+            'cookie_secure' => defined('ENV_AUTH_COOKIE_SECURE') ? (bool) ENV_AUTH_COOKIE_SECURE : null,
+            'ip_restricted_roles' => defined('ENV_AUTH_IP_RESTRICTED_ROLES') && is_array(ENV_AUTH_IP_RESTRICTED_ROLES)
+                ? array_values(array_map('intval', ENV_AUTH_IP_RESTRICTED_ROLES))
+                : [Constants::ADMIN, Constants::MODERATOR],
+            'max_active_sessions_per_user' => defined('ENV_AUTH_MAX_ACTIVE_SESSIONS_PER_USER')
+                ? max(1, (int) ENV_AUTH_MAX_ACTIVE_SESSIONS_PER_USER)
+                : 5,
+            'legacy_auth_user_defined' => $legacyAuthUserDefined,
+            'legacy_users_session_column' => $this->columnExists(Constants::USERS_TABLE, 'session'),
+            'auth_sessions_table' => Constants::USERS_AUTH_SESSIONS_TABLE,
+        ];
+    }
+
     private function buildHealthAlerts(array $report): array {
         $alerts = [];
         $install = is_array($report['install'] ?? null) ? $report['install'] : [];
         $paths = is_array($report['paths'] ?? null) ? $report['paths'] : [];
         $storage = is_array($report['storage'] ?? null) ? $report['storage'] : [];
+        $auth = is_array($report['auth'] ?? null) ? $report['auth'] : [];
         $mail = is_array($report['mail'] ?? null) ? $report['mail'] : [];
         $cron = is_array($report['cron'] ?? null) ? $report['cron'] : [];
         $lifecycle = is_array($report['lifecycle'] ?? null) ? $report['lifecycle'] : [];
@@ -1109,6 +1390,16 @@ class ModelSystems {
         }
         if (empty($install['auth_tables_ok'])) {
             $alerts[] = $this->makeHealthAlert('critical', 'sys.health_alert_auth_tables_title', 'sys.health_alert_auth_tables_message');
+        }
+        if (!empty($auth['legacy_auth_user_defined'])) {
+            $alerts[] = $this->makeHealthAlert('warning', 'sys.health_alert_auth_legacy_config_title', 'sys.health_alert_auth_legacy_config_message', [
+                'setting' => 'ENV_AUTH_USER',
+            ]);
+        }
+        if (!empty($auth['legacy_users_session_column'])) {
+            $alerts[] = $this->makeHealthAlert('info', 'sys.health_alert_auth_legacy_column_title', 'sys.health_alert_auth_legacy_column_message', [
+                'column' => Constants::USERS_TABLE . '.session',
+            ]);
         }
         if (empty($install['cron_tables_ok'])) {
             $alerts[] = $this->makeHealthAlert('warning', 'sys.health_alert_cron_tables_title', 'sys.health_alert_cron_tables_message', [], '/admin/cron_agents', 'sys.cron_agents');
@@ -1264,6 +1555,22 @@ class ModelSystems {
         }
 
         return SafeMySQL::gi()->query('SHOW TABLES LIKE ?s', $tableName)->num_rows > 0;
+    }
+
+    private function columnExists(string $tableName, string $columnName): bool {
+        if ($tableName === '' || $columnName === '' || !SysClass::checkDatabaseConnection()) {
+            return false;
+        }
+
+        return (int) SafeMySQL::gi()->getOne(
+            'SELECT COUNT(*)
+             FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE()
+               AND TABLE_NAME = ?s
+               AND COLUMN_NAME = ?s',
+            $tableName,
+            $columnName
+        ) > 0;
     }
 
     private function getPathHealth(string $path): array {

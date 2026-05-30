@@ -814,9 +814,7 @@ class ModelPublicCatalog {
         $isBlog = $this->isBlogCategoryTypeName($categoryTypeName);
         $heroImage = $this->extractFirstImageUrlFromHtml($descriptionHtml);
         if ($heroImage === '') {
-            $heroImage = $isBlog
-                ? ENV_URL_SITE . '/assets/vendor/tourm/img/blog/blog-s-1-1.jpg'
-                : ENV_URL_SITE . '/assets/vendor/tourm/img/bg/breadcumb-bg.jpg';
+            $heroImage = ENV_URL_SITE . '/assets/images/system/no-image.svg';
         }
 
         return array_merge($basePayload, [
@@ -847,7 +845,7 @@ class ModelPublicCatalog {
         $descriptionHtml = $this->normalizeRichTextHtml((string) ($categoryRow['description'] ?? ''), $languageCode);
         $summary = $this->resolveSummary((string) ($categoryRow['short_description'] ?? ''), (string) ($categoryRow['description'] ?? ''));
         $metaDescription = $summary !== '' ? $summary : $this->truncateText($this->extractPlainText($descriptionHtml), 180);
-        $heroImage = ENV_URL_SITE . '/assets/vendor/tourm/img/bg/breadcumb-bg.jpg';
+        $heroImage = ENV_URL_SITE . '/assets/images/system/no-image.svg';
         $perPage = 12;
         $requestedPage = max(1, (int) ($_GET['page'] ?? 1));
         $totalArticles = $this->countContentPagesByCategory((int) ($categoryRow['category_id'] ?? 0), $languageCode, 0, true);
@@ -1039,7 +1037,7 @@ class ModelPublicCatalog {
         $descriptionHtml = $this->normalizeRichTextHtml((string) ($row['description'] ?? ''), $languageCode);
         $imageUrl = $this->extractFirstImageUrlFromHtml($descriptionHtml);
         if ($imageUrl === '') {
-            $imageUrl = ENV_URL_SITE . '/assets/vendor/tourm/img/blog/blog-s-1-1.jpg';
+            $imageUrl = ENV_URL_SITE . '/assets/images/system/no-image.svg';
         }
 
         return [
@@ -2558,7 +2556,7 @@ class ModelPublicCatalog {
         $document = new \DOMDocument('1.0', 'UTF-8');
         $previousUseInternalErrors = libxml_use_internal_errors(true);
         $loaded = $document->loadHTML(
-            '<?xml encoding="utf-8" ?><div data-allbriz-richtext-root="1">' . $html . '</div>',
+            '<?xml encoding="utf-8" ?><div data-ee-richtext-root="1">' . $html . '</div>',
             LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD
         );
         libxml_clear_errors();
@@ -2861,7 +2859,6 @@ class ModelPublicCatalog {
         $allowedHosts = [
             $this->normalizeHostForComparison((string) parse_url((string) ENV_URL_SITE, PHP_URL_HOST)),
             $this->normalizeHostForComparison((string) ENV_CANONICAL_HOST),
-            'allbriz.ru',
         ];
 
         return in_array($host, array_values(array_filter(array_unique($allowedHosts))), true);
@@ -2986,7 +2983,7 @@ class ModelPublicCatalog {
         $document = new \DOMDocument('1.0', 'UTF-8');
         $previousUseInternalErrors = libxml_use_internal_errors(true);
         $loaded = $document->loadHTML(
-            '<?xml encoding="utf-8" ?><div data-allbriz-richtext-root="1">' . $html . '</div>',
+            '<?xml encoding="utf-8" ?><div data-ee-richtext-root="1">' . $html . '</div>',
             LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD
         );
         libxml_clear_errors();

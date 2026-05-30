@@ -4268,7 +4268,7 @@ class WordpressImporter extends BaseImporter {
 
         $donorHost = strtolower(trim((string) parse_url($this->getDonorBaseUrl(), PHP_URL_HOST)));
         $knownTrackingSources = array_filter([
-            'allbriz',
+            'ee',
             $donorHost,
             str_starts_with($donorHost, 'www.') ? substr($donorHost, 4) : $donorHost,
         ]);

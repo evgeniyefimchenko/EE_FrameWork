@@ -140,21 +140,14 @@ $menuItems = [
                             'icon' => 'fa-regular fa-copy',
                         ],
                         [
-                            'title' => $lang['sys.url_management'] ?? 'URL и редиректы',
-                            'link' => '#',
-                            'icon' => 'fa-solid fa-route',
-                            'subItems' => [
-                                [
-                                    'title' => $lang['sys.url_policies'] ?? 'URL-политики',
-                                    'link' => '/admin/url_policies',
-                                    'icon' => 'fa-solid fa-wand-magic-sparkles',
-                                ],
-                                [
-                                    'title' => $lang['sys.redirects'] ?? 'Редиректы',
-                                    'link' => '/admin/redirects',
-                                    'icon' => 'fa-solid fa-signs-post',
-                                ],
-                            ],
+                            'title' => $lang['sys.url_policies'] ?? 'URL-политики',
+                            'link' => '/admin/url_policies',
+                            'icon' => 'fa-solid fa-wand-magic-sparkles',
+                        ],
+                        [
+                            'title' => $lang['sys.redirects'] ?? 'Редиректы',
+                            'link' => '/admin/redirects',
+                            'icon' => 'fa-solid fa-signs-post',
                         ],
                         [
                             'title' => $lang['sys.fill_with_test_data'],

@@ -5,7 +5,7 @@ $breadcrumbs = is_array($page['breadcrumbs'] ?? null) ? $page['breadcrumbs'] : [
 $recentArticles = array_values(array_filter(is_array($page['recent_articles'] ?? null) ? $page['recent_articles'] : [], static fn($item): bool => is_array($item)));
 $heroImage = trim((string) ($page['hero_image'] ?? ''));
 if ($heroImage === '') {
-    $heroImage = ENV_URL_SITE . '/assets/vendor/tourm/img/bg/breadcumb-bg.jpg';
+    $heroImage = ENV_URL_SITE . '/assets/images/system/no-image.svg';
 }
 $isBlogArticle = (string) ($page['content_kind'] ?? '') === 'blog_article';
 $section = is_array($page['section'] ?? null) ? $page['section'] : [];
@@ -13,8 +13,8 @@ $section = is_array($page['section'] ?? null) ? $page['section'] : [];
 
 <?= $top_panel ?? '' ?>
 
-<main class="allbriz-public-main">
-    <section class="breadcumb-wrapper allbriz-breadcrumb-hero" data-bg-src="<?= htmlspecialchars($heroImage, ENT_QUOTES, 'UTF-8') ?>">
+<main class="ee-public-main">
+    <section class="breadcumb-wrapper ee-breadcrumb-hero" data-bg-src="<?= htmlspecialchars($heroImage, ENT_QUOTES, 'UTF-8') ?>">
         <div class="container">
             <div class="breadcumb-content">
                 <h1 class="breadcumb-title"><?= htmlspecialchars((string) ($page['title'] ?? ''), ENT_QUOTES, 'UTF-8') ?></h1>
@@ -38,7 +38,7 @@ $section = is_array($page['section'] ?? null) ? $page['section'] : [];
         <div class="container">
             <div class="row">
                 <div class="<?= $isBlogArticle ? 'col-xxl-8 col-lg-7' : 'col-12' ?>">
-                    <div class="th-blog blog-single allbriz-page-card">
+                    <div class="th-blog blog-single ee-page-card">
                         <?php if ($isBlogArticle): ?>
                             <div class="blog-img">
                                 <img src="<?= htmlspecialchars($heroImage, ENT_QUOTES, 'UTF-8') ?>" alt="<?= htmlspecialchars((string) ($page['title'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
@@ -61,7 +61,7 @@ $section = is_array($page['section'] ?? null) ? $page['section'] : [];
                             <?php endif; ?>
 
                             <?php if (!empty($page['description_html'])): ?>
-                                <div class="allbriz-richtext"><?= (string) $page['description_html'] ?></div>
+                                <div class="ee-richtext"><?= (string) $page['description_html'] ?></div>
                             <?php endif; ?>
                         </div>
                     </div>

@@ -43,7 +43,7 @@ $settings = is_array($policy['settings'] ?? null) ? $policy['settings'] : [];
                         <label for="status" class="form-label"><?= htmlspecialchars((string)($lang['sys.status'] ?? 'Статус')) ?></label>
                         <select class="form-select" id="status" name="status">
                             <?php foreach (['active', 'hidden', 'disabled'] as $status): ?>
-                                <option value="<?= htmlspecialchars($status) ?>" <?= (string)($policy['status'] ?? 'active') === $status ? 'selected' : '' ?>><?= htmlspecialchars($status) ?></option>
+                                <option value="<?= htmlspecialchars($status) ?>" <?= (string)($policy['status'] ?? 'active') === $status ? 'selected' : '' ?>><?= htmlspecialchars((string)($lang['sys.' . $status] ?? $status)) ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
@@ -57,10 +57,10 @@ $settings = is_array($policy['settings'] ?? null) ? $policy['settings'] : [];
 
                 <div class="row g-3">
                     <div class="col-12 col-lg-4">
-                        <label for="source_mode" class="form-label"><?= htmlspecialchars((string)($lang['sys.url_policy_source_mode'] ?? 'Источник slug')) ?></label>
+                        <label for="source_mode" class="form-label"><?= htmlspecialchars((string)($lang['sys.url_policy_source_mode'] ?? 'Источник адресного имени')) ?></label>
                         <select class="form-select" id="source_mode" name="source_mode">
                             <option value="title" <?= (string)($settings['source_mode'] ?? 'title') === 'title' ? 'selected' : '' ?>><?= htmlspecialchars((string)($lang['sys.url_policy_source_mode_title'] ?? 'По заголовку')) ?></option>
-                            <option value="source_slug" <?= (string)($settings['source_mode'] ?? '') === 'source_slug' ? 'selected' : '' ?>><?= htmlspecialchars((string)($lang['sys.url_policy_source_mode_source_slug'] ?? 'По source slug')) ?></option>
+                            <option value="source_slug" <?= (string)($settings['source_mode'] ?? '') === 'source_slug' ? 'selected' : '' ?>><?= htmlspecialchars((string)($lang['sys.url_policy_source_mode_source_slug'] ?? 'По исходному адресному имени')) ?></option>
                         </select>
                     </div>
                     <div class="col-12 col-lg-4">
@@ -90,7 +90,7 @@ $settings = is_array($policy['settings'] ?? null) ? $policy['settings'] : [];
                         </div>
                     </div>
                     <div class="col-12 col-lg-6">
-                        <label for="fallback_slug" class="form-label"><?= htmlspecialchars((string)($lang['sys.url_policy_fallback_slug'] ?? 'Fallback slug')) ?></label>
+                        <label for="fallback_slug" class="form-label"><?= htmlspecialchars((string)($lang['sys.url_policy_fallback_slug'] ?? 'Адресное имя по умолчанию')) ?></label>
                         <input type="text" class="form-control" id="fallback_slug" name="fallback_slug" value="<?= htmlspecialchars((string)($settings['fallback_slug'] ?? 'item')) ?>">
                     </div>
                     <div class="col-12 col-lg-6">

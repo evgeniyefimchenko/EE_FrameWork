@@ -979,7 +979,6 @@ class Users {
             last_activ DATETIME DEFAULT NULL COMMENT 'дата крайней активности',
             updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'дата обновления инф.',
             phone VARCHAR(255) NULL,
-            session VARCHAR(512) NULL,
             comment VARCHAR(255) NOT NULL COMMENT 'Комментарий или дивиз пользователя',
             deleted BOOLEAN NOT NULL DEFAULT 0 COMMENT 'Флаг удаленного пользователя',
             PRIMARY KEY (user_id),

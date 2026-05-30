@@ -19,7 +19,32 @@ class Session {
     private static function init(): void {
         if (session_status() === PHP_SESSION_NONE) {
             if (!headers_sent()) {
-                ini_set('session.gc_maxlifetime', (string) (defined('ENV_TIME_AUTH_SESSION') ? ENV_TIME_AUTH_SESSION : 1440));
+                $lifetime = (int) (defined('ENV_TIME_AUTH_SESSION') ? ENV_TIME_AUTH_SESSION : 1440);
+                $sameSite = defined('ENV_AUTH_COOKIE_SAMESITE') ? ucfirst(strtolower((string) ENV_AUTH_COOKIE_SAMESITE)) : 'Lax';
+                if (!in_array($sameSite, ['Lax', 'Strict', 'None'], true)) {
+                    $sameSite = 'Lax';
+                }
+                $secure = defined('ENV_AUTH_COOKIE_SECURE')
+                    ? (bool) ENV_AUTH_COOKIE_SECURE
+                    : (!empty($_SERVER['HTTPS']) && strtolower((string) $_SERVER['HTTPS']) !== 'off');
+                if ($sameSite === 'None') {
+                    $secure = true;
+                }
+
+                ini_set('session.gc_maxlifetime', (string) $lifetime);
+                ini_set('session.use_strict_mode', '1');
+                ini_set('session.use_only_cookies', '1');
+                ini_set('session.cookie_lifetime', (string) $lifetime);
+                ini_set('session.cookie_httponly', '1');
+                ini_set('session.cookie_secure', $secure ? '1' : '0');
+                ini_set('session.cookie_samesite', $sameSite);
+                session_set_cookie_params([
+                    'lifetime' => $lifetime,
+                    'path' => '/',
+                    'secure' => $secure,
+                    'httponly' => true,
+                    'samesite' => $sameSite,
+                ]);
                 session_start();
             }
         }
