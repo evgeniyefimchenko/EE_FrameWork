@@ -829,11 +829,6 @@ class CronAgentService {
             return true;
         }
 
-        $pruned = is_array($summary['pruned_run_history'] ?? null) ? $summary['pruned_run_history'] : [];
-        if ((int) ($pruned['deleted'] ?? 0) > 0) {
-            return true;
-        }
-
         foreach ((array) ($summary['runs'] ?? []) as $run) {
             if (is_array($run) && !self::isNoopExecution($run)) {
                 return true;

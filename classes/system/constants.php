@@ -32,6 +32,7 @@ class Constants {
             PROPERTY_SETS_TABLE = ENV_DB_PREF . 'property_sets',
             PROPERTY_LIFECYCLE_JOBS_TABLE = ENV_DB_PREF . 'property_lifecycle_jobs',
             CATEGORY_TYPE_TO_PROPERTY_SET_TABLE = ENV_DB_PREF . 'category_type_to_property_set',
+            USER_ROLE_TO_PROPERTY_SET_TABLE = ENV_DB_PREF . 'user_role_to_property_set',
             PROPERTY_SET_TO_PROPERTIES_TABLE = ENV_DB_PREF . 'property_set_to_properties',
             FILTERS_TABLE = ENV_DB_PREF . 'filters',
             SEARCH_INDEX_TABLE = ENV_DB_PREF . 'search_index',
@@ -56,8 +57,9 @@ class Constants {
             BACKUP_JOBS_TABLE = ENV_DB_PREF . 'backup_jobs',
             CRON_AGENTS_TABLE = ENV_DB_PREF . 'cron_agents',
             CRON_AGENT_RUNS_TABLE = ENV_DB_PREF . 'cron_agent_runs',
+            AI_PROFILES_TABLE = ENV_DB_PREF . 'ai_profiles',
             ALL_STATUS = ['active' => 'active', 'hidden' => 'hidden', 'disabled' => 'disabled'], // Ручное заполнение
-            ALL_ENTITY_TYPE = ['category' => 'sys.categories', 'page' => 'sys.pages', 'all' => 'sys.all'], // Ручное заполнение
+            ALL_ENTITY_TYPE = ['category' => 'sys.categories', 'page' => 'sys.pages', 'user' => 'sys.users', 'all' => 'sys.all'], // Ручное заполнение
             USERS_STATUS = [1 => 'sys.not_confirmed', 2 => 'sys.active', 3 => 'sys.blocked'], // Ручное заполнение
             ALL_TYPE_PROPERTY_TYPES_FIELDS = [ // Типы полей свойств, ручное заполнение
             "text" => "Text",

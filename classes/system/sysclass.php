@@ -1060,12 +1060,53 @@ class SysClass {
         }
 
         new Users(true);
+        self::installAiProfilesSchema();
 
         if (SafeMySQL::gi()->query('SHOW TABLES LIKE ?s', Constants::USERS_TABLE)->num_rows === 0) {
             throw new \RuntimeException('Users table was not created by installer.');
         }
 
         return true;
+    }
+
+    public static function installAiProfilesSchema(): void {
+        SafeMySQL::gi()->query(
+            "CREATE TABLE IF NOT EXISTS ?n (
+                ai_profile_id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                name VARCHAR(255) NOT NULL DEFAULT '',
+                profile_code VARCHAR(128) NOT NULL,
+                provider VARCHAR(64) NOT NULL DEFAULT 'openrouter',
+                api_base_url VARCHAR(255) NOT NULL DEFAULT 'https://openrouter.ai/api/v1',
+                model VARCHAR(255) NOT NULL DEFAULT '',
+                enabled TINYINT(1) NOT NULL DEFAULT 0,
+                encrypted_api_key MEDIUMTEXT DEFAULT NULL,
+                api_key_mask VARCHAR(64) NOT NULL DEFAULT '',
+                settings_json MEDIUMTEXT DEFAULT NULL,
+                last_test_at DATETIME DEFAULT NULL,
+                last_test_ok TINYINT(1) DEFAULT NULL,
+                last_test_message VARCHAR(255) NOT NULL DEFAULT '',
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (ai_profile_id),
+                UNIQUE KEY uq_ai_profiles_code (profile_code),
+                KEY idx_ai_profiles_provider_enabled (provider, enabled),
+                KEY idx_ai_profiles_updated (updated_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='AI profiles';",
+            Constants::AI_PROFILES_TABLE
+        );
+
+        self::ensureAiProfileColumn('model', "model VARCHAR(255) NOT NULL DEFAULT '' AFTER api_base_url");
+        self::ensureAiProfileColumn('settings_json', 'settings_json MEDIUMTEXT DEFAULT NULL AFTER api_key_mask');
+        self::ensureAiProfileColumn('last_test_at', 'last_test_at DATETIME DEFAULT NULL AFTER settings_json');
+        self::ensureAiProfileColumn('last_test_ok', 'last_test_ok TINYINT(1) DEFAULT NULL AFTER last_test_at');
+        self::ensureAiProfileColumn('last_test_message', "last_test_message VARCHAR(255) NOT NULL DEFAULT '' AFTER last_test_ok");
+    }
+
+    private static function ensureAiProfileColumn(string $column, string $definition): void {
+        $exists = SafeMySQL::gi()->getOne('SHOW COLUMNS FROM ?n LIKE ?s', Constants::AI_PROFILES_TABLE, $column);
+        if (!$exists) {
+            SafeMySQL::gi()->query('ALTER TABLE ?n ADD COLUMN ' . $definition, Constants::AI_PROFILES_TABLE);
+        }
     }
 
     private static function failInstallCheck(string $message): void {
@@ -1107,6 +1148,8 @@ class SysClass {
             'logs' => $logsRoot,
             'logs_errors' => $logsRoot . ENV_DIRSEP . 'errors',
             'uploads' => $uploadsRoot,
+            'uploads_runtime' => $uploadsRoot . ENV_DIRSEP . 'runtime',
+            'uploads_runtime_lang' => $uploadsRoot . ENV_DIRSEP . 'runtime' . ENV_DIRSEP . 'lang',
             'uploads_tmp' => $tmpRoot,
             'uploads_tmp_backups' => $tmpRoot . ENV_DIRSEP . 'backups',
             'uploads_files' => $uploadsRoot . ENV_DIRSEP . 'files',
@@ -1155,7 +1198,9 @@ class SysClass {
             return;
         }
 
-        $langJsPath = ENV_TMP_PATH . $langCode . '.js';
+        $langJsPath = function_exists('ee_get_lang_bundle_path')
+            ? ee_get_lang_bundle_path($langCode)
+            : ENV_TMP_PATH . $langCode . '.js';
         $global = [
             'ENV_SITE_NAME' => ENV_SITE_NAME,
             'ENV_DOMEN_NAME' => ENV_DOMEN_NAME,

@@ -15,9 +15,14 @@ if (version_compare(phpversion(), '8.0', '<') == true) {
     die('PHP - Нужна версия 8.0 или выше!');
 }
 
-$debug = true;
+$configPath = __DIR__ . '/inc/configuration.php';
+$debug = false;
+if (is_file($configPath)) {
+    $rawConfig = require $configPath;
+    $debug = is_array($rawConfig) && !empty($rawConfig['ENV_DEBUG']);
+}
 
-if ($debug) { // Повреждает некоторые AJAX запросы
+if ($debug) {
     ini_set('display_errors', 1);
     ini_set('display_startup_errors', 1);
     error_reporting(E_ALL);

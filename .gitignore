@@ -1,6 +1,10 @@
 /cache/
 /logs/
 /tmp/
+/uploads/
+/backups/
+/inc/configuration.php
+/inc/configuration.php.tmp.*
 
 *.swp
 *.swo

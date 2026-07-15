@@ -7,7 +7,7 @@
  */
 
 return [
-    'ENV_VERSION_CORE' => '5.4.5',
+    'ENV_VERSION_CORE' => '5.5.0',
     'ENV_DEBUG' => false,
 
     'ENV_DB_HOST' => 'localhost',

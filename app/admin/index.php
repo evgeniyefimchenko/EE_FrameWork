@@ -26,6 +26,7 @@ use app\admin\PropertiesTrait;
 use app\admin\ImportTrait;
 use app\admin\CronAgentsTrait;
 use app\admin\UrlManagementTrait;
+use app\admin\AiSettingsTrait;
 use classes\helpers\ClassMessages;
 
 /*
@@ -45,7 +46,8 @@ use MessagesTrait,
     PropertiesTrait,
     ImportTrait,
     CronAgentsTrait,
-    UrlManagementTrait;
+    UrlManagementTrait,
+    AiSettingsTrait;
 
     /**
      * Главная страница админ-панели
@@ -620,12 +622,28 @@ use MessagesTrait,
             ];
         }
         $this->loadModel('m_user_edit');
+        $this->loadModel('m_properties');
         /* Если не админ и не модератор и карточка не своя возвращаем */
         if ($this->users->data['user_role'] > 2 && $this->logged_in != $user_id) {
             SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/user_edit/id/' . $this->logged_in);
         }
+        $userPropertiesLanguageCode = function_exists('ee_get_default_content_lang_code')
+            ? ee_get_default_content_lang_code()
+            : (string) ENV_DEF_LANG;
+        $userPropertySetIds = [];
+        $userPropertiesSetsData = [];
         if (!empty($get_user_context['user_id'])) {
             $get_user_context['auth_security'] = (new AuthService())->getUserSecurityState((int) $get_user_context['user_id']);
+            $userPropertySetIds = $this->models['m_user_edit']->getUserPropertySetIds((int) $get_user_context['user_id']);
+            if (!empty($userPropertySetIds)) {
+                $userPropertiesSetsData = $this->formattingEntityProperties(
+                    $userPropertySetIds,
+                    (int) $get_user_context['user_id'],
+                    'user',
+                    (string) ($get_user_context['name'] ?: $get_user_context['email'] ?: $get_user_context['user_id']),
+                    $userPropertiesLanguageCode
+                );
+            }
         } elseif (empty($get_user_context['auth_security'])) {
             $get_user_context['auth_security'] = [
                 'must_set_password' => 0,
@@ -655,6 +673,9 @@ use MessagesTrait,
         $this->view->set('user_context', $get_user_context);
         $this->view->set('can_manage_own_api_key', $canManageOwnApiKey);
         $this->view->set('api_key_meta', $apiKeyMeta);
+        $this->view->set('user_property_set_ids', $userPropertySetIds);
+        $this->view->set('user_properties_sets_data', $userPropertiesSetsData);
+        $this->view->set('user_properties_language_code', $userPropertiesLanguageCode);
         $this->getStandardViews();
         $this->view->set('body_view', $this->view->read('v_edit_user'));
         $this->html = $this->view->read('v_dashboard');
@@ -662,6 +683,7 @@ use MessagesTrait,
         $this->parameters_layout["layout_content"] = $this->html;
         $this->parameters_layout["layout"] = 'dashboard';
         $this->parameters_layout["add_script"] .= '<script src="' . ENV_URL_SITE . '/assets/js/plugins/JQ_mask.js" type="text/javascript" /></script>';
+        $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/func_properties.js" type="text/javascript" /></script>';
         $this->parameters_layout["add_script"] .= '<script src="' . $this->getPathController() . '/js/edit_user.js" type="text/javascript" /></script>';
         $this->parameters_layout["title"] = $this->lang['sys.user_edit'];
         $this->showLayout($this->parameters_layout);
@@ -751,6 +773,13 @@ use MessagesTrait,
             $options = $this->users->getUserOptions((int) $user_id);
             $options['auth']['ip_restricted'] = !empty($postData['auth_ip_restricted']) ? 1 : 0;
             $this->users->setUserOptions((int) $user_id, $options);
+            if (!empty($postData['property_data_changed']) && isset($postData['property_data']) && is_array($postData['property_data'])) {
+                $this->saveFileProperty($postData);
+                $propertyLanguageCode = function_exists('ee_get_default_content_lang_code')
+                    ? ee_get_default_content_lang_code((string) ($postData['property_language_code'] ?? ''))
+                    : (string) ENV_DEF_LANG;
+                $this->processPropertyData($postData['property_data'], $propertyLanguageCode);
+            }
             if (isset($postData['user_role']) && (int) $postData['user_role'] !== $currentUserRole) { // Сменилась роль пользователя, оповещаем админа и пишем лог
                 \classes\system\Logger::audit('users_edit', 'Изменили роль пользователю', [
                     'id_user' => $user_id,
@@ -1360,6 +1389,14 @@ use MessagesTrait,
                 );
                 if ($saveResult->isSuccess()) {
                     $id = $saveResult->getId(['role_id', 'id']);
+                    $this->notifyOperationResult(
+                        $this->models['m_user_edit']->updateUserRolePropertySets((int) $id, $postData['property_set'] ?? []),
+                        [
+                            'default_error_message' => $this->lang['sys.user_role_property_sets_update_error'] ?? 'Failed to update user role property sets',
+                            'skip_success_notification' => true,
+                            'failure_code' => 'user_role_property_sets_sync_failed',
+                        ]
+                    );
                 }
             }
             $get_users_role_data = (int) $id ? $this->models['m_user_edit']->get_users_role_data($id) : $default_data;
@@ -1367,8 +1404,14 @@ use MessagesTrait,
         } else {
             SysClass::handleRedirect(200, ENV_URL_SITE . '/admin/users_role_edit/id/');
         }
+        $this->loadModel('m_properties');
+        $rolePropertySetIds = (int) ($get_users_role_data['role_id'] ?? 0)
+            ? $this->models['m_user_edit']->getUserRolePropertySetIds((int) $get_users_role_data['role_id'])
+            : [];
         /* view */
         $this->view->set('users_role_data', $get_users_role_data);
+        $this->view->set('propertySetsData', $this->models['m_properties']->getPropertySetsData('set_id ASC', false, 0, (10 * 10)));
+        $this->view->set('rolePropertySetIds', $rolePropertySetIds);
         $this->getStandardViews();
         $this->view->set('body_view', $this->view->read('v_edit_users_role'));
         $this->html = $this->view->read('v_dashboard');

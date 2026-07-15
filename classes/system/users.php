@@ -719,6 +719,7 @@ class Users {
             $this->createPropertyValuesTable();
             $this->createPropertyLifecycleJobsTable();
             $this->createCategoryTypeToPropertySetTable();
+            $this->createUserRoleToPropertySetTable();
             $this->createPropertySetToPropertiesTable();
             $this->createFiltersTable();
             $this->createFilesTable();
@@ -1467,7 +1468,7 @@ class Users {
         is_required BOOLEAN NOT NULL,
         search_enabled_default TINYINT(1) NOT NULL DEFAULT 1 COMMENT 'Участвует ли свойство в поисковом индексе по умолчанию',
         description VARCHAR(1000),
-        entity_type ENUM('category', 'page', 'all') NOT NULL DEFAULT 'all',
+        entity_type ENUM('category', 'page', 'user', 'all') NOT NULL DEFAULT 'all',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         language_code CHAR(2) NOT NULL DEFAULT 'RU' COMMENT 'Код языка по ISO 3166-2',
@@ -1477,6 +1478,10 @@ class Users {
         CONSTRAINT fk_properties_type FOREIGN KEY (type_id) REFERENCES ?n(type_id) ON DELETE RESTRICT ON UPDATE RESTRICT
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Таблица для хранения свойств';";
         SafeMySQL::gi()->query($sql, Constants::PROPERTIES_TABLE, Constants::PROPERTY_TYPES_TABLE);
+        SafeMySQL::gi()->query(
+            "ALTER TABLE ?n MODIFY entity_type ENUM('category', 'page', 'user', 'all') NOT NULL DEFAULT 'all'",
+            Constants::PROPERTIES_TABLE
+        );
         SafeMySQL::gi()->query(
             'ALTER TABLE ?n ADD INDEX IF NOT EXISTS idx_properties_search_enabled (search_enabled_default)',
             Constants::PROPERTIES_TABLE
@@ -1513,7 +1518,7 @@ class Users {
         entity_id INT UNSIGNED NOT NULL,
         set_id INT UNSIGNED NOT NULL,
         property_id INT UNSIGNED NOT NULL,
-        entity_type ENUM('category', 'page') NOT NULL,
+        entity_type ENUM('category', 'page', 'user') NOT NULL,
         property_values JSON NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -1525,8 +1530,12 @@ class Users {
         KEY idx_property_values_exact_lookup (entity_id, entity_type, property_id, set_id, language_code),
         CONSTRAINT fk_property_values_property FOREIGN KEY (property_id) REFERENCES ?n(property_id) ON DELETE CASCADE ON UPDATE RESTRICT,
         CONSTRAINT fk_property_values_set FOREIGN KEY (set_id) REFERENCES ?n(set_id) ON DELETE CASCADE ON UPDATE RESTRICT
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Таблица для хранения значений свойств в формате JSON';";
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Таблица для хранения значений свойств в формате JSON';";
         SafeMySQL::gi()->query($sql, Constants::PROPERTY_VALUES_TABLE, Constants::PROPERTIES_TABLE, Constants::PROPERTY_SETS_TABLE);
+        SafeMySQL::gi()->query(
+            "ALTER TABLE ?n MODIFY entity_type ENUM('category', 'page', 'user') NOT NULL",
+            Constants::PROPERTY_VALUES_TABLE
+        );
         $this->logSqlInfo('create_property_values_table', 'Таблица значений свойств создана');
     }
 
@@ -1579,6 +1588,24 @@ class Users {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Таблица для связи типов категорий и наборов свойств';";
         SafeMySQL::gi()->query($sql, Constants::CATEGORY_TYPE_TO_PROPERTY_SET_TABLE, Constants::CATEGORIES_TYPES_TABLE, Constants::PROPERTY_SETS_TABLE);
         $this->logSqlInfo('create_category_type_to_property_set_table', 'Таблица связи типов категорий и наборов свойств создана');
+    }
+
+    /**
+     * Создаёт таблицу user_role_to_property_set для связи ролей пользователей и наборов свойств.
+     * @throws Exception Если запрос не удалось выполнить
+     */
+    private function createUserRoleToPropertySetTable() {
+        $sql = "CREATE TABLE IF NOT EXISTS ?n (
+        role_id TINYINT UNSIGNED NOT NULL,
+        set_id INT UNSIGNED NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (role_id, set_id),
+        KEY idx_user_role_property_set_set (set_id),
+        CONSTRAINT fk_user_role_property_set_role FOREIGN KEY (role_id) REFERENCES ?n(role_id) ON DELETE CASCADE ON UPDATE RESTRICT,
+        CONSTRAINT fk_user_role_property_set_set FOREIGN KEY (set_id) REFERENCES ?n(set_id) ON DELETE CASCADE ON UPDATE RESTRICT
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Таблица для связи ролей пользователей и наборов свойств';";
+        SafeMySQL::gi()->query($sql, Constants::USER_ROLE_TO_PROPERTY_SET_TABLE, Constants::USERS_ROLES_TABLE, Constants::PROPERTY_SETS_TABLE);
+        $this->logSqlInfo('create_user_role_to_property_set_table', 'Таблица связи ролей пользователей и наборов свойств создана');
     }
 
     /**

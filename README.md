@@ -22,6 +22,7 @@ EE_FrameWork объединяет в одном репозитории:
 - административный модуль для управления контентом и системой;
 - проектный слой `custom/`, который не должен теряться при обновлении ядра;
 - встроенные механизмы для поиска, фильтрации, lifecycle-синхронизации, агентного cron и работы со свойствами сущностей.
+- административный контур ИИ-настроек для профилей провайдеров и проверки подключений.
 
 Это не микрофреймворк и не “голая CMS-тема”. Это основа для развития собственных проектов и сложных контентных систем.
 
@@ -50,6 +51,7 @@ URL -> Router -> Controller -> Model -> View -> Layout -> Response
 - пользователей и роли;
 - свойства, типы свойств и наборы;
 - типы категорий, категории и страницы;
+- ИИ-профили и базовую статистику настроек;
 - импорт;
 - логи;
 - системные инструменты;
@@ -63,10 +65,12 @@ EE_FrameWork поддерживает связку:
 
 ```text
 property types -> properties -> sets -> category types -> categories -> pages
+property sets -> user roles -> users
 ```
 
 Это позволяет строить сложные модели данных без жёсткой привязки к одной предметной области.
 В property layer поддерживаются как простые поля, так и структурные значения вроде `date-range` и вложенных `repeatable-group`.
+Свойства можно назначать не только категориям и страницам, но и пользователям через наборы свойств роли пользователя.
 
 ### 4. Встроенный legal-контур для пользователей
 
@@ -108,6 +112,7 @@ property types -> properties -> sets -> category types -> categories -> pages
 - lifecycle jobs;
 - операции обслуживания системы;
 - поисковая и фильтрационная подсистемы.
+- ИИ-профили для OpenRouter, OpenAI, Yandex Cloud AI Studio, SberCloud/GigaChat и VK Cloud.
 
 ---
 
@@ -222,6 +227,20 @@ php -S 127.0.0.1:8080 -t .
 - встроенный сервер удобен для запуска установщика;
 - для полноценных красивых URL нужен Apache/Nginx с rewrite-правилами.
 
+### Настройка веб-сервера
+
+В production EE_FrameWork должен работать через front controller `index.php`. Веб-сервер отдаёт существующие статические файлы, а все несуществующие URL передаёт в приложение как `index.php?route=<path>`.
+
+Минимальные правила:
+
+- Apache2: включить `mod_rewrite`, разрешить `AllowOverride All` для webroot и использовать `.htaccess` из репозитория;
+- Nginx: настроить fallback `try_files $uri $uri/ @ee_framework`, где `@ee_framework` переписывает URL в `/index.php?route=$1&$query_string`;
+- разрешить исполнение PHP только для корневого `index.php`;
+- закрыть от HTTP прямой доступ к `inc/`, `classes/`, `layouts/`, `custom/`, `app/cron/`, `logs/`, `cache/`, `backups/`;
+- дать web-процессу запись в `cache/`, `logs/`, `uploads/`.
+
+Полный пример конфигурации Nginx и Apache2 находится в [Настройке веб-сервера](custom/docs/ServerSetup.md).
+
 ### Что происходит при входе в систему
 
 На верхнем уровне запрос проходит так:
@@ -307,6 +326,7 @@ Production-развёртывание EE_FrameWork строится вокруг
 - архитектуру;
 - routing;
 - content model;
+- ИИ-настройки;
 - импорт;
 - cron-агенты;
 - backup;
@@ -504,6 +524,16 @@ php inc/cli.php help
 - scheduler-команды;
 - diagnostics-команды;
 - operational health-check сценарии.
+
+### ИИ-настройки
+
+Админка содержит раздел “ИИ настройки”:
+
+- `/admin/ai_profiles` — список профилей;
+- `/admin/ai_profile/id/<id>` — карточка профиля;
+- `/admin/ai_statistics` — базовая сводка.
+
+Профиль хранит провайдера, base URL, модель, enabled-флаг, provider-specific настройки и зашифрованный API-ключ. Поддержаны OpenRouter, OpenAI, Yandex Cloud AI Studio, SberCloud/GigaChat и VK Cloud.
 
 Основные команды установки:
 

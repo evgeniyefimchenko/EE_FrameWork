@@ -2,6 +2,8 @@
 <?php
 $roleId = (int)($users_role_data['role_id'] ?? 0);
 $roleActionUrl = \classes\system\CsrfService::appendToUrl('/admin/users_role_edit/id' . ($roleId > 0 ? '/' . $roleId : ''));
+$rolePropertySetIds = is_array($rolePropertySetIds ?? null) ? $rolePropertySetIds : [];
+$propertySetsData = is_array($propertySetsData ?? null) ? $propertySetsData : ['data' => []];
 ?>
 <!-- Редактирование роли пользователей -->
 <main>
@@ -22,7 +24,22 @@ $roleActionUrl = \classes\system\CsrfService::appendToUrl('/admin/users_role_edi
                     <input type="text" id="name-input" name="name" class="form-control" value="<?= $users_role_data['name'] ?>">
                 </div>
             </div>
-            <button type="submit" class="btn btn-primary my-3">Сохранить</button>
+            <div class="row mt-4">
+                <div class="col-12">
+                    <h2 class="h5"><?= htmlspecialchars((string) ($lang['sys.user_role_property_sets'] ?? 'Наборы свойств пользователей')) ?></h2>
+                    <p class="text-muted small mb-3">
+                        <?= htmlspecialchars((string) ($lang['sys.user_role_property_sets_hint'] ?? 'Выбранные наборы будут доступны в карточках пользователей с этой ролью.')) ?>
+                    </p>
+                    <?php if (!empty($propertySetsData['data'])) { ?>
+                        <?= \classes\system\Plugins::renderPropertySets($propertySetsData, $rolePropertySetIds, $rolePropertySetIds) ?>
+                    <?php } else { ?>
+                        <div class="alert alert-info">
+                            <?= htmlspecialchars((string) ($lang['sys.no_property_sets'] ?? 'Наборы свойств не созданы.')) ?>
+                        </div>
+                    <?php } ?>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary my-3"><?= $lang['sys.save'] ?></button>
         </div>		
     </form>
 </main>

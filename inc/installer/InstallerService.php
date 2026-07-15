@@ -309,7 +309,7 @@ class EEInstallerService {
     }
 
     private function prepareRuntimeDirectories(): void {
-        foreach (['cache/install', 'logs', 'logs/errors', 'uploads', 'uploads/tmp', 'uploads/tmp/backups', 'uploads/files', 'uploads/images', 'uploads/images/avatars', 'backups'] as $relativePath) {
+        foreach (['cache/install', 'logs', 'logs/errors', 'uploads', 'uploads/runtime', 'uploads/runtime/lang', 'uploads/tmp', 'uploads/tmp/backups', 'uploads/files', 'uploads/images', 'uploads/images/avatars', 'backups'] as $relativePath) {
             $path = $this->path($relativePath);
             if (!is_dir($path) && !@mkdir($path, 0775, true) && !is_dir($path)) {
                 throw new EEInstallException('Не удалось создать каталог: ' . $relativePath);
@@ -589,7 +589,7 @@ class EEInstallerService {
         $lines[] = ' */';
         $lines[] = '';
         $lines[] = 'return [';
-        $lines[] = "    'ENV_VERSION_CORE' => " . $this->exportValue($config['ENV_VERSION_CORE'] ?? '5.4.2') . ',';
+        $lines[] = "    'ENV_VERSION_CORE' => " . $this->exportValue($config['ENV_VERSION_CORE'] ?? '5.5.0') . ',';
         $lines[] = "    'ENV_DEBUG' => " . $this->exportValue((bool) ($config['ENV_DEBUG'] ?? false)) . ',';
         $lines[] = '';
 

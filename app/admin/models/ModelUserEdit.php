@@ -12,6 +12,8 @@ use classes\system\OperationResult;
  */
 class ModelUserEdit {
 
+    private static ?bool $userPropertyInfrastructureReady = null;
+
     private const USER_ROLE_WRITE_FIELDS = [
         'role_id',
         'role_key',
@@ -91,6 +93,176 @@ class ModelUserEdit {
             return null;
         }
         return $role_data;
+    }
+
+    public function ensureUserPropertyInfrastructure(): bool {
+        if (self::$userPropertyInfrastructureReady !== null) {
+            return self::$userPropertyInfrastructureReady;
+        }
+
+        try {
+            $this->ensureEntityTypeEnumSupportsUser(
+                Constants::PROPERTIES_TABLE,
+                "ENUM('category', 'page', 'user', 'all') NOT NULL DEFAULT 'all'"
+            );
+            $this->ensureEntityTypeEnumSupportsUser(
+                Constants::PROPERTY_VALUES_TABLE,
+                "ENUM('category', 'page', 'user') NOT NULL"
+            );
+
+            $tableExists = SafeMySQL::gi()->getOne(
+                'SHOW TABLES LIKE ?s',
+                Constants::USER_ROLE_TO_PROPERTY_SET_TABLE
+            );
+            if (!$tableExists) {
+                $sql = "CREATE TABLE IF NOT EXISTS ?n (
+                    role_id TINYINT UNSIGNED NOT NULL,
+                    set_id INT UNSIGNED NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (role_id, set_id),
+                    KEY idx_user_role_property_set_set (set_id),
+                    CONSTRAINT fk_user_role_property_set_role FOREIGN KEY (role_id) REFERENCES ?n(role_id) ON DELETE CASCADE ON UPDATE RESTRICT,
+                    CONSTRAINT fk_user_role_property_set_set FOREIGN KEY (set_id) REFERENCES ?n(set_id) ON DELETE CASCADE ON UPDATE RESTRICT
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Таблица для связи ролей пользователей и наборов свойств'";
+                SafeMySQL::gi()->query(
+                    $sql,
+                    Constants::USER_ROLE_TO_PROPERTY_SET_TABLE,
+                    Constants::USERS_ROLES_TABLE,
+                    Constants::PROPERTY_SETS_TABLE
+                );
+            }
+
+            self::$userPropertyInfrastructureReady = true;
+        } catch (\Throwable $e) {
+            Logger::error('user_properties', 'Не удалось подготовить инфраструктуру свойств пользователей', [
+                'exception' => $e,
+            ], [
+                'initiator' => __FUNCTION__,
+                'include_trace' => true,
+            ]);
+            self::$userPropertyInfrastructureReady = false;
+        }
+
+        return self::$userPropertyInfrastructureReady;
+    }
+
+    private function ensureEntityTypeEnumSupportsUser(string $tableName, string $definition): void {
+        $column = SafeMySQL::gi()->getRow(
+            'SHOW COLUMNS FROM ?n LIKE ?s',
+            $tableName,
+            'entity_type'
+        );
+        $type = strtolower((string) ($column['Type'] ?? ''));
+        if ($type !== '' && str_contains($type, "'user'")) {
+            return;
+        }
+        SafeMySQL::gi()->query(
+            'ALTER TABLE ?n MODIFY entity_type ' . $definition,
+            $tableName
+        );
+    }
+
+    private function normalizeIntegerIds(mixed $ids): array {
+        if (!is_array($ids)) {
+            $ids = [$ids];
+        }
+
+        $result = [];
+        foreach ($ids as $id) {
+            if (is_array($id)) {
+                continue;
+            }
+            $id = (int) $id;
+            if ($id > 0) {
+                $result[$id] = $id;
+            }
+        }
+
+        return array_values($result);
+    }
+
+    public function getUserRolePropertySetIds(int $roleId): array {
+        if ($roleId <= 0 || !$this->ensureUserPropertyInfrastructure()) {
+            return [];
+        }
+
+        return array_values(array_unique(array_map(
+            'intval',
+            SafeMySQL::gi()->getCol(
+                'SELECT set_id FROM ?n WHERE role_id = ?i ORDER BY set_id ASC',
+                Constants::USER_ROLE_TO_PROPERTY_SET_TABLE,
+                $roleId
+            )
+        )));
+    }
+
+    public function getUserPropertySetIds(int $userId): array {
+        if ($userId <= 0) {
+            return [];
+        }
+
+        $roleId = (int) SafeMySQL::gi()->getOne(
+            'SELECT user_role FROM ?n WHERE user_id = ?i LIMIT 1',
+            Constants::USERS_TABLE,
+            $userId
+        );
+
+        return $this->getUserRolePropertySetIds($roleId);
+    }
+
+    public function updateUserRolePropertySets(int $roleId, mixed $setIds): OperationResult {
+        if ($roleId <= 0) {
+            return OperationResult::validation('Не указана роль пользователя', ['role_id' => $roleId]);
+        }
+        if (!$this->ensureUserPropertyInfrastructure()) {
+            return OperationResult::failure('Инфраструктура свойств пользователей не готова', 'user_property_infrastructure_unavailable', ['role_id' => $roleId]);
+        }
+
+        $setIds = $this->normalizeIntegerIds($setIds);
+        SafeMySQL::gi()->query('START TRANSACTION');
+        try {
+            SafeMySQL::gi()->query(
+                'DELETE FROM ?n WHERE role_id = ?i',
+                Constants::USER_ROLE_TO_PROPERTY_SET_TABLE,
+                $roleId
+            );
+            foreach ($setIds as $setId) {
+                $result = SafeMySQL::gi()->query(
+                    'INSERT INTO ?n SET ?u',
+                    Constants::USER_ROLE_TO_PROPERTY_SET_TABLE,
+                    [
+                        'role_id' => $roleId,
+                        'set_id' => $setId,
+                    ]
+                );
+                if (!$result) {
+                    SafeMySQL::gi()->query('ROLLBACK');
+                    return OperationResult::failure('Не удалось связать роль пользователя с набором свойств', 'user_role_property_set_insert_failed', [
+                        'role_id' => $roleId,
+                        'set_id' => $setId,
+                    ]);
+                }
+            }
+            SafeMySQL::gi()->query('COMMIT');
+        } catch (\Throwable $e) {
+            SafeMySQL::gi()->query('ROLLBACK');
+            Logger::error('user_properties', 'Ошибка сохранения наборов свойств роли пользователя', [
+                'role_id' => $roleId,
+                'set_ids' => $setIds,
+                'exception' => $e,
+            ], [
+                'initiator' => __FUNCTION__,
+                'include_trace' => true,
+            ]);
+            return OperationResult::failure('Ошибка сохранения наборов свойств роли пользователя', 'user_role_property_set_exception', [
+                'role_id' => $roleId,
+            ]);
+        }
+
+        return OperationResult::success([
+            'role_id' => $roleId,
+            'set_ids' => $setIds,
+        ], '', 'updated');
     }
 
     /**
@@ -192,6 +364,13 @@ class ModelUserEdit {
      * @return void
      */
     public function users_role_dell(int $role_id): OperationResult {
+        if ($this->ensureUserPropertyInfrastructure()) {
+            SafeMySQL::gi()->query(
+                'DELETE FROM ?n WHERE role_id = ?i',
+                Constants::USER_ROLE_TO_PROPERTY_SET_TABLE,
+                $role_id
+            );
+        }
         $sql_role = 'DELETE FROM ?n WHERE role_id = ?i';
         $result = SafeMySQL::gi()->query($sql_role, Constants::USERS_ROLES_TABLE, $role_id);
         return $result
@@ -255,6 +434,7 @@ class ModelUserEdit {
         }
 
         $userEmail = trim((string) ($userRow['email'] ?? ''));
+        $this->ensureUserPropertyInfrastructure();
 
         SafeMySQL::gi()->query('START TRANSACTION');
         try {
@@ -266,6 +446,14 @@ class ModelUserEdit {
             SafeMySQL::gi()->query('DELETE FROM ?n WHERE user_id = ?i', Constants::USERS_ACTIVATION_TABLE, $user_id);
             if ($userEmail !== '') {
                 SafeMySQL::gi()->query('DELETE FROM ?n WHERE email = ?s', Constants::USERS_ACTIVATION_TABLE, $userEmail);
+            }
+            if (self::$userPropertyInfrastructureReady) {
+                SafeMySQL::gi()->query(
+                    'DELETE FROM ?n WHERE entity_type = ?s AND entity_id = ?i',
+                    Constants::PROPERTY_VALUES_TABLE,
+                    'user',
+                    $user_id
+                );
             }
             SafeMySQL::gi()->query('UPDATE ?n SET user_id = 0 WHERE user_id = ?i', Constants::FILES_TABLE, $user_id);
             SafeMySQL::gi()->query('DELETE FROM ?n WHERE user_id = ?i', Constants::USERS_TABLE, $user_id);

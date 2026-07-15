@@ -55,9 +55,12 @@ $(document).ready(function () {
     }
 
     $("#edit_users").submit(function (event) {
+        if (event.isDefaultPrevented()) {
+            return;
+        }
         event.preventDefault();
         var form = $(this);
-        var data = form.serialize();
+        var data = new FormData(form[0]);
         var notify;
         var add = '';
         if (parseInt($("#id_user").data('id')) > 0) {
@@ -72,7 +75,6 @@ $(document).ready(function () {
             function (data) {
                 notify.close();
                 if (data.error !== 'no') {
-                    console.log('error', data);
                     actions.showNotification(data.error || 'ERROR', 'danger');
                 } else {
                     actions.showNotification(data.message || 'UPDATE SUCCESS', 'primary');

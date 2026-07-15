@@ -15,21 +15,23 @@ EE_FrameWork — это PHP-фреймворк с явным front controller, M
 
 1. [Быстрый старт](/docs/quick-start)
 2. [Установщик проекта](/docs/installer)
-3. [Архитектура](/docs/architecture)
-4. [Маршрутизация](/docs/routing)
-5. [Модели](/docs/models)
-6. [Контентная модель](/docs/content-model)
-7. [Views и Layouts](/docs/views)
-8. [Hooks и custom-слой](/docs/hooks)
-9. [Импорт структуры](/docs/imports)
-10. [Auth и доступ](/docs/auth)
-11. [Кэширование](/docs/cache)
-12. [Cron-агенты и scheduler](/docs/cron-agents)
-13. [Резервное копирование](/docs/backup)
-14. [Отладка](/docs/debug)
-15. [Security и production hardening](/docs/security)
-16. [API Reference](/docs/api-reference)
-17. [Content API v1](/docs/catalog-api)
+3. [Настройка веб-сервера](/docs/server-setup)
+4. [Архитектура](/docs/architecture)
+5. [Маршрутизация](/docs/routing)
+6. [Модели](/docs/models)
+7. [Контентная модель](/docs/content-model)
+8. [Views и Layouts](/docs/views)
+9. [Hooks и custom-слой](/docs/hooks)
+10. [ИИ-настройки](/docs/ai-settings)
+11. [Импорт структуры](/docs/imports)
+12. [Auth и доступ](/docs/auth)
+13. [Кэширование](/docs/cache)
+14. [Cron-агенты и scheduler](/docs/cron-agents)
+15. [Резервное копирование](/docs/backup)
+16. [Отладка](/docs/debug)
+17. [Security и production hardening](/docs/security)
+18. [API Reference](/docs/api-reference)
+19. [Content API v1](/docs/catalog-api)
 
 ## Что важно понять про EE_FrameWork сразу
 
@@ -43,6 +45,8 @@ EE_FrameWork — это PHP-фреймворк с явным front controller, M
 - `View` и layout-слой отвечают за вывод, а не за бизнес-логику.
 - проектный код расширения должен идти в `custom/`, а не в `inc/hooks.php` и не в `inc/startup.php`.
 - auth-routing и contour-policy должны настраиваться через hooks в `custom/hooks.php`, а не project-specific правками ядра.
+- свойства можно расширять для категорий, страниц и пользователей; пользовательские свойства назначаются через наборы свойств роли.
+- ИИ-профили хранятся в админском разделе “ИИ настройки” и не должны содержать секреты в документации, репозитории или публичных примерах.
 - ошибки маршрутизации и недоступные документы должны уходить в `error.php` в корне проекта.
 - `ENV_DEBUG=false`, закрытые внутренние директории и allowlist sanitization публичного rich text обязательны для production.
 

@@ -98,6 +98,23 @@ $menuItems = [
             ],
             $lang['sys.system'] => [
                 [
+                    'title' => $lang['sys.ai_settings_menu'] ?? 'ИИ настройки',
+                    'link' => '#',
+                    'icon' => 'fa-solid fa-robot',
+                    'subItems' => [
+                        [
+                            'title' => $lang['sys.ai_profiles'] ?? 'ИИ профили',
+                            'link' => '/admin/ai_profiles',
+                            'icon' => 'fa-solid fa-address-card',
+                        ],
+                        [
+                            'title' => $lang['sys.ai_statistics'] ?? 'ИИ статистика',
+                            'link' => '/admin/ai_statistics',
+                            'icon' => 'fa-solid fa-chart-line',
+                        ],
+                    ],
+                ],
+                [
                     'title' => $lang['sys.tools'],
                     'link' => '#',
                     'icon' => 'fa fa-wrench',

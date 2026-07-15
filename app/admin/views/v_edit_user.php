@@ -2,11 +2,16 @@
 <!-- Редактирование пользователя сайта -->
 <?php
 $isProtectedSystemUser = in_array((int) ($user_context['user_role'] ?? 0), [\classes\system\Constants::ADMIN, \classes\system\Constants::SYSTEM], true);
+$showUserPropertiesTab = empty($user_context['new_user']);
+$userPropertiesSetsData = is_array($user_properties_sets_data ?? null) ? $user_properties_sets_data : [];
+$userPropertiesLanguageCode = (string) ($user_properties_language_code ?? (function_exists('ee_get_default_content_lang_code') ? ee_get_default_content_lang_code() : ENV_DEF_LANG));
 ?>
 <main>
-    <form id="edit_users" data-action-url="<?= htmlspecialchars(\classes\system\CsrfService::appendToUrl('/admin/ajax_user_edit' . (!$user_context['new_user'] ? '/id/' . (int) $user_context['user_id'] : '')), ENT_QUOTES, 'UTF-8') ?>">
+    <form id="edit_users" method="post" enctype="multipart/form-data" data-action-url="<?= htmlspecialchars(\classes\system\CsrfService::appendToUrl('/admin/ajax_user_edit' . (!$user_context['new_user'] ? '/id/' . (int) $user_context['user_id'] : '')), ENT_QUOTES, 'UTF-8') ?>">
         <input type="hidden" name="fake" value="1" />
         <input type="hidden" name="new" value="<?= $user_context['new_user'] ? 1 : 0 ?>" />
+        <input type="hidden" name="property_data_changed" value="0" />
+        <input type="hidden" name="property_language_code" value="<?= htmlspecialchars($userPropertiesLanguageCode, ENT_QUOTES, 'UTF-8') ?>" />
         <div class="container-fluid px-4">
             <h1 class="mt-4"><?= $user_context['new_user'] ? $lang['sys.add'] : $lang['sys.edit'] ?></h1>
             <ol class="breadcrumb mb-4">
@@ -26,6 +31,11 @@ $isProtectedSystemUser = in_array((int) ($user_context['user_role'] ?? 0), [\cla
                         <li class="nav-item" role="presentation">
                             <button class="nav-link" id="comment-tab" data-bs-toggle="tab" data-bs-target="#comment-tab-pane" type="button" role="tab" aria-controls="comment-tab-pane" aria-selected="false"><?= $lang['sys.comment'] ?></button>
                         </li>
+                        <?php if ($showUserPropertiesTab) { ?>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="properties-tab" data-bs-toggle="tab" data-bs-target="#properties-tab-pane" type="button" role="tab" aria-controls="properties-tab-pane" aria-selected="false"><?= $lang['sys.properties'] ?></button>
+                            </li>
+                        <?php } ?>
                     </ul>
                     <div class="tab-content" id="myTabContent">
                         <!-- Основное содержимое -->
@@ -274,6 +284,19 @@ $isProtectedSystemUser = in_array((int) ($user_context['user_role'] ?? 0), [\cla
                             <label><?= $lang['sys.comment'] ?>:</label>
                             <textarea class="form-control" name="comment" id="user_comment" placeholder="Оставьте ваш комментарий..."><?= $user_context['comment'] ?></textarea>
                         </div>
+                        <?php if ($showUserPropertiesTab) { ?>
+                            <div class="tab-pane fade mt-3" id="properties-tab-pane" role="tabpanel" aria-labelledby="properties-tab">
+                                <?php if (!empty($userPropertiesSetsData)) { ?>
+                                    <div id="renderPropertiesSetsAccordion">
+                                        <?= \classes\system\Plugins::renderPropertiesSetsTabs($userPropertiesSetsData, (int) $user_context['user_id'], 'user') ?>
+                                    </div>
+                                <?php } else { ?>
+                                    <div class="alert alert-info">
+                                        <?= htmlspecialchars((string) ($lang['sys.user_properties_no_sets'] ?? 'Для роли пользователя не назначены наборы свойств. Назначьте их в карточке роли пользователя.')) ?>
+                                    </div>
+                                <?php } ?>
+                            </div>
+                        <?php } ?>
                     </div>
                 </div>
             </div>

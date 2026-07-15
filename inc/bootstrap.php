@@ -806,11 +806,23 @@ if (!function_exists('ee_get_lang_html_attr')) {
     }
 }
 
+if (!function_exists('ee_get_lang_bundle_path')) {
+    function ee_get_lang_bundle_path(?string $langCode = null): string {
+        $langCode = ee_get_current_lang_code($langCode);
+        $sitePath = defined('ENV_SITE_PATH') ? rtrim((string) ENV_SITE_PATH, '/\\') : '';
+        if ($sitePath !== '') {
+            return $sitePath . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'runtime' . DIRECTORY_SEPARATOR . 'lang' . DIRECTORY_SEPARATOR . $langCode . '.js';
+        }
+
+        return (defined('ENV_TMP_PATH') ? rtrim((string) ENV_TMP_PATH, '/\\') : sys_get_temp_dir()) . DIRECTORY_SEPARATOR . $langCode . '.js';
+    }
+}
+
 if (!function_exists('ee_get_lang_bundle_url')) {
     function ee_get_lang_bundle_url(?string $langCode = null): string {
         $langCode = ee_get_current_lang_code($langCode);
-        $localPath = (defined('ENV_TMP_PATH') ? rtrim((string) ENV_TMP_PATH, DIRECTORY_SEPARATOR) : '') . DIRECTORY_SEPARATOR . $langCode . '.js';
-        $url = rtrim((string) ENV_URL_SITE, '/') . '/uploads/tmp/' . rawurlencode($langCode) . '.js';
+        $localPath = ee_get_lang_bundle_path($langCode);
+        $url = rtrim((string) ENV_URL_SITE, '/') . '/uploads/runtime/lang/' . rawurlencode($langCode) . '.js';
 
         if ($localPath !== DIRECTORY_SEPARATOR && is_file($localPath)) {
             $fileMtime = (int) @filemtime($localPath);

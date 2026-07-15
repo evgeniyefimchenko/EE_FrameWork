@@ -163,6 +163,27 @@
 
 Сохраняет пользовательские options.
 
+## ModelUserEdit
+
+### `getUserRolePropertySetIds(int $roleId): array`
+
+Возвращает ID наборов свойств, назначенных роли пользователя.
+
+### `getUserPropertySetIds(int $userId): array`
+
+Возвращает ID наборов свойств, которые должны быть доступны пользователю через его роль.
+
+### `updateUserRolePropertySets(int $roleId, mixed $setIds): OperationResult`
+
+Перезаписывает привязки роли пользователя к наборам свойств в `ee_user_role_to_property_set`.
+
+### `ensureUserPropertyInfrastructure(): bool`
+
+Проверяет и при необходимости подготавливает инфраструктуру пользовательских свойств:
+
+- `entity_type=user` в таблицах свойств;
+- таблицу связи ролей и наборов свойств.
+
 ## AuthService
 
 Класс отвечает за единый auth-hub:
@@ -377,6 +398,10 @@ Redirect и штатный error flow.
 
 Создание нужных директорий перед записью файла.
 
+### `SysClass::installAiProfilesSchema(): void`
+
+Создаёт или обновляет таблицу `ee_ai_profiles` для ИИ-профилей.
+
 ## LegalConsentService
 
 ### `LegalConsentService::ensureInfrastructure(...)`
@@ -419,6 +444,48 @@ Redirect и штатный error flow.
 ### `ApiKeyService::extractRequestApiKey(): string`
 
 Читает ключ из `Authorization: Bearer ...`, `Authorization: ApiKey ...` или `X-API-Key`.
+
+## ModelAiSettings
+
+### `ensureInfrastructure(): void`
+
+Гарантирует наличие таблицы `ee_ai_profiles`.
+
+### `getProviderOptions(): array`
+
+Возвращает список поддерживаемых провайдеров для select box.
+
+### `getProfiles(): array`
+
+Возвращает компактный список профилей для `/admin/ai_profiles`.
+
+### `getProfileById(int $profileId): ?array`
+
+Возвращает профиль для карточки редактирования без раскрытия полного API-ключа.
+
+### `getDefaultProfile(): array`
+
+Возвращает структуру нового профиля по умолчанию.
+
+### `getProviderSettingsContext(string $provider, array $profile = []): array`
+
+Готовит provider-specific данные для AJAX-панели настроек.
+
+### `saveProfile(array $input, int $profileId = 0): int`
+
+Создаёт или обновляет профиль, валидирует `profile_code`, `api_base_url`, `provider_settings` и шифрует новый API-ключ.
+
+### `searchProviderModels(string $provider, int $profileId = 0, string $query = '', int $limit = 50): array`
+
+Возвращает нормализованный список моделей для поля поиска. Использует каталог провайдера, кеш `cache/ai/` и fallback-списки.
+
+### `testConnection(int $profileId): array`
+
+Проверяет сохранённый профиль через models endpoint провайдера и сохраняет `last_test_*` поля.
+
+### `getProfileStats(): array`
+
+Возвращает базовую статистику для `/admin/ai_statistics`: всего профилей, включённые, выключенные и с сохранённым ключом.
 
 ## ContentApiService
 
@@ -507,6 +574,7 @@ Security-ожидания для `/api/v1`:
 - `ENV_LEGAL_PRIVACY_POLICY_VERSION`
 - `ENV_LEGAL_PERSONAL_DATA_CONSENT_VERSION`
 - `ENV_LEGAL_PERSONAL_DATA_DISTRIBUTION_CONSENT_VERSION`
+- `ENV_SECRET_KEY`
 
 `ENV_ROUTING_CACHE` считается legacy-алиасом. Для новых проектов используйте только `ENV_ROUTING_CACHE_ENABLED`.
 
